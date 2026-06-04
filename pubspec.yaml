@@ -1,0 +1,130 @@
+name: azaman
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.10.7 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management — Riverpod is the canonical state-management layer.
+  # The legacy `provider` package was removed in Phase 0b (Root Strip).
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+
+  # Real-time Communication (Binance-style updates)
+  socket_io_client: ^3.1.2
+  
+  # API Requests & Success Animations
+  http: ^1.6.0
+  lottie: ^3.3.2
+
+  # Secure storage for JWT
+  flutter_secure_storage: ^10.0.0
+
+  # Local storage for Theme Engine & Preferences
+  shared_preferences: ^2.2.2
+
+  # For proof of payment uploads
+  image_picker: ^1.2.1
+
+  # --- SURGICALLY ADDED FOR TRADE EFFICIENCY ---
+  # Fixes canLaunchUrl & LaunchMode errors
+  url_launcher: ^6.3.0  
+  # Fixes Undefined name 'Share' error
+  share_plus: ^10.1.0    
+  # For Binance-style haptic feedback (vibration)
+  vibration: ^2.0.1      
+  # ----------------------------------------------
+
+  # --- PUSH NOTIFICATION ENGINE ---
+  # Using the specific stable versions to fix "version solving failed"
+  firebase_core: ^3.10.1
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^18.0.1
+  # ----------------------------------------------
+
+  # Audio recording for account deletion feedback
+
+  # Essential for handling file system paths
+  path: ^1.9.1
+  path_provider: ^2.1.5
+
+  cupertino_icons: ^1.0.8
+
+  # War Room charts
+  fl_chart: ^0.70.2
+
+  # QR code generation for deposit addresses
+  qr_flutter: ^4.1.0
+
+  # QR code scanning for friend-add via camera
+  # Pinned to 7.x (not the original ^5.1.1 from the QR-scanner Pre-Ship phase)
+  # because mobile_scanner 5.x relies on GoogleMLKit on iOS, and Google does
+  # not ship arm64 simulator slices for those frameworks. That makes the app
+  # un-runnable on Apple Silicon iOS 26+ simulators. mobile_scanner 7.x
+  # switched to Apple's native Vision framework on iOS — no MLKit, no
+  # simulator arch block. Public Dart API used by qr_scanner_screen.dart
+  # (`MobileScannerController`, `MobileScanner`, `BarcodeCapture`,
+  # `DetectionSpeed`, `CameraFacing`, `toggleTorch()`) is unchanged.
+  mobile_scanner: ^7.2.0
+
+  # Biometric authentication for crypto transfers
+  local_auth: ^2.1.0
+  record: ^6.2.0
+
+  # --- PHASE Q11: Receipt download + open ---
+  open_filex: ^4.5.0
+
+  # --- PHASE Q15: Version gate (force-update) ---
+  package_info_plus: ^8.0.0
+
+  # --- PHASE POLISH: Custom typography (Inter) ---
+  google_fonts: ^6.2.1
+
+  # --- MASTER SPRINT v2 (2026-05-27): Custom iconography ---
+  # Phosphor Icons gives us a curated, design-coherent icon family that
+  # immediately reads as not-stock-Material. Used for primary CTAs and
+  # any icon that ships outside a stock Flutter widget so the platform
+  # has a recognisable identity.
+  phosphor_flutter: ^2.1.0
+
+  # --- PHASE UI-3: Chat media (audio recording is via `record`, image picking
+  # via `image_picker`, document picking via `file_picker`). ---
+  file_picker: ^8.1.4
+
+  # --- PHASE UI-POLISH: In-bubble audio playback with scrubber.
+  # `record` (already in) handles capture; `audioplayers` handles playback.
+  audioplayers: ^6.1.0
+
+  # --- PHASE H4: Network awareness ---
+  # Surfaces an "Offline" banner the moment the device loses network so users
+  # don't sit in front of a spinning fetch with no signal. Watches radio
+  # state changes (wifi / mobile / ethernet / none).
+  connectivity_plus: ^6.1.0
+
+  # --- PHASE UI-OVERHAUL: Premium micro-interactions (gskinner) ---
+  # `flutter_animate` is the canonical micro-interaction layer for the
+  # Azaman UI. Every fade / slide / shimmer / blur on widget mount goes
+  # through its extension methods. Manual AnimationController
+  # boilerplate is forbidden for simple effects — only complex
+  # multi-controller geometry (e.g. the credit-card titanium sweep,
+  # the in-place flip overlay) is allowed to keep its own controller.
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Binance-style assets
+  assets:
+    - assets/images/
+    - assets/animations/

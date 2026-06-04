@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../azaman-backend-main"
+		},
+		{
+			"path": "../azaman-website"
+		},
+		{
+			"path": "../admin_web_portal"
+		}
+	],
+	"settings": {
+	}
+}
