@@ -11,6 +11,7 @@ import 'package:azaman/main.dart';
 import 'package:azaman/providers/auth_provider.dart'; 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
+import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/config.dart';
 
@@ -124,6 +125,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               // Sync theme + settings from backend (cross-device persistence)
               ref.read(themeProvider).loadFromBackend();
               ref.read(settingsProvider).loadFromBackend();
+              // Phase ADMIN-CONTROL-2-FE: Fetch live fee rates from backend.
+              // Non-fatal — if it fails, PlatformConfig.defaults are used and
+              // the app works normally. Runs once per app start.
+              await ref.read(platformConfigProvider.notifier).refresh();
               // Check if onboarding is completed
               final needsOnboarding = await _checkOnboardingStatus();
               if (!mounted) return;

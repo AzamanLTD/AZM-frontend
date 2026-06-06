@@ -30,6 +30,7 @@ import 'package:azaman/providers/fiat_pool_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/azm_spend_provider.dart';
+import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
@@ -1302,6 +1303,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // ── Fee preview cards ───────────────────────────────────────────────────
 
   Widget _buildFeePreview(AzamanColors colors) {
+    final config = ref.watch(platformConfigProvider);
     final network = _selectedWallet?['network']?.toString() ?? '';
     final bool isBinance = network == 'BINANCE_ID';
     final bool isFiat = network == 'FIAT_ACCOUNT';
@@ -1316,9 +1318,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       title = 'Local Transfer';
       subtitle = 'Funds settle to your saved MoMo / bank account in minutes.';
     } else {
-      title = 'Split 50/50';
-      subtitle = 'Admin will cover 50% of the blockchain gas fee.';
+      title = 'Split 50/50 + Platform Fee';
+      subtitle = 'Admin covers 50% of blockchain gas. Platform fee also applies.';
     }
+
+    final amount = double.tryParse(_amountController.text) ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1328,34 +1332,86 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         border: Border.all(color: previewColor.withOpacity(0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Network Fee:',
-                  style: TextStyle(color: colors.textSecondary)),
+              Text('Network Fee:', style: TextStyle(color: colors.textSecondary)),
               Text(title,
-                  style: TextStyle(
-                      color: previewColor, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: previewColor, fontWeight: FontWeight.bold)),
             ],
           ),
+          // Phase ADMIN-CONTROL-2-FE: live crypto fee breakdown for
+          // non-Binance, non-fiat crypto withdrawals
+          if (!isBinance && !isFiat && amount > 0) ...[
+            const SizedBox(height: 8),
+            _buildCryptoFeeRow(
+              colors: colors,
+              label: 'Gas fee (${(config.cryptoWithdrawalFeePct * 100).toStringAsFixed(2)}%):',
+              value: '${(amount * config.cryptoWithdrawalFeePct).toStringAsFixed(4)} USDC',
+            ),
+            const SizedBox(height: 4),
+            _buildCryptoFeeRow(
+              colors: colors,
+              label: 'Platform fee (${(config.cryptoPlatformFeePct * 100).toStringAsFixed(2)}%):',
+              value: '${(amount * config.cryptoPlatformFeePct).toStringAsFixed(4)} USDC',
+            ),
+            const SizedBox(height: 4),
+            _buildCryptoFeeRow(
+              colors: colors,
+              label: 'Total fee (${((config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct) * 100).toStringAsFixed(2)}%):',
+              value: '${(amount * (config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct)).toStringAsFixed(4)} USDC',
+              isBold: true,
+              valueColor: previewColor,
+            ),
+          ],
           const SizedBox(height: 8),
-          Text(subtitle,
-              style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+          Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
         ],
       ),
     );
   }
 
-  /// Phase B exit-fee preview (2 % off the entered amount).
+  /// Single fee row used inside the crypto withdrawal fee breakdown.
+  Widget _buildCryptoFeeRow({
+    required AzamanColors colors,
+    required String label,
+    required String value,
+    bool isBold = false,
+    Color? valueColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor ?? colors.textSecondary,
+            fontSize: 11,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Phase B exit-fee preview — Phase ADMIN-CONTROL-2-FE: fee rate now sourced
+  /// from live PlatformConfig instead of hardcoded 0.02.
   /// Phase E2: updated to reflect AZM fee discount when selected.
   Widget _buildKotaniFeePreview(AzamanColors colors) {
+    final config = ref.watch(platformConfigProvider);
     final amount = double.tryParse(_amountController.text) ?? 0;
     final discountMultiplier = _selectedFeeDiscount?.discount ?? 0.0;
-    final effectiveFeeRate = 0.02 * (1.0 - discountMultiplier);
+    // Live fee rate from backend — was hardcoded 0.02
+    final effectiveFeeRate = config.fiatWithdrawalFeePct * (1.0 - discountMultiplier);
     final exitFee = amount * effectiveFeeRate;
     final double net = (amount - exitFee) > 0 ? (amount - exitFee) : 0.0;
     final bool hasDiscount = _selectedFeeDiscount != null;
+    final feeLabel = hasDiscount
+        ? 'Exit Fee (${(effectiveFeeRate * 100).toStringAsFixed(1)}%):'
+        : 'Exit Fee (${(config.fiatWithdrawalFeePct * 100).toStringAsFixed(1)}%):';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1370,17 +1426,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                hasDiscount
-                    ? 'Exit Fee (${(effectiveFeeRate * 100).toStringAsFixed(1)}%):'
-                    : 'Exit Fee (2 %):',
-                style: TextStyle(color: colors.textSecondary),
-              ),
+              Text(feeLabel, style: TextStyle(color: colors.textSecondary)),
               Row(
                 children: [
                   if (hasDiscount) ...[
                     Text(
-                      '${(amount * 0.02).toStringAsFixed(2)}',
+                      // Strikethrough: undiscounted fee
+                      '${(amount * config.fiatWithdrawalFeePct).toStringAsFixed(2)}',
                       style: TextStyle(
                         color: colors.textTertiary,
                         fontWeight: FontWeight.w400,
@@ -1405,11 +1457,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('You will receive (USDC equiv.):',
-                  style: TextStyle(color: colors.textSecondary)),
+              Text('You will receive (USDC equiv.):', style: TextStyle(color: colors.textSecondary)),
               Text(net.toStringAsFixed(2),
-                  style: TextStyle(
-                      color: colors.textPrimary, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
             ],
           ),
           if (hasDiscount) ...[
@@ -1423,8 +1473,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.diamond_outlined,
-                      size: 14, color: colors.success),
+                  Icon(Icons.diamond_outlined, size: 14, color: colors.success),
                   const SizedBox(width: 6),
                   Text(
                     '${_selectedFeeDiscount!.label} AZM discount applied',
@@ -1440,8 +1489,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           ],
           const SizedBox(height: 8),
           Text(
-            'Funds settle via Kotani Pay to your mobile-money number, '
-            'usually within minutes.',
+            'Funds settle via Kotani Pay to your mobile-money number, usually within minutes.',
             style: TextStyle(color: colors.textTertiary, fontSize: 11),
           ),
         ],

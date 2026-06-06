@@ -6,6 +6,8 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/platform_config_provider.dart';
+import 'package:azaman/services/platform_config_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:async';
@@ -1267,16 +1269,75 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     );
   }
 
+  // ── Phase ADMIN-CONTROL-2-FE: Vendor earnings preview ────────────────────
+  double _calcVendorEarnings(double tradeAmountUsdc, PlatformConfig config) {
+    final platformFee = tradeAmountUsdc * config.p2pFeePct;
+    final vendorSplit = tradeAmountUsdc >= config.tierThreshold
+        ? config.vendorShareOver1k
+        : config.vendorShareUnder1k;
+    return platformFee * vendorSplit;
+  }
+
   Widget _buildTradeDetails(AzamanColors colors) {
+    final config = ref.watch(platformConfigProvider);
+    final tradeAmountUsdc =
+        (widget.tradeData['amountCrypto'] as num?)?.toDouble() ?? 0.0;
+    final expectedEarnings = _calcVendorEarnings(tradeAmountUsdc, config);
+    final vendorSplitPct = tradeAmountUsdc >= config.tierThreshold
+        ? config.vendorShareOver1k
+        : config.vendorShareUnder1k;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: colors.card, borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          _rowDetail("Amount to Receive", "\$${widget.tradeData['amount']}", colors, isBold: true),
+          _rowDetail(
+            'Amount to Receive',
+            '\$${widget.tradeData['amount']}',
+            colors,
+            isBold: true,
+          ),
+          // Phase ADMIN-CONTROL-2-FE: earnings preview row
+          if (tradeAmountUsdc > 0) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Your earnings',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '+${expectedEarnings.toStringAsFixed(4)} USDC',
+                        style: TextStyle(
+                          color: colors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '(${(vendorSplitPct * 100).toStringAsFixed(0)}% of platform fee)',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           Divider(color: colors.divider, height: 30),
-          _rowDetail("Buyer", widget.tradeData['userName'] ?? "Buyer", colors),
-          _rowDetail("Order ID", _cleanTradeId, colors),
+          _rowDetail('Buyer', widget.tradeData['userName'] ?? 'Buyer', colors),
+          _rowDetail('Order ID', _cleanTradeId, colors),
         ],
       ),
     );
