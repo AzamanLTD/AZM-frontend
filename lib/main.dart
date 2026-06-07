@@ -22,6 +22,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
 
@@ -134,6 +135,31 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
+  // F-05: when a SENTRY_DSN is provided at build time, initialise Sentry and
+  // run the app inside its zone so uncaught errors are captured. When it's
+  // empty (dev/CI/default), skip Sentry entirely and boot exactly as before —
+  // no behavioural change, no network calls.
+  if (AppConfig.sentryEnabled) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = AppConfig.sentryDsn;
+        options.release = AppConfig.appVersion;
+        options.environment = AppConfig.environment;
+        // 20% transaction sampling in prod; full sampling elsewhere.
+        options.tracesSampleRate = AppConfig.isProduction ? 0.2 : 1.0;
+        // Don't ship PII (tokens, balances) to Sentry by default.
+        options.sendDefaultPii = false;
+      },
+      appRunner: _bootstrap,
+    );
+  } else {
+    await _bootstrap();
+  }
+}
+
+/// All app initialisation, factored out so it can run with or without the
+/// Sentry zone wrapper above.
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase before anything else

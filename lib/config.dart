@@ -93,4 +93,17 @@ class AppConfig {
     'APP_VERSION',
     defaultValue: '4.0.0',
   );
+
+  /// Sentry DSN for crash/error reporting (F-05). Empty by default, which
+  /// disables Sentry entirely — pass it at build time to enable:
+  ///   flutter run --dart-define=SENTRY_DSN=https://xxxx@oyyy.ingest.sentry.io/zzz
+  /// Keeping it as a dart-define (not hardcoded) means dev/CI builds report
+  /// nothing unless explicitly opted in.
+  static const String sentryDsn = String.fromEnvironment(
+    'SENTRY_DSN',
+    defaultValue: '',
+  );
+
+  /// Whether Sentry should be active this run.
+  static bool get sentryEnabled => sentryDsn.isNotEmpty;
 }

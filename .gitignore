@@ -70,3 +70,10 @@ semantic-review/
 
 # Local commit-message scratch file used by the agent's commit pipeline.
 .git_commit_msg
+.commit_msg
+
+# AI agent / IDE assistant config and session files (internal tooling, not source)
+.cursorrules
+AZAMAN_MASTER_SOUL.md
+FRONTEND_AUDIT.md
+API_INTEGRATION_SUMMARY.md
