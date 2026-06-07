@@ -163,13 +163,13 @@ Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase before anything else
-  await Firebase.initializeApp();
+  // await Firebase.initializeApp();
 
   // Register background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Initialize push notification service (permissions, foreground handling)
-  await PushNotificationService.instance.init();
+  // await PushNotificationService.instance.init();
 
   // Phase Q22 (2026-05-31): wire the FCM notification-tap callback so
   // cold-start (`getInitialMessage`) and warm-from-bg (`onMessageOpenedApp`)
@@ -178,6 +178,7 @@ Future<void> _bootstrap() async {
   // to settle MainWrapper underneath the deep-link target — otherwise
   // the destination ends up on top of an unsettled navigator and back
   // pops to a blank screen.
+  /*
   PushNotificationService.instance.onNotificationTap = (data) {
     final action = data['action']?.toString() ?? '';
     if (action.isEmpty) return;
@@ -194,6 +195,7 @@ Future<void> _bootstrap() async {
       handleNotificationTap(action: action, actionPayload: actionPayload);
     });
   };
+  */
 
   runApp(
     const ProviderScope(

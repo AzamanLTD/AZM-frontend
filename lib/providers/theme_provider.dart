@@ -36,7 +36,7 @@ enum AzamanTheme {
 }
 
 class ThemeProvider with ChangeNotifier {
-  AzamanTheme _currentTheme = AzamanTheme.dark;
+  AzamanTheme _currentTheme = AzamanTheme.light;
   bool _isLoaded = false;
 
   AzamanTheme get currentTheme => _currentTheme;
@@ -53,7 +53,7 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> _loadSavedTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedIndex = prefs.getInt('azaman_theme') ?? 1; // Default: dark
+    final savedIndex = prefs.getInt('azaman_theme') ?? 0; // Default
 
     // Migrate old indices. The previous catalogue had 12 themes; we now
     // have 3 (light=0, dark=1, midnight=2). Anything outside that range
