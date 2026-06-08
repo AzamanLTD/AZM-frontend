@@ -234,6 +234,30 @@ Max-width 1200px centered, with the navigation rendered as a floating pill (not 
 4. **Sage Lime Pill Action**: #b7c29d background, 1px #000000 border, 16px radius, Inter 14/700 #000000, padding 5px/10px, sits inside any card or panel as a list-level action.
 5. **Dark Bank-Listing Panel**: #3a3a3a fill, 1px #000000 border, 46px radius, 24px padding, containing white (#ffffff) interior rows with 16px radius, flag icon left, Inter 18/700 country name, Inter 14/400 #6e6e6e helper text, and a white-fill outlined 'Open' button right.
 
+## Visual Reference Gallery
+
+The `@ref/` folder contains visual references that illustrate the clean, trust-native, and sticker-bombed aesthetic we want to achieve. When designing or implementing screens, refer to these images for layout, spacing, and structural inspiration:
+
+### 1. Multi-Currency & Balances (Wise Inspiration)
+- **Reference Files:** `ref/Wise iOS 42.png` and `ref/Wise iOS 180.png`
+- **Design Intent:** Use these for the home dashboard, multi-currency account lists, and transaction histories. Notice the clean, light gray backgrounds, rounded cards, large readable balances, and clear row layouts with flag icons.
+- **Application in Azaman:** Map these clean layouts to our sticker aesthetic by adding 1px black outlines (`--color-static-black`) and using our muted brand colors (e.g., `#e7e3bf` for cards, `#b7c29d` for primary actions).
+
+### 2. Crypto Buying & Asset Lists (Coinbase Inspiration)
+- **Reference File:** `ref/Coinbase iOS 34.png`
+- **Design Intent:** Use this as a reference for crypto asset lists, simple buy/sell flows, and portfolio value displays. It demonstrates clean typography hierarchy, simple line charts, and intuitive action buttons.
+- **Application in Azaman:** Adapt Coinbase's clean asset rows and typography to our condensed display headlines and 1px black bordered cards.
+
+### 3. Payment Flows & Card Inputs (MoonPay Inspiration)
+- **Reference Files:** `ref/MoonPay iOS 28.png` and `ref/MoonPay iOS 81.png`
+- **Design Intent:** Use these for high-trust payment flows, credit/debit card inputs, and transaction status timelines. They show how to present fees, exchange rates, and delivery times clearly before final confirmation.
+- **Application in Azaman:** Apply our sticker-like visual metaphor (e.g., tilted badge stickers, 12px rounded buttons with 1px black borders) to MoonPay's highly structured, step-by-step forms.
+
+### 4. Sticker & Brutalist Aesthetic (Cosmos & Sticker Inspiration)
+- **Reference Files:** `ref/cosmos_1250180992.jpeg`, `ref/ -5.jpg`, and `ref/original_f70a829c65b230504b2f371e60619610_gif (1080×1082).gif`
+- **Design Intent:** These represent the raw, sticker-bombed, and slightly unpolished Gen-Z feel. They showcase how tilted shapes, heavy outlines, and retro paper textures can create a highly engaging, tactile interface.
+- **Application in Azaman:** Use these to guide the rotation angles (-8° to +12°) of our tilted sticker illustrations, the use of offset duplicate frames for depth, and the overall "sticker-covered notebook" vibe.
+
 ## Similar Brands
 
 - **Cash App** — Same bright-against-neutral sticker aesthetic with single-vivid accent panels and oversized bold type, but UGLYCASH pushes the outlined-sticker border treatment harder

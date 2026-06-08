@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 
@@ -34,27 +35,25 @@ class _NavItem {
 
 const _kNavItems = [
   _NavItem(
-    icon: Icons.home_outlined,
-    activeIcon: Icons.home_rounded,
+    icon: HugeIconsStroke.home01,
+    activeIcon: HugeIconsSolid.home01,
     label: 'Home',
   ),
   _NavItem(
-    icon: Icons.chat_bubble_outline_rounded,
-    activeIcon: Icons.chat_bubble_rounded,
+    icon: HugeIconsStroke.message01,
+    activeIcon: HugeIconsSolid.message01,
     label: 'Chat',
   ),
   _NavItem(
-    icon: Icons.swap_horiz_rounded,
-    activeIcon: Icons.swap_horizontal_circle_rounded,
+    icon: HugeIconsStroke.exchange01,
+    activeIcon: HugeIconsSolid.exchange01,
     label: 'P2P',
   ),
   _NavItem(
-    icon: Icons.savings_outlined,
-    activeIcon: Icons.savings_rounded,
+    icon: HugeIconsStroke.savings,
+    activeIcon: HugeIconsSolid.savings,
     label: 'Savings',
   ),
-  // Profile tab removed — the user's profile is reachable via the settings
-  // drawer (top-right MENU/HQ/PRO pill → drawer header card).
 ];
 
 // ---------------------------------------------------------------------------

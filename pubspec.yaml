@@ -92,11 +92,11 @@ dependencies:
   google_fonts: ^6.2.1
 
   # --- MASTER SPRINT v2 (2026-05-27): Custom iconography ---
-  # Phosphor Icons gives us a curated, design-coherent icon family that
+  # Hugeicons Pro gives us a curated, design-coherent icon family that
   # immediately reads as not-stock-Material. Used for primary CTAs and
   # any icon that ships outside a stock Flutter widget so the platform
   # has a recognisable identity.
-  phosphor_flutter: ^2.1.0
+  hugeicons_pro: ^0.0.3
 
   # --- PHASE UI-3: Chat media (audio recording is via `record`, image picking
   # via `image_picker`, document picking via `file_picker`). ---

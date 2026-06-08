@@ -26,6 +26,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -206,7 +207,7 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.touch_app_rounded,
+                          HugeIconsSolid.touch01,
                           size: 10,
                           color: Colors.white.withOpacity(0.85),
                         ),
@@ -259,14 +260,14 @@ class _BackFace extends ConsumerWidget {
         value: balance.availableBalance,
         suffix: 'USDC',
         color: colors.success,
-        icon: Icons.account_balance_wallet_rounded,
+        icon: HugeIconsSolid.wallet01,
       ),
       _BalanceRow(
         label: 'Escrow',
         value: balance.escrowLockedBalance,
         suffix: 'USDC',
         color: colors.warning,
-        icon: Icons.lock_outline_rounded,
+        icon: HugeIconsSolid.lock,
       ),
       if (isVendor)
         _BalanceRow(
@@ -274,7 +275,7 @@ class _BackFace extends ConsumerWidget {
           value: balance.vendorUnallocatedBalance,
           suffix: 'USDC',
           color: colors.accent,
-          icon: Icons.storefront_rounded,
+          icon: HugeIconsSolid.store01,
         ),
       if (balance.disputeEscrowBalance > 0)
         _BalanceRow(
@@ -282,21 +283,21 @@ class _BackFace extends ConsumerWidget {
           value: balance.disputeEscrowBalance,
           suffix: 'USDC',
           color: colors.danger,
-          icon: Icons.gavel_rounded,
+          icon: HugeIconsSolid.judge,
         ),
       _BalanceRow(
         label: 'Vaults',
         value: vaultLocked,
         suffix: 'USDC',
         color: colors.accentSecondary,
-        icon: Icons.shield_outlined,
+        icon: HugeIconsSolid.shield01,
       ),
       _BalanceRow(
         label: 'Savings',
         value: savingsLocked,
         suffix: 'USDC',
         color: colors.success,
-        icon: Icons.savings_rounded,
+        icon: HugeIconsSolid.savings,
       ),
       if (susuLocked > 0)
         _BalanceRow(
@@ -304,14 +305,14 @@ class _BackFace extends ConsumerWidget {
           value: susuLocked,
           suffix: 'USDC',
           color: colors.warning,
-          icon: Icons.account_balance_rounded,
+          icon: HugeIconsSolid.bank,
         ),
       _BalanceRow(
         label: 'AZM',
         value: balance.azmBalance,
         suffix: 'AZM',
         color: colors.accentSecondary,
-        icon: Icons.bolt_rounded,
+        icon: HugeIconsSolid.flash,
       ),
     ];
 
@@ -364,7 +365,7 @@ class _BackFace extends ConsumerWidget {
                       ),
                       const Spacer(),
                       Icon(
-                        Icons.flip_to_front_rounded,
+                        HugeIconsSolid.exchange01,
                         color: colors.textTertiary,
                         size: 13,
                       ),

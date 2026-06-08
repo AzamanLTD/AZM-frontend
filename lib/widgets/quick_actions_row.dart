@@ -14,6 +14,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
@@ -48,19 +49,19 @@ class QuickActionsRow extends ConsumerWidget {
         children: [
           _GlassActionButton(
             colors: colors,
-            icon: Icons.south_rounded,
+            icon: HugeIconsSolid.moneyReceive01,
             label: 'Deposit',
             onTap: onDeposit ?? () => _defaultDeposit(context),
           ),
           _GlassActionButton(
             colors: colors,
-            icon: Icons.north_rounded,
+            icon: HugeIconsSolid.moneySend01,
             label: 'Withdraw',
             onTap: onWithdraw ?? () => _defaultWithdraw(context),
           ),
           _GlassActionButton(
             colors: colors,
-            icon: Icons.sync_alt_rounded,
+            icon: HugeIconsSolid.arrowDataTransferHorizontal,
             label: 'Transfer',
             onTap: onTransfer ?? () => _defaultTransfer(context, ref),
           ),

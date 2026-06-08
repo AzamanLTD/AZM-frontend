@@ -1,0 +1,140 @@
+---
+description: Comprehensive visual style, token, component, color, and typography reference for Azaman
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Azaman — Visual Style & Design Tokens
+
+Azaman uses an irreverent, minimalist UI vibe resembling a sticker-covered notebook on warm cream paper. It wears its young, orderly aesthetic proudly.
+
+## Visual Metaphor
+- **Page Canvas:** Warm light canvas background (`#f2f2f2`).
+- **Heavy Outlines:** A heavy black hairline (`1px`) traces *every* surface—cards, phone frames, buttons, illustration stickers—giving the impression of printed stickers peeled onto a page.
+- **Fills over Accents:** Muted brand colors are used as full-bleed card fills rather than thin accents.
+- **No Drop Shadows:** Elevation is achieved through solid black borders and optional offset duplicate frames rather than soft gradients.
+
+---
+
+## Design References & Visual Gallery
+Always refer to the reference images in the `@ref/` folder for visual guidance on layout, spacing, and structural design:
+- **Wise References (`ref/Wise iOS 42.png`, `ref/Wise iOS 180.png`):** Use for multi-currency dashboards, account lists, and transaction histories.
+- **Coinbase Reference (`ref/Coinbase iOS 34.png`):** Use for crypto lists, buy/sell screens, and portfolio views.
+- **MoonPay References (`ref/MoonPay iOS 28.png`, `ref/MoonPay iOS 81.png`):** Use for step-by-step payment forms, card inputs, and status timelines.
+- **Sticker/Brutalist References (`ref/cosmos_1250180992.jpeg`, `ref/ -5.jpg`, `ref/original_f70a829c65b230504b2f371e60619610_gif (1080×1082).gif`):** Use for sticker-style illustrations, rotation angles (-8° to +12°), and tactile notebook textures.
+
+---
+
+## Design Tokens
+
+### Color Palette
+
+| Token Name | Hex Value | Role |
+| :--- | :--- | :--- |
+| `--color-static-black` | `#000000` | Text, borders, icon strokes, outlines, button contours |
+| `--color-paper-cream` | `#f2f2f2` | Main page canvas background, soft section fills |
+| `--color-card-white` | `#ffffff` | Default elevated card surfaces, inverse text on dark panels |
+| `--color-surface-graphite` | `#3a3a3a` | Inverted dark card fills and dark section backgrounds |
+| `--color-hardware-ink` | `#000100` | Near-black phone-frame and hardware mockup fills |
+| `--color-hairline-smoke` | `#6e6e6e` | Muted body text and secondary borders |
+| `--color-placeholder-ash` | `#888888` | Helper text, disabled-state type, low-priority metadata |
+| `--color-sticker-khaki` | `#e7e3bf` | Dusty olive-cream card and panel fills (vintage paper look) |
+| `--color-muted-rose` | `#d9a5b3` | Soft accent voice, muted card fills, hero callouts |
+| `--color-dusty-cyan` | `#98b4c5` | Secondary muted voice, feature panel backgrounds |
+| `--color-sage-lime` | `#b7c29d` | Action color, filled primary buttons, active states |
+
+### Typography
+
+1. **Display & Headline Font:** `Helvetica Now Display Cn Bold`
+   - *Substitutes:* `Helvetica Neue Condensed Bold` or `Roboto Condensed 900`
+   - *Weights:* 700, 900
+   - *Tracking:* -0.033em (negative tracking at display sizes), -0.020em (at 20px)
+   - *Role:* Shouty display/headline statements. High-contrast condensed caps.
+2. **Body & UI Font:** `Inter`
+   - *Substitutes:* `Inter`
+   - *Weights:* 400 (Body), 500 (Emphasis), 700 (Subheadings)
+   - *Tracking:* -0.02em
+   - *Role:* All text below 24px (labels, inputs, navigation, default body text).
+3. **Handwritten Accent:** `Miss Fajardose`
+   - *Substitutes:* `Caveat Brush` or `Permanent Marker`
+   - *Weights:* 400
+   - *Size:* 38px
+   - *Role:* Sparingly used for personal signatures or "handwritten" marker marks.
+
+#### Type Scale
+- **Caption:** 12px (Line Height: 1.2, Tracking: -0.24px) | `--text-caption`
+- **Body Small:** 14px (Line Height: 1.29) | `--text-body-sm`
+- **Body:** 18px (Line Height: 1.33, Tracking: -0.36px) | `--text-body`
+- **Subheading:** 20px (Line Height: 1.2, Tracking: -0.4px) | `--text-subheading`
+- **Heading Small:** 24px (Line Height: 1.22, Tracking: -0.48px) | `--text-heading-sm`
+- **Heading:** 64px (Line Height: 0.94, Tracking: -1.28px) | `--text-heading`
+- **Heading Large:** 85px (Line Height: 0.85, Tracking: -2.81px) | `--text-heading-lg`
+- **Display:** 164px (Line Height: 0.85, Tracking: -5.41px) | `--text-display`
+
+### Border Radii
+- **Standard Cards / Buttons:** `12px`
+- **Hero Cards:** `28px`
+- **Phone Frames:** `32px`
+- **Feature Panels:** `34px`
+- **Hairlines:** `1px` (for all borders)
+
+### Spacing Scale
+- `4px` (`--spacing-4`)
+- `5px` (`--spacing-5`)
+- `9px` (`--spacing-9`)
+- `10px` (`--spacing-10`)
+- `16px` (`--spacing-16`)
+- `20px` (`--spacing-20`)
+- `24px` (`--spacing-24`)
+- `27px` (`--spacing-27`)
+- `34px` (`--spacing-34`)
+- `96px` (`--spacing-96`)
+- `168px` (`--spacing-168`)
+
+---
+
+## UI Components & Specifications
+
+### 1. Floating Navigation Pill
+- **Specs:** White (`#ffffff`) pill, 12px radius, 1px solid black border. Fixed at top center. Contains the wordmark left-aligned, social icons centered, and a black-bordered 'Get the App' ghost button on the right with a small 20px black square icon.
+
+### 2. Display Headline Block
+- **Specs:** Helvetica Now Display Cn Bold 85–164px, weight 900, line-height 0.85, letter-spacing -0.033em, color `#000000`, centered or left-aligned. Assumes 1–3 short lines.
+
+### 3. Feature Card (Muted Sticker)
+- **Specs:** Full-bleed muted fill (`#d9a5b3`, `#98b4c5`, or `#e7e3bf`), 1px solid black border, 12px radius, 24px padding. Frequently contains a tilted phone mockup.
+
+### 4. Dark Panel Card
+- **Specs:** Surface Graphite (`#3a3a3a`) or Hardware Ink (`#000100`) fill, white (`#ffffff`) text, 1px black border, 12–34px radius. Used for inverted account and country listings.
+
+### 5. Bank Account Row
+- **Specs:** Nested inside Dark Panel Cards. White surface, 1px black border, 8–12px radius. Left: 24px square flag icon. Center: country name (Inter 18px Bold) over muted helper text (`#6e6e6e` Inter 14px Regular). Right: Outlined Open Button.
+
+### 6. Sage Lime Pill Button
+- **Specs:** Sage Lime (`#b7c29d`) fill, 1px solid black border, 12px radius, Inter 14px weight 700, black text, padding 5–10px. This is the primary filled action button.
+
+### 7. Tilted Sticker Illustration
+- **Specs:** Muted fills (`#d9a5b3`, `#98b4c5`, `#b7c29d`, `#e7e3bf`) with 1px solid black borders, rotated -8° to +12° and overlapping underlying cards to create the "physically pasted" sticker look.
+
+---
+
+## Strict Do's and Don'ts
+
+### Do
+- **Draw 1px solid black borders (`#000000`) on *every* card, button, text field, and mockup.** This is the load-bearing structure of the style.
+- Use full-bleed muted brand colors as card backgrounds rather than as thin accents or text colors.
+- Use Inter for all text below 24px and apply `-0.02em` tracking.
+- Set card and button radii to `12px`. Escalate to `28–34px` only for hero-scale cards or phone frames.
+- Use a cream background (`#f2f2f2`) as the main canvas.
+
+### Don't
+- **Do not add drop shadows or gradient elevations.** Use outlines and offset duplicate frames to show depth.
+- Do not use muted brand colors for text, highlights, or lines.
+- Do not use brand colors as text on white backgrounds.
+- Do not write comments in the code.
+- Do not let display headlines wrap before 4 words. Keep display sizes to 1-3 short lines.
+- Don't use overused fonts (Arial, Inter, system defaults)
+- Don't use gray text on colored backgrounds
+- Don't use pure black/gray (always tint)
+- Don't wrap everything in cards or nest cards inside cards
+- Don't use bounce/elastic easing (feels dated)

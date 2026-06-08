@@ -20,6 +20,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -85,7 +86,7 @@ class TodayWidget extends ConsumerWidget {
               children: [
                 _StatTile(
                   colors: colors,
-                  icon: Icons.swap_horiz_rounded,
+                  icon: HugeIconsSolid.exchange01,
                   label: 'Active Trades',
                   count: summary.activeTradesCount,
                   accent: colors.accent,
@@ -105,7 +106,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: Icons.outbox_rounded,
+                  icon: HugeIconsSolid.moneySend01,
                   label: 'Pending Withdrawals',
                   count: summary.pendingWithdrawalsCount,
                   accent: colors.warning,
@@ -121,7 +122,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: Icons.person_add_alt_1_rounded,
+                  icon: HugeIconsSolid.userAdd01,
                   label: 'Friend Requests',
                   count: summary.friendRequestsCount,
                   accent: colors.success,
@@ -138,7 +139,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: Icons.notifications_active_rounded,
+                  icon: HugeIconsSolid.notification01,
                   label: 'Unread',
                   count: summary.unreadNotifications,
                   accent: colors.danger,
