@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class RoutedTabSurface extends ConsumerWidget {
   final String title;
@@ -31,7 +32,7 @@ class RoutedTabSurface extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),

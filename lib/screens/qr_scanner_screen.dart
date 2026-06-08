@@ -26,6 +26,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -278,7 +279,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.flash_on_rounded, color: Colors.white70),
+            icon: const Icon(HugeIconsSolid.flash, color: Colors.white70),
             onPressed: () => _controller.toggleTorch(),
           ),
         ],

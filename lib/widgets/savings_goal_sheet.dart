@@ -36,6 +36,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/utils/idempotency_key.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 /// Public entry-point. Call from the SavingsScreen goal card `onTap`.
 class SavingsGoalSheet {
@@ -254,7 +255,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                   color: colors.accent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.savings_rounded,
+                child: Icon(HugeIconsSolid.savings,
                     color: colors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -274,7 +275,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                         _statusBadge(colors),
                         const SizedBox(width: 8),
                         if (_isLocked)
-                          Icon(Icons.lock_rounded,
+                          Icon(HugeIconsSolid.lock,
                               size: 12, color: colors.textTertiary),
                         if (_isLocked)
                           const SizedBox(width: 3),
@@ -333,7 +334,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
             children: [
               Expanded(
                 child: _ActionTile(
-                  icon: Icons.add_rounded,
+                  icon: HugeIconsSolid.add01,
                   label: 'Fund',
                   color: colors.success,
                   enabled: canFund && !_busy,
@@ -343,7 +344,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
               const SizedBox(width: 10),
               Expanded(
                 child: _ActionTile(
-                  icon: Icons.north_east_rounded,
+                  icon: HugeIconsSolid.arrowUpRight01,
                   label: 'Withdraw',
                   color: colors.accent,
                   enabled: canWithdraw && !_busy,
@@ -357,7 +358,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           // Pause / Resume toggle button
           OutlinedButton.icon(
             icon: Icon(
-              isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+              isPaused ? HugeIconsSolid.play : HugeIconsSolid.pause,
               color: isPaused ? colors.success : colors.warning,
               size: 18,
             ),
@@ -405,7 +406,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.celebration_rounded,
+                  Icon(HugeIconsSolid.party,
                       color: colors.success, size: 18),
                   const SizedBox(width: 8),
                   Expanded(

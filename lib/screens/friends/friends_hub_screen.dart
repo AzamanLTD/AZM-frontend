@@ -14,6 +14,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -223,7 +224,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         actions: [
           IconButton(
             icon: Icon(
-              _isSearching ? Icons.close : Icons.search_rounded,
+              _isSearching ? HugeIconsSolid.cancel01 : HugeIconsSolid.search01,
               color: colors.textPrimary,
             ),
             onPressed: _toggleSearch,
@@ -294,7 +295,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_search_rounded,
+            Icon(HugeIconsSolid.userSearch01,
                 size: 48, color: colors.textTertiary),
             const SizedBox(height: 12),
             Text(
@@ -315,7 +316,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off_rounded,
+            Icon(HugeIconsSolid.search01,
                 size: 48, color: colors.textTertiary),
             const SizedBox(height: 12),
             Text(
@@ -428,7 +429,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline_rounded,
+            Icon(HugeIconsSolid.userGroup,
                 size: 56, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text(
@@ -447,7 +448,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _toggleSearch,
-              icon: const Icon(Icons.person_add_rounded, size: 18),
+              icon: const Icon(HugeIconsSolid.userAdd01, size: 18),
               label: const Text('Find Friends'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.accent,
@@ -639,7 +640,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                       ),
                       if (isVerifiedVendor) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.verified_rounded,
+                        Icon(HugeIconsSolid.checkmarkCircle01,
                             color: colors.accent, size: 13),
                       ],
                     ],
@@ -654,7 +655,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                     Row(
                       children: [
                         if (rating != null) ...[
-                          Icon(Icons.star_rounded,
+                          Icon(HugeIconsSolid.star,
                               color: colors.warning, size: 11),
                           const SizedBox(width: 2),
                           Text(
@@ -760,7 +761,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_add_disabled_rounded,
+            Icon(HugeIconsSolid.userRemove01,
                 size: 48, color: colors.textTertiary),
             const SizedBox(height: 12),
             Text(
@@ -1017,7 +1018,7 @@ class _GroupChatTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 16),
+            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
           ],
         ),
       ),

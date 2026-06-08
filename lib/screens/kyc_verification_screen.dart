@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class KycVerificationScreen extends ConsumerStatefulWidget {
   const KycVerificationScreen({super.key});
@@ -78,11 +79,11 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _sourceOption(colors, Icons.camera_alt_rounded, "Camera", () => Navigator.pop(ctx, ImageSource.camera)),
+                  child: _sourceOption(colors, HugeIconsSolid.camera01, "Camera", () => Navigator.pop(ctx, ImageSource.camera)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _sourceOption(colors, Icons.photo_library_rounded, "Gallery", () => Navigator.pop(ctx, ImageSource.gallery)),
+                  child: _sourceOption(colors, HugeIconsSolid.image01, "Gallery", () => Navigator.pop(ctx, ImageSource.gallery)),
                 ),
               ],
             ),
@@ -207,9 +208,9 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
 
   Widget _buildBody(AzamanColors colors) {
     // If already verified
-    if (_currentStatus == 'VERIFIED') return _buildStatusView(colors, "Verified", Icons.verified_user, colors.success, "Your identity has been verified. You have full Vendor access.");
+    if (_currentStatus == 'VERIFIED') return _buildStatusView(colors, "Verified", HugeIconsSolid.shield01, colors.success, "Your identity has been verified. You have full Vendor access.");
     // If pending review
-    if (_currentStatus == 'PENDING' && !_isSuccess) return _buildStatusView(colors, "Under Review", Icons.hourglass_top_rounded, colors.warning, "Your documents are being reviewed by our compliance team. You will be notified once approved.");
+    if (_currentStatus == 'PENDING' && !_isSuccess) return _buildStatusView(colors, "Under Review", HugeIconsSolid.hourglass, colors.warning, "Your documents are being reviewed by our compliance team. You will be notified once approved.");
     // If just submitted
     if (_isSuccess) return _buildSuccessState(colors);
     // If rejected, allow resubmission
@@ -274,7 +275,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: colors.danger, size: 28),
+                  Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 28),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -299,7 +300,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.lock_person, color: colors.success, size: 30),
+                Icon(HugeIconsSolid.lock, color: colors.success, size: 30),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -317,11 +318,11 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           // Legal info section
           Text("LEGAL INFORMATION", style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
           const SizedBox(height: 15),
-          _buildTextField(colors, "Full Legal Name", _nameController, Icons.person_outline),
+          _buildTextField(colors, "Full Legal Name", _nameController, HugeIconsSolid.user),
           const SizedBox(height: 15),
           _buildDropdownField(colors),
           const SizedBox(height: 15),
-          _buildTextField(colors, "ID Number", _idNumberController, Icons.badge_outlined),
+          _buildTextField(colors, "ID Number", _idNumberController, HugeIconsSolid.identityCard),
 
           const SizedBox(height: 30),
 
@@ -390,13 +391,13 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           value: _selectedIdType,
           dropdownColor: colors.card,
           isExpanded: true,
-          icon: Icon(Icons.keyboard_arrow_down, color: colors.textTertiary),
+          icon: Icon(HugeIconsSolid.arrowDown01, color: colors.textTertiary),
           style: TextStyle(color: colors.textPrimary, fontSize: 15),
           items: _idTypes.map((type) {
             return DropdownMenuItem<String>(
               value: type,
               child: Row(children: [
-                Icon(Icons.credit_card, color: colors.textTertiary, size: 20),
+                Icon(HugeIconsSolid.creditCard, color: colors.textTertiary, size: 20),
                 const SizedBox(width: 10),
                 Text(type),
               ]),
@@ -432,14 +433,14 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                   children: [
                     Image.file(image, fit: BoxFit.cover),
                     Container(color: colors.background.withOpacity(0.3)),
-                    Center(child: Icon(Icons.check_circle, color: colors.success, size: 35)),
+                    Center(child: Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 35)),
                   ],
                 ),
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_a_photo_outlined, color: colors.accent.withOpacity(0.7), size: 30),
+                  Icon(HugeIconsSolid.camera01, color: colors.accent.withOpacity(0.7), size: 30),
                   const SizedBox(height: 10),
                   Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
@@ -458,7 +459,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: colors.success.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(Icons.how_to_reg, color: colors.success, size: 56),
+              child: Icon(HugeIconsSolid.userCheck01, color: colors.success, size: 56),
             ),
             const SizedBox(height: 24),
             Text("Under Review", style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),

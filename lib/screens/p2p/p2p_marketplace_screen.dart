@@ -38,6 +38,7 @@ import 'package:azaman/widgets/dashboard_balance_card.dart';
 import 'package:azaman/widgets/quick_actions_row.dart';
 import 'package:azaman/widgets/milestone_progress.dart';
 import 'package:azaman/widgets/live_milestone_progress.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -668,7 +669,7 @@ class _AiFilterToggle extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.auto_awesome_rounded,
+              HugeIconsSolid.sparkles,
               size: 13,
               color: aiOn ? Colors.white : colors.textTertiary,
             ),
@@ -842,7 +843,7 @@ class _ErrorView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded,
+            Icon(HugeIconsSolid.cloud,
                 size: 56, color: colors.danger.withOpacity(0.60)),
             const SizedBox(height: 16),
             Text('Could not load ads',
@@ -858,7 +859,7 @@ class _ErrorView extends ConsumerWidget {
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
+              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
               label: const Text('Retry'),
             ),
           ],
@@ -944,7 +945,7 @@ class _EmptyState extends ConsumerWidget {
               if (isVendor)
                 _PrimaryCta(
                   colors: colors,
-                  icon: Icons.add_business_rounded,
+                  icon: HugeIconsSolid.store01,
                   label: 'Create First Ad',
                   onTap: onCreateAd,
                   emphasised: true,
@@ -952,7 +953,7 @@ class _EmptyState extends ConsumerWidget {
               else
                 _PrimaryCta(
                   colors: colors,
-                  icon: Icons.refresh_rounded,
+                  icon: HugeIconsSolid.refresh01,
                   label: 'Refresh Markets',
                   onTap: onRefresh,
                   emphasised: false,
@@ -1052,8 +1053,8 @@ class _MarketEmptyGlyph extends StatelessWidget {
           // Icon — switches based on role
           Icon(
             isVendor
-                ? Icons.add_business_rounded
-                : Icons.storefront_rounded,
+                ? HugeIconsSolid.store01
+                : HugeIconsSolid.store01,
             size: 38,
             color: colors.glow.withOpacity(0.85),
           ),

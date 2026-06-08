@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SusuHubScreen extends ConsumerWidget {
   const SusuHubScreen({super.key});
@@ -74,7 +75,7 @@ class SusuHubScreen extends ConsumerWidget {
                   Navigator.of(ctx).pop();
                   ctx.push('/messages');
                 },
-                icon: const Icon(Icons.chat_rounded, size: 16),
+                icon: const Icon(HugeIconsSolid.chat01, size: 16),
                 label: const Text('Go to Chats',
                     style: TextStyle(
                         fontWeight: FontWeight.w800, letterSpacing: 0.3)),
@@ -105,7 +106,7 @@ class SusuHubScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -124,7 +125,7 @@ class SusuHubScreen extends ConsumerWidget {
         foregroundColor: Colors.black,
         elevation: 1,
         onPressed: () => _showStartHelp(context, colors),
-        icon: const Icon(Icons.add_rounded, size: 18),
+        icon: const Icon(HugeIconsSolid.add01, size: 18),
         label: const Text(
           'Start a Susu',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -385,7 +386,7 @@ class _EmptyState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
-        Icon(Icons.account_balance_rounded,
+        Icon(HugeIconsSolid.bank,
             size: 56, color: colors.warning.withOpacity(0.30)),
         const SizedBox(height: 14),
         Text(
@@ -421,7 +422,7 @@ class _ErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
-        Icon(Icons.error_outline_rounded, size: 48, color: colors.danger),
+        Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
         const SizedBox(height: 12),
         Text(
           'Could not load your Susus',

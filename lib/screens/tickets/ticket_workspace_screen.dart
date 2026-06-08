@@ -30,6 +30,7 @@ import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class TicketWorkspaceScreen extends ConsumerStatefulWidget {
   final String ticketId;
@@ -265,7 +266,7 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
         actions: [
           if (state.ticket != null)
             PopupMenuButton<TicketStatus>(
-              icon: Icon(Icons.more_vert, color: colors.textPrimary),
+              icon: Icon(HugeIconsSolid.moreVertical, color: colors.textPrimary),
               color: colors.surface,
               onSelected: _confirmAndChange,
               itemBuilder: (_) {
@@ -274,19 +275,19 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
                 if (cur == TicketStatus.open) {
                   items.add(PopupMenuItem(
                     value: TicketStatus.closed,
-                    child: _menuRow(Icons.check_circle_outline_rounded,
+                    child: _menuRow(HugeIconsSolid.checkmarkCircle01,
                         'Close ticket', colors),
                   ));
                   items.add(PopupMenuItem(
                     value: TicketStatus.cancelled,
-                    child: _menuRow(Icons.cancel_outlined,
+                    child: _menuRow(HugeIconsSolid.cancel01,
                         'Cancel ticket', colors,
                         danger: true),
                   ));
                 } else {
                   items.add(PopupMenuItem(
                     value: TicketStatus.open,
-                    child: _menuRow(Icons.refresh_rounded,
+                    child: _menuRow(HugeIconsSolid.refresh01,
                         'Reopen ticket', colors),
                   ));
                 }
@@ -591,7 +592,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chat_bubble_outline_rounded,
+            Icon(HugeIconsSolid.bubbleChat,
                 color: colors.textTertiary, size: 36),
             const SizedBox(height: 8),
             Text('No messages yet.',
@@ -704,7 +705,7 @@ class _InputBarState extends State<_InputBar> {
                               : Colors.white,
                         ),
                       )
-                    : Icon(Icons.send_rounded,
+                    : Icon(HugeIconsSolid.sent,
                         color: colors.isDark
                             ? Colors.black
                             : Colors.white,
@@ -748,7 +749,7 @@ class _LockedFooter extends StatelessWidget {
       color: colors.surface,
       child: Row(
         children: [
-          Icon(Icons.lock_outline_rounded,
+          Icon(HugeIconsSolid.lock,
               color: colors.textTertiary, size: 16),
           const SizedBox(width: 8),
           Expanded(

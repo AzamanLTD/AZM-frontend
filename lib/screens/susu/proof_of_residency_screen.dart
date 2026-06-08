@@ -31,6 +31,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ProofOfResidencyScreen extends ConsumerStatefulWidget {
   const ProofOfResidencyScreen({super.key});
@@ -122,7 +123,7 @@ class _ProofOfResidencyScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -179,7 +180,7 @@ class _ProofOfResidencyScreenState
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.black),
                             )
-                          : const Icon(Icons.cloud_upload_rounded, size: 16),
+                          : const Icon(HugeIconsSolid.cloudUpload, size: 16),
                       label: Text(
                         _uploading ? 'Uploading…' : 'Submit document',
                         style: const TextStyle(
@@ -218,25 +219,25 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, tint, headline, sub) = switch (state.status) {
       ProofOfResidencyStatus.notSubmitted => (
-        Icons.upload_file_rounded,
+        HugeIconsSolid.file01,
         colors.textTertiary,
         'Not submitted',
         'Upload a recent residency document to unlock Susu participation.',
       ),
       ProofOfResidencyStatus.pendingReview => (
-        Icons.hourglass_top_rounded,
+        HugeIconsSolid.hourglass,
         colors.warning,
         'Under review',
         'Your document is being reviewed by our team. We\'ll notify you once a decision is made.',
       ),
       ProofOfResidencyStatus.verified => (
-        Icons.verified_rounded,
+        HugeIconsSolid.checkmarkCircle01,
         colors.success,
         'Verified',
         'Your residency is verified. This is valid for 365 days.',
       ),
       ProofOfResidencyStatus.rejected => (
-        Icons.cancel_rounded,
+        HugeIconsSolid.cancel01,
         colors.danger,
         'Rejected',
         state.rejectionReason?.trim().isNotEmpty == true
@@ -244,7 +245,7 @@ class _StatusCard extends StatelessWidget {
             : 'Your document was rejected. Please re-upload a valid document.',
       ),
       ProofOfResidencyStatus.expired => (
-        Icons.event_busy_rounded,
+        HugeIconsSolid.calendar01,
         colors.danger,
         'Expired',
         'Your residency verification has expired. Re-upload a recent document.',
@@ -353,7 +354,7 @@ class _Explainer extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.check_circle_outline_rounded,
+            Icon(HugeIconsSolid.checkmarkCircle01,
                 color: colors.success, size: 13),
             const SizedBox(width: 8),
             Expanded(
@@ -398,7 +399,7 @@ class _UploadArea extends StatelessWidget {
         child: Column(
           children: [
             Icon(
-              has ? Icons.description_rounded : Icons.add_photo_alternate_rounded,
+              has ? HugeIconsSolid.note01 : HugeIconsSolid.imageAdd01,
               color: has ? colors.success : colors.textTertiary,
               size: 34,
             ),
@@ -438,7 +439,7 @@ class _InlineError extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.error_outline_rounded, color: colors.danger, size: 14),
+        Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 14),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
@@ -464,7 +465,7 @@ class _ErrorBlock extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 44, color: colors.danger),
+            Icon(HugeIconsSolid.alertCircle, size: 44, color: colors.danger),
             const SizedBox(height: 12),
             Text(
               'Could not load status',

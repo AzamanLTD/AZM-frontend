@@ -276,7 +276,7 @@ class _StatTile extends StatelessWidget {
                   ),
                   child: Icon(icon, color: accent, size: 18),
                 ),
-                Icon(Icons.arrow_forward_ios,
+                Icon(HugeIconsSolid.arrowRight01,
                     color: colors.textTertiary, size: 11),
               ],
             ),
@@ -405,7 +405,7 @@ class _PendingWithdrawalsSheet {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              Icons.outbox_rounded,
+                              HugeIconsSolid.sent,
                               color: colors.warning,
                               size: 18,
                             ),

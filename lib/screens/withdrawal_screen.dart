@@ -42,6 +42,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/azaman_button.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // ── Mode / network enums ─────────────────────────────────────────────────────
 
@@ -77,11 +78,11 @@ extension on MomoNetwork {
   IconData get icon {
     switch (this) {
       case MomoNetwork.mtn:
-        return Icons.phone_android;
+        return HugeIconsSolid.smartPhone01;
       case MomoNetwork.vodafone:
-        return Icons.sim_card;
+        return HugeIconsSolid.simcard01;
       case MomoNetwork.airtelTigo:
-        return Icons.smartphone;
+        return HugeIconsSolid.smartPhone01;
     }
   }
 }
@@ -464,7 +465,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 color: colors.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.alt_route_rounded, color: colors.accent, size: 18),
+              child: Icon(HugeIconsSolid.directionLeft01, color: colors.accent, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -494,7 +495,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: colors.accent, size: 18),
+            Icon(HugeIconsSolid.arrowRight01, color: colors.accent, size: 18),
           ],
         ),
       ),
@@ -511,7 +512,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           },
           child: Row(
             children: [
-              Icon(Icons.history_rounded, color: colors.textTertiary, size: 16),
+              Icon(HugeIconsSolid.transactionHistory, color: colors.textTertiary, size: 16),
               const SizedBox(width: 8),
               Text(
                 'Recent Completed Withdrawals',
@@ -523,7 +524,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               ),
               const Spacer(),
               if (!_hasLoadedHistory)
-                Icon(Icons.expand_more_rounded,
+                Icon(HugeIconsSolid.arrowDown01,
                     color: colors.textTertiary, size: 18),
             ],
           ),
@@ -566,7 +567,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded,
+                  Icon(HugeIconsSolid.checkmarkCircle01,
                       color: colors.success, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
@@ -614,7 +615,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.download_rounded,
+                                Icon(HugeIconsSolid.download01,
                                     color: colors.accent, size: 14),
                                 const SizedBox(width: 4),
                                 Text(
@@ -764,8 +765,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             children: [
               Icon(
                 isCritical
-                    ? Icons.warning_amber_rounded
-                    : Icons.info_outline_rounded,
+                    ? HugeIconsSolid.alertCircle
+                    : HugeIconsSolid.informationCircle,
                 color: accent,
                 size: 22,
               ),
@@ -861,9 +862,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       child: Row(
         children: [
           tile(_WithdrawMode.mobileMoney, 'MOBILE MONEY',
-              Icons.phone_iphone_rounded),
+              HugeIconsSolid.smartPhone01),
           tile(_WithdrawMode.cryptoWallet, 'CRYPTO WALLET',
-              Icons.account_balance_wallet_rounded),
+              HugeIconsSolid.wallet01),
         ],
       ),
     );
@@ -1017,7 +1018,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline_rounded, color: colors.warning, size: 14),
+                        Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 14),
                         const SizedBox(width: 8),
                         Text('No saved MoMo addresses',
                             style: TextStyle(
@@ -1032,7 +1033,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     const SizedBox(height: 10),
                     AzamanButton(
                       label: 'Add a MoMo Address',
-                      icon: Icons.add_rounded,
+                      icon: HugeIconsSolid.add01,
                       variant: AzamanButtonVariant.secondary,
                       fullWidth: true,
                       onPressed: () {
@@ -1164,7 +1165,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               color: colors.warning.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.account_balance_wallet_outlined,
+            child: Icon(HugeIconsSolid.wallet01,
                 color: colors.warning, size: 30),
           ),
           const SizedBox(height: 14),
@@ -1195,7 +1196,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 elevation: 0,
               ),
               onPressed: _goToAddPaymentMethod,
-              icon: const Icon(Icons.add_circle_outline, size: 18),
+              icon: const Icon(HugeIconsSolid.addCircle, size: 18),
               label: const Text('GO TO SETTINGS TO ADD A METHOD',
                   style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -1246,7 +1247,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               value: wallets.contains(_selectedWallet)
                   ? _selectedWallet
                   : (wallets.isNotEmpty ? wallets.first : null),
-              icon: Icon(Icons.keyboard_arrow_down, color: colors.textTertiary),
+              icon: Icon(HugeIconsSolid.arrowDown01, color: colors.textTertiary),
               items: wallets.map((wallet) {
                 final label = wallet['label']?.toString() ?? 'Unnamed';
                 final provider = wallet['provider']?.toString() ?? '';
@@ -1473,7 +1474,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.diamond_outlined, size: 14, color: colors.success),
+                  Icon(HugeIconsSolid.diamond, size: 14, color: colors.success),
                   const SizedBox(width: 6),
                   Text(
                     '${_selectedFeeDiscount!.label} AZM discount applied',
@@ -1520,7 +1521,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // Header
         Row(
           children: [
-            Icon(Icons.diamond_outlined, size: 16, color: colors.accent),
+            Icon(HugeIconsSolid.diamond, size: 16, color: colors.accent),
             const SizedBox(width: 8),
             Text(
               'USE AZM TO REDUCE FEE',
@@ -1719,19 +1720,19 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   IconData _iconForProvider(String provider) {
     switch (provider) {
       case 'MTN MoMo':
-        return Icons.phone_android;
+        return HugeIconsSolid.smartPhone01;
       case 'Telecel Cash':
-        return Icons.sim_card;
+        return HugeIconsSolid.simcard01;
       case 'AirtelTigo Money':
-        return Icons.smartphone;
+        return HugeIconsSolid.smartPhone01;
       case 'Bank Transfer':
-        return Icons.account_balance;
+        return HugeIconsSolid.bank;
       case 'BINANCE PAY':
-        return Icons.currency_bitcoin;
+        return HugeIconsSolid.bitcoin;
       case 'EXTERNAL WALLET':
-        return Icons.account_balance_wallet;
+        return HugeIconsSolid.wallet01;
       default:
-        return Icons.payments_outlined;
+        return HugeIconsSolid.money01;
     }
   }
 }
@@ -1787,7 +1788,7 @@ class _MomoAccountPicker extends StatelessWidget {
                 color: pcolor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.smartphone_rounded, color: pcolor, size: 16),
+              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1812,7 +1813,7 @@ class _MomoAccountPicker extends StatelessWidget {
               ),
             ),
             Icon(
-              selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              selected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
               color: selected ? pcolor : colors.textTertiary,
               size: 20,
             ),

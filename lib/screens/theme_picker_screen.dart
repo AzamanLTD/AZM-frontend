@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ThemePickerScreen extends ConsumerWidget {
   const ThemePickerScreen({super.key});
@@ -29,7 +30,7 @@ class ThemePickerScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: activeColors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
@@ -195,8 +196,8 @@ class _ThemePreviewCard extends StatelessWidget {
                         duration: const Duration(milliseconds: 200),
                         child: Icon(
                           isSelected
-                              ? Icons.check_circle_rounded
-                              : Icons.radio_button_unchecked_rounded,
+                              ? HugeIconsSolid.checkmarkCircle01
+                              : HugeIconsSolid.circle,
                           key: ValueKey(isSelected),
                           color: isSelected
                               ? colors.accent

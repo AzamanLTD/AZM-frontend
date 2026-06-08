@@ -6,6 +6,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class NotificationHubScreen extends ConsumerStatefulWidget {
   const NotificationHubScreen({super.key});
@@ -166,7 +167,7 @@ class _NotificationHubScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.store, size: 16),
+                  const Icon(HugeIconsSolid.store01, size: 16),
                   const SizedBox(width: 6),
                   const Text('Vendor Inbox'),
                   const SizedBox(width: 6),
@@ -197,7 +198,7 @@ class _NotificationHubScreenState
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.notifications_none_rounded,
+                        Icon(HugeIconsSolid.notification01,
                             size: 64, color: colors.textTertiary),
                         const SizedBox(height: 16),
                         Text(
@@ -396,7 +397,7 @@ class _MarkAllReadAction extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation(colors.accent),
                 ),
               )
-            : Icon(Icons.done_all_rounded, size: 18, color: colors.accent),
+            : Icon(HugeIconsSolid.checkmarkCircle01, size: 18, color: colors.accent),
         label: Text(
           'Mark all read',
           style: TextStyle(
@@ -517,16 +518,16 @@ class _NotificationTile extends StatelessWidget {
     Color iconColor;
     switch (notification.category) {
       case NotificationCategory.securityAccount:
-        icon = Icons.security;
+        icon = HugeIconsSolid.security;
         iconColor = colors.danger;
       case NotificationCategory.general:
-        icon = Icons.notifications_outlined;
+        icon = HugeIconsSolid.notification01;
         iconColor = colors.accent;
       case NotificationCategory.vendorPriority:
-        icon = Icons.storefront;
+        icon = HugeIconsSolid.store01;
         iconColor = colors.success;
       case NotificationCategory.adminSystem:
-        icon = Icons.admin_panel_settings;
+        icon = HugeIconsSolid.security;
         iconColor = colors.warning;
     }
 

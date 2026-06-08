@@ -17,6 +17,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -125,7 +126,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: groupAsync.when(
@@ -157,7 +158,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         fontWeight: FontWeight.w800),
                   ),
                 ),
-                Icon(Icons.expand_more_rounded,
+                Icon(HugeIconsSolid.arrowDown01,
                     color: colors.textTertiary, size: 18),
               ],
             ),
@@ -166,7 +167,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         actions: [
           IconButton(
             tooltip: 'Group profile',
-            icon: Icon(Icons.groups_2_rounded, color: colors.accent, size: 20),
+            icon: Icon(HugeIconsSolid.userGroup, color: colors.accent, size: 20),
             onPressed: () {
               Navigator.push(
                 context,
@@ -444,7 +445,7 @@ class _Composer extends StatelessWidget {
             const SizedBox(width: 8),
             IconButton(
               onPressed: sending ? null : onSend,
-              icon: Icon(Icons.send_rounded, color: colors.accent),
+              icon: Icon(HugeIconsSolid.sent, color: colors.accent),
             ),
           ],
         ),
@@ -561,7 +562,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
           ),
           child: Row(
             children: [
-              Icon(Icons.account_balance_rounded,
+              Icon(HugeIconsSolid.bank,
                   color: colors.success, size: 14),
               const SizedBox(width: 8),
               Expanded(
@@ -573,7 +574,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                       fontWeight: FontWeight.w700),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: colors.success, size: 14),
+              Icon(HugeIconsSolid.arrowRight01, color: colors.success, size: 14),
             ],
           ),
         ),
@@ -605,7 +606,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.timer_rounded, color: colors.warning, size: 14),
+                  Icon(HugeIconsSolid.clock01, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -626,8 +627,8 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                   ),
                   Icon(
                     _expanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
+                        ? HugeIconsSolid.arrowUp01
+                        : HugeIconsSolid.arrowDown01,
                     color: colors.warning,
                     size: 18,
                   ),
@@ -663,7 +664,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                           ),
                         );
                       },
-                      icon: Icon(Icons.fact_check_rounded,
+                      icon: Icon(HugeIconsSolid.task01,
                           size: 14, color: colors.warning),
                       label: Text('View members & verification',
                           style: TextStyle(

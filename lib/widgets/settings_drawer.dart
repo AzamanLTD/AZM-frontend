@@ -48,6 +48,7 @@ import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/screens/vendor_dashboard.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SettingsDrawer extends ConsumerWidget {
   const SettingsDrawer({super.key});
@@ -180,7 +181,7 @@ class SettingsDrawer extends ConsumerWidget {
                                     title: 'Deposit Addresses',
                                     subtitle:
                                         'Saved MoMo accounts for STK-push deposits',
-                                    icon: Icons.south_rounded,
+                                    icon: HugeIconsSolid.arrowDown01,
                                     iconColor: colors.success,
                                     destination: const SavedMomoAccountsScreen(),
                                   ),
@@ -196,7 +197,7 @@ class SettingsDrawer extends ConsumerWidget {
                                     title: 'Withdrawal Addresses',
                                     subtitle:
                                         'MoMo & crypto payout destinations',
-                                    icon: Icons.north_rounded,
+                                    icon: HugeIconsSolid.arrowUp01,
                                     iconColor: colors.warning,
                                     destination: const SavedWalletsScreen(),
                                   ),
@@ -252,7 +253,7 @@ class SettingsDrawer extends ConsumerWidget {
                       // AppBars with back arrows so the user can return.
                       _buildMenuItem(
                         context,
-                        Icons.security_outlined,
+                        HugeIconsSolid.security,
                         'Security Center',
                         'High',
                         colors,
@@ -261,7 +262,7 @@ class SettingsDrawer extends ConsumerWidget {
                       // Master Sprint (2026-05-27)
                       _buildMenuItem(
                         context,
-                        Icons.lock_outline_rounded,
+                        HugeIconsSolid.lock,
                         'Vaults',
                         'New',
                         colors,
@@ -276,7 +277,7 @@ class SettingsDrawer extends ConsumerWidget {
                       _buildRewardsExpansion(context, colors),
                       _buildMenuItem(
                         context,
-                        Icons.palette_outlined,
+                        HugeIconsSolid.paintBoard,
                         'Theme',
                         'Style',
                         colors,
@@ -284,7 +285,7 @@ class SettingsDrawer extends ConsumerWidget {
                       ),
                       _buildMenuItem(
                         context,
-                        Icons.storefront_rounded,
+                        HugeIconsSolid.store01,
                         'Azaman Store',
                         'New',
                         colors,
@@ -401,7 +402,7 @@ class SettingsDrawer extends ConsumerWidget {
                   ),
                   alignment: Alignment.center,
                   child: const Icon(
-                    Icons.verified,
+                    HugeIconsSolid.checkmarkCircle01,
                     color: Color(0xFF22C55E),
                     size: 18,
                   ),
@@ -440,7 +441,7 @@ class SettingsDrawer extends ConsumerWidget {
             ),
           ),
           Icon(
-            Icons.arrow_forward_ios,
+            HugeIconsSolid.arrowRight01,
             color: colors.textTertiary,
             size: 14,
           ),
@@ -462,22 +463,22 @@ class SettingsDrawer extends ConsumerWidget {
       case KycStatus.verified:
         tint = const Color(0xFF22C55E); // green
         label = 'Verified';
-        icon = Icons.verified_rounded;
+        icon = HugeIconsSolid.checkmarkCircle01;
         break;
       case KycStatus.pending:
         tint = const Color(0xFFF59E0B); // amber/yellow
         label = 'Pending';
-        icon = Icons.hourglass_top_rounded;
+        icon = HugeIconsSolid.hourglass;
         break;
       case KycStatus.rejected:
         tint = const Color(0xFFEF4444); // red
         label = 'Rejected';
-        icon = Icons.gpp_bad_rounded;
+        icon = HugeIconsSolid.shield01;
         break;
       case KycStatus.unverified:
         tint = const Color(0xFFEF4444); // red
         label = 'Unverified';
-        icon = Icons.shield_outlined;
+        icon = HugeIconsSolid.shield01;
         break;
     }
 
@@ -552,7 +553,7 @@ class SettingsDrawer extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: colors.danger.withOpacity(0.5)),
               ),
-              child: Icon(Icons.shield_moon, color: colors.danger, size: 24),
+              child: Icon(HugeIconsSolid.shield01, color: colors.danger, size: 24),
             ),
             const SizedBox(width: 15),
             Expanded(
@@ -578,7 +579,7 @@ class SettingsDrawer extends ConsumerWidget {
                 ],
               ),
             ),
-            Icon(Icons.warning_amber_rounded, color: colors.danger, size: 18),
+            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 18),
           ],
         ),
       ),
@@ -660,7 +661,7 @@ class SettingsDrawer extends ConsumerWidget {
               ),
             ),
             Icon(
-              Icons.chevron_right_rounded,
+              HugeIconsSolid.arrowRight01,
               color: colors.textTertiary,
               size: 18,
             ),
@@ -705,7 +706,7 @@ class SettingsDrawer extends ConsumerWidget {
             ),
           ),
           const Spacer(),
-          Icon(Icons.bolt, color: colors.textTertiary, size: 16),
+          Icon(HugeIconsSolid.flash, color: colors.textTertiary, size: 16),
         ],
       ),
     );
@@ -718,7 +719,7 @@ class SettingsDrawer extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            icon: Icon(Icons.qr_code_scanner, color: colors.textSecondary),
+            icon: Icon(HugeIconsSolid.qrCode, color: colors.textSecondary),
             onPressed: () {
               HapticFeedback.selectionClick();
               Navigator.push(
@@ -728,7 +729,7 @@ class SettingsDrawer extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined, color: colors.accent),
+            icon: Icon(HugeIconsSolid.settings01, color: colors.accent),
             onPressed: () {
               HapticFeedback.selectionClick();
               Navigator.push(
@@ -772,22 +773,22 @@ class SettingsDrawer extends ConsumerWidget {
   Widget _buildShortcutsGrid(BuildContext context, AzamanColors colors) {
     final List<Map<String, dynamic>> items = [
       {
-        'icon': Icons.account_balance_wallet,
+        'icon': HugeIconsSolid.wallet01,
         'label': 'Deposit',
         'destination': const DepositScreen(),
       },
       {
-        'icon': Icons.send_rounded,
+        'icon': HugeIconsSolid.sent,
         'label': 'Withdraw',
         'destination': const WithdrawalScreen(),
       },
       {
-        'icon': Icons.history_rounded,
+        'icon': HugeIconsSolid.transactionHistory,
         'label': 'History',
         'destination': const AccountActivityScreen(),
       },
       {
-        'icon': Icons.leaderboard_rounded,
+        'icon': HugeIconsSolid.analytics01,
         'label': 'Leaderboard',
         'destination': const LeaderboardScreen(),
       },
@@ -886,7 +887,7 @@ class SettingsDrawer extends ConsumerWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            Icons.card_giftcard_rounded,
+            HugeIconsSolid.gift,
             color: colors.textSecondary,
             size: 15,
           ),
@@ -901,14 +902,14 @@ class SettingsDrawer extends ConsumerWidget {
           ),
         ),
         trailing: Icon(
-          Icons.expand_more_rounded,
+          HugeIconsSolid.arrowDown01,
           color: colors.divider,
           size: 18,
         ),
         children: [
           _buildMenuItem(
             context,
-            Icons.local_fire_department_rounded,
+            HugeIconsSolid.fire,
             'AZM Auction',
             'Vendor',
             colors,
@@ -916,7 +917,7 @@ class SettingsDrawer extends ConsumerWidget {
           ),
           _buildMenuItem(
             context,
-            Icons.diamond_outlined,
+            HugeIconsSolid.diamond,
             'AZM Rewards',
             'Earn',
             colors,
@@ -924,7 +925,7 @@ class SettingsDrawer extends ConsumerWidget {
           ),
           _buildMenuItem(
             context,
-            Icons.card_giftcard,
+            HugeIconsSolid.gift,
             'Referral Rewards',
             '10%',
             colors,
@@ -1097,7 +1098,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
               ),
               const SizedBox(width: 6),
               Icon(
-                Icons.chevron_right_rounded,
+                HugeIconsSolid.arrowRight01,
                 color: colors.divider,
                 size: 16,
               ),

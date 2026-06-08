@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/main.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -34,19 +35,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
-      icon: Icons.swap_horiz_rounded,
+      icon: HugeIconsSolid.exchange01,
       title: 'Welcome to Azaman',
       subtitle:
           'The fastest peer-to-peer trading platform. Buy and sell USDC directly with other users at the best rates — no middleman, no delays.',
     ),
     _OnboardingPageData(
-      icon: Icons.shield_rounded,
+      icon: HugeIconsSolid.shield01,
       title: 'Secure & Fast',
       subtitle:
           'Every trade is protected by smart escrow. Funds are locked until both parties confirm — ensuring instant, trustless settlement every time.',
     ),
     _OnboardingPageData(
-      icon: Icons.rocket_launch_rounded,
+      icon: HugeIconsSolid.rocket,
       title: 'Start Trading',
       subtitle:
           'Fund your wallet with crypto or fiat, browse live offers, and make your first trade in under 60 seconds. Welcome to the future of P2P.',

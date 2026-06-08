@@ -5,6 +5,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/personal_chat_interface.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class PersonalChat {
   final String id;
@@ -196,7 +197,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: colors.textSecondary),
+            icon: Icon(HugeIconsSolid.refresh01, color: colors.textSecondary),
             onPressed: _fetchChats,
           ),
         ],
@@ -205,7 +206,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
         onPressed: _showSearchUserDialog,
-        child: const Icon(Icons.add),
+        child: const Icon(HugeIconsSolid.add01),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.accent))
@@ -214,7 +215,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.chat_bubble_outline, size: 64, color: colors.textTertiary),
+                      Icon(HugeIconsSolid.bubbleChat, size: 64, color: colors.textTertiary),
                       const SizedBox(height: 16),
                       Text('No conversations yet',
                           style: TextStyle(color: colors.textSecondary, fontSize: 16)),

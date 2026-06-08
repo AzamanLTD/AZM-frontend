@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -138,7 +139,7 @@ class _ChangePasswordScreenState
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -163,7 +164,7 @@ class _ChangePasswordScreenState
               color: colors.accentSurface,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.lock_reset_rounded,
+            child: Icon(HugeIconsSolid.lock,
                 color: colors.accent, size: 28),
           ),
           const SizedBox(height: 16),
@@ -279,10 +280,10 @@ class _ChangePasswordScreenState
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
-        prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+        prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
         suffixIcon: IconButton(
           icon: Icon(
-            obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+            obscure ? HugeIconsSolid.viewOff : HugeIconsSolid.view,
             color: colors.textTertiary,
             size: 20,
           ),

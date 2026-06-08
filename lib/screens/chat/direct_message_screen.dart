@@ -23,6 +23,7 @@ import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'dart:ui';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -260,7 +261,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -304,7 +305,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.info_outline_rounded, color: colors.glow),
+            icon: Icon(HugeIconsSolid.informationCircle, color: colors.glow),
             onPressed: () {
               // Show contact info
             },
@@ -341,7 +342,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.chat_bubble_outline_rounded, size: 48, color: colors.textTertiary),
+          Icon(HugeIconsSolid.bubbleChat, size: 48, color: colors.textTertiary),
           const SizedBox(height: 12),
           Text(
             'Start a conversation',
@@ -380,7 +381,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         mainAxisSize: MainAxisSize.min,
 
         children: [
-          Icon(Icons.info_outline_rounded, color: colors.accentSecondary, size: 16),
+          Icon(HugeIconsSolid.informationCircle, color: colors.accentSecondary, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -441,7 +442,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.currency_bitcoin,
+                    HugeIconsSolid.bitcoin,
                     color: msg.isMe ? colors.success : colors.accentSecondary,
                     size: 20,
                   ),
@@ -487,7 +488,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: colors.success, size: 16),
+                    Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
                     const SizedBox(width: 6),
                     Text(
                       'Completed',
@@ -603,7 +604,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 ],
               ),
               child: const Icon(
-                Icons.add_rounded,
+                HugeIconsSolid.add01,
                 color: Colors.black,
                 size: 24,
               ),
@@ -652,7 +653,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 ],
               ),
               child: const Icon(
-                Icons.send_rounded,
+                HugeIconsSolid.sent,
                 color: Colors.black,
                 size: 20,
               ),

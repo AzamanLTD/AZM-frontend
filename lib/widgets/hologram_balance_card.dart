@@ -32,6 +32,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class HologramBalanceCard extends ConsumerWidget {
   const HologramBalanceCard({super.key});
@@ -208,8 +209,8 @@ class _HeaderRow extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 isVisible
-                    ? Icons.visibility_rounded
-                    : Icons.visibility_off_rounded,
+                    ? HugeIconsSolid.view
+                    : HugeIconsSolid.viewOff,
                 key: ValueKey(isVisible),
                 color: colors.textTertiary,
                 size: 16,
@@ -475,7 +476,7 @@ class _BalanceChip extends StatelessWidget {
               ),
               if (onTap != null) ...[
                 const Spacer(),
-                Icon(Icons.chevron_right, size: 11, color: colors.textTertiary),
+                Icon(HugeIconsSolid.arrowRight01, size: 11, color: colors.textTertiary),
               ],
             ],
           ),

@@ -30,6 +30,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/screens/vendor_apply.dart';
 import 'package:azaman/screens/vendor_dashboard.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorPullTab extends ConsumerStatefulWidget {
   const VendorPullTab({super.key});
@@ -237,7 +238,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.storefront_rounded, color: colors.accent, size: 20),
+            Icon(HugeIconsSolid.store01, color: colors.accent, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -608,7 +609,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                       color: colors.accent.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.storefront_rounded,
+                    child: Icon(HugeIconsSolid.store01,
                         color: colors.accent, size: 40),
                   ),
                 ),
@@ -641,19 +642,19 @@ class _VendorRequirementSheet extends StatelessWidget {
 
                 _buildSectionTitle('What You\'ll Need'),
                 const SizedBox(height: 12),
-                _buildRequirement(Icons.badge_rounded,
+                _buildRequirement(HugeIconsSolid.identityCard,
                     'Valid Government ID',
                     'Passport, National ID, or Driver\'s License with a selfie'),
-                _buildRequirement(Icons.home_rounded,
+                _buildRequirement(HugeIconsSolid.home01,
                     'Proof of Address',
                     'Utility bill or bank statement (within 3 months)'),
-                _buildRequirement(Icons.account_balance_wallet_rounded,
+                _buildRequirement(HugeIconsSolid.wallet01,
                     'Minimum \$500 USDT Collateral',
                     'Locked during your active vendor period'),
-                _buildRequirement(Icons.payment_rounded,
+                _buildRequirement(HugeIconsSolid.creditCard,
                     'At Least 2 Payment Methods',
                     'Mobile Money, bank transfer, or supported e-wallets'),
-                _buildRequirement(Icons.verified_user_rounded,
+                _buildRequirement(HugeIconsSolid.shield01,
                     'Financial Background Check',
                     'Source of funds and trading experience'),
 
@@ -682,7 +683,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.open_in_new_rounded,
+                        Icon(HugeIconsSolid.share01,
                             color: colors.accent, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
@@ -703,7 +704,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded,
+                        Icon(HugeIconsSolid.arrowRight01,
                             color: colors.accent.withOpacity(0.5), size: 14),
                       ],
                     ),
@@ -733,7 +734,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline_rounded,
+                          Icon(HugeIconsSolid.informationCircle,
                               color: colors.accent, size: 16),
                           const SizedBox(width: 8),
                           Text(
@@ -818,7 +819,7 @@ class _VendorRequirementSheet extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(Icons.check_circle_rounded, color: colors.success, size: 16),
+          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
           const SizedBox(width: 10),
           Expanded(
             child: Text(text,

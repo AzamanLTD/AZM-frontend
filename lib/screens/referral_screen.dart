@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ReferralScreen extends ConsumerStatefulWidget {
   const ReferralScreen({super.key});
@@ -79,7 +80,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
               ),
               child: Column(
                 children: [
-                  Icon(Icons.card_giftcard_rounded, color: colors.accent, size: 40),
+                  Icon(HugeIconsSolid.gift, color: colors.accent, size: 40),
                   const SizedBox(height: 12),
                   Text(
                     'Earn 1% on Every Trade',
@@ -140,7 +141,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                               SnackBar(content: const Text('Code copied!'), backgroundColor: colors.success),
                             );
                           } : null,
-                          icon: Icon(Icons.copy_rounded, size: 16, color: colors.accent),
+                          icon: Icon(HugeIconsSolid.copy01, size: 16, color: colors.accent),
                           label: Text('Copy', style: TextStyle(color: colors.accent)),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(color: colors.accent.withOpacity(0.4)),
@@ -156,7 +157,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                               'Join Azaman P2P and get the best rates on crypto! Use my code: $referralCode\n\nDownload: https://azaman.me/app',
                             );
                           } : null,
-                          icon: const Icon(Icons.share_rounded, size: 16),
+                          icon: const Icon(HugeIconsSolid.share01, size: 16),
                           label: const Text('Share'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colors.accent,

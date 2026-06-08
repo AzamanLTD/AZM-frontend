@@ -33,6 +33,7 @@ import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/services/rate_alert_service.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/rate_alert_sheet.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // ── In-memory rate history (Phase G + Phase H review pass) ─────────────────
 //
@@ -495,7 +496,7 @@ class _RateAlertRow extends ConsumerWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.notifications_active_rounded,
+                Icon(HugeIconsSolid.notification01,
                     size: 14, color: colors.accent),
                 const SizedBox(width: 6),
                 Text(
@@ -589,7 +590,7 @@ class _AlertChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isAbove ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+            isAbove ? HugeIconsSolid.analytics01 : HugeIconsSolid.analytics01,
             size: 12,
             color: chipColor,
           ),

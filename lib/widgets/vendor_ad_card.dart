@@ -31,6 +31,7 @@ import 'dart:ui';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/widgets/vendor_badge_row.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public widget
@@ -236,7 +237,7 @@ class _IdentityRow extends StatelessWidget {
               const SizedBox(height: 3),
               Row(
                 children: [
-                  Icon(Icons.star_rounded, color: colors.warning, size: 12),
+                  Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
                   const SizedBox(width: 3),
                   Text(
                     '${ad.completedTrades} trades',
@@ -339,17 +340,17 @@ class _RiskTag extends StatelessWidget {
       case RiskLevel.low:
         tagColor = colors.success;
         label = 'Low Risk';
-        icon = Icons.shield_rounded;
+        icon = HugeIconsSolid.shield01;
         break;
       case RiskLevel.medium:
         tagColor = colors.warning;
         label = 'Mid Risk';
-        icon = Icons.warning_amber_rounded;
+        icon = HugeIconsSolid.alertCircle;
         break;
       case RiskLevel.high:
         tagColor = colors.danger;
         label = 'High Risk';
-        icon = Icons.dangerous_rounded;
+        icon = HugeIconsSolid.alertCircle;
         break;
     }
 
@@ -491,14 +492,14 @@ class _LimitsRow extends StatelessWidget {
     return Row(
       children: [
         _InfoChip(
-          icon: Icons.swap_vert_rounded,
+          icon: HugeIconsSolid.exchange01,
           label: '\$${_fmtInt(ad.minLimit)} – \$${_fmtInt(ad.maxLimit)}',
           colors: colors,
         ),
         const SizedBox(width: 8),
         Flexible(
           child: _InfoChip(
-            icon: Icons.account_balance_rounded,
+            icon: HugeIconsSolid.bank,
             label: ad.paymentMethod,
             colors: colors,
           ),
@@ -516,7 +517,7 @@ class _LimitsRow extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.hourglass_top_rounded,
+                Icon(HugeIconsSolid.hourglass,
                     color: colors.warning, size: 11),
                 const SizedBox(width: 4),
                 Text(
@@ -623,7 +624,7 @@ class _AiBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.auto_awesome_rounded,
+          const Icon(HugeIconsSolid.sparkles,
               color: Color(0xFF9D8FFF), size: 11),
           const SizedBox(width: 4),
           Text(

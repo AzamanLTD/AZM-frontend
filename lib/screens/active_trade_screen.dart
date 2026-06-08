@@ -23,6 +23,7 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/screens/trade_summary_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ActiveTradeScreen extends ConsumerStatefulWidget {
   final double amount;
@@ -580,7 +581,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.timer_outlined, color: const Color(0xFFFFB800), size: 22),
+                  Icon(HugeIconsSolid.clock01, color: const Color(0xFFFFB800), size: 22),
                   const SizedBox(width: 10),
                   Text('Request More Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
@@ -688,7 +689,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Icon(Icons.warning_amber_rounded, color: colors.danger, size: 28),
+              Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 28),
               const SizedBox(width: 10),
               Text("Open Dispute", style: TextStyle(color: colors.danger, fontSize: 18, fontWeight: FontWeight.bold)),
             ]),
@@ -883,7 +884,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () {
             // BUGFIX (2026-05-31): pop only if there's a real route
             // underneath this one. The previous `pushNamedAndRemoveUntil`
@@ -928,12 +929,12 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
         actions: [
           IconButton(
             icon: Icon(
-                _isChatOpen ? Icons.info_outline : Icons.chat_bubble_outline,
+                _isChatOpen ? HugeIconsSolid.informationCircle : HugeIconsSolid.bubbleChat,
                 color: colors.accent),
             onPressed: () => setState(() => _isChatOpen = !_isChatOpen),
           ),
           IconButton(
-            icon: Icon(Icons.report_problem_outlined, color: colors.danger),
+            icon: Icon(HugeIconsSolid.alertCircle, color: colors.danger),
             onPressed: () => _showDisputeDialog(context),
             tooltip: "Report Problem",
           )
@@ -993,7 +994,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.push_pin, color: colors.accent, size: 16),
+              Icon(HugeIconsSolid.pin, color: colors.accent, size: 16),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1122,7 +1123,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                       color: colors.success.withOpacity(0.2),
                       strokeWidth: 8),
                 ),
-                Icon(Icons.lock_clock, color: colors.success, size: 40),
+                Icon(HugeIconsSolid.lock, color: colors.success, size: 40),
               ],
             ),
             const SizedBox(height: 30),
@@ -1189,7 +1190,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                       fontWeight: FontWeight.bold)),
               IconButton(
                   onPressed: () => _handlePaymentAction(isSharing: true),
-                  icon: Icon(Icons.share, color: colors.textSecondary)),
+                  icon: Icon(HugeIconsSolid.share01, color: colors.textSecondary)),
             ],
           ),
           const SizedBox(height: 25),
@@ -1219,7 +1220,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.account_balance_wallet,
+                      Icon(HugeIconsSolid.wallet01,
                           color: colors.accent, size: 16),
                       const SizedBox(width: 8),
                       Text("VENDOR ACCOUNT DETAILS",
@@ -1245,7 +1246,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                             color: colors.textPrimary.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(8)),
                         child: IconButton(
-                            icon: Icon(Icons.copy, color: colors.accent, size: 20),
+                            icon: Icon(HugeIconsSolid.copy01, color: colors.accent, size: 20),
                             onPressed: () {
                               HapticFeedback.selectionClick();
                               final copyText = _getPaymentDetailsCopyText();
@@ -1330,7 +1331,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline,
+                      Icon(HugeIconsSolid.informationCircle,
                           color: colors.textTertiary, size: 16),
                       const SizedBox(width: 10),
                       Expanded(
@@ -1355,10 +1356,10 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
 
   Widget _buildHorizontalSteps(AzamanColors colors) {
     List<Map<String, dynamic>> steps = [
-      {"icon": Icons.content_copy, "label": "Copy Info"},
-      {"icon": Icons.open_in_new, "label": "Open App"},
-      {"icon": Icons.payment, "label": "Pay Vendor"},
-      {"icon": Icons.done_all, "label": "Upload Proof"},
+      {"icon": HugeIconsSolid.copy01, "label": "Copy Info"},
+      {"icon": HugeIconsSolid.share01, "label": "Open App"},
+      {"icon": HugeIconsSolid.creditCard, "label": "Pay Vendor"},
+      {"icon": HugeIconsSolid.checkmarkCircle01, "label": "Upload Proof"},
     ];
 
     return SingleChildScrollView(
@@ -1412,7 +1413,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
         HapticFeedback.selectionClick();
         _handlePaymentAction(isSharing: false);
       },
-      icon: Icon(Icons.open_in_new, color: fg, size: 18),
+      icon: Icon(HugeIconsSolid.share01, color: fg, size: 18),
       style: ElevatedButton.styleFrom(
           backgroundColor: colors.accent,
           foregroundColor: fg,
@@ -1450,7 +1451,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             Row(
               children: [
                 Icon(
-                  _isExpired ? Icons.timer_off_outlined : Icons.timer_outlined,
+                  _isExpired ? HugeIconsSolid.clock01 : HugeIconsSolid.clock01,
                   size: 16,
                   color: accent,
                 ),
@@ -1485,7 +1486,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.lock_outline, color: colors.danger, size: 20),
+          Icon(HugeIconsSolid.lock, color: colors.danger, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1509,7 +1510,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: colors.danger.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(Icons.shield_outlined, color: colors.danger, size: 56),
+              child: Icon(HugeIconsSolid.shield01, color: colors.danger, size: 56),
             ),
             const SizedBox(height: 24),
             Text("Dispute Active", style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
@@ -1532,7 +1533,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => setState(() => _isChatOpen = true),
-                icon: Icon(Icons.chat_bubble_outline, color: colors.accent, size: 18),
+                icon: Icon(HugeIconsSolid.bubbleChat, color: colors.accent, size: 18),
                 label: Text("Open Chat", style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold)),
               ),
             ),

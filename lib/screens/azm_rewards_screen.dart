@@ -21,6 +21,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class AzmRewardsScreen extends ConsumerStatefulWidget {
   const AzmRewardsScreen({super.key});
@@ -71,7 +72,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: colors.textPrimary, size: 20),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(

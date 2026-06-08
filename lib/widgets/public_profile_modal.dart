@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class Badge {
   final IconData icon;
@@ -121,7 +122,7 @@ class PublicProfileModal extends ConsumerWidget {
                   : null,
               child: avatarUrl.isEmpty
                   ? Icon(
-                      Icons.person_rounded,
+                      HugeIconsSolid.user,
                       size: 44,
                       color: colors.textTertiary,
                     )
@@ -149,7 +150,7 @@ class PublicProfileModal extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.calendar_today_rounded,
+                  HugeIconsSolid.calendar01,
                   size: 12,
                   color: colors.accent,
                 ),
@@ -185,7 +186,7 @@ class PublicProfileModal extends ConsumerWidget {
           child: Column(
             children: [
               Icon(
-                Icons.emoji_events_outlined,
+                HugeIconsSolid.award01,
                 size: 32,
                 color: colors.textTertiary.withOpacity(0.4),
               ),
@@ -214,7 +215,7 @@ class PublicProfileModal extends ConsumerWidget {
           Row(
             children: [
               Icon(
-                Icons.emoji_events_rounded,
+                HugeIconsSolid.award01,
                 size: 16,
                 color: colors.accent,
               ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../providers/theme_provider.dart';
 import '../services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class FiatDepositScreen extends ConsumerStatefulWidget {
   const FiatDepositScreen({super.key});
@@ -132,7 +133,7 @@ class _FiatDepositScreenState extends ConsumerState<FiatDepositScreen> {
                 filled: true,
                 fillColor: colors.surface,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                prefixIcon: Icon(Icons.money, color: colors.accent),
+                prefixIcon: Icon(HugeIconsSolid.money01, color: colors.accent),
               ),
             ),
             const SizedBox(height: 20),
@@ -192,7 +193,7 @@ class _FiatDepositScreenState extends ConsumerState<FiatDepositScreen> {
                             children: [
                               Text(e.value.toString(), style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
                               IconButton(
-                                icon: Icon(Icons.copy, size: 16, color: colors.accent),
+                                icon: Icon(HugeIconsSolid.copy01, size: 16, color: colors.accent),
                                 onPressed: () => _copyToClipboard(e.value.toString(), e.key),
                               )
                             ],

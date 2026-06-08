@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorDepositScreen extends ConsumerStatefulWidget {
   const VendorDepositScreen({super.key});
@@ -88,7 +89,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -129,7 +130,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.5)),
-                              Icon(Icons.shield_outlined,
+                              Icon(HugeIconsSolid.shield01,
                                   color: colors.accent.withOpacity(0.5),
                                   size: 18),
                             ],
@@ -166,7 +167,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded,
+                            Icon(HugeIconsSolid.alertCircle,
                                 color: colors.warning, size: 20),
                             const SizedBox(width: 12),
                             Expanded(
@@ -246,7 +247,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
-                                    icon: Icon(Icons.copy,
+                                    icon: Icon(HugeIconsSolid.copy01,
                                         color: colors.accent, size: 20),
                                     onPressed: () {
                                       HapticFeedback.selectionClick();
@@ -282,7 +283,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.info_outline,
+                            Icon(HugeIconsSolid.informationCircle,
                                 color: colors.warning, size: 18),
                             const SizedBox(width: 12),
                             Expanded(

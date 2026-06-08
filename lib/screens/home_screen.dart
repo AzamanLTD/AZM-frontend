@@ -55,6 +55,7 @@ import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:azaman/widgets/today_widget.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class AzamanHomePage extends ConsumerStatefulWidget {
   const AzamanHomePage({super.key});
@@ -177,7 +178,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
         children: [
           _buildQuickAction(
             colors,
-            Icons.account_balance_wallet,
+            HugeIconsSolid.wallet01,
             'Deposit',
             colors.accent,
             onTap: () {
@@ -193,7 +194,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
           const SizedBox(width: 10),
           _buildQuickAction(
             colors,
-            Icons.north_rounded,
+            HugeIconsSolid.arrowUp01,
             'Withdraw',
             colors.warning,
             onTap: () {
@@ -209,7 +210,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
           const SizedBox(width: 10),
           _buildQuickAction(
             colors,
-            Icons.sync_alt_rounded,
+            HugeIconsSolid.exchange01,
             'Transfer',
             colors.success,
             onTap: () {
@@ -228,7 +229,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
           const SizedBox(width: 10),
           _buildQuickAction(
             colors,
-            Icons.savings_rounded,
+            HugeIconsSolid.savings,
             'Savings',
             colors.accentSecondary,
             onTap: () {

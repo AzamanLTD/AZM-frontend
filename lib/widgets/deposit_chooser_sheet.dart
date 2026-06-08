@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/crypto_deposit_screen.dart';
 import 'package:azaman/screens/fiat_deposit_flow_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class DepositChooserSheet extends ConsumerWidget {
   const DepositChooserSheet({super.key});
@@ -92,7 +93,7 @@ class DepositChooserSheet extends ConsumerWidget {
           const SizedBox(height: 22),
 
           _DepositOption(
-            icon: Icons.currency_bitcoin_rounded,
+            icon: HugeIconsSolid.bitcoin,
             iconColor: colors.success,
             title: 'Crypto (Polygon USDC)',
             subtitle:
@@ -111,7 +112,7 @@ class DepositChooserSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _DepositOption(
-            icon: Icons.account_balance_wallet_rounded,
+            icon: HugeIconsSolid.wallet01,
             iconColor: colors.accent,
             title: 'Fiat (Mobile Money)',
             subtitle:
@@ -214,7 +215,7 @@ class _DepositOption extends ConsumerWidget {
             ),
             const SizedBox(width: 10),
             Icon(
-              Icons.arrow_forward_ios_rounded,
+              HugeIconsSolid.arrowRight01,
               color: colors.textTertiary,
               size: 14,
             ),

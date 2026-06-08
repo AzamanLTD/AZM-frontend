@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class AccountActivityScreen extends ConsumerStatefulWidget {
   const AccountActivityScreen({super.key});
@@ -129,7 +130,7 @@ class _AccountActivityScreenState
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -161,7 +162,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(Icons.error_outline,
+          Icon(HugeIconsSolid.alertCircle,
               color: colors.danger, size: 48),
           const SizedBox(height: 12),
           Center(
@@ -191,7 +192,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(Icons.history_toggle_off_rounded,
+          Icon(HugeIconsSolid.transactionHistory,
               color: colors.textTertiary, size: 56),
           const SizedBox(height: 12),
           Center(
@@ -311,17 +312,17 @@ class _AccountActivityScreenState
 
   IconData _iconFor(String title) {
     final t = title.toLowerCase();
-    if (t.contains('password')) return Icons.lock_reset_rounded;
+    if (t.contains('password')) return HugeIconsSolid.lock;
     if (t.contains('2fa') || t.contains('two-factor')) {
-      return Icons.security_rounded;
+      return HugeIconsSolid.security;
     }
-    if (t.contains('pin')) return Icons.dialpad_rounded;
+    if (t.contains('pin')) return HugeIconsSolid.dialpadSquare01;
     if (t.contains('login') || t.contains('signed in')) {
-      return Icons.login_rounded;
+      return HugeIconsSolid.login01;
     }
-    if (t.contains('logout')) return Icons.logout_rounded;
-    if (t.contains('device')) return Icons.devices_other_rounded;
-    return Icons.shield_outlined;
+    if (t.contains('logout')) return HugeIconsSolid.logout01;
+    if (t.contains('device')) return HugeIconsSolid.smartPhone01;
+    return HugeIconsSolid.shield01;
   }
 
   String _formatTimestamp(DateTime? ts) {

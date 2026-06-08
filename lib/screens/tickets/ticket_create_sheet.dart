@@ -18,6 +18,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 const _kCurrencies = ['USD', 'GHS', 'USDC', 'USDT', 'AZM', 'EUR', 'GBP', 'NGN'];
 
@@ -107,7 +108,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Icon(Icons.confirmation_number_rounded,
+                    Icon(HugeIconsSolid.ticket01,
                         color: colors.accent, size: 20),
                     const SizedBox(width: 8),
                     Text('New Ticket',
@@ -242,7 +243,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
                               color: colors.isDark ? Colors.black : Colors.white,
                             ),
                           )
-                        : const Icon(Icons.confirmation_number_rounded, size: 18),
+                        : const Icon(HugeIconsSolid.ticket01, size: 18),
                     label: Text(_submitting ? 'Creating…' : 'Create Ticket'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,

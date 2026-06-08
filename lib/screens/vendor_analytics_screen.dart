@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:azaman/providers/vendor_analytics_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/vendor_analytics_service.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // =============================================================================
 // AZAMAN — VENDOR ANALYTICS SCREEN (Phase Q16-FE)
@@ -199,7 +200,7 @@ class _SummaryCardsRow extends ConsumerWidget {
                   colors: colors,
                   label: 'Trades',
                   value: summary.totalTrades.toString(),
-                  icon: Icons.swap_horiz_rounded,
+                  icon: HugeIconsSolid.exchange01,
                 ),
               ),
               const SizedBox(width: 10),
@@ -208,7 +209,7 @@ class _SummaryCardsRow extends ConsumerWidget {
                   colors: colors,
                   label: 'Volume',
                   value: _formatCurrency(summary.totalVolume),
-                  icon: Icons.bar_chart_rounded,
+                  icon: HugeIconsSolid.presentationBarChart01,
                 ),
               ),
               const SizedBox(width: 10),
@@ -217,7 +218,7 @@ class _SummaryCardsRow extends ConsumerWidget {
                   colors: colors,
                   label: 'Revenue',
                   value: _formatCurrency(summary.totalRevenue),
-                  icon: Icons.trending_up_rounded,
+                  icon: HugeIconsSolid.analytics01,
                 ),
               ),
             ],
@@ -231,7 +232,7 @@ class _SummaryCardsRow extends ConsumerWidget {
                   colors: colors,
                   label: 'Avg Time',
                   value: '${summary.avgCompletionMinutes.toStringAsFixed(1)}m',
-                  icon: Icons.timer_outlined,
+                  icon: HugeIconsSolid.clock01,
                 ),
               ),
               const SizedBox(width: 10),
@@ -240,7 +241,7 @@ class _SummaryCardsRow extends ConsumerWidget {
                   colors: colors,
                   label: 'Dispute Rate',
                   value: '${summary.disputeRate.toStringAsFixed(1)}%',
-                  icon: Icons.gavel_rounded,
+                  icon: HugeIconsSolid.judge,
                   valueColor: summary.disputeRate > 5
                       ? colors.danger
                       : summary.disputeRate > 2
@@ -722,7 +723,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          Icon(Icons.analytics_outlined, size: 56, color: colors.textTertiary),
+          Icon(HugeIconsSolid.analytics01, size: 56, color: colors.textTertiary),
           const SizedBox(height: 16),
           Text(
             'Failed to Load Analytics',
@@ -741,7 +742,7 @@ class _ErrorState extends StatelessWidget {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh, size: 18),
+            icon: const Icon(HugeIconsSolid.refresh01, size: 18),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.accent,

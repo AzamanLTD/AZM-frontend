@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class TradeSummaryScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> tradeData;
@@ -163,7 +164,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
             color: colors.success.withOpacity(0.1),
             border: Border.all(color: colors.success, width: 2),
           ),
-          child: Icon(Icons.check_rounded, color: colors.success, size: 50),
+          child: Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 50),
         ),
         const SizedBox(height: 20),
         Text(
@@ -247,7 +248,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.thumb_up_alt_rounded, color: _isPositive == true ? colors.success : colors.textTertiary, size: 18),
+                        Icon(HugeIconsSolid.thumbsUp, color: _isPositive == true ? colors.success : colors.textTertiary, size: 18),
                         const SizedBox(width: 8),
                         Text("Positive", style: TextStyle(color: _isPositive == true ? colors.success : colors.textTertiary, fontWeight: FontWeight.bold)),
                       ],
@@ -272,7 +273,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.thumb_down_alt_rounded, color: _isPositive == false ? colors.danger : colors.textTertiary, size: 18),
+                        Icon(HugeIconsSolid.thumbsDown, color: _isPositive == false ? colors.danger : colors.textTertiary, size: 18),
                         const SizedBox(width: 8),
                         Text("Negative", style: TextStyle(color: _isPositive == false ? colors.danger : colors.textTertiary, fontWeight: FontWeight.bold)),
                       ],
@@ -342,7 +343,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.volunteer_activism, color: colors.success, size: 30),
+          Icon(HugeIconsSolid.favourite, color: colors.success, size: 30),
           const SizedBox(height: 10),
           Text(
             "Feedback Submitted",
@@ -374,7 +375,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   strokeWidth: 2,
                 ),
               )
-            : Icon(Icons.download_rounded, color: colors.accent, size: 20),
+            : Icon(HugeIconsSolid.download01, color: colors.accent, size: 20),
         label: Text(
           _isDownloadingReceipt ? 'Downloading...' : 'Download Receipt',
           style: TextStyle(

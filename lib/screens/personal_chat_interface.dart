@@ -7,6 +7,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class PersonalChatMessage {
   final String id;
@@ -296,7 +297,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                   color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.currency_bitcoin, color: colors.accent, size: 24),
+                child: Icon(HugeIconsSolid.bitcoin, color: colors.accent, size: 24),
               ),
               title: Text('Send Crypto',
                   style: TextStyle(
@@ -315,7 +316,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                   color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.image_outlined, color: colors.accent, size: 24),
+                child: Icon(HugeIconsSolid.image01, color: colors.accent, size: 24),
               ),
               title: Text('Send Photo',
                   style: TextStyle(
@@ -599,15 +600,15 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
   Widget _statusTicks(String status, AzamanColors colors) {
     switch (status) {
       case 'sending':
-        return Icon(Icons.schedule, size: 13, color: colors.textTertiary.withValues(alpha: 0.6));
+        return Icon(HugeIconsSolid.clock01, size: 13, color: colors.textTertiary.withValues(alpha: 0.6));
       case 'failed':
-        return Icon(Icons.error_outline, size: 13, color: colors.danger);
+        return Icon(HugeIconsSolid.alertCircle, size: 13, color: colors.danger);
       case 'read':
-        return Icon(Icons.done_all, size: 13, color: colors.accent);
+        return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.accent);
       case 'delivered':
-        return Icon(Icons.done_all, size: 13, color: colors.textTertiary);
+        return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
       default:
-        return Icon(Icons.check, size: 13, color: colors.textTertiary);
+        return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
     }
   }
 
@@ -634,7 +635,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             Row(
               children: [
                 Icon(
-                  Icons.currency_bitcoin,
+                  HugeIconsSolid.bitcoin,
                   size: 20,
                   color: completed ? colors.success : colors.danger,
                 ),
@@ -676,7 +677,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             Row(
               children: [
                 Icon(
-                  completed ? Icons.check_circle : Icons.cancel,
+                  completed ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.cancel01,
                   size: 16,
                   color: completed ? colors.success : colors.danger,
                 ),
@@ -791,13 +792,13 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(Icons.edit_square, size: 14, color: colors.textTertiary),
+              Icon(HugeIconsSolid.pencilEdit01, size: 14, color: colors.textTertiary),
             ],
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.info_outline, color: colors.accent),
+            icon: Icon(HugeIconsSolid.informationCircle, color: colors.accent),
             onPressed: _showNicknameDialog,
             tooltip: 'Contact Info',
           ),
@@ -813,7 +814,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat_bubble_outline,
+                            Icon(HugeIconsSolid.bubbleChat,
                                 size: 48, color: colors.textTertiary),
                             const SizedBox(height: 12),
                             Text('No messages yet',
@@ -843,7 +844,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.add_circle_outline,
+                    icon: Icon(HugeIconsSolid.addCircle,
                         color: colors.accent, size: 28),
                     tooltip: 'More actions',
                     onPressed: _showMoreActions,
@@ -873,7 +874,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                     backgroundColor: colors.accent,
                     radius: 22,
                     child: IconButton(
-                      icon: Icon(Icons.send,
+                      icon: Icon(HugeIconsSolid.sent,
                           color: colors.isDark ? Colors.black : Colors.white,
                           size: 20),
                       onPressed: _sendTextMessage,
