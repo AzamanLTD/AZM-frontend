@@ -393,13 +393,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       backgroundColor: colors.background,
       endDrawer: const SettingsDrawer(),
 
-      appBar: AppBar(
+      appBar: _selectedIndex == 0
+          ? null
+          : AppBar(
         centerTitle: false,
         automaticallyImplyLeading: false,
         backgroundColor: colors.background,
-        title: _selectedIndex == 0
-            ? null
-            : Text(
+        title: Text(
                 'AZAMAN',
                 style: TextStyle(
                   color: colors.accent,

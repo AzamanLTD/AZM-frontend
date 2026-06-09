@@ -43,14 +43,14 @@ class HologramBalanceCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
               child: Row(
                 children: [
                   Text(
                     'Main account',
                     style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 15,
+                      color: colors.textSecondary,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -70,16 +70,7 @@ class HologramBalanceCard extends ConsumerWidget {
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Divider(
-                height: 24,
-                thickness: 1,
-                color: colors.divider,
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -118,7 +109,7 @@ class HologramBalanceCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
 
                   _CountUpNumber(
                     value: totalUsdc,
@@ -126,7 +117,7 @@ class HologramBalanceCard extends ConsumerWidget {
                     colors: colors,
                     prefix: '\$',
                     suffix: ' USDC',
-                    fontSize: 34,
+                    fontSize: 40,
                   ),
                   const SizedBox(height: 6),
 
@@ -139,7 +130,7 @@ class HologramBalanceCard extends ConsumerWidget {
                     fontSize: 14,
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   _BalanceChipsRow(
                     colors: colors,

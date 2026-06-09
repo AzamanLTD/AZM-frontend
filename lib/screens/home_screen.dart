@@ -53,42 +53,45 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: RefreshIndicator(
-        color: colors.accent,
-        backgroundColor: colors.card,
-        onRefresh: _onRefresh,
-        child: const SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: EdgeInsets.only(bottom: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 8),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: colors.accent,
+          backgroundColor: colors.card,
+          onRefresh: _onRefresh,
+          child: const SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.only(bottom: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 10),
 
-              _GreetingHeader(),
+                _GreetingHeader(),
 
-              SizedBox(height: 18),
+                SizedBox(height: 24),
 
-              _GreetingTitle(),
+                _GreetingTitle(),
 
-              SizedBox(height: 18),
+                SizedBox(height: 20),
 
-              _ActionPills(),
+                _ActionPills(),
 
-              SizedBox(height: 20),
+                SizedBox(height: 22),
 
-              FlippableBalanceCard(),
+                FlippableBalanceCard(),
 
-              SizedBox(height: 28),
+                SizedBox(height: 32),
 
-              RecentActivitySection(),
+                RecentActivitySection(),
 
-              SizedBox(height: 28),
+                SizedBox(height: 32),
 
-              LiveMarketSection(),
-            ],
+                LiveMarketSection(),
+              ],
+            ),
           ),
         ),
       ),
