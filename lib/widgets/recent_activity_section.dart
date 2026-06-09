@@ -242,16 +242,6 @@ class _EmptyActivity extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Add money to get started — your activity will show up here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 12.5,
-              height: 1.4,
-            ),
-          ),
           const SizedBox(height: 16),
           GestureDetector(
             behavior: HitTestBehavior.opaque,

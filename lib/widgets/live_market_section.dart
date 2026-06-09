@@ -157,113 +157,156 @@ class _GhsHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final available = rates.isAvailable;
     final unavailable = !available || error != null;
-    // Cold-load: rates haven't been fetched yet AND no error has been
-    // recorded. Show a skeleton instead of "—" so the user knows
-    // something is happening rather than something is wrong.
     final coldLoad = !available && error == null;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.divider),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: colors.accent.withOpacity(0.30)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: colors.divider)),
+            ),
+            child: Row(
+              children: [
+                _CurrencyBadge(
+                  flag: '\u{1F1FA}\u{1F1F8}',
+                  label: 'USD',
+                  colors: colors,
                 ),
-                child: Text(
-                  'GH\u20B5',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
+                const Spacer(),
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.divider),
+                  ),
+                  child: Icon(
+                    HugeIconsSolid.exchange01,
+                    size: 14,
+                    color: colors.textTertiary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'USD \u2192 GHS',
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Live oracle rate',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+                const Spacer(),
+                _CurrencyBadge(
+                  flag: '\u{1F1EC}\u{1F1ED}',
+                  label: 'GHS',
+                  colors: colors,
                 ),
-              ),
-              if (coldLoad)
-                const SkeletonBlock(width: 80, height: 28)
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      unavailable
-                          ? '\u2014'
-                          : rates.usdToGhs.toStringAsFixed(2),
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    Text(
-                      unavailable ? 'unavailable' : 'GHS per 1 USD',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+              ],
+            ),
           ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            child: Column(
+              children: [
+                if (coldLoad)
+                  const SkeletonBlock(width: 160, height: 36)
+                else
+                  Text(
+                    unavailable
+                        ? '\u2014'
+                        : 'GH\u20B5${rates.usdToGhs.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                if (coldLoad)
+                  const SkeletonBlock(width: 120, height: 14)
+                else
+                  Text(
+                    unavailable
+                        ? 'Rate unavailable'
+                        : '1 USD = ${rates.usdToGhs.toStringAsFixed(2)} GHS',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
           if (history.length >= 2) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 36,
-              child: _Sparkline(
-                colors: colors,
-                points: history.map((o) => o.rate).toList(growable: false),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: SizedBox(
+                height: 36,
+                child: _Sparkline(
+                  colors: colors,
+                  points: history.map((o) => o.rate).toList(growable: false),
+                ),
               ),
             ),
           ] else if (coldLoad) ...[
-            const SizedBox(height: 12),
-            const SkeletonBlock(
-              height: 36,
-              width: double.infinity,
-              borderRadius: BorderRadius.all(Radius.circular(8)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: const SkeletonBlock(
+                height: 36,
+                width: double.infinity,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _CurrencyBadge extends StatelessWidget {
+  final String flag;
+  final String label;
+  final AzamanColors colors;
+
+  const _CurrencyBadge({
+    required this.flag,
+    required this.label,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.divider.withOpacity(0.3),
+          ),
+          child: Text(
+            flag,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
