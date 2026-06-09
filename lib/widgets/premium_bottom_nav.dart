@@ -65,7 +65,7 @@ class PremiumBottomNav extends ConsumerWidget {
         color: colors.surface,
         border: Border(
           top: BorderSide(
-            color: colors.textTertiary.withOpacity(0.18),
+            color: colors.divider.withValues(alpha: 0.6),
             width: 1,
           ),
         ),
@@ -123,7 +123,7 @@ class _NavButton extends StatelessWidget {
               Icon(
                 isSelected ? item.activeIcon : item.icon,
                 color: color,
-                size: 24,
+                size: 23,
               ),
               const SizedBox(height: 4),
               Text(

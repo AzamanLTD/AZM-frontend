@@ -234,10 +234,11 @@ class ThemeProvider with ChangeNotifier {
           isDark: false,
           name: "Light",
           icon: HugeIconsSolid.sun01,
-          background: const Color(0xFFF5F5F7),
+          background: const Color(0xFFFAFAFB),
           surface: Colors.white,
           card: const Color(0xFFFFFFFF),
-          divider: const Color(0xFFD8D8DC),
+          softSurface: const Color(0xFFF1F1F3),
+          divider: const Color(0xFFE6E6E9),
           accent: const Color(0xFFB8860B),       // darker gold reads on white
           accentSecondary: const Color(0xFF8B6914),
           accentSurface: const Color(0xFFFDF6E3),
@@ -258,6 +259,7 @@ class ThemeProvider with ChangeNotifier {
           background: const Color(0xFF0B0E11),
           surface: const Color(0xFF1E2329),
           card: const Color(0xFF1E2329),
+          softSurface: const Color(0xFF181D23),
           divider: Colors.white.withOpacity(0.06),
           accent: const Color(0xFFD4AF37),
           accentSecondary: const Color(0xFFF0B90B),
@@ -281,6 +283,7 @@ class ThemeProvider with ChangeNotifier {
           background: const Color(0xFF000000),
           surface: const Color(0xFF0A0612),
           card: const Color(0xFF0F0820),
+          softSurface: const Color(0xFF0A0614),
           divider: const Color(0xFFBB86FC).withOpacity(0.08),
           accent: const Color(0xFFBB86FC),
           accentSecondary: const Color(0xFFE040FB),
@@ -310,6 +313,7 @@ class AzamanColors {
   final Color background;
   final Color surface;
   final Color card;
+  final Color softSurface;
   final Color divider;
 
   final Color accent;
@@ -333,6 +337,7 @@ class AzamanColors {
     required this.background,
     required this.surface,
     required this.card,
+    required this.softSurface,
     required this.divider,
     required this.accent,
     required this.accentSecondary,

@@ -266,9 +266,8 @@ class _BackFace extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.divider, width: 1),
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(

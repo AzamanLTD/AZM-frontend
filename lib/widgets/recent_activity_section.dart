@@ -112,8 +112,7 @@ class _ActivityRow extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: colors.card,
-              border: Border.all(color: colors.divider, width: 1),
+              color: colors.softSurface,
             ),
             child: Icon(
               txn.isCredit
@@ -209,68 +208,75 @@ class _EmptyActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withValues(alpha: 0.10),
-            ),
-            child: Icon(
-              HugeIconsSolid.transactionHistory,
-              size: 22,
-              color: colors.accent,
-            ),
+    return Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.softSurface,
           ),
-          const SizedBox(height: 14),
-          Text(
-            'No transactions yet',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
+          child: Icon(
+            HugeIconsSolid.transactionHistory,
+            size: 19,
+            color: colors.textTertiary,
           ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DepositScreen()),
-              );
-            },
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: colors.accent,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: const Text(
-                'Add money',
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'No transactions yet',
                 style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 13.5,
+                  color: colors.textPrimary,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              const SizedBox(height: 2),
+              Text(
+                'They\u2019ll appear here after your first payment',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w400,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            AzamanHaptics.nav();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DepositScreen()),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            decoration: BoxDecoration(
+              color: colors.accent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Add',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

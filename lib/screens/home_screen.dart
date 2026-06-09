@@ -67,27 +67,27 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 10),
+                SizedBox(height: 8),
 
                 _GreetingHeader(),
 
-                SizedBox(height: 24),
+                SizedBox(height: 16),
 
                 _GreetingTitle(),
 
-                SizedBox(height: 20),
+                SizedBox(height: 16),
 
                 _ActionPills(),
 
-                SizedBox(height: 22),
+                SizedBox(height: 18),
 
                 _BalanceCardsScroll(),
 
-                SizedBox(height: 32),
+                SizedBox(height: 28),
 
                 RecentActivitySection(),
 
-                SizedBox(height: 32),
+                SizedBox(height: 28),
 
                 LiveMarketSection(),
               ],
@@ -130,16 +130,15 @@ class _GreetingHeader extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.card,
-                border: Border.all(color: colors.divider, width: 1),
+                color: colors.softSurface,
               ),
               child: Text(
                 initials,
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
                 ),
               ),
             ),
@@ -191,8 +190,7 @@ class _GreetingHeader extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.card,
-                border: Border.all(color: colors.divider, width: 1),
+                color: colors.softSurface,
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -239,9 +237,9 @@ class _GreetingTitle extends ConsumerWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: colors.textPrimary,
-          fontSize: 28,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.8,
+          fontSize: 27,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
         ),
       ),
     ).animate().fadeIn(duration: 360.ms, curve: Curves.easeOut).slideY(
@@ -266,7 +264,6 @@ class _ActionPills extends ConsumerWidget {
         children: [
           _pill(
             colors: colors,
-            icon: HugeIconsSolid.add01,
             label: 'Add money',
             primary: true,
             onTap: () {
@@ -280,7 +277,6 @@ class _ActionPills extends ConsumerWidget {
           const SizedBox(width: 10),
           _pill(
             colors: colors,
-            icon: HugeIconsSolid.sent,
             label: 'Send',
             onTap: () {
               AzamanHaptics.nav();
@@ -293,7 +289,6 @@ class _ActionPills extends ConsumerWidget {
           const SizedBox(width: 10),
           _pill(
             colors: colors,
-            icon: HugeIconsSolid.arrowUp01,
             label: 'Withdraw',
             onTap: () {
               AzamanHaptics.nav();
@@ -306,7 +301,6 @@ class _ActionPills extends ConsumerWidget {
           const SizedBox(width: 10),
           _pill(
             colors: colors,
-            icon: HugeIconsSolid.savings,
             label: 'Savings',
             onTap: () {
               AzamanHaptics.nav();
@@ -328,7 +322,6 @@ class _ActionPills extends ConsumerWidget {
 
   Widget _pill({
     required AzamanColors colors,
-    required IconData icon,
     required String label,
     required VoidCallback onTap,
     bool primary = false,
@@ -338,29 +331,19 @@ class _ActionPills extends ConsumerWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: primary ? colors.accent : colors.card,
-          borderRadius: BorderRadius.circular(24),
-          border: primary
-              ? null
-              : Border.all(color: colors.divider, width: 1),
+          color: primary ? colors.accent : colors.softSurface,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                color: fg,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.1,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: fg,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
         ),
       ),
     )
@@ -379,19 +362,19 @@ class _BalanceCardsScroll extends ConsumerWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
 
     return SizedBox(
-      height: 196,
+      height: 164,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         physics: const BouncingScrollPhysics(),
         children: [
           SizedBox(
-            width: screenWidth * 0.74,
+            width: screenWidth * 0.76,
             child: const FlippableBalanceCard(),
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: screenWidth * 0.34,
+            width: screenWidth * 0.38,
             child: _NewWalletCard(colors: colors),
           ),
         ],
@@ -408,22 +391,21 @@ class _NewWalletCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.divider, width: 1),
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(22),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: colors.card,
-              border: Border.all(color: colors.divider, width: 1.5),
             ),
             child: Icon(
               HugeIconsSolid.add01,
@@ -431,7 +413,7 @@ class _NewWalletCard extends StatelessWidget {
               color: colors.textSecondary,
             ),
           ),
-          const SizedBox(height: 12),
+          const Spacer(),
           Text(
             'New',
             style: TextStyle(
@@ -442,8 +424,7 @@ class _NewWalletCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Send, save in\nmultiple currencies',
-            textAlign: TextAlign.center,
+            'Send, save in\nmany currencies',
             style: TextStyle(
               color: colors.textTertiary,
               fontSize: 11,

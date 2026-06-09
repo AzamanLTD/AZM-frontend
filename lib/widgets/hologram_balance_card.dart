@@ -25,40 +25,38 @@ class HologramBalanceCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.divider, width: 1),
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(22),
       ),
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 40,
+                height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent.withValues(alpha: 0.12),
-                  border: Border.all(color: colors.divider, width: 1),
+                  color: colors.accent.withValues(alpha: 0.14),
                 ),
                 child: Text(
                   '\$',
                   style: TextStyle(
                     color: colors.accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Text(
                 'USDC',
                 style: TextStyle(
                   color: colors.textPrimary,
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.3,
                 ),
@@ -175,9 +173,9 @@ class _BalanceNumberState extends State<_BalanceNumber>
           text,
           style: TextStyle(
             color: widget.colors.textPrimary,
-            fontSize: 36,
+            fontSize: 33,
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.8,
+            letterSpacing: -0.6,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         );
