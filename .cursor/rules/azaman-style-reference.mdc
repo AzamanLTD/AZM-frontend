@@ -23,6 +23,7 @@ Always refer to the reference images in the `@ref/` folder for visual guidance o
 - **MoonPay References (`ref/MoonPay iOS 28.png`, `ref/MoonPay iOS 81.png`):** Use for step-by-step payment forms, card inputs, and status timelines.
 - **Sticker/Brutalist References (`ref/cosmos_1250180992.jpeg`, `ref/ -5.jpg`, `ref/original_f70a829c65b230504b2f371e60619610_gif (1080×1082).gif`):** Use for sticker-style illustrations, rotation angles (-8° to +12°), and tactile notebook textures.
 
+icon packs must be filled icons from https://hugeicons.com and nowhere else
 ---
 
 ## Design Tokens

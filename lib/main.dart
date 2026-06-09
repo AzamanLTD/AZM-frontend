@@ -488,19 +488,21 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         ],
       ),
 
+      bottomNavigationBar: PremiumBottomNav(
+        selectedIndex: _selectedIndex,
+        onItemSelected: (i) => setState(() => _selectedIndex = i),
+      ),
+
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 96),
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                _pages[0],
-                _pages[1],
-                _pages[2],
-                _pages[3],
-              ],
-            ),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _pages[0],
+              _pages[1],
+              _pages[2],
+              _pages[3],
+            ],
           ),
           // Vendor Pull Tab — only visible on the P2P tab AND only when
           // the user has explicitly opted in via Settings → "Show vendor
@@ -509,10 +511,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
           if (_selectedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
-          PremiumBottomNav(
-            selectedIndex: _selectedIndex,
-            onItemSelected: (i) => setState(() => _selectedIndex = i),
-          ),
         ],
       ),
     );
