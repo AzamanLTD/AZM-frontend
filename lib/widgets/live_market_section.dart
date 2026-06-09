@@ -380,29 +380,29 @@ class _RateAlertRow extends ConsumerWidget {
     final activeAlerts = alertState.activeAlerts;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // "Set Alert" button
         GestureDetector(
           onTap: () => RateAlertSheet.show(context, ref, currentRate: currentRate),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colors.accent.withOpacity(0.25)),
+              color: colors.softSurface,
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(HugeIconsSolid.notification01,
-                    size: 14, color: colors.accent),
-                const SizedBox(width: 6),
+                    size: 17, color: colors.textPrimary),
+                const SizedBox(width: 8),
                 Text(
                   'Set Rate Alert',
                   style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 12,
+                    color: colors.textPrimary,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

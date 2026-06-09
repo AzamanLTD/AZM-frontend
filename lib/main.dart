@@ -44,7 +44,6 @@ import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
-import 'package:azaman/screens/notification_hub_screen.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -282,8 +281,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     _pages = [
       const AzamanHomePage(),
       const FriendsHubScreen(),
-      const P2PMarketplaceScreen(),
-      const SavingsScreen(),
+      const SafeArea(bottom: false, child: P2PMarketplaceScreen()),
+      const SafeArea(bottom: false, child: SavingsScreen()),
     ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -393,102 +392,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       backgroundColor: colors.background,
       endDrawer: const SettingsDrawer(),
 
-      appBar: _selectedIndex == 0
-          ? null
-          : AppBar(
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-        backgroundColor: colors.background,
-        title: Text(
-                'AZAMAN',
-                style: TextStyle(
-                  color: colors.accent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                  letterSpacing: 1.2,
-                ),
-              ),
-        actions: [
-          // Phase UI-1 (2026-05-26): the AppBar chat icon was retired.
-          // The bottom nav bar's "Chat" tab is the canonical entry point
-          // into the Friends Hub and already carries its own unread badge,
-          // so a second affordance up here was redundant chrome and split
-          // user attention. Notification bell stays as the only AppBar
-          // action besides the drawer pill.
-          // Notification bell
-          ValueListenableBuilder<List<P2POrder>>(
-            valueListenable: openTransactionsNotifier,
-            builder: (context, transactions, child) {
-              return Consumer(
-                builder: (ctx, ref, _) {
-                  final notifCount = ref.watch(trade_pkg.tradeProvider
-                      .select((t) => t.notificationCount));
-                  final totalNotifs = transactions.length + notifCount;
-                  return Stack(alignment: Alignment.center, children: [
-                    IconButton(
-                      icon: Icon(HugeIconsSolid.notification01,
-                          size: 26, color: colors.textPrimary),
-                      onPressed: () {
-                        ref.read(trade_pkg.tradeProvider).clearNotifications();
-                        Navigator.push(
-                          ctx,
-                          MaterialPageRoute(builder: (_) => const NotificationHubScreen()),
-                        );
-                      },
-                    ),
-                    if (totalNotifs > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: colors.danger,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: colors.background, width: 2),
-                          ),
-                          child: Text(
-                            '$totalNotifs',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ]);
-                },
-              );
-            },
-          ),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => Scaffold.of(context).openEndDrawer(),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.center,
-                // The drawer pill is "HQ" globally on every tab. The role
-                // tag (HQ-vs-PRO) was only ever meaningful as a vendor
-                // indicator, and showing it everywhere added noise. The
-                // BECOME-VENDOR / FOR-VENDOR cue is now exclusively the
-                // pull-tab on the P2P tab.
-                child: Text(
-                  'HQ',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 17,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
 
       bottomNavigationBar: PremiumBottomNav(
         selectedIndex: _selectedIndex,

@@ -239,7 +239,7 @@ class _EmptyActivity extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'They\u2019ll appear here after your first payment',
+                'Make a payment',
                 style: TextStyle(
                   color: colors.textTertiary,
                   fontSize: 12.5,
