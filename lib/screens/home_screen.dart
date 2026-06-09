@@ -81,7 +81,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
 
                 SizedBox(height: 22),
 
-                FlippableBalanceCard(),
+                _BalanceCardsScroll(),
 
                 SizedBox(height: 32),
 
@@ -367,5 +367,91 @@ class _ActionPills extends ConsumerWidget {
         .animate()
         .fadeIn(duration: 320.ms, curve: Curves.easeOut)
         .slideY(begin: 0.15, end: 0, curve: Curves.easeOutCubic);
+  }
+}
+
+class _BalanceCardsScroll extends ConsumerWidget {
+  const _BalanceCardsScroll();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
+    return SizedBox(
+      height: 196,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        children: [
+          SizedBox(
+            width: screenWidth * 0.74,
+            child: const FlippableBalanceCard(),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: screenWidth * 0.34,
+            child: _NewWalletCard(colors: colors),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewWalletCard extends StatelessWidget {
+  final AzamanColors colors;
+  const _NewWalletCard({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.divider, width: 1),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.card,
+              border: Border.all(color: colors.divider, width: 1.5),
+            ),
+            child: Icon(
+              HugeIconsSolid.add01,
+              size: 20,
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'New',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Send, save in\nmultiple currencies',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 11,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

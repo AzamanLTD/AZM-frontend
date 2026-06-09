@@ -264,63 +264,63 @@ class _BackFace extends ConsumerWidget {
       ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: colors.divider,
-            width: 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.divider, width: 1),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Text(
-                    'Balance breakdown',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    HugeIconsSolid.exchange01,
-                    color: colors.textTertiary,
-                    size: 13,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tap to flip',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              Text(
+                'Balance breakdown',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 12),
-              for (int i = 0; i < rows.length; i++) ...[
-                _BalanceLine(row: rows[i], colors: colors),
-                if (i < rows.length - 1)
-                  Divider(
-                    height: 12,
-                    thickness: 1,
-                    color: colors.divider,
-                  ),
-              ],
+              const Spacer(),
+              Icon(
+                HugeIconsSolid.exchange01,
+                color: colors.textTertiary,
+                size: 12,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Tap to flip',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  for (int i = 0; i < rows.length; i++) ...[
+                    _BalanceLine(row: rows[i], colors: colors),
+                    if (i < rows.length - 1)
+                      Divider(
+                        height: 8,
+                        thickness: 1,
+                        color: colors.divider,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -362,51 +362,54 @@ class _BalanceLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: row.color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(7),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: row.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(row.icon, color: row.color, size: 11),
           ),
-          child: Icon(row.icon, color: row.color, size: 12),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            row.label,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.1,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              row.label,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.1,
+              ),
             ),
           ),
-        ),
-        Text(
-          _fmt(row.value),
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.2,
-            fontFeatures: const [FontFeature.tabularFigures()],
+          Text(
+            _fmt(row.value),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          row.suffix,
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+          const SizedBox(width: 4),
+          Text(
+            row.suffix,
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
