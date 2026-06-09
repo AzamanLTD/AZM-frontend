@@ -397,15 +397,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         centerTitle: false,
         automaticallyImplyLeading: false,
         backgroundColor: colors.background,
-        title: Text(
-          'AZAMAN',
-          style: TextStyle(
-            color: colors.accent,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-            letterSpacing: 1.2,
-          ),
-        ),
+        title: _selectedIndex == 0
+            ? null
+            : Text(
+                'AZAMAN',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  letterSpacing: 1.2,
+                ),
+              ),
         actions: [
           // Phase UI-1 (2026-05-26): the AppBar chat icon was retired.
           // The bottom nav bar's "Chat" tab is the canonical entry point

@@ -152,75 +152,31 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
         // scroll the page without false-flipping the card).
         if (dist < 8) _toggle();
       },
-      child: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _flip,
-            builder: (context, _) {
-              final t = _flip.value;
-              final angle = t * math.pi;
-              final showBack = t > 0.5;
+      child: AnimatedBuilder(
+        animation: _flip,
+        builder: (context, _) {
+          final t = _flip.value;
+          final angle = t * math.pi;
+          final showBack = t > 0.5;
 
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateX(angle),
-                child: showBack
-                    ? Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateX(math.pi),
-                        child: _BackFace(
-                          vaultLocked: _vaultLocked,
-                          savingsLocked: _savingsLocked,
-                          susuLocked: _susuLocked,
-                        ),
-                      )
-                    : const HologramBalanceCard(),
-              );
-            },
-          ),
-          Positioned(
-            left: 32,
-            bottom: 22,
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _flip,
-                builder: (_, __) => Opacity(
-                  opacity: (1.0 - (_flip.value * 4)).clamp(0.0, 1.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(20),
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateX(angle),
+            child: showBack
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()..rotateX(math.pi),
+                    child: _BackFace(
+                      vaultLocked: _vaultLocked,
+                      savingsLocked: _savingsLocked,
+                      susuLocked: _susuLocked,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          HugeIconsSolid.touch01,
-                          size: 10,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'TAP TO FLIP',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+                  )
+                : const HologramBalanceCard(),
+          );
+        },
       ),
     );
   }

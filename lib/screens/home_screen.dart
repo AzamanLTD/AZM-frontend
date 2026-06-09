@@ -1,60 +1,22 @@
-// =============================================================================
-// AZAMAN — HOME SCREEN  (Phase G overhaul)
-//
-// Was: a static brochure (hardcoded Core Assets at $1.00 forever, hardcoded
-//      Platform News, decorative quick-action buttons, pull-to-refresh that
-//      slept for one second).
-//
-// Is now: a dynamic morning-coffee dashboard.
-//
-//   1. HologramBalanceCard           — unchanged. Already animates via
-//                                      TweenAnimationBuilder + AnimatedSwitcher.
-//   2. Quick Actions                 — unchanged (Phase 0 wired these).
-//   3. Today widget   (NEW Phase G)  — counters for active trades, pending
-//                                      withdrawals, friend requests, unread
-//                                      notifications. Each tile navigates to
-//                                      the right destination.
-//   4. Live Market    (NEW Phase G)  — replaces hardcoded "Core Assets".
-//                                      Pulls from /api/oracle/rates, renders
-//                                      a USD->GHS hero with sparkline plus
-//                                      stable-peg rows for USDC / USDT / AZM.
-//   5. Platform News                 — REMOVED. Was hardcoded mock data with
-//                                      no backend endpoint. The audit's
-//                                      §G says "remove until ready" — done.
-//                                      Today widget takes its space.
-//
-// Pull-to-refresh actually refreshes:
-//   * homeSummaryProvider.refresh()  — re-fetches all 5 home sections in
-//                                      parallel via /api/oracle/rates,
-//                                      /api/trades/history, /api/wallet/history,
-//                                      /api/friends/requests,
-//                                      /api/notifications/unread-count.
-//   * Hologram balance auto-updates  — already wired via socket.io
-//                                      `balance_update` events into
-//                                      balanceDataProvider; no extra fetch
-//                                      needed here, but we re-trigger
-//                                      AuthProvider.fetchAndSetUser() so a
-//                                      stale-token user still gets a fresh
-//                                      balance from /auth/me.
-// =============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
+import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/azm_rewards_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
-import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
+import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
-import 'package:azaman/widgets/today_widget.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -68,9 +30,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
   @override
   void initState() {
     super.initState();
-    // Kick the first home-summary fetch on mount so the user's data
-    // is on screen by the time they look. Idempotent — the notifier
-    // guards against duplicate primes during the initial paint storm.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(homeSummaryProvider.notifier).primeIfNeeded();
@@ -79,15 +38,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
 
   Future<void> _onRefresh() async {
     AzamanHaptics.nav();
-    // Re-fetch the home snapshot. AuthProvider's balance/user re-fetch is
-    // a separate concern — we kick it as a side-effect but don't await it
-    // (the socket handles live balance updates anyway).
     final summaryFuture = ref.read(homeSummaryProvider.notifier).refresh();
     final auth = ref.read(authProvider);
     if (auth.user?.id != null) {
-      // Best-effort balance refresh via the canonical /auth/me/:id path.
-      // Failure is fine — the snapshot still loads, and the socket
-      // `balance_update` channel keeps the hologram fresh.
       // ignore: discarded_futures
       auth.fetchUserDetails();
     }
@@ -104,134 +57,254 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
+        child: const SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: EdgeInsets.only(bottom: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
-              // 1. Hologram balance — flippable. Tap → reveals breakdown
-              // (Available / Escrow / Vendor pool / Vaults / Savings /
-              // Susu / AZM). Tap again to flip back.
-              const FlippableBalanceCard(),
+              _GreetingHeader(),
 
-              const SizedBox(height: 24),
+              SizedBox(height: 18),
 
-              // 2. Quick actions row (Phase 0 wired these).
-              _quickActionsHeader(colors),
-              const SizedBox(height: 12),
-              _quickActionsRow(context, colors),
+              _GreetingTitle(),
 
-              const SizedBox(height: 24),
+              SizedBox(height: 18),
 
-              // 3. Today (NEW — Phase G).
-              const TodayWidget(),
+              _ActionPills(),
 
-              const SizedBox(height: 24),
+              SizedBox(height: 20),
 
-              // 4. Live Market (NEW — replaces hardcoded Core Assets).
-              const LiveMarketSection(),
+              FlippableBalanceCard(),
+
+              SizedBox(height: 28),
+
+              RecentActivitySection(),
+
+              SizedBox(height: 28),
+
+              LiveMarketSection(),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  // ── Local layout helpers (unchanged behaviour from Phase 0/C) ──────────
+class _GreetingHeader extends ConsumerWidget {
+  const _GreetingHeader();
 
-  Widget _quickActionsHeader(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        'Quick Actions',
-        style: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    final user = ref.watch(authProvider).user;
+    final isVisible = ref.watch(balanceVisibleProvider);
 
-  Widget _quickActionsRow(BuildContext context, AzamanColors colors) {
-    // Quick actions reflect the user's four primary money flows on the
-    // home dashboard:
-    //
-    //   • Deposit  — top up (fiat MoMo or crypto) via DepositChooserSheet
-    //   • Withdraw — pay out (fiat MoMo or external crypto wallet) via
-    //                WithdrawalScreen, which has dual-mode tabs
-    //   • Transfer — internal user→user transfer via FriendsHub (pick a
-    //                friend, then the chat-side TransferModal)
-    //   • Savings  — open Savings tab
-    //
-    // Buy/Sell crypto are intentionally NOT here — those are P2P actions
-    // and live on the P2P tab in the bottom nav, which has its own
-    // dedicated affordance (the swap_horiz icon).
+    final username = user?.username ?? '';
+    final initials = _initials(username);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _buildQuickAction(
-            colors,
-            HugeIconsSolid.wallet01,
-            'Deposit',
-            colors.accent,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               AzamanHaptics.nav();
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const DepositScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
+            child: Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.card,
+                border: Border.all(color: colors.divider, width: 1),
+              ),
+              child: Text(
+                initials,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
-          _buildQuickAction(
-            colors,
-            HugeIconsSolid.arrowUp01,
-            'Withdraw',
-            colors.warning,
+          const Spacer(),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               AzamanHaptics.nav();
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const WithdrawalScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AzmRewardsScreen()),
               );
             },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: colors.success.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Earn AZM',
+                    style: TextStyle(
+                      color: colors.success,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(width: 10),
-          _buildQuickAction(
-            colors,
-            HugeIconsSolid.exchange01,
-            'Transfer',
-            colors.success,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              AzamanHaptics.toggle();
+              ref.read(balanceVisibleProvider.notifier).state = !isVisible;
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.card,
+                border: Border.all(color: colors.divider, width: 1),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  isVisible ? HugeIconsSolid.view : HugeIconsSolid.viewOff,
+                  key: ValueKey(isVisible),
+                  size: 18,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 320.ms, curve: Curves.easeOut);
+  }
+
+  String _initials(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'A';
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
+        .toUpperCase();
+  }
+}
+
+class _GreetingTitle extends ConsumerWidget {
+  const _GreetingTitle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    final username = ref.watch(authProvider).user?.username ?? '';
+    final heading = username.isEmpty ? 'Welcome back' : 'Hi, $username';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Text(
+        heading,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 28,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.8,
+        ),
+      ),
+    ).animate().fadeIn(duration: 360.ms, curve: Curves.easeOut).slideY(
+          begin: 0.1,
+          end: 0,
+          curve: Curves.easeOutCubic,
+        );
+  }
+}
+
+class _ActionPills extends ConsumerWidget {
+  const _ActionPills();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _pill(
+            colors: colors,
+            icon: HugeIconsSolid.add01,
+            label: 'Add money',
+            primary: true,
             onTap: () {
               AzamanHaptics.nav();
-              // Internal user→user transfers happen inside a friend chat,
-              // so the entry point is the Friends Hub (pick a friend
-              // → chat → "+" send-crypto button → TransferModal).
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const FriendsHubScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const DepositScreen()),
               );
             },
           ),
           const SizedBox(width: 10),
-          _buildQuickAction(
-            colors,
-            HugeIconsSolid.savings,
-            'Savings',
-            colors.accentSecondary,
+          _pill(
+            colors: colors,
+            icon: HugeIconsSolid.sent,
+            label: 'Send',
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FriendsHubScreen()),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          _pill(
+            colors: colors,
+            icon: HugeIconsSolid.arrowUp01,
+            label: 'Withdraw',
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WithdrawalScreen()),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          _pill(
+            colors: colors,
+            icon: HugeIconsSolid.savings,
+            label: 'Savings',
             onTap: () {
               AzamanHaptics.nav();
               Navigator.push(
@@ -250,58 +323,46 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
     );
   }
 
-  Widget _buildQuickAction(
-    AzamanColors colors,
-    IconData icon,
-    String label,
-    Color accentColor, {
+  Widget _pill({
+    required AzamanColors colors,
+    required IconData icon,
+    required String label,
     required VoidCallback onTap,
+    bool primary = false,
   }) {
-    // Slender quick-action: 28×28 icon plate, 50px tall card,
-    // hairline accent border. ~38% smaller vertical footprint than the
-    // previous 18-pad ListTile-feel buttons.
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: accentColor.withOpacity(0.18), width: 0.8),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, color: accentColor, size: 16),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
+    final fg = primary ? Colors.black : colors.textPrimary;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          color: primary ? colors.accent : colors.card,
+          borderRadius: BorderRadius.circular(24),
+          border: primary
+              ? null
+              : Border.all(color: colors.divider, width: 1),
         ),
-      )
-          .animate()
-          .fadeIn(duration: 320.ms, curve: Curves.easeOut)
-          .slideY(begin: 0.15, end: 0, curve: Curves.easeOutCubic),
-    );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: TextStyle(
+                color: fg,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 320.ms, curve: Curves.easeOut)
+        .slideY(begin: 0.15, end: 0, curve: Curves.easeOutCubic);
   }
 }

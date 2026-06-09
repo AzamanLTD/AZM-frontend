@@ -80,7 +80,7 @@ class LiveMarketSection extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'LIVE MARKET',
+                'TODAY\u2019S RATE',
                 style: TextStyle(
                   color: colors.textTertiary,
                   fontSize: 11,
@@ -114,39 +114,6 @@ class LiveMarketSection extends ConsumerWidget {
             const SizedBox(height: 8),
             _RateAlertRow(colors: colors, currentRate: rates.usdToGhs),
           ],
-
-          const SizedBox(height: 10),
-
-          // ── Stable-peg trio. We display them as "Stable" rather than
-          //    inventing fake price movement — the hologram model is
-          //    1:1 USDC for everything that isn't local fiat.
-          _PegTile(
-            colors: colors,
-            symbol: 'USDC',
-            name: 'USD Coin',
-            badge: 'STABLE',
-            badgeColor: colors.success,
-            accent: colors.success,
-            valueLabel: r'$1.00',
-          ),
-          _PegTile(
-            colors: colors,
-            symbol: 'USDT',
-            name: 'Tether USD',
-            badge: 'STABLE',
-            badgeColor: colors.success,
-            accent: colors.success,
-            valueLabel: r'$1.00',
-          ),
-          _PegTile(
-            colors: colors,
-            symbol: 'AZM',
-            name: 'Azaman Token',
-            badge: 'NATIVE',
-            badgeColor: colors.accent,
-            accent: colors.accent,
-            valueLabel: r'$1.00',
-          ),
         ],
       ),
     );
@@ -295,117 +262,6 @@ class _GhsHeroCard extends StatelessWidget {
               borderRadius: BorderRadius.all(Radius.circular(8)),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-// ── Stable-peg row tile ────────────────────────────────────────────────────
-
-class _PegTile extends StatelessWidget {
-  final AzamanColors colors;
-  final String symbol;
-  final String name;
-  final String badge;
-  final Color badgeColor;
-  final Color accent;
-  final String valueLabel;
-
-  const _PegTile({
-    required this.colors,
-    required this.symbol,
-    required this.name,
-    required this.badge,
-    required this.badgeColor,
-    required this.accent,
-    required this.valueLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: accent.withOpacity(0.3)),
-            ),
-            child: Text(
-              symbol[0],
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  symbol,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  name,
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                valueLabel,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: badgeColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
