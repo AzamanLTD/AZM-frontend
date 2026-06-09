@@ -21,7 +21,6 @@
 
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -181,9 +180,6 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
               );
             },
           ),
-          // Bottom-left "TAP TO FLIP" hint. Sits inside the same Stack
-          // so it animates out cleanly as the user flips the card. The
-          // IgnorePointer keeps it from blocking the Listener up top.
           Positioned(
             left: 32,
             bottom: 22,
@@ -196,12 +192,8 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.55),
+                      color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.18),
-                        width: 0.7,
-                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -209,13 +201,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                         Icon(
                           HugeIconsSolid.touch01,
                           size: 10,
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'TAP TO FLIP',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.92),
+                            color: Colors.white.withValues(alpha: 0.92),
                             fontSize: 8.5,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.0,
@@ -318,81 +310,59 @@ class _BackFace extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colors.accent.withOpacity(0.10),
-                  Colors.white.withOpacity(0.015),
-                ],
-              ),
-              border: Border.all(
-                color: colors.glow.withOpacity(0.16),
-                width: 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.30),
-                  blurRadius: 22,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: colors.divider,
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'BALANCE BREAKDOWN',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        HugeIconsSolid.exchange01,
-                        color: colors.textTertiary,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tap to flip',
-                        style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Balance breakdown',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  for (int i = 0; i < rows.length; i++) ...[
-                    _BalanceLine(row: rows[i], colors: colors),
-                    if (i < rows.length - 1)
-                      Divider(
-                        height: 10,
-                        thickness: 0.5,
-                        color: colors.divider,
-                      ),
-                  ],
+                  const Spacer(),
+                  Icon(
+                    HugeIconsSolid.exchange01,
+                    color: colors.textTertiary,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tap to flip',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              for (int i = 0; i < rows.length; i++) ...[
+                _BalanceLine(row: rows[i], colors: colors),
+                if (i < rows.length - 1)
+                  Divider(
+                    height: 12,
+                    thickness: 1,
+                    color: colors.divider,
+                  ),
+              ],
+            ],
           ),
         ),
       ),
@@ -443,7 +413,7 @@ class _BalanceLine extends StatelessWidget {
           height: 24,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: row.color.withOpacity(0.14),
+            color: row.color.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Icon(row.icon, color: row.color, size: 12),
