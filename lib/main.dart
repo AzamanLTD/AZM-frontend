@@ -281,7 +281,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     _pages = [
       const AzamanHomePage(),
       const FriendsHubScreen(),
-      const SafeArea(bottom: false, child: P2PMarketplaceScreen()),
+      const P2PMarketplaceScreen(),
       const SafeArea(bottom: false, child: SavingsScreen()),
     ];
 

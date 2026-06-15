@@ -115,7 +115,6 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
   // intermediate state is the animation itself).
   late final AnimationController _ctrl;
   late final Animation<double> _t; // 0 → 1 over the open animation
-  bool _hasLoggedView = false;
   bool _isDismissing = false;
   bool _isSubmitting = false;
 
@@ -240,7 +239,7 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
                   filter: ui.ImageFilter.blur(
                       sigmaX: blurAmount, sigmaY: blurAmount),
                   child: Container(
-                    color: Colors.black.withOpacity(scrimAlpha),
+                    color: Colors.black.withValues(alpha: scrimAlpha),
                   ),
                 ),
               ),
@@ -324,16 +323,8 @@ class _FrontFace extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: colors.glow.withOpacity(0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -414,62 +405,11 @@ class _BackFace extends ConsumerStatefulWidget {
 
 class _BackFaceState extends ConsumerState<_BackFace> {
   final _amountCtrl = TextEditingController();
-  final Map<String, TextEditingController> _detailCtrls = {};
-
-  // For SELL ads only — buyer must enter their payment endpoint so the
-  // vendor can cross-check the inbound transfer.
-  bool get _needsBuyerDetails => widget.ad.isSellAd;
 
   @override
   void dispose() {
     _amountCtrl.dispose();
-    for (final c in _detailCtrls.values) {
-      c.dispose();
-    }
     super.dispose();
-  }
-
-  /// Per-method buyer-detail field schema. Mirrors the validation in
-  /// services/tradeAccountValidation on the backend so the FE collects
-  /// the exact set the BE will accept. Only the fields the buyer needs
-  /// to expose to the vendor (a payment endpoint) — never the full
-  /// account schema (e.g. routing number).
-  List<_FieldSpec> _buyerFields() {
-    switch (widget.ad.paymentMethod.toUpperCase()) {
-      case 'CASHAPP':
-        return [const _FieldSpec('cashtag', 'Your \$Cashtag', '\$YourTag')];
-      case 'ZELLE':
-        return [
-          const _FieldSpec('email', 'Your Zelle email or phone',
-              'name@example.com or +1…'),
-        ];
-      case 'VENMO':
-        return [
-          const _FieldSpec('username', 'Your @Venmo username', '@yourname'),
-        ];
-      case 'PAYPAL':
-        return [
-          const _FieldSpec(
-              'email', 'Your PayPal email', 'name@example.com'),
-        ];
-      case 'APPLE_PAY':
-      case 'APPLE PAY':
-        return [
-          const _FieldSpec('phone', 'Your Apple Pay number',
-              '+1 555 555 5555'),
-        ];
-      case 'BANK_TRANSFER':
-      case 'BANK TRANSFER':
-        return [
-          const _FieldSpec('bankName', 'Bank name', 'e.g. Chase'),
-          const _FieldSpec('accountNumber', 'Account number', '1234567890'),
-        ];
-      default:
-        return [
-          const _FieldSpec(
-              'identifier', 'Your payment handle', 'username / email / phone'),
-        ];
-    }
   }
 
   void _submit() {
@@ -511,20 +451,8 @@ class _BackFaceState extends ConsumerState<_BackFace> {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.surface, colors.card],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.accent.withOpacity(0.30)),
-        boxShadow: [
-          BoxShadow(
-            color: colors.accent.withOpacity(0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
       child: SingleChildScrollView(
@@ -593,19 +521,16 @@ class _BackFaceState extends ConsumerState<_BackFace> {
             // Vendor stats + risk badge
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.divider),
+                color: colors.softSurface,
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _statChip('${ad.completedTrades}', 'Trades', colors),
-                  Container(width: 1, height: 24, color: colors.divider),
                   _statChip('${(ad.completionRate * 100).toStringAsFixed(0)}%', 'Rate', colors),
-                  Container(width: 1, height: 24, color: colors.divider),
                   _riskBadge(ad.paymentMethod, colors, context),
                 ],
               ),
@@ -625,9 +550,8 @@ class _BackFaceState extends ConsumerState<_BackFace> {
             const SizedBox(height: 6),
             Container(
               decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.divider),
+                color: colors.softSurface,
+                borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: TextField(
@@ -676,25 +600,26 @@ class _BackFaceState extends ConsumerState<_BackFace> {
             // Receipt preview
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.accent.withOpacity(0.25)),
+                color: colors.accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [
                   Text(
                     'You receive',
                     style: TextStyle(
-                        color: colors.textTertiary, fontSize: 11),
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
                   ),
                   const Spacer(),
                   Text(
                     '${receiveUsdc.toStringAsFixed(2)} USDC',
                     style: TextStyle(
                       color: colors.accent,
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -715,36 +640,30 @@ class _BackFaceState extends ConsumerState<_BackFace> {
                   backgroundColor: colors.accent,
                   foregroundColor:
                       colors.isDark ? Colors.black : Colors.white,
-                  disabledBackgroundColor: colors.accent.withOpacity(0.4),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  disabledBackgroundColor:
+                      colors.accent.withValues(alpha: 0.4),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   elevation: 0,
                 ),
                 child: widget.isSubmitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.black,
+                          color: colors.isDark ? Colors.black : Colors.white,
                         ),
                       )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(HugeIconsSolid.flash, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Confirm Trade',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ],
+                    : const Text(
+                        'Confirm trade',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.1,
+                        ),
                       ),
               ),
             )
@@ -752,7 +671,7 @@ class _BackFaceState extends ConsumerState<_BackFace> {
                 .shimmer(
                   delay: 700.ms,
                   duration: 1400.ms,
-                  color: Colors.white.withOpacity(0.30),
+                  color: Colors.white.withValues(alpha: 0.30),
                 ),
             const SizedBox(height: 10),
             Center(
@@ -800,18 +719,17 @@ class _BackFaceState extends ConsumerState<_BackFace> {
     return GestureDetector(
       onTap: () => _showRiskExplanation(context, risk, method, colors),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         decoration: BoxDecoration(
-          color: riskColor.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: riskColor.withOpacity(0.4)),
+          color: riskColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.shield01, size: 10, color: riskColor),
+            Icon(HugeIconsSolid.shield01, size: 11, color: riskColor),
             const SizedBox(width: 4),
-            Text(riskLabel, style: TextStyle(color: riskColor, fontSize: 9, fontWeight: FontWeight.w700)),
+            Text(riskLabel, style: TextStyle(color: riskColor, fontSize: 10, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -856,13 +774,6 @@ class _BackFaceState extends ConsumerState<_BackFace> {
   }
 }
 
-class _FieldSpec {
-  final String key;
-  final String label;
-  final String hint;
-  const _FieldSpec(this.key, this.label, this.hint);
-}
-
 class _Avatar extends StatelessWidget {
   final String initial;
   final AzamanColors colors;
@@ -873,21 +784,19 @@ class _Avatar extends StatelessWidget {
     final letter =
         initial.isEmpty ? 'V' : initial.substring(0, 1).toUpperCase();
     return Container(
-      width: 40,
-      height: 40,
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: colors.accent.withOpacity(0.15),
-        border: Border.all(color: colors.accent.withOpacity(0.30)),
+        color: colors.softSurface,
       ),
-      child: Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: colors.accent,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

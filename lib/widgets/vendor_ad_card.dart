@@ -1,46 +1,16 @@
-// =============================================================================
-// VENDOR AD CARD — Phase 3.2 | Azaman V2
-//
-// Glassmorphism card consumed inside the Apple Wallet SliverList.
-// Self-contained: accepts an AdListing, reads ThemeProvider for colors.
-//
-// Visual anatomy (Phase UI-1, 2026-05-26 — "Trade Now" CTA removed):
-//   ┌──────────────────────────────────────────────────────┐
-//   │  [Avatar]  VendorName ● online dot   [Risk Tag]      │
-//   │             ★ 312 trades · 98% completion            │
-//   ├──────────────────────────────────────────────────────┤
-//   │  [SELL/BUY]  Bank Transfer        Available: 2,340   │
-//   │  Limit: $50 – $5,000              Method: Bank ...   │
-//   └──────────────────────────────────────────────────────┘
-//
-// Why no button: tapping the card body now flips it open via
-// `ad_detail_flip_card.dart` and the trade form lives on the back face.
-// A standalone "Trade Now" button was a redundant exit point and bulked
-// out every row. Queue depth (when present) is communicated via the
-// "X ahead" chip on the limits row.
-//
-// AI Filter badge renders when aiScore ≥ 0.80 and filter is active.
-// =============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/widgets/vendor_badge_row.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public widget
-// ─────────────────────────────────────────────────────────────────────────────
 class VendorAdCard extends ConsumerWidget {
   final AdListing ad;
 
-  /// Called when the card itself is tapped (anywhere on the surface).
-  /// Opens the [AdDetailFlipCard] overlay where the trade form lives.
   final VoidCallback? onTap;
 
   const VendorAdCard({
@@ -63,45 +33,21 @@ class VendorAdCard extends ConsumerWidget {
               onTap!();
             },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              decoration: _liquidGlassDecoration(colors, ad.riskLevel),
-              child: Stack(
-                children: [
-                  // Subtle diagonal grain overlay
-                  Positioned.fill(child: _GrainOverlay(color: colors.glow)),
-
-                  Padding(
-                    // Slender mandate: 14 vertical down from 18.
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Row 1: vendor identity + risk tag ──────────────────
-                        _IdentityRow(ad: ad, colors: colors),
-                        const SizedBox(height: 12),
-
-                        // ── Row 2: ad type + payment method + available ───────
-                        _RateRow(ad: ad, colors: colors),
-                        const SizedBox(height: 8),
-
-                        // ── Row 3: limits + payment method + meta chips ──────
-                        _LimitsRow(
-                          ad: ad,
-                          colors: colors,
-                          aiFilterOn: aiFilterOn,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _IdentityRow(ad: ad, colors: colors),
+            const SizedBox(height: 14),
+            _RateRow(ad: ad, colors: colors),
+            const SizedBox(height: 10),
+            _LimitsRow(ad: ad, colors: colors, aiFilterOn: aiFilterOn),
+          ],
         ),
       ),
     )
@@ -109,79 +55,8 @@ class VendorAdCard extends ConsumerWidget {
         .fadeIn(duration: 320.ms, curve: Curves.easeOut)
         .slideY(begin: 0.04, end: 0, curve: Curves.easeOutCubic);
   }
-
-  // ── Liquid Glass decoration — premium glassmorphism with BackdropFilter ──
-  BoxDecoration _liquidGlassDecoration(AzamanColors colors, RiskLevel risk) {
-    final Color borderColor;
-    switch (risk) {
-      case RiskLevel.low:
-        borderColor = colors.success.withOpacity(0.15);
-        break;
-      case RiskLevel.medium:
-        borderColor = colors.warning.withOpacity(0.15);
-        break;
-      case RiskLevel.high:
-        borderColor = colors.danger.withOpacity(0.15);
-        break;
-    }
-
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      // Dark translucent background for liquid glass effect
-      color: colors.surface.withOpacity(0.25),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.15),
-        width: 1.0,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.4),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-        ),
-        BoxShadow(
-          color: borderColor.withOpacity(0.15),
-          blurRadius: 24,
-          spreadRadius: 0,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
-  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Grain overlay — purely decorative, painted once
-// ─────────────────────────────────────────────────────────────────────────────
-class _GrainOverlay extends StatelessWidget {
-  final Color color;
-  const _GrainOverlay({required this.color});
-
-  @override
-  Widget build(BuildContext context) =>
-      CustomPaint(painter: _DiagPainter(color: color.withOpacity(0.03)));
-}
-
-class _DiagPainter extends CustomPainter {
-  final Color color;
-  const _DiagPainter({required this.color});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = 0.6;
-    const step = 22.0;
-    for (double d = -size.height; d < size.width; d += step) {
-      canvas.drawLine(Offset(d, 0), Offset(d + size.height, size.height), p);
-    }
-  }
-  @override
-  bool shouldRepaint(_DiagPainter old) => old.color != color;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Row 1: Vendor identity
-// ─────────────────────────────────────────────────────────────────────────────
 class _IdentityRow extends StatelessWidget {
   final AdListing ad;
   final AzamanColors colors;
@@ -192,28 +67,28 @@ class _IdentityRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Avatar
         _VendorAvatar(username: ad.vendorUsername, colors: colors),
-        const SizedBox(width: 10),
-
-        // Name + stats
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Text(
-                    ad.vendorUsername,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+                  Flexible(
+                    child: Text(
+                      ad.vendorUsername,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  // Online indicator
+                  const SizedBox(width: 7),
                   Container(
                     width: 7,
                     height: 7,
@@ -221,15 +96,7 @@ class _IdentityRow extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: ad.isOnline
                           ? colors.success
-                          : colors.textTertiary.withOpacity(0.4),
-                      boxShadow: ad.isOnline
-                          ? [
-                              BoxShadow(
-                                color: colors.success.withOpacity(0.55),
-                                blurRadius: 5,
-                              )
-                            ]
-                          : null,
+                          : colors.textTertiary.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -238,28 +105,30 @@ class _IdentityRow extends StatelessWidget {
               Row(
                 children: [
                   Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
-                  const SizedBox(width: 3),
+                  const SizedBox(width: 4),
                   Text(
                     '${ad.completedTrades} trades',
                     style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400),
+                      color: colors.textTertiary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Text(
                     '  ·  ',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                    style:
+                        TextStyle(color: colors.textTertiary, fontSize: 11.5),
                   ),
                   Text(
-                    '${(ad.completionRate * 100).toStringAsFixed(0)}% completion',
+                    '${(ad.completionRate * 100).toStringAsFixed(0)}% done',
                     style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400),
+                      color: colors.textTertiary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
-              // Phase Q13: Vendor verification badges
               if (ad.vendorId.isNotEmpty)
                 VendorBadgeRow(
                   vendorId: int.tryParse(ad.vendorId) ?? 0,
@@ -268,63 +137,45 @@ class _IdentityRow extends StatelessWidget {
             ],
           ),
         ),
-
-        // Risk tag
+        const SizedBox(width: 8),
         _RiskTag(riskLevel: ad.riskLevel, colors: colors),
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Vendor avatar circle — initials + gradient tinted by vendor hash
-// ─────────────────────────────────────────────────────────────────────────────
 class _VendorAvatar extends StatelessWidget {
   final String username;
   final AzamanColors colors;
   const _VendorAvatar({required this.username, required this.colors});
 
-  Color _hashColor() {
-    final hue = (username.codeUnits.fold(0, (a, b) => a + b) % 360).toDouble();
-    return HSLColor.fromAHSL(1.0, hue, 0.60, 0.55).toColor();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final c = _hashColor();
     final initials = username.length >= 2
         ? username.substring(0, 2).toUpperCase()
         : username.toUpperCase();
 
     return Container(
-      width: 36,
-      height: 36,
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [
-          c.withOpacity(0.40),
-          c.withOpacity(0.10),
-        ]),
-        border: Border.all(color: c.withOpacity(0.40), width: 1.0),
+        color: colors.card,
       ),
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: c,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Risk tag glass pill
-// ─────────────────────────────────────────────────────────────────────────────
 class _RiskTag extends StatelessWidget {
   final RiskLevel riskLevel;
   final AzamanColors colors;
@@ -339,27 +190,26 @@ class _RiskTag extends StatelessWidget {
     switch (riskLevel) {
       case RiskLevel.low:
         tagColor = colors.success;
-        label = 'Low Risk';
+        label = 'Low';
         icon = HugeIconsSolid.shield01;
         break;
       case RiskLevel.medium:
         tagColor = colors.warning;
-        label = 'Mid Risk';
+        label = 'Med';
         icon = HugeIconsSolid.alertCircle;
         break;
       case RiskLevel.high:
         tagColor = colors.danger;
-        label = 'High Risk';
+        label = 'High';
         icon = HugeIconsSolid.alertCircle;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: tagColor.withOpacity(0.10),
-        border: Border.all(color: tagColor.withOpacity(0.30), width: 0.8),
+        color: tagColor.withValues(alpha: 0.12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -370,9 +220,9 @@ class _RiskTag extends StatelessWidget {
             label,
             style: TextStyle(
               color: tagColor,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -381,9 +231,6 @@ class _RiskTag extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Row 2: Rate + available USDC
-// ─────────────────────────────────────────────────────────────────────────────
 class _RateRow extends StatelessWidget {
   final AdListing ad;
   final AzamanColors colors;
@@ -395,14 +242,13 @@ class _RateRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Ad type badge
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isSell
-                ? colors.success.withOpacity(0.12)
-                : colors.danger.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(4),
+                ? colors.success.withValues(alpha: 0.12)
+                : colors.danger.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             isSell ? 'SELL' : 'BUY',
@@ -410,32 +256,36 @@ class _RateRow extends StatelessWidget {
               color: isSell ? colors.success : colors.danger,
               fontSize: 11,
               fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        // Payment method as primary display
-        Text(
-          ad.paymentMethod,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-            height: 1.0,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            ad.paymentMethod,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              height: 1.0,
+            ),
           ),
         ),
-        const Spacer(),
-        // Available
+        const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               'Available',
               style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10,
-                  letterSpacing: 0.4),
+                color: colors.textTertiary,
+                fontSize: 10,
+                letterSpacing: 0.3,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -443,7 +293,8 @@ class _RateRow extends StatelessWidget {
               style: TextStyle(
                 color: colors.textSecondary,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
               ),
             ),
           ],
@@ -466,15 +317,6 @@ class _RateRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Row 3: Limits + payment method + queue depth + AI badge (Phase UI-1)
-//
-// After the "Trade Now" CTA was removed (2026-05-26), the AI score badge and
-// queue-depth indicator that lived on the old CTA row migrate down here so
-// the user still sees both pieces of information at a glance. The card-tap
-// (handled at the parent) opens the flip overlay where the user actually
-// initiates the trade.
-// ─────────────────────────────────────────────────────────────────────────────
 class _LimitsRow extends StatelessWidget {
   final AdListing ad;
   final AzamanColors colors;
@@ -496,44 +338,23 @@ class _LimitsRow extends StatelessWidget {
           label: '\$${_fmtInt(ad.minLimit)} – \$${_fmtInt(ad.maxLimit)}',
           colors: colors,
         ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: _InfoChip(
-            icon: HugeIconsSolid.bank,
-            label: ad.paymentMethod,
-            colors: colors,
-          ),
-        ),
         const Spacer(),
         if (showQueue) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: colors.warning.withOpacity(0.10),
-              border: Border.all(
-                  color: colors.warning.withOpacity(0.30), width: 0.7),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(HugeIconsSolid.hourglass,
-                    color: colors.warning, size: 11),
-                const SizedBox(width: 4),
-                Text(
-                  '${ad.queueDepth} ahead',
-                  style: TextStyle(
-                    color: colors.warning,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+          _MetaChip(
+            icon: HugeIconsSolid.hourglass,
+            label: '${ad.queueDepth} ahead',
+            color: colors.warning,
+            colors: colors,
           ),
           if (showAi) const SizedBox(width: 6),
         ],
-        if (showAi) _AiBadge(score: ad.aiScore, colors: colors),
+        if (showAi)
+          _MetaChip(
+            icon: HugeIconsSolid.sparkles,
+            label: 'AI ${(ad.aiScore * 100).toStringAsFixed(0)}%',
+            color: colors.accent,
+            colors: colors,
+          ),
       ],
     );
   }
@@ -562,24 +383,23 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: colors.glow.withOpacity(0.06),
-        border:
-            Border.all(color: colors.glow.withOpacity(0.12), width: 0.7),
+        borderRadius: BorderRadius.circular(10),
+        color: colors.card,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: colors.textTertiary, size: 11),
-          const SizedBox(width: 4),
+          Icon(icon, color: colors.textTertiary, size: 12),
+          const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
               color: colors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
             ),
           ),
         ],
@@ -588,52 +408,38 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _CtaRow REMOVED in Phase UI-1 (2026-05-26).
-//
-// Was a row containing the "Trade Now" / "Wait in Queue" button + AI badge +
-// "X ahead" queue depth label. After the de-cluttering sweep:
-//   • Queue depth + AI badge migrated into _LimitsRow (Row 3).
-//   • Trade initiation moved to the back face of the flip overlay
-//     (`ad_detail_flip_card.dart`), reachable by tapping the card body.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AI Score Badge
-// ─────────────────────────────────────────────────────────────────────────────
-class _AiBadge extends StatelessWidget {
-  final double score;
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
   final AzamanColors colors;
-  const _AiBadge({required this.score, required this.colors});
+  const _MetaChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6C63FF).withOpacity(0.22),
-            const Color(0xFF00E5FF).withOpacity(0.14),
-          ],
-        ),
-        border: Border.all(
-            color: const Color(0xFF6C63FF).withOpacity(0.35), width: 0.8),
+        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(HugeIconsSolid.sparkles,
-              color: Color(0xFF9D8FFF), size: 11),
+          Icon(icon, color: color, size: 11),
           const SizedBox(width: 4),
           Text(
-            'AI ${(score * 100).toStringAsFixed(0)}%',
-            style: const TextStyle(
-              color: Color(0xFF9D8FFF),
-              fontSize: 10,
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+              letterSpacing: 0.1,
             ),
           ),
         ],

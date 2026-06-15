@@ -39,7 +39,7 @@ import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/settings_screen.dart';
-import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
+import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
 import 'package:azaman/screens/susu/liability_acceptance_screen.dart';
@@ -155,7 +155,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       name: 'marketplace',
-      builder: (context, state) => const P2PMarketplaceScreen(),
+      builder: (context, state) => const P2PMarketListScreen(),
     ),
     GoRoute(
       path: '/savings',
@@ -319,7 +319,7 @@ void handleNotificationTap({
       navigator.push(MaterialPageRoute(builder: (_) => const SavingsScreen()));
       break;
     case 'OPEN_AD':
-      navigator.push(MaterialPageRoute(builder: (_) => const P2PMarketplaceScreen()));
+      navigator.push(MaterialPageRoute(builder: (_) => const P2PMarketListScreen()));
       break;
     // Phase 4 (Susu Sprint, 2026-05-31) — three new susu deep-link
     // actions. All mirror the existing OPEN_TRADE / PING_TOPUP shape.

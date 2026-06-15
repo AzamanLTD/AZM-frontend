@@ -133,3 +133,6 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+
+dependency_overrides:
+  objective_c: 9.3.0

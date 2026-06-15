@@ -23,12 +23,11 @@ class MilestoneProgress extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.12)),
-        color: colors.card.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(22),
+        color: colors.softSurface,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,68 +39,68 @@ class MilestoneProgress extends ConsumerWidget {
                 children: [
                   Icon(
                     tierIcon ?? HugeIconsSolid.medal01,
-                    size: 14,
+                    size: 15,
                     color: colors.accent,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 7),
                   Text(
                     tierName.toUpperCase(),
                     style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '${(currentVolume / 1000).toStringAsFixed(0)}K / ${(targetVolume / 1000).toStringAsFixed(0)}K',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: const BorderRadius.all(Radius.circular(3)),
-            child: LinearProgressIndicator(
-              value: _progress,
-              backgroundColor: colors.divider,
-              valueColor: AlwaysStoppedAnimation<Color>(colors.glow),
-              minHeight: 4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${(targetVolume - currentVolume).toStringAsFixed(0)} USDT to unlock',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: colors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${(_progress * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
                     color: colors.accent,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(4)),
+            child: LinearProgressIndicator(
+              value: _progress,
+              backgroundColor: colors.card,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${(targetVolume - currentVolume).toStringAsFixed(0)} USDC to unlock',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '${(currentVolume / 1000).toStringAsFixed(0)}K / ${(targetVolume / 1000).toStringAsFixed(0)}K',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],

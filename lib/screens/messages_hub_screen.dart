@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -37,6 +38,7 @@ class MessagesHubScreen extends ConsumerStatefulWidget {
 class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   final List<PersonalChat> _chats = [];
   bool _isLoading = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -47,8 +49,6 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   Future<void> _fetchChats() async {
     setState(() => _isLoading = true);
     try {
-      // Renamed from `authProvider` to `auth` to avoid shadowing the
-      // top-level Riverpod `authProvider` symbol imported above.
       final auth = ref.read(authProvider);
       final token = auth.user?.token;
       if (token == null) return;
@@ -84,49 +84,119 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   void _showSearchUserDialog() {
     final colors = ref.read(themeProvider).colors;
     final controller = TextEditingController();
-    showDialog(
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Search User',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          style: TextStyle(color: colors.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Enter Azaman ID',
-            hintStyle: TextStyle(color: colors.textTertiary),
-            filled: true,
-            fillColor: colors.background,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
-            ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.textTertiary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'New conversation',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Enter their Azaman ID to start chatting',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'azaman_id',
+                    hintStyle: TextStyle(
+                      color: colors.textTertiary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 14, right: 10),
+                      child: Icon(
+                        HugeIconsSolid.hashtag,
+                        color: colors.textTertiary,
+                        size: 18,
+                      ),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _startChatWithUser(controller.text.trim());
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Start chat',
+                      style: TextStyle(
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _startChatWithUser(controller.text.trim());
-            },
-            child: Text('Search', style: TextStyle(color: colors.isDark ? Colors.black : Colors.white)),
-          ),
-        ],
       ),
     ).whenComplete(() {
-      // Phase H10 BUGFIX (2026-05-27): controller was allocated above
-      // but never disposed. Each open of this dialog leaked one
-      // TextEditingController.
       controller.dispose();
     });
   }
@@ -182,113 +252,365 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
       final p = dt.hour >= 12 ? 'PM' : 'AM';
       return '$h:$m $p';
     }
+    if (diff.inDays < 7) {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return days[dt.weekday - 1];
+    }
     return '${dt.month}/${dt.day}';
+  }
+
+  List<PersonalChat> get _filteredChats {
+    if (_searchQuery.isEmpty) return _chats;
+    final q = _searchQuery.toLowerCase();
+    return _chats.where((c) =>
+      c.contactName.toLowerCase().contains(q) ||
+      (c.lastMessage?.toLowerCase().contains(q) ?? false)
+    ).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    final filtered = _filteredChats;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        title: Text('Messages',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          IconButton(
-            icon: Icon(HugeIconsSolid.refresh01, color: colors.textSecondary),
-            onPressed: _fetchChats,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: colors.accent,
-        foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        onPressed: _showSearchUserDialog,
-        child: const Icon(HugeIconsSolid.add01),
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: colors.accent))
-          : _chats.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(HugeIconsSolid.bubbleChat, size: 64, color: colors.textTertiary),
-                      const SizedBox(height: 16),
-                      Text('No conversations yet',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      Text('Tap + to start a new chat',
-                          style: TextStyle(color: colors.textTertiary, fontSize: 13)),
-                    ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Messages',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 27,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetchChats,
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: _chats.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: colors.divider),
-                    itemBuilder: (context, i) {
-                      final chat = _chats[i];
-                      return ListTile(
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => PersonalChatInterface(
-                              chatId: chat.id,
-                              contactId: chat.contactId,
-                              contactAzamanId: chat.contactAzamanId,
-                              contactName: chat.contactName,
+                  GestureDetector(
+                    onTap: _showSearchUserDialog,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        HugeIconsSolid.pencilEdit01,
+                        color: colors.textPrimary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    Icon(
+                      HugeIconsSolid.search01,
+                      color: colors.textTertiary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Search conversations',
+                          hintStyle: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: colors.accent,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : filtered.isEmpty
+                      ? _buildEmptyState(colors)
+                      : RefreshIndicator(
+                          color: colors.accent,
+                          backgroundColor: colors.card,
+                          onRefresh: _fetchChats,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
                             ),
-                          )).then((_) => _fetchChats());
-                        },
-                        leading: CircleAvatar(
-                          backgroundColor: colors.accent.withValues(alpha: 0.2),
-                          child: Text(
-                            chat.contactName.isNotEmpty
-                                ? chat.contactName[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold),
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, i) =>
+                                _buildChatItem(filtered[i], colors),
                           ),
                         ),
-                        title: Text(chat.contactName,
-                            style: TextStyle(
-                                color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
-                        subtitle: chat.lastMessage != null
-                            ? Text(chat.lastMessage!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 13))
-                            : null,
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(_formatTime(chat.lastMessageTime),
-                                style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                            if (chat.unreadCount > 0) ...[
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: colors.accent,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text('${chat.unreadCount}',
-                                    style: TextStyle(
-                                        color: colors.isDark ? Colors.black : Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(AzamanColors colors) {
+    if (_searchQuery.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                HugeIconsSolid.search01,
+                color: colors.textTertiary,
+                size: 44,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No results',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Try a different search term',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              HugeIconsSolid.bubbleChat,
+              color: colors.textTertiary,
+              size: 56,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No conversations yet',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Start a chat with someone on Azaman',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: _showSearchUserDialog,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'New message',
+                  style: TextStyle(
+                    color: colors.isDark ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatItem(PersonalChat chat, AzamanColors colors) {
+    final bool hasUnread = chat.unreadCount > 0;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => PersonalChatInterface(
+            chatId: chat.id,
+            contactId: chat.contactId,
+            contactAzamanId: chat.contactAzamanId,
+            contactName: chat.contactName,
+          ),
+        )).then((_) => _fetchChats());
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: hasUnread
+              ? colors.accent.withValues(alpha: 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: colors.softSurface,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                chat.contactName.isNotEmpty
+                    ? chat.contactName[0].toUpperCase()
+                    : '?',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          chat.contactName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
+                            fontSize: 15,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _formatTime(chat.lastMessageTime),
+                        style: TextStyle(
+                          color: hasUnread ? colors.accent : colors.textTertiary,
+                          fontSize: 12,
+                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (chat.lastMessage != null) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat.lastMessage!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: hasUnread
+                                  ? colors.textSecondary
+                                  : colors.textTertiary,
+                              fontSize: 13,
+                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                        if (hasUnread) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              chat.unreadCount > 9 ? '9+' : '${chat.unreadCount}',
+                              style: TextStyle(
+                                color: colors.isDark ? Colors.black : Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

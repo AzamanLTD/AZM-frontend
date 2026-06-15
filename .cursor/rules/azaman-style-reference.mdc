@@ -89,6 +89,7 @@ Compact, **not** a large framed card. Prefer a single inline row (icon tile + sh
 ## Strict Do's and Don'ts
 
 ### Do
+- Remove Backgrounds Behind Icons
 - Use `softSurface` fills as the default surface; reach for fill contrast before borders.
 - Keep spacing compact and connected; let secondary cards peek from the right.
 - Keep typography `w700`–`w800` and let the screen still feel light.
@@ -96,6 +97,7 @@ Compact, **not** a large framed card. Prefer a single inline row (icon tile + sh
 - Use `accent` (gold) only for the one primary action and active states.
 
 ### Don't
+- Don't add Backgrounds Behind Icons
 - Don't outline every card, button, or icon circle. Borders are the exception, not the rule.
 - Don't build tall, empty cards or oversized empty states.
 - Don't use `w900` weights or overly tight aggressive tracking on big numbers.
