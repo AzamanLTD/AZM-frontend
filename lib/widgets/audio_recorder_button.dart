@@ -35,6 +35,7 @@ import 'package:record/record.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 /// Callback fired when a successful recording finishes. The file is on
 /// the local filesystem; the caller uploads it via
@@ -274,7 +275,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          Icons.mic_none_rounded,
+          HugeIconsSolid.mic01,
           color: colors.accent.withOpacity(widget.disabled ? 0.4 : 1.0),
           size: 18,
         ),
@@ -355,8 +356,8 @@ class _RecordingStrip extends StatelessWidget {
                 children: [
                   Icon(
                     cancelling
-                        ? Icons.cancel_rounded
-                        : Icons.chevron_left_rounded,
+                        ? HugeIconsSolid.cancel01
+                        : HugeIconsSolid.arrowLeft01,
                     color: dotColor,
                     size: 14,
                   ),

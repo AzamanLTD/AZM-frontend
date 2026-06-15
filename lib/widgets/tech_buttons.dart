@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class TechButtons {
   // THE PRIMARY ACTION BUTTON (Buy/Sell)
@@ -54,7 +55,7 @@ class TechButtons {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(text, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 14),
+          const Icon(HugeIconsSolid.arrowDown01, color: Colors.white70, size: 14),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SusuConfigScreen extends ConsumerStatefulWidget {
   final String groupChatId;
@@ -65,7 +66,7 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Configure Susu',
@@ -120,7 +121,7 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.event_rounded, color: colors.warning, size: 16),
+                    Icon(HugeIconsSolid.calendar01, color: colors.warning, size: 16),
                     const SizedBox(width: 8),
                     Text(
                       '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}',
@@ -143,7 +144,7 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded, color: colors.warning, size: 14),
+                  Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

@@ -21,6 +21,7 @@ import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/config.dart';
 
 import 'package:azaman/screens/trade_summary_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorTradeExecution extends ConsumerStatefulWidget {
   final Map<String, dynamic> tradeData;
@@ -411,7 +412,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             Align(
               alignment: Alignment.topRight,
               child: IconButton(
-                icon: Icon(Icons.close, color: colors.textPrimary, size: 30),
+                icon: Icon(HugeIconsSolid.cancel01, color: colors.textPrimary, size: 30),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ),
@@ -523,7 +524,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.timer_outlined, color: const Color(0xFFFFB800), size: 22),
+                  Icon(HugeIconsSolid.clock01, color: const Color(0xFFFFB800), size: 22),
                   const SizedBox(width: 10),
                   Text('Extend Trade Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
@@ -862,7 +863,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: colors.danger, size: 28),
+                    Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 28),
                     const SizedBox(width: 12),
                     Text("Open a Dispute",
                         style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -961,7 +962,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             style: TextStyle(fontSize: 14, color: colors.textPrimary, fontWeight: FontWeight.bold)),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () {
             if (_isChatOpen) {
               setState(() => _isChatOpen = false);
@@ -977,7 +978,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 HapticFeedback.lightImpact();
                 _showDisputeDialog();
               },
-              icon: Icon(Icons.flag_outlined, color: colors.danger),
+              icon: Icon(HugeIconsSolid.flag01, color: colors.danger),
               tooltip: "Open Dispute",
             ),
           IconButton(
@@ -986,7 +987,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               setState(() => _isChatOpen = !_isChatOpen);
             },
             icon: Icon(
-              _isChatOpen ? Icons.description_outlined : Icons.chat_bubble_outline,
+              _isChatOpen ? HugeIconsSolid.note01 : HugeIconsSolid.bubbleChat,
               color: colors.accent,
             ),
           ),
@@ -1046,7 +1047,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       ),
       child: Row(
         children: [
-          Icon(Icons.lock, color: colors.danger, size: 18),
+          Icon(HugeIconsSolid.lock, color: colors.danger, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1072,7 +1073,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 color: colors.danger.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.shield, color: colors.danger, size: 60),
+              child: Icon(HugeIconsSolid.shield01, color: colors.danger, size: 60),
             ),
             const SizedBox(height: 24),
             Text("Dispute Active",
@@ -1093,7 +1094,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => setState(() => _isChatOpen = true),
-                icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
+                icon: Icon(HugeIconsSolid.bubbleChat, color: colors.accent),
                 label: Text("Open Chat", style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold)),
               ),
             ),
@@ -1119,7 +1120,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.push_pin, color: colors.accent, size: 16),
+              Icon(HugeIconsSolid.pin, color: colors.accent, size: 16),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1359,7 +1360,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           ),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet, color: colors.textTertiary),
+              Icon(HugeIconsSolid.wallet01, color: colors.textTertiary),
               const SizedBox(width: 12),
               Text(widget.tradeData['paymentMethod'] ?? "Zelle / PayPal",
                   style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
@@ -1377,7 +1378,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: _showProofImage,
-              icon: Icon(_hasViewedProof ? Icons.check_circle : Icons.image_search,
+              icon: Icon(_hasViewedProof ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.image01,
                   color: _hasViewedProof ? colors.success : colors.accent),
               label: Text(
                 _hasViewedProof ? "PAYMENT PROOF VERIFIED" : "VIEW PAYMENT PROOF",
@@ -1396,7 +1397,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: colors.danger, size: 18),
+                Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1719,7 +1720,7 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
               // Title
               Row(
                 children: [
-                  Icon(Icons.lock_open_rounded, color: colors.accent, size: 22),
+                  Icon(HugeIconsSolid.lockKey, color: colors.accent, size: 22),
                   const SizedBox(width: 10),
                   Text(
                     'Release crypto',
@@ -1788,7 +1789,7 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: colors.warning, size: 18),
+                    Icon(HugeIconsSolid.alertCircle, color: colors.warning, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

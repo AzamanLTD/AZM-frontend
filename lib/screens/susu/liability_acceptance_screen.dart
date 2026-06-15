@@ -26,6 +26,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class LiabilityAcceptanceScreen extends ConsumerStatefulWidget {
   final String susuId;
@@ -114,7 +115,7 @@ class _LiabilityAcceptanceScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -196,7 +197,7 @@ class _ContractBody extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.refresh_rounded,
+                Icon(HugeIconsSolid.refresh01,
                     color: colors.warning, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
@@ -223,7 +224,7 @@ class _ContractBody extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.gavel_rounded, color: colors.danger, size: 16),
+              Icon(HugeIconsSolid.judge, color: colors.danger, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -321,7 +322,7 @@ class _ContractBody extends StatelessWidget {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.black),
                         )
-                      : const Icon(Icons.check_rounded, size: 16),
+                      : const Icon(HugeIconsSolid.checkmarkCircle01, size: 16),
                   label: Text(
                     busy ? 'Recording…' : 'Accept Contract',
                     style: const TextStyle(
@@ -367,7 +368,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: colors.danger),
+            Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
             const SizedBox(height: 12),
             Text(
               'Could not load the contract',
@@ -387,7 +388,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
+              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.warning,

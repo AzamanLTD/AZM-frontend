@@ -38,6 +38,7 @@ import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
   final String friendshipId;
@@ -393,14 +394,14 @@ class _IdentityTier extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 6),
                             child: Tooltip(
                               message: 'Verified vendor',
-                              child: Icon(Icons.verified_rounded,
+                              child: Icon(HugeIconsSolid.checkmarkCircle01,
                                   color: colors.accent, size: 18),
                             ),
                           )
                         else if (profile.friend.kycStatus == 'VERIFIED')
                           Padding(
                             padding: const EdgeInsets.only(left: 6),
-                            child: Icon(Icons.verified,
+                            child: Icon(HugeIconsSolid.checkmarkCircle01,
                                 color: const Color(0xFF22C55E), size: 18),
                           ),
                       ],
@@ -427,7 +428,7 @@ class _IdentityTier extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onEditNickname,
-                icon: Icon(Icons.edit_outlined,
+                icon: Icon(HugeIconsSolid.pencilEdit01,
                     color: colors.accent, size: 20),
                 tooltip: 'Edit nickname',
               ),
@@ -445,7 +446,7 @@ class _IdentityTier extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatPill(
-                  icon: Icons.task_alt_rounded,
+                  icon: HugeIconsSolid.task01,
                   label: 'Completed',
                   value: '${profile.friend.completedTransactions}',
                   colors: colors,
@@ -456,7 +457,7 @@ class _IdentityTier extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
-                  icon: Icons.star_rounded,
+                  icon: HugeIconsSolid.star,
                   label: 'Rating',
                   value: profile.friend.rating != null
                       ? profile.friend.rating!.toStringAsFixed(1)
@@ -467,7 +468,7 @@ class _IdentityTier extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
-                  icon: Icons.handshake_outlined,
+                  icon: HugeIconsSolid.agreement01,
                   label: 'Mutual',
                   value: '${profile.mutualTradesCompleted}',
                   colors: colors,
@@ -543,7 +544,7 @@ class _StatPill extends StatelessWidget {
               ),
               if (onTap != null)
                 Icon(
-                  Icons.chevron_right_rounded,
+                  HugeIconsSolid.arrowRight01,
                   color: iconColor,
                   size: 14,
                 ),
@@ -589,7 +590,7 @@ class _MediaTab extends ConsumerWidget {
     }
     if (state.mediaItems.isEmpty) {
       return _EmptyVault(
-        icon: Icons.perm_media_outlined,
+        icon: HugeIconsSolid.image01,
         label: 'No shared media yet.',
         colors: colors,
         onRefresh: notifier.refreshMedia,
@@ -651,7 +652,7 @@ class _MediaTile extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   color: colors.card,
                   alignment: Alignment.center,
-                  child: Icon(Icons.broken_image_rounded,
+                  child: Icon(HugeIconsSolid.image01,
                       color: colors.textTertiary, size: 22),
                 ),
               )
@@ -661,8 +662,8 @@ class _MediaTile extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Icon(
                   item.type == 'VIDEO'
-                      ? Icons.play_circle_outline_rounded
-                      : Icons.image_outlined,
+                      ? HugeIconsSolid.play
+                      : HugeIconsSolid.image01,
                   color: colors.textTertiary,
                   size: 28,
                 ),
@@ -675,7 +676,7 @@ class _MediaTile extends StatelessWidget {
                     color: Colors.black.withOpacity(0.55),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.play_arrow_rounded,
+                  child: const Icon(HugeIconsSolid.play,
                       color: Colors.white, size: 18),
                 ),
               ),
@@ -726,7 +727,7 @@ class _DocsLinksTab extends ConsumerWidget {
     }
     if (state.docsLinkItems.isEmpty) {
       return _EmptyVault(
-        icon: Icons.link_rounded,
+        icon: HugeIconsSolid.link01,
         label: 'No shared documents or links yet.',
         colors: colors,
         onRefresh: notifier.refreshDocsLinks,
@@ -786,7 +787,7 @@ class _DocLinkRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
-                    Icon(Icons.link_rounded, color: colors.accent, size: 18),
+                    Icon(HugeIconsSolid.link01, color: colors.accent, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -817,7 +818,7 @@ class _DocLinkRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.open_in_new_rounded,
+              Icon(HugeIconsSolid.share01,
                   color: colors.textTertiary, size: 16),
             ],
           ),
@@ -876,7 +877,7 @@ class _DocLinkRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.download_rounded,
+            Icon(HugeIconsSolid.download01,
                 color: colors.textTertiary, size: 16),
           ],
         ),
@@ -914,17 +915,17 @@ class _DocLinkRow extends StatelessWidget {
   }
 
   IconData _iconForMime(String? mime) {
-    if (mime == null) return Icons.insert_drive_file_rounded;
-    if (mime.contains('pdf')) return Icons.picture_as_pdf_rounded;
+    if (mime == null) return HugeIconsSolid.file01;
+    if (mime.contains('pdf')) return HugeIconsSolid.pdf01;
     if (mime.contains('word') || mime.contains('msword')) {
-      return Icons.description_rounded;
+      return HugeIconsSolid.note01;
     }
     if (mime.contains('excel') || mime.contains('spreadsheet')) {
-      return Icons.table_chart_rounded;
+      return HugeIconsSolid.grid02;
     }
-    if (mime.contains('presentation')) return Icons.slideshow_rounded;
-    if (mime.startsWith('text')) return Icons.notes_rounded;
-    return Icons.insert_drive_file_rounded;
+    if (mime.contains('presentation')) return HugeIconsSolid.film01;
+    if (mime.startsWith('text')) return HugeIconsSolid.note01;
+    return HugeIconsSolid.file01;
   }
 
   String _formatBytes(int bytes) {
@@ -968,7 +969,7 @@ class _TicketsTab extends ConsumerWidget {
     }
     if (all.isEmpty) {
       return _EmptyVault(
-        icon: Icons.confirmation_number_outlined,
+        icon: HugeIconsSolid.ticket01,
         label: 'No tickets between you yet.',
         colors: colors,
         onRefresh: notifier.refresh,
@@ -1038,7 +1039,7 @@ class _TicketRow extends StatelessWidget {
                 color: colors.accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.confirmation_number_rounded,
+              child: Icon(HugeIconsSolid.ticket01,
                   color: colors.accent, size: 18),
             ),
             const SizedBox(width: 10),
@@ -1088,7 +1089,7 @@ class _TicketRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
+            Icon(HugeIconsSolid.arrowRight01,
                 color: colors.textTertiary, size: 18),
           ],
         ),
@@ -1149,7 +1150,7 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
     }
     if (state.receiptItems.isEmpty) {
       return _EmptyVault(
-        icon: Icons.receipt_long_outlined,
+        icon: HugeIconsSolid.receiptDollar,
         label: 'No P2P transfers between you yet.',
         sublabel: 'Casual money transfers (with a tracking reason) appear here as immutable receipts.',
         colors: colors,
@@ -1230,7 +1231,7 @@ class _ReceiptRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              isSent ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+              isSent ? HugeIconsSolid.arrowUp01 : HugeIconsSolid.arrowDown01,
               color: isSent ? colors.warning : colors.success,
               size: 18,
             ),
@@ -1305,7 +1306,7 @@ class _ReceiptRow extends StatelessWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: colors.accent),
                     )
-                  : Icon(Icons.download_rounded,
+                  : Icon(HugeIconsSolid.download01,
                       color: colors.accent, size: 18),
               tooltip: 'Download receipt PDF',
             ),
@@ -1396,7 +1397,7 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded,
+            Icon(HugeIconsSolid.alertCircle,
                 color: colors.danger, size: 36),
             const SizedBox(height: 10),
             Text('Could not load profile',

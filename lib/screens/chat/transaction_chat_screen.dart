@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'dart:ui';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class TransactionChatScreen extends ConsumerStatefulWidget {
   final String tradeId;
@@ -152,7 +153,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.timer_off_rounded, color: colors.danger, size: 28),
+            Icon(HugeIconsSolid.clock01, color: colors.danger, size: 28),
             const SizedBox(width: 12),
             Text('Time Expired',
                 style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
@@ -199,7 +200,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -310,7 +311,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.shield_outlined, color: colors.warning, size: 18),
+          Icon(HugeIconsSolid.shield01, color: colors.warning, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -332,7 +333,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.chat_bubble_outline_rounded, size: 48, color: colors.textTertiary),
+          Icon(HugeIconsSolid.bubbleChat, size: 48, color: colors.textTertiary),
           const SizedBox(height: 12),
           Text(
             'Transaction chat started',
@@ -372,7 +373,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.info_outline_rounded, color: colors.accentSecondary, size: 16),
+          Icon(HugeIconsSolid.informationCircle, color: colors.accentSecondary, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -404,7 +405,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.access_time_rounded, color: colors.warning, size: 18),
+            Icon(HugeIconsSolid.clock01, color: colors.warning, size: 18),
             const SizedBox(width: 8),
             Text(
               msg.text,
@@ -432,7 +433,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline_rounded, color: colors.success, size: 16),
+          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
           const SizedBox(width: 8),
           Text(
             msg.text,
@@ -512,7 +513,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.schedule_rounded, color: colors.accentSecondary, size: 20),
+          Icon(HugeIconsSolid.clock01, color: colors.accentSecondary, size: 20),
           const SizedBox(width: 10),
           Text(
             'Request more time:',
@@ -626,7 +627,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
                     : null,
               ),
               child: Icon(
-                Icons.send_rounded,
+                HugeIconsSolid.sent,
                 color: chatState.isActive ? Colors.black : colors.textTertiary,
                 size: 20,
               ),
@@ -703,7 +704,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isLowTime ? Icons.warning_amber_rounded : Icons.timer_outlined,
+                    isLowTime ? HugeIconsSolid.alertCircle : HugeIconsSolid.clock01,
                     color: isLowTime ? colors.danger : colors.glow,
                     size: 20,
                   ),

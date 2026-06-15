@@ -39,7 +39,7 @@ import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/settings_screen.dart';
-import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
+import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
 import 'package:azaman/screens/susu/liability_acceptance_screen.dart';
@@ -47,6 +47,7 @@ import 'package:azaman/screens/susu/proof_of_residency_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -154,7 +155,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       name: 'marketplace',
-      builder: (context, state) => const P2PMarketplaceScreen(),
+      builder: (context, state) => const P2PMarketListScreen(),
     ),
     GoRoute(
       path: '/savings',
@@ -235,7 +236,7 @@ class _DisputeScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.gavel, size: 64, color: colors.danger),
+              Icon(HugeIconsSolid.judge, size: 64, color: colors.danger),
               const SizedBox(height: 16),
               Text('Dispute #$disputeId',
                   style: TextStyle(
@@ -318,7 +319,7 @@ void handleNotificationTap({
       navigator.push(MaterialPageRoute(builder: (_) => const SavingsScreen()));
       break;
     case 'OPEN_AD':
-      navigator.push(MaterialPageRoute(builder: (_) => const P2PMarketplaceScreen()));
+      navigator.push(MaterialPageRoute(builder: (_) => const P2PMarketListScreen()));
       break;
     // Phase 4 (Susu Sprint, 2026-05-31) — three new susu deep-link
     // actions. All mirror the existing OPEN_TRADE / PING_TOPUP shape.

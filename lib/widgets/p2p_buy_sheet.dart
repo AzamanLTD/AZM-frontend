@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class P2PBuySheet extends ConsumerStatefulWidget {
   final Map<String, dynamic> vendor; // Pass the selected vendor data
@@ -111,7 +112,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
                 child: Row(
                   children: [
                     Icon(
-                      _alternativeVendor != null ? Icons.lightbulb : Icons.warning_amber_rounded,
+                      _alternativeVendor != null ? HugeIconsSolid.bulb : HugeIconsSolid.alertCircle,
                       color: _alternativeVendor != null ? Colors.blue : Colors.orange,
                       size: 16,
                     ),

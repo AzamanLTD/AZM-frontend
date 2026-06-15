@@ -9,6 +9,7 @@ import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/trade_account_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorAdCreator extends ConsumerStatefulWidget {
   const VendorAdCreator({super.key});
@@ -208,7 +209,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text("Post Ad", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-        leading: IconButton(icon: Icon(Icons.close, color: colors.textPrimary), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(icon: Icon(HugeIconsSolid.cancel01, color: colors.textPrimary), onPressed: () => Navigator.pop(context)),
       ),
       body: _isLoadingData 
         ? Center(child: CircularProgressIndicator(color: colors.accent))
@@ -295,7 +296,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.trending_up, color: ref.read(themeProvider).colors.accent, size: 18),
+                  Icon(HugeIconsSolid.analytics01, color: ref.read(themeProvider).colors.accent, size: 18),
                   const SizedBox(width: 8),
                   Text("+${_marginPercent.toStringAsFixed(1)}%",
                       style: TextStyle(color: ref.read(themeProvider).colors.accent, fontWeight: FontWeight.bold, fontSize: 18)),
@@ -343,7 +344,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.percent, color: Color(0xFFF0B90B), size: 20),
+                  Icon(HugeIconsSolid.percent, color: Color(0xFFF0B90B), size: 20),
                   SizedBox(width: 10),
                   Text("Flat 2% Platform Fee", style: TextStyle(color: Color(0xFFF0B90B), fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
@@ -423,7 +424,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             decoration: BoxDecoration(color: const Color(0xFFF6465D).withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withOpacity(0.3))),
             child: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Color(0xFFF6465D), size: 16),
+                Icon(HugeIconsSolid.alertCircle, color: Color(0xFFF6465D), size: 16),
                 SizedBox(width: 8),
                 Expanded(child: Text("Minimum \$500 collateral required to post an ad.", style: TextStyle(color: Color(0xFFF6465D), fontSize: 11))),
               ],
@@ -508,7 +509,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 child: Row(
                   children: [
                     Icon(
-                      isSelected ? Icons.check_circle : Icons.circle_outlined,
+                      isSelected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
                       color: isSelected ? ref.read(themeProvider).colors.accent : Colors.white24,
                       size: 20,
                     ),
@@ -641,7 +642,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             ),
             child: Row(
               children: [
-                Icon(Icons.access_time, color: ref.read(themeProvider).colors.accent, size: 18),
+                Icon(HugeIconsSolid.clock01, color: ref.read(themeProvider).colors.accent, size: 18),
                 const SizedBox(width: 12),
                 Text(
                   time.format(context),

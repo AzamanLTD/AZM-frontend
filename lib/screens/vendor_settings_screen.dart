@@ -10,6 +10,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorSettingsScreen extends ConsumerStatefulWidget {
   final int pendingTradeCount;
@@ -64,7 +65,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
+                Icon(HugeIconsSolid.alertCircle,
                     color: colors.warning, size: 24),
                 const SizedBox(width: 10),
                 Expanded(
@@ -359,8 +360,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         children: [
                           Icon(
                             verificationScreenshot != null
-                                ? Icons.check_circle
-                                : Icons.camera_alt_outlined,
+                                ? HugeIconsSolid.checkmarkCircle01
+                                : HugeIconsSolid.camera01,
                             color: verificationScreenshot != null
                                 ? colors.success
                                 : colors.textTertiary,
@@ -546,7 +547,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.phone_android,
+                                Icon(HugeIconsSolid.smartPhone01,
                                     size: 16,
                                     color: !isWeb3
                                         ? colors.accent
@@ -585,7 +586,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.language,
+                                Icon(HugeIconsSolid.internet,
                                     size: 16,
                                     color: isWeb3
                                         ? colors.accent
@@ -811,7 +812,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -880,7 +881,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.swap_horiz, color: colors.warning, size: 20),
+                  Icon(HugeIconsSolid.exchange01, color: colors.warning, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -933,7 +934,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 _showAddPayoutSheet();
               }
             },
-            child: const Icon(Icons.add, size: 28),
+            child: const Icon(HugeIconsSolid.add01, size: 28),
           );
         },
       ),
@@ -949,7 +950,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
+            Icon(HugeIconsSolid.wallet01,
                 size: 56, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text('No trade accounts yet',
@@ -988,7 +989,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
+            Icon(HugeIconsSolid.wallet01,
                 size: 56, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text('No payout destinations yet',
@@ -1046,7 +1047,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 ? colors.accent.withOpacity(0.15)
                 : colors.success.withOpacity(0.15),
             child: Icon(
-              isCrypto ? Icons.language : Icons.account_balance,
+              isCrypto ? HugeIconsSolid.internet : HugeIconsSolid.bank,
               color: isCrypto ? colors.accent : colors.success,
               size: 22,
             ),
@@ -1081,7 +1082,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, color: colors.danger),
+            icon: Icon(HugeIconsSolid.delete01, color: colors.danger),
             onPressed: () {
               HapticFeedback.lightImpact();
               if (isPayout) {

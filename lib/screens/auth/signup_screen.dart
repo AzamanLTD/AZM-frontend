@@ -11,6 +11,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/main.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -187,7 +188,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              Icon(Icons.currency_exchange, size: 64, color: colors.accent),
+              Icon(HugeIconsSolid.exchange01, size: 64, color: colors.accent),
               const SizedBox(height: 16),
               Text(
                 'Join Azaman P2P',
@@ -228,7 +229,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Username',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.person_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(HugeIconsSolid.user, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -249,7 +250,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.email_outlined, color: colors.textTertiary),
+                  prefixIcon: Icon(HugeIconsSolid.mail01, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -270,7 +271,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -293,7 +294,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -371,7 +372,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               _ssoButton(
                 colors: colors,
                 label: 'Continue with Apple',
-                icon: Icons.apple,
+                icon: HugeIconsSolid.apple,
                 iconColor: Colors.white,
                 bgColor: Colors.black,
                 borderColor: Colors.white.withOpacity(0.15),
@@ -381,7 +382,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               _ssoButton(
                 colors: colors,
                 label: 'Continue with Google',
-                icon: Icons.g_mobiledata,
+                icon: HugeIconsSolid.google,
                 iconColor: const Color(0xFF4285F4),
                 bgColor: Colors.white,
                 borderColor: Colors.transparent,
@@ -493,7 +494,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
         title: Row(
           children: [
-            Icon(Icons.info_outline, color: colors.accent),
+            Icon(HugeIconsSolid.informationCircle, color: colors.accent),
             const SizedBox(width: 10),
             Text(
               '$providerLabel Sign-In',

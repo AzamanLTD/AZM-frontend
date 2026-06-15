@@ -1,0 +1,89 @@
+---
+description: Flutter Performance and rendering optimization guidelines for Azaman
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Flutter Performance & Rendering Guidelines
+
+Flutter applications are performant by default, but avoiding common pitfalls ensures optimal performance. Follow these rendering, layout, and resource management best practices.
+
+---
+
+## Optimizing Rendering and Layout
+
+### Minimize Expensive Operations
+- Avoid unnecessary expensive paint and layout operations. Design the widget tree to prevent expensive calculations.
+
+### Control `build()` Cost
+- **Avoid repetitive or costly work** directly inside `build()` methods.
+- **Split large widgets** into smaller, focused widgets based on:
+  - Encapsulation.
+  - Rebuild frequency (how often they change).
+- **Localize `setState()` calls**:
+  - Calling `setState()` high in the widget tree triggers rebuilds for all descendants.
+  - Restrict `setState()` to the smallest subtree affected by the change.
+- **Use `const` constructors**:
+  - Flutter skips rebuild work for widgets with `const` constructors.
+  - Keep `flutter_lints` active to identify missing `const` constructors.
+- **Prefer `StatelessWidget` over helper functions** for reusable UI components.
+
+### Efficient String Building
+- **Avoid `+` for string concatenation in loops** (each `+` creates a new `String` object).
+- Use **`StringBuffer`** instead:
+  ```dart
+  final buffer = StringBuffer();
+  buffer.write('Hello');
+  buffer.write(' World');
+  final result = buffer.toString();
+  ```
+
+### Use `saveLayer()` Thoughtfully
+`saveLayer()` is an expensive operation that allocates an offscreen buffer, disrupting GPU rendering throughput.
+- **When is it required?** Dynamically displaying overlapping shapes with transparency (e.g., server-generated shapes).
+- **Debugging `saveLayer()`:**
+  - Check the DevTools Performance view for `saveLayer()` events.
+  - Enable `PerformanceOverlayLayer.checkerboardOffscreenLayers` to visualize offscreen layers.
+- **Minimizing `saveLayer()` calls:**
+  - Precompute overlapping shapes with static transparency and cache them.
+  - Refactor painting logic to avoid overlaps.
+  - Avoid packages that excessively use `saveLayer()`.
+- **Widgets that may trigger `saveLayer()`:**
+  - `ShaderMask`
+  - `ColorFilter`
+  - `Chip` (if `disabledColorAlpha != 0xff`)
+  - `Text` (if `overflowShader` is used)
+
+### Minimize Opacity and Clipping
+- **Opacity:**
+  - Avoid wrapping widgets in `Opacity` if possible.
+  - For images, apply opacity directly (e.g., via `color` with transparency, `ColorFilter`, or `FadeInImage`).
+  - For shapes/text, use semi-transparent colors instead of wrapping with `Opacity`.
+- **Clipping:**
+  - Clipping is less expensive than `saveLayer()` but still costly.
+  - Use `borderRadius` for rounded corners instead of clipping.
+  - Avoid `Clip.antiAliasWithSaveLayer` unless absolutely necessary.
+
+---
+
+## Optimizing Grids and Lists
+- **Be Lazy!** Use lazy builders (e.g., `ListView.builder`, `GridView.builder`) to build only visible items. Do not build all items at startup.
+- **Avoid Intrinsic Passes:** Intrinsic passes (e.g., polling all cells for uniform sizing) slow down layout.
+  - Debugging: Enable "Track layouts" in DevTools to monitor layout passes (labeled as `$runtimeType intrinsics`).
+  - Avoidance: Set fixed cell sizes upfront, or use an anchor cell to size other cells relative to it. You can also write a custom `RenderObject`.
+
+---
+
+## Frame Budget: 16ms
+- **60Hz display:** 16ms per frame (8ms for build, 8ms for render).
+- **120Hz display:** 8ms per frame total.
+- **Goal:** Render frames in **≤16ms** (or ≤8ms for 120fps) to ensure a smooth visual experience, reduce battery consumption, and improve thermal performance.
+
+---
+
+## Common Pitfalls to Avoid
+1. **Avoid `Opacity` in animations:** Use `AnimatedOpacity` or `FadeInImage` instead.
+2. **Avoid rebuilding static subtrees in `AnimatedBuilder`:** Build static subtrees once and pass them as the `child` argument.
+3. **Avoid clipping in animations:** Pre-clip images before animating them.
+4. **Avoid `Column()` or `ListView()` with concrete `List<Widget>` children** for long or off-screen lists; use lazy builders.
+5. **Avoid overriding `operator ==` on widgets:** Can cause $O(N^2)$ performance degradation. (Exception: Leaf widgets with rare configuration changes; better alternative is caching widgets).

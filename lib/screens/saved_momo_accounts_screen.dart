@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SavedMomoAccountsScreen extends ConsumerWidget {
   const SavedMomoAccountsScreen({super.key});
@@ -33,7 +34,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -66,7 +67,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.shield_outlined, color: colors.accent, size: 16),
+                      Icon(HugeIconsSolid.shield01, color: colors.accent, size: 16),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -84,7 +85,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.smartphone_rounded, size: 48, color: colors.textTertiary),
+                          Icon(HugeIconsSolid.smartPhone01, size: 48, color: colors.textTertiary),
                           const SizedBox(height: 12),
                           Text(
                             'No deposit addresses yet',
@@ -130,7 +131,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(Icons.add_rounded, size: 18),
+        icon: const Icon(HugeIconsSolid.add01, size: 18),
         label: const Text(
           'Add Account',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -171,7 +172,7 @@ class _MomoTile extends ConsumerWidget {
               color: pcolor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.smartphone_rounded, color: pcolor, size: 16),
+            child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -191,7 +192,7 @@ class _MomoTile extends ConsumerWidget {
                     ),
                     if (account.isPrimary) ...[
                       const SizedBox(width: 6),
-                      Icon(Icons.star_rounded, color: colors.warning, size: 12),
+                      Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
                     ],
                   ],
                 ),
@@ -211,7 +212,7 @@ class _MomoTile extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: colors.danger.withOpacity(0.8), size: 18),
+            icon: Icon(HugeIconsSolid.delete01, color: colors.danger.withOpacity(0.8), size: 18),
             onPressed: () async {
               HapticFeedback.mediumImpact();
               final ok = await showDialog<bool>(
@@ -441,7 +442,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.verified_rounded, color: colors.success, size: 16),
+                    Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -496,7 +497,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.lock_outline_rounded, color: colors.warning, size: 14),
+                  Icon(HugeIconsSolid.lock, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

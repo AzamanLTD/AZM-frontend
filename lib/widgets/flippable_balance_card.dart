@@ -21,11 +21,11 @@
 
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -152,82 +152,31 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
         // scroll the page without false-flipping the card).
         if (dist < 8) _toggle();
       },
-      child: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _flip,
-            builder: (context, _) {
-              final t = _flip.value;
-              final angle = t * math.pi;
-              final showBack = t > 0.5;
+      child: AnimatedBuilder(
+        animation: _flip,
+        builder: (context, _) {
+          final t = _flip.value;
+          final angle = t * math.pi;
+          final showBack = t > 0.5;
 
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateX(angle),
-                child: showBack
-                    ? Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateX(math.pi),
-                        child: _BackFace(
-                          vaultLocked: _vaultLocked,
-                          savingsLocked: _savingsLocked,
-                          susuLocked: _susuLocked,
-                        ),
-                      )
-                    : const HologramBalanceCard(),
-              );
-            },
-          ),
-          // Bottom-left "TAP TO FLIP" hint. Sits inside the same Stack
-          // so it animates out cleanly as the user flips the card. The
-          // IgnorePointer keeps it from blocking the Listener up top.
-          Positioned(
-            left: 32,
-            bottom: 22,
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _flip,
-                builder: (_, __) => Opacity(
-                  opacity: (1.0 - (_flip.value * 4)).clamp(0.0, 1.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.55),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.18),
-                        width: 0.7,
-                      ),
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateX(angle),
+            child: showBack
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()..rotateX(math.pi),
+                    child: _BackFace(
+                      vaultLocked: _vaultLocked,
+                      savingsLocked: _savingsLocked,
+                      susuLocked: _susuLocked,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.touch_app_rounded,
-                          size: 10,
-                          color: Colors.white.withOpacity(0.85),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'TAP TO FLIP',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.92),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+                  )
+                : const HologramBalanceCard(),
+          );
+        },
       ),
     );
   }
@@ -259,14 +208,14 @@ class _BackFace extends ConsumerWidget {
         value: balance.availableBalance,
         suffix: 'USDC',
         color: colors.success,
-        icon: Icons.account_balance_wallet_rounded,
+        icon: HugeIconsSolid.wallet01,
       ),
       _BalanceRow(
         label: 'Escrow',
         value: balance.escrowLockedBalance,
         suffix: 'USDC',
         color: colors.warning,
-        icon: Icons.lock_outline_rounded,
+        icon: HugeIconsSolid.lock,
       ),
       if (isVendor)
         _BalanceRow(
@@ -274,7 +223,7 @@ class _BackFace extends ConsumerWidget {
           value: balance.vendorUnallocatedBalance,
           suffix: 'USDC',
           color: colors.accent,
-          icon: Icons.storefront_rounded,
+          icon: HugeIconsSolid.store01,
         ),
       if (balance.disputeEscrowBalance > 0)
         _BalanceRow(
@@ -282,21 +231,21 @@ class _BackFace extends ConsumerWidget {
           value: balance.disputeEscrowBalance,
           suffix: 'USDC',
           color: colors.danger,
-          icon: Icons.gavel_rounded,
+          icon: HugeIconsSolid.judge,
         ),
       _BalanceRow(
         label: 'Vaults',
         value: vaultLocked,
         suffix: 'USDC',
         color: colors.accentSecondary,
-        icon: Icons.shield_outlined,
+        icon: HugeIconsSolid.shield01,
       ),
       _BalanceRow(
         label: 'Savings',
         value: savingsLocked,
         suffix: 'USDC',
         color: colors.success,
-        icon: Icons.savings_rounded,
+        icon: HugeIconsSolid.savings,
       ),
       if (susuLocked > 0)
         _BalanceRow(
@@ -304,88 +253,65 @@ class _BackFace extends ConsumerWidget {
           value: susuLocked,
           suffix: 'USDC',
           color: colors.warning,
-          icon: Icons.account_balance_rounded,
+          icon: HugeIconsSolid.bank,
         ),
       _BalanceRow(
         label: 'AZM',
         value: balance.azmBalance,
         suffix: 'AZM',
         color: colors.accentSecondary,
-        icon: Icons.bolt_rounded,
+        icon: HugeIconsSolid.flash,
       ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colors.accent.withOpacity(0.10),
-                  Colors.white.withOpacity(0.015),
-                ],
-              ),
-              border: Border.all(
-                color: colors.glow.withOpacity(0.16),
-                width: 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.30),
-                  blurRadius: 22,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 10),
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Balance breakdown',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              ),
+              const Spacer(),
+              Icon(
+                HugeIconsSolid.exchange01,
+                color: colors.textTertiary,
+                size: 12,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Tap to flip',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'BALANCE BREAKDOWN',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.flip_to_front_rounded,
-                        color: colors.textTertiary,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tap to flip',
-                        style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
                   for (int i = 0; i < rows.length; i++) ...[
                     _BalanceLine(row: rows[i], colors: colors),
                     if (i < rows.length - 1)
                       Divider(
-                        height: 10,
-                        thickness: 0.5,
+                        height: 8,
+                        thickness: 1,
                         color: colors.divider,
                       ),
                   ],
@@ -393,7 +319,7 @@ class _BackFace extends ConsumerWidget {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -435,51 +361,54 @@ class _BalanceLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: row.color.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(7),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: row.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(row.icon, color: row.color, size: 11),
           ),
-          child: Icon(row.icon, color: row.color, size: 12),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            row.label,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.1,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              row.label,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.1,
+              ),
             ),
           ),
-        ),
-        Text(
-          _fmt(row.value),
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.2,
-            fontFeatures: const [FontFeature.tabularFigures()],
+          Text(
+            _fmt(row.value),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          row.suffix,
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+          const SizedBox(width: 4),
+          Text(
+            row.suffix,
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

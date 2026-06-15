@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class AzamanStoreScreen extends ConsumerWidget {
   const AzamanStoreScreen({super.key});
@@ -17,7 +18,7 @@ class AzamanStoreScreen extends ConsumerWidget {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -30,7 +31,7 @@ class AzamanStoreScreen extends ConsumerWidget {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 16),
+              child: const Icon(HugeIconsSolid.store01, color: Colors.white, size: 16),
             ),
             const SizedBox(width: 10),
             Text(
@@ -66,7 +67,7 @@ class AzamanStoreScreen extends ConsumerWidget {
                   ),
                 ),
                 child: Icon(
-                  Icons.storefront_rounded,
+                  HugeIconsSolid.store01,
                   size: 56,
                   color: colors.accent,
                 ),
@@ -120,15 +121,15 @@ class AzamanStoreScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _expectItem(Icons.auto_awesome, 'Profile Decorations', 'Unique rings, badges & card styles', colors),
+                    _expectItem(HugeIconsSolid.sparkles, 'Profile Decorations', 'Unique rings, badges & card styles', colors),
                     const SizedBox(height: 12),
-                    _expectItem(Icons.palette_outlined, 'Exclusive Themes', 'Premium color palettes & effects', colors),
+                    _expectItem(HugeIconsSolid.paintBoard, 'Exclusive Themes', 'Premium color palettes & effects', colors),
                     const SizedBox(height: 12),
-                    _expectItem(Icons.diamond_outlined, 'Vendor Flair', 'Stand out in the marketplace', colors),
+                    _expectItem(HugeIconsSolid.diamond, 'Vendor Flair', 'Stand out in the marketplace', colors),
                     const SizedBox(height: 12),
-                    _expectItem(Icons.bolt_rounded, 'AZM Boosts', 'Power-ups for your trading experience', colors),
+                    _expectItem(HugeIconsSolid.flash, 'AZM Boosts', 'Power-ups for your trading experience', colors),
                     const SizedBox(height: 12),
-                    _expectItem(Icons.card_giftcard_rounded, 'Gift Cards', 'Send store items to friends', colors),
+                    _expectItem(HugeIconsSolid.gift, 'Gift Cards', 'Send store items to friends', colors),
                   ],
                 ),
               ).animate().fadeIn(delay: 400.ms, duration: 600.ms).slideY(begin: 0.1),
@@ -145,7 +146,7 @@ class AzamanStoreScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.notifications_active_rounded, size: 14, color: colors.accent),
+                    Icon(HugeIconsSolid.notification01, size: 14, color: colors.accent),
                     const SizedBox(width: 8),
                     Text(
                       'You\'ll be notified when it launches',

@@ -1,11 +1,5 @@
-// =============================================================================
-// AZAMAN V3 — FRIENDS HUB SCREEN
-//
-// Main friends screen with Chats/Requests tabs, user search overlay,
-// and friend request dialog. Entry point for the social friends system.
-// =============================================================================
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
@@ -14,6 +8,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -32,7 +27,6 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // Load data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(friendProvider).refreshAll();
     });
@@ -46,6 +40,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   }
 
   void _toggleSearch() {
+    HapticFeedback.selectionClick();
     setState(() {
       _isSearching = !_isSearching;
       if (!_isSearching) {
@@ -68,125 +63,136 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // User info
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: colors.accent.withOpacity(0.2),
-                child: Text(
-                  (user['username'] ?? '?')[0].toUpperCase(),
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                user['username'] ?? 'Unknown',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'ID: ${user['id']}',
-                style: TextStyle(color: colors.textTertiary, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-
-              // Message field
-              TextField(
-                controller: messageController,
-                style: TextStyle(color: colors.textPrimary),
-                maxLength: 200,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Say something... (optional)',
-                  hintStyle: TextStyle(color: colors.textTertiary),
-                  filled: true,
-                  fillColor: colors.card,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                const SizedBox(height: 24),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    shape: BoxShape.circle,
                   ),
-                  counterStyle: TextStyle(color: colors.textTertiary),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Send button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final success = await ref.read(friendProvider).sendRequest(
-                      user['id'],
-                      messageController.text.trim(),
-                    );
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Friend request sent to ${user['username']}!'),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor:
-                        colors.isDark ? Colors.black : Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  alignment: Alignment.center,
+                  child: Text(
+                    (user['username'] ?? '?')[0].toUpperCase(),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  child: const Text(
-                    'Send Friend Request',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  user['username'] ?? 'Unknown',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  'ID: ${user['id']}',
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: TextField(
+                    controller: messageController,
+                    maxLength: 200,
+                    maxLines: 3,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Say something... (optional)',
+                      hintStyle: TextStyle(
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      counterStyle: TextStyle(color: colors.textTertiary, fontSize: 11),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final success = await ref.read(friendProvider).sendRequest(
+                        user['id'],
+                        messageController.text.trim(),
+                      );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Friend request sent to ${user['username']}!'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Send Friend Request',
+                        style: TextStyle(
+                          color: colors.isDark ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         );
       },
     ).whenComplete(() {
-      // Phase H10 BUGFIX (2026-05-27): the message controller was
-      // allocated outside the builder but never disposed. Each open
-      // of this sheet leaked one TextEditingController. .whenComplete
-      // fires whether the sheet was confirmed or dismissed.
       messageController.dispose();
     });
   }
@@ -198,112 +204,209 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: TextStyle(color: colors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Search users...',
-                  hintStyle: TextStyle(color: colors.textTertiary),
-                  border: InputBorder.none,
-                ),
-                onChanged: _onSearchChanged,
-              )
-            : Text(
-                'Friends',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isSearching ? Icons.close : Icons.search_rounded,
-              color: colors.textPrimary,
-            ),
-            onPressed: _toggleSearch,
-          ),
-        ],
-        bottom: _isSearching
-            ? null
-            : TabBar(
-                controller: _tabController,
-                indicatorColor: colors.accent,
-                labelColor: colors.accent,
-                unselectedLabelColor: colors.textTertiary,
-                tabs: [
-                  const Tab(text: 'Chats'),
-                  Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Requests'),
-                        if (provider.pendingRequests.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: colors.danger,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${provider.pendingRequests.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Friends',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 27,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _toggleSearch,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _isSearching
+                            ? colors.accent.withValues(alpha: 0.12)
+                            : colors.softSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        _isSearching ? HugeIconsSolid.cancel01 : HugeIconsSolid.search01,
+                        color: _isSearching ? colors.accent : colors.textPrimary,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ],
               ),
-      ),
-      body: _isSearching
-          ? _buildSearchResults(colors, provider)
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildChatsTab(colors, provider),
-                _buildRequestsTab(colors, provider),
-              ],
             ),
+
+            if (_isSearching) ...[
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    children: [
+                      Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          autofocus: true,
+                          onChanged: _onSearchChanged,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search by username or ID',
+                            hintStyle: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            if (!_isSearching) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(3),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicator: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelColor: colors.textPrimary,
+                    unselectedLabelColor: colors.textTertiary,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    tabs: [
+                      const Tab(text: 'Chats', height: 36),
+                      Tab(
+                        height: 36,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Requests'),
+                            if (provider.pendingRequests.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 18,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  color: colors.danger,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${provider.pendingRequests.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 4),
+
+            Expanded(
+              child: _isSearching
+                  ? _buildSearchResults(colors, provider)
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildChatsTab(colors, provider),
+                        _buildRequestsTab(colors, provider),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // ===========================================================================
-  // SEARCH RESULTS OVERLAY
-  // ===========================================================================
-
   Widget _buildSearchResults(AzamanColors colors, FriendProvider provider) {
     if (provider.isLoading) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return Center(
+        child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2),
+      );
     }
 
     if (_searchController.text.length < 2) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_search_rounded,
-                size: 48, color: colors.textTertiary),
-            const SizedBox(height: 12),
+            Icon(HugeIconsSolid.userSearch01, size: 44, color: colors.textTertiary),
+            const SizedBox(height: 14),
             Text(
               'Search by username or ID',
-              style: TextStyle(color: colors.textSecondary, fontSize: 15),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
             ),
+            const SizedBox(height: 4),
             Text(
               'Type at least 2 characters',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13),
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -313,14 +416,17 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     if (provider.searchResults.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off_rounded,
-                size: 48, color: colors.textTertiary),
-            const SizedBox(height: 12),
+            Icon(HugeIconsSolid.search01, size: 44, color: colors.textTertiary),
+            const SizedBox(height: 14),
             Text(
               'No users found',
-              style: TextStyle(color: colors.textSecondary, fontSize: 15),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
@@ -328,7 +434,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];
@@ -336,137 +442,189 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         final isFriend = user['isFriend'] == true;
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: colors.accent.withOpacity(0.2),
-              child: Text(
-                (user['username'] ?? '?')[0].toUpperCase(),
-                style: TextStyle(
-                  color: colors.accent,
-                  fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  (user['username'] ?? '?')[0].toUpperCase(),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                  ),
                 ),
               ),
-            ),
-            title: Text(
-              user['username'] ?? 'Unknown',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user['username'] ?? 'Unknown',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      'ID: ${user['id']}',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            subtitle: Text(
-              'ID: ${user['id']}',
-              style: TextStyle(color: colors.textTertiary, fontSize: 12),
-            ),
-            trailing: isFriend
-                ? Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              if (isFriend)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Friends',
+                    style: TextStyle(
+                      color: colors.success,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else if (requestSent)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Sent',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: () => _showAddFriendDialog(user),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: colors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'Friends',
+                      'Add',
                       style: TextStyle(
-                          color: colors.success,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  )
-                : requestSent
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.textTertiary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Sent',
-                          style: TextStyle(
-                              color: colors.textTertiary, fontSize: 12),
-                        ),
-                      )
-                    : TextButton(
-                        onPressed: () => _showAddFriendDialog(user),
-                        style: TextButton.styleFrom(
-                          backgroundColor: colors.accent.withOpacity(0.1),
-                          foregroundColor: colors.accent,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('Add',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },
     );
   }
 
-  // ===========================================================================
-  // CHATS TAB
-  // ===========================================================================
-
   Widget _buildChatsTab(AzamanColors colors, FriendProvider provider) {
     if (provider.isLoading && provider.friends.isEmpty) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return Center(
+        child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2),
+      );
     }
 
     if (provider.friends.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline_rounded,
-                size: 56, color: colors.textTertiary),
-            const SizedBox(height: 16),
-            Text(
-              'No friends yet',
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 17,
-                fontWeight: FontWeight.w500,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                HugeIconsSolid.userGroup,
+                color: colors.textTertiary,
+                size: 56,
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Search for users and add them as friends',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _toggleSearch,
-              icon: const Icon(Icons.person_add_rounded, size: 18),
-              label: const Text('Find Friends'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 16),
+              Text(
+                'No friends yet',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  letterSpacing: -0.3,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Search for users and add them as friends',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: _toggleSearch,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        HugeIconsSolid.userAdd01,
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Find Friends',
+                        style: TextStyle(
+                          color: colors.isDark ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    // Master Sprint v2 (2026-05-27): the Chats tab now includes group
-    // chats above the 1:1 list. Susu-enabled groups carry a SUSU pill
-    // and the row links straight into the group chat (the susu dashboard
-    // is reachable from the chat header). Casual groups appear without
-    // the pill.
     final groupsAsync = ref.watch(groupListProvider);
     return RefreshIndicator(
       onRefresh: () async {
@@ -474,71 +632,67 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         await ref.read(groupListProvider.notifier).refresh();
       },
       color: colors.accent,
+      backgroundColor: colors.card,
       child: groupsAsync.when(
-        loading: () => ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          itemCount: provider.friends.length,
-          itemBuilder: (context, index) =>
-              _buildFriendTile(provider.friends[index], colors),
-        ),
-        error: (_, __) => ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          itemCount: provider.friends.length,
-          itemBuilder: (context, index) =>
-              _buildFriendTile(provider.friends[index], colors),
-        ),
+        loading: () => _buildFriendsList(provider.friends, colors),
+        error: (_, __) => _buildFriendsList(provider.friends, colors),
         data: (groups) {
-          final children = <Widget>[];
-          if (groups.isNotEmpty) {
-            children.add(Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Text(
-                'GROUPS',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ));
-            for (final g in groups) {
-              children.add(_GroupChatTile(group: g, colors: colors));
-            }
-            children.add(Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Text(
-                'FRIENDS',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ));
-          }
-          for (final f in provider.friends) {
-            children.add(_buildFriendTile(f, colors));
-          }
           return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            children: children,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            children: [
+              if (groups.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'GROUPS',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                for (final g in groups)
+                  _GroupChatTile(group: g, colors: colors),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'FRIENDS',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+              for (final f in provider.friends)
+                _buildFriendTile(f, colors),
+            ],
           );
         },
       ),
     );
   }
 
+  Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      itemCount: friends.length,
+      itemBuilder: (context, index) => _buildFriendTile(friends[index], colors),
+    );
+  }
+
   Widget _buildFriendTile(Map<String, dynamic> friend, AzamanColors colors) {
-    // Phase UI-7 (2026-05-27): the BE returns the friend list with a
-    // nested shape — `{ friendshipId, friend: {...}, latestMessage: {...},
-    // unreadCount, friendSince }`. The previous tile read `friend['username']`
-    // / `friend['lastMessage']` as flat keys, which silently fell through to
-    // "Unknown" / "" because those keys never existed at the top level. We
-    // now read from the nested objects, with the legacy flat keys retained
-    // as fallback so any older socket payload that still arrives flat
-    // (rare — friend_provider's transfer-received handler) still renders.
     final friendObj = friend['friend'] is Map<String, dynamic>
         ? friend['friend'] as Map<String, dynamic>
         : const <String, dynamic>{};
@@ -567,8 +721,6 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
         ? friendIdRaw
         : int.tryParse(friendIdRaw.toString()) ?? 0;
 
-    // Phase UI-7: trust signals from the BE (defensive fallback to 0/null
-    // so older deploys without the new fields still render the row).
     final completedTransactions =
         (friendObj['completedTransactions'] ?? 0) is int
             ? friendObj['completedTransactions'] as int
@@ -576,9 +728,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     final ratingRaw = friendObj['rating'];
     final rating = ratingRaw is num ? ratingRaw.toDouble() : null;
     final isVerifiedVendor = friendObj['isVerifiedVendor'] == true;
+    final bool hasUnread = unread > 0;
 
-    return InkWell(
+    return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -589,34 +743,39 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
             ),
           ),
         ).then((_) {
-          // Refresh when coming back
           ref.read(friendProvider).fetchFriends();
           ref.read(friendProvider).fetchUnreadCount();
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colors.divider)),
+          color: hasUnread
+              ? colors.accent.withValues(alpha: 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            // Profile pic placeholder
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: colors.accent.withOpacity(0.15),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: colors.softSurface,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
               child: Text(
                 username.isNotEmpty ? username[0].toUpperCase() : '?',
                 style: TextStyle(
-                  color: colors.accent,
-                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
                   fontSize: 18,
                 ),
               ),
             ),
             const SizedBox(width: 12),
-
-            // Username + trust line + last message
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,32 +789,25 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.textPrimary,
-                            fontWeight: unread > 0
-                                ? FontWeight.bold
-                                : FontWeight.w600,
+                            fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
                             fontSize: 15,
+                            letterSpacing: -0.2,
                           ),
                         ),
                       ),
                       if (isVerifiedVendor) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.verified_rounded,
+                        Icon(HugeIconsSolid.checkmarkCircle01,
                             color: colors.accent, size: 13),
                       ],
                     ],
                   ),
-                  // Phase UI-7: persistent trust line under the name —
-                  // ⭐ rating · N Completed Transactions. Suppressed
-                  // entirely when the friend has no signal yet (no
-                  // rating + zero completed) so brand-new accounts
-                  // don't carry a misleading "0 Completed" stamp.
                   if (rating != null || completedTransactions > 0) ...[
                     const SizedBox(height: 2),
                     Row(
                       children: [
                         if (rating != null) ...[
-                          Icon(Icons.star_rounded,
-                              color: colors.warning, size: 11),
+                          Icon(HugeIconsSolid.star, color: colors.warning, size: 11),
                           const SizedBox(width: 2),
                           Text(
                             rating.toStringAsFixed(1),
@@ -692,52 +844,57 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                     ),
                   ],
                   const SizedBox(height: 3),
-                  Text(
-                    lastMessage.isNotEmpty ? lastMessage : 'Start chatting...',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: unread > 0
-                          ? colors.textSecondary
-                          : colors.textTertiary,
-                      fontSize: 13,
-                      fontWeight:
-                          unread > 0 ? FontWeight.w500 : FontWeight.normal,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          lastMessage.isNotEmpty ? lastMessage : 'Start chatting...',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasUnread ? colors.textSecondary : colors.textTertiary,
+                            fontSize: 13,
+                            fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      if (hasUnread) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: colors.accent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: TextStyle(
+                              color: colors.isDark ? Colors.black : Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-
-            // Time + unread badge
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   lastTime,
                   style: TextStyle(
-                    color: unread > 0 ? colors.accent : colors.textTertiary,
-                    fontSize: 11,
+                    color: hasUnread ? colors.accent : colors.textTertiary,
+                    fontSize: 12,
+                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
-                if (unread > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: colors.accent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: TextStyle(
-                        color: colors.isDark ? Colors.black : Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ],
@@ -746,26 +903,36 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     );
   }
 
-  // ===========================================================================
-  // REQUESTS TAB
-  // ===========================================================================
-
   Widget _buildRequestsTab(AzamanColors colors, FriendProvider provider) {
     if (provider.isLoading && provider.pendingRequests.isEmpty) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return Center(
+        child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2),
+      );
     }
 
     if (provider.pendingRequests.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_add_disabled_rounded,
-                size: 48, color: colors.textTertiary),
-            const SizedBox(height: 12),
+            Icon(HugeIconsSolid.userRemove01, size: 44, color: colors.textTertiary),
+            const SizedBox(height: 14),
             Text(
               'No pending requests',
-              style: TextStyle(color: colors.textSecondary, fontSize: 15),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Friend requests will appear here',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -775,8 +942,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     return RefreshIndicator(
       onRefresh: () => ref.read(friendProvider).fetchPendingRequests(),
       color: colors.accent,
+      backgroundColor: colors.card,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
         itemCount: provider.pendingRequests.length,
         itemBuilder: (context, index) {
           final request = provider.pendingRequests[index];
@@ -786,34 +957,38 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     );
   }
 
-  Widget _buildRequestTile(
-      Map<String, dynamic> request, AzamanColors colors) {
+  Widget _buildRequestTile(Map<String, dynamic> request, AzamanColors colors) {
     final requester = request['requester'] ?? request['sender'] ?? {};
     final username = requester['username'] ?? request['username'] ?? 'Unknown';
     final message = request['message'] ?? '';
     final id = request['id']?.toString() ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.divider),
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: colors.accentSecondary.withOpacity(0.2),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
                 child: Text(
                   username.isNotEmpty ? username[0].toUpperCase() : '?',
                   style: TextStyle(
-                    color: colors.accentSecondary,
-                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
                   ),
                 ),
               ),
@@ -826,31 +1001,35 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                       username,
                       style: TextStyle(
                         color: colors.textPrimary,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         fontSize: 15,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                    if (requester['id'] != null)
+                    if (requester['id'] != null) ...[
+                      const SizedBox(height: 1),
                       Text(
                         'ID: ${requester['id']}',
                         style: TextStyle(
-                            color: colors.textTertiary, fontSize: 12),
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-
-          // Message
           if (message.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.background,
-                borderRadius: BorderRadius.circular(8),
+                color: colors.card,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '"$message"',
@@ -858,46 +1037,65 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                   color: colors.textSecondary,
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 12),
-
-          // Accept / Reject buttons
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: ElevatedButton(
-                  onPressed: () => ref.read(friendProvider).acceptRequest(id),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(friendProvider).acceptRequest(id);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Accept',
+                      style: TextStyle(
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                  child: const Text('Accept',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => ref.read(friendProvider).rejectRequest(id),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: colors.danger,
-                    side: BorderSide(color: colors.danger.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(friendProvider).rejectRequest(id);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: colors.softSurface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: colors.divider,
+                        width: 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Decline',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                  child: const Text('Reject',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
             ],
@@ -906,10 +1104,6 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
       ),
     );
   }
-
-  // ===========================================================================
-  // HELPERS
-  // ===========================================================================
 
   String _formatRelativeTime(dynamic timestamp) {
     if (timestamp == null) return '';
@@ -929,17 +1123,6 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   }
 }
 
-
-// =============================================================================
-// GROUP CHAT TILE — Master Sprint v2 (2026-05-27)
-//
-// Renders a row in the Chats tab for a GroupSummary. The avatar is a
-// composite of three overlapping circles drawn via _GroupBubbleAvatar so
-// the row is instantly recognisable as a group thread vs a 1:1 friend.
-//
-// Susu-enabled groups show a SUSU pill next to the title; casual groups
-// show no pill. Tapping the row opens the group chat screen.
-// =============================================================================
 class _GroupChatTile extends StatelessWidget {
   final GroupSummary group;
   final AzamanColors colors;
@@ -947,8 +1130,9 @@ class _GroupChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -956,8 +1140,12 @@ class _GroupChatTile extends StatelessWidget {
           ),
         );
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Row(
           children: [
             _GroupBubbleAvatar(group: group, colors: colors),
@@ -976,30 +1164,27 @@ class _GroupChatTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.textPrimary,
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
                           ),
                         ),
                       ),
                       if (group.isSusuEnabled) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [
-                              colors.warning,
-                              colors.warning.withOpacity(0.7),
-                            ]),
-                            borderRadius: BorderRadius.circular(4),
+                            color: colors.warning.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
+                          child: Text(
                             'SUSU',
                             style: TextStyle(
-                              color: Colors.black,
+                              color: colors.warning,
                               fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ),
@@ -1011,13 +1196,14 @@ class _GroupChatTile extends StatelessWidget {
                     '${group.members.length} members',
                     style: TextStyle(
                       color: colors.textTertiary,
-                      fontSize: 11,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 16),
+            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
           ],
         ),
       ),
@@ -1025,11 +1211,6 @@ class _GroupChatTile extends StatelessWidget {
   }
 }
 
-/// Composite group avatar — three overlapping circles. Top-left bubble
-/// gets the first member's initial, bottom-right gets the second, and
-/// the back bubble carries the group's first letter so the cluster is
-/// instantly recognisable as "a group" without rendering 5+ stacked
-/// avatars (which would look cluttered at this row size).
 class _GroupBubbleAvatar extends StatelessWidget {
   final GroupSummary group;
   final AzamanColors colors;
@@ -1046,42 +1227,24 @@ class _GroupBubbleAvatar extends StatelessWidget {
         ? (members[1].username ?? '?').substring(0, 1).toUpperCase()
         : '+';
     return SizedBox(
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       child: Stack(
         children: [
-          // Back bubble (group identity)
           Positioned(
             top: 0,
             left: 8,
-            child: _bubble(
-              char: firstChar,
-              size: 26,
-              color: colors.accent,
-              fontSize: 11,
-            ),
+            child: _bubble(char: firstChar, size: 28, color: colors.accent, fontSize: 11),
           ),
-          // Front-left bubble (first member)
           Positioned(
             bottom: 2,
             left: 0,
-            child: _bubble(
-              char: secondChar,
-              size: 22,
-              color: colors.accentSecondary,
-              fontSize: 10,
-            ),
+            child: _bubble(char: secondChar, size: 24, color: colors.accentSecondary, fontSize: 10),
           ),
-          // Front-right bubble (second member or +)
           Positioned(
             bottom: 0,
-            right: 0,
-            child: _bubble(
-              char: thirdChar,
-              size: 22,
-              color: colors.success,
-              fontSize: 10,
-            ),
+            right: 2,
+            child: _bubble(char: thirdChar, size: 24, color: colors.success, fontSize: 10),
           ),
         ],
       ),
@@ -1100,11 +1263,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withOpacity(0.40), color.withOpacity(0.15)],
-        ),
+        color: color.withValues(alpha: 0.15),
         border: Border.all(color: colors.background, width: 1.5),
       ),
       child: Text(
@@ -1112,7 +1271,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontSize: fontSize,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

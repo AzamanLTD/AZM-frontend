@@ -9,6 +9,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class UploadProofScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -123,7 +124,7 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
                       border: Border.all(color: _imageFile != null ? colors.accent : colors.textTertiary.withOpacity(0.3)),
                     ),
                     child: _imageFile == null
-                        ? Center(child: Icon(Icons.add_a_photo, color: colors.accent, size: 40))
+                        ? Center(child: Icon(HugeIconsSolid.camera01, color: colors.accent, size: 40))
                         : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_imageFile!, fit: BoxFit.cover)),
                   ),
                 ),
@@ -176,7 +177,7 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.sync, color: colors.textPrimary, size: 14), Text(" Change", style: TextStyle(color: colors.textPrimary, fontSize: 12))]),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(HugeIconsSolid.refresh01, color: colors.textPrimary, size: 14), Text(" Change", style: TextStyle(color: colors.textPrimary, fontSize: 12))]),
       ),
     );
   }
@@ -229,7 +230,7 @@ class _ReleaseTimerDialogState extends ConsumerState<_ReleaseTimerDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.hourglass_bottom, color: colors.accent, size: 50),
+          Icon(HugeIconsSolid.hourglass, color: colors.accent, size: 50),
           const SizedBox(height: 20),
           Text("Awaiting Vendor Release", style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),

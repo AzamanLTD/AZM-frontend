@@ -25,6 +25,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class InviteLandingScreen extends ConsumerStatefulWidget {
   final String token;
@@ -87,7 +88,7 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
@@ -174,7 +175,7 @@ class _PreviewBody extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.account_balance_rounded,
+                  Icon(HugeIconsSolid.bank,
                       color: colors.warning, size: 18),
                   const SizedBox(width: 6),
                   Expanded(
@@ -241,25 +242,25 @@ class _PreviewBody extends StatelessWidget {
               const SizedBox(height: 6),
               _BulletRow(
                 colors: colors,
-                icon: Icons.verified_user_rounded,
+                icon: HugeIconsSolid.shield01,
                 text: 'You will need a verified ID (KYC) and proof of '
                     'residency before joining.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: Icons.gavel_rounded,
+                icon: HugeIconsSolid.judge,
                 text: 'A liability contract authorises automatic seizure '
                     'of contributions on cycle days.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: Icons.shield_outlined,
+                icon: HugeIconsSolid.shield01,
                 text: 'Your inviter loses AZM and trust rating if you '
                     'default — vouching is permanent.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: Icons.schedule_rounded,
+                icon: HugeIconsSolid.clock01,
                 text: 'This invite expires '
                     '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')} '
                     '${exp.hour.toString().padLeft(2, '0')}:${exp.minute.toString().padLeft(2, '0')}.',
@@ -279,7 +280,7 @@ class _PreviewBody extends StatelessWidget {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.black),
                   )
-                : const Icon(Icons.check_rounded, size: 16),
+                : const Icon(HugeIconsSolid.checkmarkCircle01, size: 16),
             label: Text(
               redeeming
                   ? 'Accepting…'
@@ -359,8 +360,8 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(
               expired
-                  ? Icons.timer_off_rounded
-                  : Icons.error_outline_rounded,
+                  ? HugeIconsSolid.clock01
+                  : HugeIconsSolid.alertCircle,
               size: 48,
               color: expired ? colors.warning : colors.danger,
             ),

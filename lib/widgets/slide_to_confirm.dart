@@ -49,6 +49,7 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SlideToConfirm extends StatefulWidget {
   final String text;
@@ -275,8 +276,8 @@ class SlideToConfirmState extends State<SlideToConfirm>
                             )
                           : Icon(
                               _confirmed
-                                  ? Icons.check_rounded
-                                  : Icons.arrow_forward_rounded,
+                                  ? HugeIconsSolid.checkmarkCircle01
+                                  : HugeIconsSolid.arrowRight01,
                               color: Colors.white,
                               size: 24,
                             ),

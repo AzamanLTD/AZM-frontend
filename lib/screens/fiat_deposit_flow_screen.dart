@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class FiatDepositFlowScreen extends ConsumerStatefulWidget {
   const FiatDepositFlowScreen({super.key});
@@ -31,10 +32,10 @@ class _FiatDepositFlowScreenState extends ConsumerState<FiatDepositFlowScreen> {
   Map<String, dynamic>? _depositResult;
 
   final _providers = [
-    {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'icon': Icons.phone_android_rounded, 'color': const Color(0xFFFFCC00)},
-    {'id': 'VODAFONE_CASH', 'name': 'Vodafone Cash', 'icon': Icons.phone_android_rounded, 'color': const Color(0xFFE60000)},
-    {'id': 'AIRTELTIGO', 'name': 'AirtelTigo/Telecel', 'icon': Icons.phone_android_rounded, 'color': const Color(0xFF0066CC)},
-    {'id': 'BANK_TRANSFER', 'name': 'Bank Transfer', 'icon': Icons.account_balance_rounded, 'color': const Color(0xFF2E7D32)},
+    {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'icon': HugeIconsSolid.smartPhone01, 'color': const Color(0xFFFFCC00)},
+    {'id': 'VODAFONE_CASH', 'name': 'Vodafone Cash', 'icon': HugeIconsSolid.smartPhone01, 'color': const Color(0xFFE60000)},
+    {'id': 'AIRTELTIGO', 'name': 'AirtelTigo/Telecel', 'icon': HugeIconsSolid.smartPhone01, 'color': const Color(0xFF0066CC)},
+    {'id': 'BANK_TRANSFER', 'name': 'Bank Transfer', 'icon': HugeIconsSolid.bank, 'color': const Color(0xFF2E7D32)},
   ];
 
   Future<void> _initiateDeposit() async {
@@ -190,9 +191,9 @@ class _FiatDepositFlowScreenState extends ConsumerState<FiatDepositFlowScreen> {
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle_rounded, color: providerColor, size: 22)
+              Icon(HugeIconsSolid.checkmarkCircle01, color: providerColor, size: 22)
             else
-              Icon(Icons.circle_outlined, color: colors.textTertiary, size: 22),
+              Icon(HugeIconsSolid.circle, color: colors.textTertiary, size: 22),
           ],
         ),
       ),
@@ -216,7 +217,7 @@ class _FiatDepositFlowScreenState extends ConsumerState<FiatDepositFlowScreen> {
               color: colors.success.withOpacity(0.08),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.check_circle_rounded, color: colors.success, size: 48),
+            child: Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 48),
           ),
           const SizedBox(height: 20),
           Text('Deposit Initiated', style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
@@ -262,7 +263,7 @@ class _FiatDepositFlowScreenState extends ConsumerState<FiatDepositFlowScreen> {
                             style: TextStyle(color: colors.accent, fontSize: 11, fontFamily: 'monospace'),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.copy_rounded, color: colors.accent, size: 14),
+                          Icon(HugeIconsSolid.copy01, color: colors.accent, size: 14),
                         ],
                       ),
                     ),

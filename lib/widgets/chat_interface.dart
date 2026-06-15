@@ -11,6 +11,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ChatInterface extends ConsumerStatefulWidget {
   final IO.Socket socket;
@@ -152,19 +153,19 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   // --- Render 3-state ticks ---
   Widget _statusTicks(String? status, AzamanColors colors) {
     if (status == 'sending') {
-      return Icon(Icons.schedule, size: 13, color: colors.textTertiary.withOpacity(0.6));
+      return Icon(HugeIconsSolid.clock01, size: 13, color: colors.textTertiary.withOpacity(0.6));
     }
     if (status == 'failed') {
-      return Icon(Icons.error_outline, size: 13, color: colors.danger);
+      return Icon(HugeIconsSolid.alertCircle, size: 13, color: colors.danger);
     }
     if (status == 'read') {
-      return Icon(Icons.done_all, size: 13, color: colors.accent);
+      return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.accent);
     }
     if (status == 'delivered') {
-      return Icon(Icons.done_all, size: 13, color: colors.textTertiary);
+      return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
     }
     // sent or anything else
-    return Icon(Icons.check, size: 13, color: colors.textTertiary);
+    return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
   }
 
   @override
@@ -302,17 +303,17 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
 
     if (isGranted) {
       accentColor = const Color(0xFF02C076);
-      icon = Icons.check_circle_rounded;
+      icon = HugeIconsSolid.checkmarkCircle01;
       title = 'Time Extended';
       subtitle = '+$addedMinutes minutes added to the timer';
     } else if (isRequest && status == 'APPROVED') {
       accentColor = const Color(0xFF02C076);
-      icon = Icons.check_circle_rounded;
+      icon = HugeIconsSolid.checkmarkCircle01;
       title = isVendor ? 'Fulfilled' : 'Request Approved';
       subtitle = '+$addedMinutes minutes granted';
     } else if (isRequest && status == 'DECLINED') {
       accentColor = const Color(0xFFEF4444);
-      icon = Icons.cancel_rounded;
+      icon = HugeIconsSolid.cancel01;
       title = isVendor ? 'Cancelled' : 'Request Declined';
       subtitle = isVendor
           ? 'You declined this request'
@@ -320,7 +321,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     } else {
       // PENDING request
       accentColor = const Color(0xFFFFB800);
-      icon = Icons.timer_outlined;
+      icon = HugeIconsSolid.clock01;
       title = isVendor ? 'Time Extension Requested' : 'Awaiting Vendor Response';
       subtitle = '+$addedMinutes minutes requested';
     }
@@ -540,7 +541,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                part == 3 ? Icons.warning_amber_rounded : Icons.access_alarm,
+                part == 3 ? HugeIconsSolid.alertCircle : HugeIconsSolid.alarmClock,
                 color: baseColor,
                 size: 18,
               ),
@@ -607,7 +608,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                urgency >= 3 ? Icons.report : Icons.warning_amber_rounded,
+                urgency >= 3 ? HugeIconsSolid.alertCircle : HugeIconsSolid.alertCircle,
                 color: baseColor,
                 size: 20,
               ),
@@ -675,7 +676,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.signal_wifi_off, color: colors.warning, size: 18),
+              Icon(HugeIconsSolid.wifi01, color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text(
                 'VENDOR OFFLINE',
@@ -743,7 +744,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified, size: 14, color: colors.isDark ? Colors.black : Colors.white),
+                    Icon(HugeIconsSolid.checkmarkCircle01, size: 14, color: colors.isDark ? Colors.black : Colors.white),
                     const SizedBox(width: 4),
                     Text(
                       'ADMIN',
@@ -778,7 +779,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.gavel, size: 14, color: colors.accent),
+              Icon(HugeIconsSolid.judge, size: 14, color: colors.accent),
               const SizedBox(width: 4),
               Text(
                 'Admin Intervention',
@@ -810,7 +811,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.warning_amber_rounded, color: colors.danger, size: 16),
+            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 16),
             const SizedBox(width: 5),
             Text("SYSTEM ADMIN",
                 style: TextStyle(color: colors.danger, fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 11)),
@@ -889,7 +890,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
                           children: [
-                            Icon(Icons.person, size: 12, color: isMe ? metaColor : colors.textSecondary),
+                            Icon(HugeIconsSolid.user, size: 12, color: isMe ? metaColor : colors.textSecondary),
                             const SizedBox(width: 4),
                             Text(
                               'Sender Account Name: $senderName',
@@ -920,7 +921,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                           }
                           return Container(
                             height: 180, width: 200, color: colors.background,
-                            child: Icon(Icons.broken_image, color: colors.textTertiary, size: 36),
+                            child: Icon(HugeIconsSolid.image01, color: colors.textTertiary, size: 36),
                           );
                         },
                       ),
@@ -1044,7 +1045,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _SheetAction(
-                  icon: Icons.camera_alt_rounded,
+                  icon: HugeIconsSolid.camera01,
                   label: 'Camera',
                   color: c.accent,
                   colors: c,
@@ -1054,7 +1055,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                   },
                 ),
                 _SheetAction(
-                  icon: Icons.image_outlined,
+                  icon: HugeIconsSolid.image01,
                   label: 'Gallery',
                   color: const Color(0xFF02C076),
                   colors: c,
@@ -1065,7 +1066,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                 ),
                 if (widget.onTimeExtension != null)
                   _SheetAction(
-                    icon: Icons.timer_outlined,
+                    icon: HugeIconsSolid.clock01,
                     label: isVendor ? 'Extend Time' : 'Request Time',
                     color: const Color(0xFFFFB800),
                     colors: c,
@@ -1115,7 +1116,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
               height: 38,
               child: IconButton(
                 padding: EdgeInsets.zero,
-                icon: Icon(Icons.add_rounded, color: c.accent, size: 22),
+                icon: Icon(HugeIconsSolid.add01, color: c.accent, size: 22),
                 onPressed: widget.isUploading ? null : _showAttachmentSheet,
                 tooltip: 'Attach',
               ),
@@ -1167,7 +1168,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                       ),
                     )
                   : Icon(
-                      Icons.send_rounded,
+                      HugeIconsSolid.sent,
                       color: _hasText
                           ? (c.isDark ? Colors.black : Colors.white)
                           : (c.isDark ? Colors.black45 : Colors.white60),
@@ -1309,7 +1310,7 @@ class VendorPayeeDetails extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.account_balance_wallet,
+              Icon(HugeIconsSolid.wallet01,
                   size: 16, color: colors.accent),
               const SizedBox(width: 8),
               Text(
@@ -1375,7 +1376,7 @@ class VendorPayeeDetails extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  icon: const Icon(Icons.copy, size: 16),
+                  icon: const Icon(HugeIconsSolid.copy01, size: 16),
                   label: const Text('Copy Tag',
                       style: TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 12)),
@@ -1405,7 +1406,7 @@ class VendorPayeeDetails extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    icon: const Icon(Icons.open_in_new, size: 16),
+                    icon: const Icon(HugeIconsSolid.share01, size: 16),
                     label: Text(
                       'Open ${_appLabel(paymentMethod)}',
                       style: const TextStyle(
@@ -1422,7 +1423,7 @@ class VendorPayeeDetails extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline,
+                Icon(HugeIconsSolid.informationCircle,
                     size: 14, color: colors.textTertiary),
                 const SizedBox(width: 6),
                 Expanded(

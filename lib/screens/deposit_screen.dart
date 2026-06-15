@@ -35,6 +35,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({
@@ -101,7 +102,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(HugeIconsSolid.arrowLeft01,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -289,7 +290,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline_rounded,
+              Icon(HugeIconsSolid.alertCircle,
                   size: 48, color: colors.danger),
               const SizedBox(height: 12),
               Text(_error!,
@@ -298,7 +299,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _fetchDepositAddress,
-                icon: Icon(Icons.refresh_rounded, color: colors.accent),
+                icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
                 label: Text('Retry',
                     style: TextStyle(color: colors.accent)),
                 style: OutlinedButton.styleFrom(
@@ -358,7 +359,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
                     Expanded(
                       child: _GhostAction(
                         colors: colors,
-                        icon: Icons.copy_rounded,
+                        icon: HugeIconsSolid.copy01,
                         label: 'Copy',
                         onTap: () => _copyAddress(colors),
                       ),
@@ -367,7 +368,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
                     Expanded(
                       child: _GhostAction(
                         colors: colors,
-                        icon: Icons.ios_share_rounded,
+                        icon: HugeIconsSolid.share01,
                         label: 'Share',
                         onTap: _shareAddress,
                       ),
@@ -392,7 +393,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
+                    Icon(HugeIconsSolid.alertCircle,
                         color: colors.warning, size: 16),
                     const SizedBox(width: 6),
                     Text('Send only USDC on Polygon',
@@ -595,7 +596,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: colors.warning, size: 14),
+                          Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 14),
                           const SizedBox(width: 8),
                           Text(
                             'No saved deposit addresses',
@@ -621,7 +622,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                               ),
                             );
                           },
-                          icon: Icon(Icons.add_rounded, size: 16, color: colors.warning),
+                          icon: Icon(HugeIconsSolid.add01, size: 16, color: colors.warning),
                           label: Text(
                             'Add a Deposit Address',
                             style: TextStyle(color: colors.warning, fontWeight: FontWeight.w800),
@@ -755,7 +756,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             tintColor: colors.success,
             child: Column(
               children: [
-                Icon(Icons.check_circle_rounded,
+                Icon(HugeIconsSolid.checkmarkCircle01,
                     size: 44, color: colors.success),
                 const SizedBox(height: 10),
                 Text(
@@ -898,7 +899,7 @@ class _ProviderTile extends StatelessWidget {
                   color: provider.color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.phone_android_rounded,
+                child: Icon(HugeIconsSolid.smartPhone01,
                     color: provider.color, size: 18),
               ),
               const SizedBox(width: 12),
@@ -915,11 +916,11 @@ class _ProviderTile extends StatelessWidget {
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 160),
                 child: selected
-                    ? Icon(Icons.check_circle_rounded,
+                    ? Icon(HugeIconsSolid.checkmarkCircle01,
                         key: const ValueKey('on'),
                         color: provider.color,
                         size: 20)
-                    : Icon(Icons.radio_button_unchecked_rounded,
+                    : Icon(HugeIconsSolid.circle,
                         key: const ValueKey('off'),
                         color: colors.textTertiary,
                         size: 20),
@@ -1022,7 +1023,7 @@ class _NetworkCapsule extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.hexagon_outlined, color: colors.accent, size: 14),
+          Icon(HugeIconsSolid.hexagon, color: colors.accent, size: 14),
           const SizedBox(width: 6),
           Text(
             'Polygon',
@@ -1125,7 +1126,7 @@ class _PremiumQrCard extends ConsumerWidget {
                           ),
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(Icons.hexagon_rounded,
+                        child: const Icon(HugeIconsSolid.hexagon,
                             color: Colors.white, size: 14),
                       ),
                       const SizedBox(width: 8),
@@ -1229,7 +1230,7 @@ class _PremiumQrCard extends ConsumerWidget {
                         ),
                         alignment: Alignment.center,
                         child: const Icon(
-                          Icons.bolt_rounded,
+                          HugeIconsSolid.flash,
                           color: Color(0xFF0B0B0D),
                           size: 22,
                         ),
@@ -1368,7 +1369,7 @@ class _SavedAccountTile extends StatelessWidget {
                 color: pcolor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.smartphone_rounded, color: pcolor, size: 16),
+              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1388,7 +1389,7 @@ class _SavedAccountTile extends StatelessWidget {
                       ),
                       if (account.isPrimary) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.star_rounded, color: colors.warning, size: 12),
+                        Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
                       ],
                     ],
                   ),
@@ -1411,7 +1412,7 @@ class _SavedAccountTile extends StatelessWidget {
               ),
             ),
             Icon(
-              selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              selected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
               color: selected ? pcolor : colors.textTertiary,
               size: 20,
             ),

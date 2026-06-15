@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class RateLockDisclaimer extends ConsumerWidget {
   final bool compact;
@@ -23,7 +24,7 @@ class RateLockDisclaimer extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline, color: colors.accent, size: compact ? 14 : 16),
+          Icon(HugeIconsSolid.lock, color: colors.accent, size: compact ? 14 : 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

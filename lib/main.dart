@@ -44,9 +44,9 @@ import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
-import 'package:azaman/screens/notification_hub_screen.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // =============================================================================
 // MODELS — preserved verbatim from previous main.dart
@@ -282,7 +282,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       const AzamanHomePage(),
       const FriendsHubScreen(),
       const P2PMarketplaceScreen(),
-      const SavingsScreen(),
+      const SafeArea(bottom: false, child: SavingsScreen()),
     ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -358,7 +358,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.check_circle, color: colors.success, size: 80),
+          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 80),
           const SizedBox(height: 16),
           Text('Order Completed',
               style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -389,117 +389,25 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     // again, watch `tradeProvider.select((t) => t.currentRole)`.
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
 
-      appBar: AppBar(
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-        backgroundColor: colors.background,
-        title: Text(
-          'AZAMAN',
-          style: TextStyle(
-            color: colors.accent,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-            letterSpacing: 1.2,
-          ),
-        ),
-        actions: [
-          // Phase UI-1 (2026-05-26): the AppBar chat icon was retired.
-          // The bottom nav bar's "Chat" tab is the canonical entry point
-          // into the Friends Hub and already carries its own unread badge,
-          // so a second affordance up here was redundant chrome and split
-          // user attention. Notification bell stays as the only AppBar
-          // action besides the drawer pill.
-          // Notification bell
-          ValueListenableBuilder<List<P2POrder>>(
-            valueListenable: openTransactionsNotifier,
-            builder: (context, transactions, child) {
-              return Consumer(
-                builder: (ctx, ref, _) {
-                  final notifCount = ref.watch(trade_pkg.tradeProvider
-                      .select((t) => t.notificationCount));
-                  final totalNotifs = transactions.length + notifCount;
-                  return Stack(alignment: Alignment.center, children: [
-                    IconButton(
-                      icon: Icon(Icons.notifications_none_rounded,
-                          size: 26, color: colors.textPrimary),
-                      onPressed: () {
-                        ref.read(trade_pkg.tradeProvider).clearNotifications();
-                        Navigator.push(
-                          ctx,
-                          MaterialPageRoute(builder: (_) => const NotificationHubScreen()),
-                        );
-                      },
-                    ),
-                    if (totalNotifs > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: colors.danger,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: colors.background, width: 2),
-                          ),
-                          child: Text(
-                            '$totalNotifs',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ]);
-                },
-              );
-            },
-          ),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => Scaffold.of(context).openEndDrawer(),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.center,
-                // The drawer pill is "HQ" globally on every tab. The role
-                // tag (HQ-vs-PRO) was only ever meaningful as a vendor
-                // indicator, and showing it everywhere added noise. The
-                // BECOME-VENDOR / FOR-VENDOR cue is now exclusively the
-                // pull-tab on the P2P tab.
-                child: Text(
-                  'HQ',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 17,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+
+      bottomNavigationBar: PremiumBottomNav(
+        selectedIndex: _selectedIndex,
+        onItemSelected: (i) => setState(() => _selectedIndex = i),
       ),
 
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 96),
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                _pages[0],
-                _pages[1],
-                _pages[2],
-                _pages[3],
-              ],
-            ),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _pages[0],
+              _pages[1],
+              _pages[2],
+              _pages[3],
+            ],
           ),
           // Vendor Pull Tab — only visible on the P2P tab AND only when
           // the user has explicitly opted in via Settings → "Show vendor
@@ -508,10 +416,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
           if (_selectedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
-          PremiumBottomNav(
-            selectedIndex: _selectedIndex,
-            onItemSelected: (i) => setState(() => _selectedIndex = i),
-          ),
         ],
       ),
     );

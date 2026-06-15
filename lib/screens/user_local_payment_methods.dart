@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class UserLocalPaymentMethodsScreen extends ConsumerStatefulWidget {
   const UserLocalPaymentMethodsScreen({super.key});
@@ -121,7 +122,7 @@ class _UserLocalPaymentMethodsScreenState
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -149,7 +150,7 @@ class _UserLocalPaymentMethodsScreenState
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: colors.accent,
         foregroundColor: Colors.black,
-        icon: const Icon(Icons.add),
+        icon: const Icon(HugeIconsSolid.add01),
         label: const Text('Add Method',
             style: TextStyle(fontWeight: FontWeight.bold)),
         onPressed: () {
@@ -182,7 +183,7 @@ class _UserLocalPaymentMethodsScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 120),
-        Icon(Icons.account_balance_wallet_outlined,
+        Icon(HugeIconsSolid.wallet01,
             size: 56, color: colors.textTertiary),
         const SizedBox(height: 16),
         Center(
@@ -255,7 +256,7 @@ class _UserLocalPaymentMethodsScreenState
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, color: colors.danger),
+            icon: Icon(HugeIconsSolid.delete01, color: colors.danger),
             onPressed: () => _confirmDelete(id, colors),
           ),
         ],
@@ -290,15 +291,15 @@ class _UserLocalPaymentMethodsScreenState
   IconData _typeIcon(String type) {
     switch (type) {
       case 'MTN MoMo':
-        return Icons.phone_android;
+        return HugeIconsSolid.smartPhone01;
       case 'Telecel Cash':
-        return Icons.sim_card;
+        return HugeIconsSolid.simcard01;
       case 'AirtelTigo Money':
-        return Icons.smartphone;
+        return HugeIconsSolid.smartPhone01;
       case 'Bank Transfer':
-        return Icons.account_balance;
+        return HugeIconsSolid.bank;
       default:
-        return Icons.account_balance_wallet;
+        return HugeIconsSolid.wallet01;
     }
   }
 

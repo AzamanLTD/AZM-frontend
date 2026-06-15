@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -158,11 +159,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildTextField(colors, nameCtrl, 'Display Name', Icons.person_rounded),
+            _buildTextField(colors, nameCtrl, 'Display Name', HugeIconsSolid.user),
             const SizedBox(height: 12),
-            _buildTextField(colors, bioCtrl, 'Bio', Icons.edit_rounded, maxLines: 3),
+            _buildTextField(colors, bioCtrl, 'Bio', HugeIconsSolid.pencilEdit01, maxLines: 3),
             const SizedBox(height: 12),
-            _buildTextField(colors, phoneCtrl, 'Phone', Icons.phone_rounded),
+            _buildTextField(colors, phoneCtrl, 'Phone', HugeIconsSolid.telephone),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -246,7 +247,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         iconTheme: IconThemeData(color: colors.textPrimary),
         actions: [
           IconButton(
-            icon: Icon(Icons.edit_rounded, color: colors.accent, size: 22),
+            icon: Icon(HugeIconsSolid.pencilEdit01, color: colors.accent, size: 22),
             onPressed: _showEditSheet,
             tooltip: 'Edit Profile',
           ),
@@ -308,7 +309,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.cloud_off_rounded, color: colors.textTertiary, size: 48),
+          Icon(HugeIconsSolid.cloud, color: colors.textTertiary, size: 48),
           const SizedBox(height: 12),
           Text(
             _error ?? 'Something went wrong',
@@ -317,7 +318,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: _fetchProfile,
-            icon: Icon(Icons.refresh_rounded, color: colors.accent),
+            icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
             label: Text('Retry', style: TextStyle(color: colors.accent)),
           ),
         ],
@@ -391,17 +392,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     switch (_kycStatus.toUpperCase()) {
       case 'VERIFIED':
         badgeColor = colors.success;
-        badgeIcon = Icons.verified_rounded;
+        badgeIcon = HugeIconsSolid.checkmarkCircle01;
         badgeText = 'Verified';
         break;
       case 'PENDING':
         badgeColor = colors.warning;
-        badgeIcon = Icons.hourglass_top_rounded;
+        badgeIcon = HugeIconsSolid.hourglass;
         badgeText = 'Pending';
         break;
       default:
         badgeColor = colors.danger;
-        badgeIcon = Icons.warning_amber_rounded;
+        badgeIcon = HugeIconsSolid.alertCircle;
         badgeText = 'Unverified';
     }
 
@@ -593,7 +594,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           child: ListTile(
             onTap: _showDeleteConfirmation,
-            leading: Icon(Icons.delete_forever_rounded, color: colors.danger),
+            leading: Icon(HugeIconsSolid.delete01, color: colors.danger),
             title: Text(
               'Delete Account',
               style: TextStyle(
@@ -610,7 +611,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             trailing: Icon(
-              Icons.arrow_forward_ios_rounded,
+              HugeIconsSolid.arrowRight01,
               color: colors.danger.withOpacity(0.5),
               size: 14,
             ),

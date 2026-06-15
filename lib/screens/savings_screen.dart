@@ -25,6 +25,7 @@ import 'package:azaman/screens/vault/vault_detail_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -170,7 +171,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _showCreateGoalSheet(colors),
-                icon: const Icon(Icons.add_rounded, size: 20),
+                icon: const Icon(HugeIconsSolid.add01, size: 20),
                 label: const Text('Create Savings Goal', style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
@@ -218,7 +219,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
                   color: colors.accent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.lock_rounded, color: colors.accent, size: 24),
+                child: Icon(HugeIconsSolid.lock, color: colors.accent, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -284,16 +285,16 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
 
     return Row(
       children: [
-        _statCard(colors, Icons.local_fire_department_rounded, colors.danger,
+        _statCard(colors, HugeIconsSolid.fire, colors.danger,
             '$currentStreak', 'Streak'),
         const SizedBox(width: 10),
-        _statCard(colors, Icons.emoji_events_rounded, colors.warning,
+        _statCard(colors, HugeIconsSolid.award01, colors.warning,
             '$bestStreak', 'Best'),
         const SizedBox(width: 10),
-        _statCard(colors, Icons.savings_rounded, colors.success,
+        _statCard(colors, HugeIconsSolid.savings, colors.success,
             '$totalDeposits', 'Deposits'),
         const SizedBox(width: 10),
-        _statCard(colors, Icons.flag_rounded, colors.accent,
+        _statCard(colors, HugeIconsSolid.flag01, colors.accent,
             '$activeGoals', 'Goals'),
       ],
     );
@@ -342,7 +343,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
           child: Row(
             children: [
               Icon(
-                isToday ? Icons.notifications_active_rounded : Icons.schedule_rounded,
+                isToday ? HugeIconsSolid.notification01 : HugeIconsSolid.clock01,
                 color: isToday ? colors.warning : colors.textTertiary,
                 size: 18,
               ),
@@ -383,7 +384,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
         ),
         child: Column(
           children: [
-            Icon(Icons.savings_outlined, size: 48, color: colors.textTertiary.withOpacity(0.3)),
+            Icon(HugeIconsSolid.savings, size: 48, color: colors.textTertiary.withOpacity(0.3)),
             const SizedBox(height: 12),
             Text('No savings goals yet', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
             const SizedBox(height: 4),
@@ -450,7 +451,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
                       ),
                     ),
                     if (streak > 0) ...[
-                      Icon(Icons.local_fire_department_rounded, color: colors.danger, size: 16),
+                      Icon(HugeIconsSolid.fire, color: colors.danger, size: 16),
                       const SizedBox(width: 3),
                       Text('$streak', style: TextStyle(color: colors.danger, fontSize: 12, fontWeight: FontWeight.w700)),
                     ],
@@ -472,7 +473,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen>
                     ),
                     const SizedBox(width: 6),
                     Icon(
-                      Icons.arrow_forward_ios_rounded,
+                      HugeIconsSolid.arrowRight01,
                       color: colors.textTertiary,
                       size: 11,
                     ),
@@ -777,7 +778,7 @@ class _VaultsTab extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.lock_outline_rounded, color: colors.accent, size: 16),
+                    Icon(HugeIconsSolid.lock, color: colors.accent, size: 16),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -795,7 +796,7 @@ class _VaultsTab extends ConsumerWidget {
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.lock_clock_rounded, size: 48, color: colors.textTertiary),
+                        Icon(HugeIconsSolid.lock, size: 48, color: colors.textTertiary),
                         const SizedBox(height: 12),
                         Text('No vaults yet',
                             style: TextStyle(
@@ -843,7 +844,7 @@ class _VaultsTab extends ConsumerWidget {
                       MaterialPageRoute(builder: (_) => const VaultCreateScreen()),
                     );
                   },
-                  icon: const Icon(Icons.add_rounded, size: 18),
+                  icon: const Icon(HugeIconsSolid.add01, size: 18),
                   label: const Text('Create Vault',
                       style: TextStyle(fontWeight: FontWeight.w800)),
                   style: ElevatedButton.styleFrom(
@@ -893,7 +894,7 @@ class _SusuTab extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_balance_rounded, color: colors.warning, size: 16),
+                    Icon(HugeIconsSolid.bank, color: colors.warning, size: 16),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -916,7 +917,7 @@ class _SusuTab extends ConsumerWidget {
                     HapticFeedback.lightImpact();
                     context.push('/susu');
                   },
-                  icon: Icon(Icons.savings_rounded,
+                  icon: Icon(HugeIconsSolid.savings,
                       size: 16, color: colors.warning),
                   label: Text(
                     'Open Private Susu Hub',
@@ -1007,7 +1008,7 @@ class _SusuTab extends ConsumerWidget {
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.groups_2_rounded, size: 48, color: colors.textTertiary),
+                        Icon(HugeIconsSolid.userGroup, size: 48, color: colors.textTertiary),
                         const SizedBox(height: 12),
                         Text('No groups yet',
                             style: TextStyle(
@@ -1036,7 +1037,7 @@ class _SusuTab extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: colors.accent, size: 16),
+                    Icon(HugeIconsSolid.informationCircle, color: colors.accent, size: 16),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -1145,7 +1146,7 @@ class _GroupRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 16),
+            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
           ],
         ),
       ),

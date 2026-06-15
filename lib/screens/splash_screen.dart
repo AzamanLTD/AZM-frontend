@@ -14,6 +14,7 @@ import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/config.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -220,7 +221,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ],
                   ),
                   child: const Icon(
-                    Icons.currency_exchange,
+                    HugeIconsSolid.exchange01,
                     size: 80,
                     color: Color(0xFFD4AF37),
                   ),

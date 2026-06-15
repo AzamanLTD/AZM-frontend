@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // =============================================================================
 // PROFIT DASHBOARD — Real API Integration
@@ -138,7 +139,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
                 color: colors.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.trending_up, color: colors.accent, size: 18),
+              child: Icon(HugeIconsSolid.analytics01, color: colors.accent, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -154,7 +155,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: colors.textTertiary),
+            icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary),
             onPressed: _fetchData,
           ),
           const SizedBox(width: 8),
@@ -196,15 +197,15 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
       children: [
         _buildSummaryCards(colors),
         const SizedBox(height: 24),
-        _buildSectionHeader('PNL LINE CHART (30 DAYS)', Icons.show_chart, colors),
+        _buildSectionHeader('PNL LINE CHART (30 DAYS)', HugeIconsSolid.analytics01, colors),
         const SizedBox(height: 12),
         _buildPnlChart(colors),
         const SizedBox(height: 28),
-        _buildSectionHeader('REVENUE BY SOURCE', Icons.pie_chart, colors),
+        _buildSectionHeader('REVENUE BY SOURCE', HugeIconsSolid.pieChart, colors),
         const SizedBox(height: 12),
         _buildSourceBars(colors),
         const SizedBox(height: 28),
-        _buildSectionHeader('POOL BALANCES', Icons.account_balance_wallet, colors),
+        _buildSectionHeader('POOL BALANCES', HugeIconsSolid.wallet01, colors),
         const SizedBox(height: 12),
         _buildPoolCards(colors),
         const SizedBox(height: 32),
@@ -222,7 +223,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 80),
-        Icon(Icons.cloud_off_rounded, size: 56, color: colors.danger.withOpacity(0.6)),
+        Icon(HugeIconsSolid.cloud, size: 56, color: colors.danger.withOpacity(0.6)),
         const SizedBox(height: 16),
         Text(
           'Failed to load data',
@@ -245,7 +246,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
         Center(
           child: ElevatedButton.icon(
             onPressed: _fetchData,
-            icon: const Icon(Icons.refresh, size: 16),
+            icon: const Icon(HugeIconsSolid.refresh01, size: 16),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.accent,
@@ -274,7 +275,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
           child: _summaryCard(
             label: 'Total Profit (30d)',
             value: '\$${_totalProfitLast30Days.toStringAsFixed(2)}',
-            icon: Icons.attach_money,
+            icon: HugeIconsSolid.dollar01,
             color: colors.success,
             colors: colors,
           ),
@@ -284,7 +285,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
           child: _summaryCard(
             label: 'Avg Daily Revenue',
             value: '\$${avgDailyRevenue.toStringAsFixed(2)}',
-            icon: Icons.insights,
+            icon: HugeIconsSolid.analytics01,
             color: colors.accent,
             colors: colors,
           ),
@@ -294,7 +295,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
           child: _summaryCard(
             label: 'Total Transactions',
             value: '$_totalTransactionsLast30Days',
-            icon: Icons.receipt_long,
+            icon: HugeIconsSolid.receiptDollar,
             color: colors.warning,
             colors: colors,
           ),
@@ -643,25 +644,25 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
         label: 'Profit Fees',
         value: _pools.profitFees,
         color: colors.success,
-        icon: Icons.monetization_on,
+        icon: HugeIconsSolid.dollar01,
       ),
       _PoolCardData(
         label: 'Fiat Pool',
         value: _pools.fiatPool,
         color: colors.accent,
-        icon: Icons.account_balance,
+        icon: HugeIconsSolid.bank,
       ),
       _PoolCardData(
         label: 'Hot Wallet',
         value: _pools.hotWallet,
         color: colors.warning,
-        icon: Icons.wallet,
+        icon: HugeIconsSolid.wallet01,
       ),
       _PoolCardData(
         label: 'Master Crypto',
         value: _pools.masterCrypto,
         color: const Color(0xFF8B5CF6),
-        icon: Icons.currency_bitcoin,
+        icon: HugeIconsSolid.bitcoin,
       ),
     ];
 

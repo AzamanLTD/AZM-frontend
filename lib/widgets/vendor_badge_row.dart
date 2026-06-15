@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:azaman/services/vendor_badge_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // =============================================================================
 // AZAMAN — VENDOR BADGE ROW (Phase Q13-FE)
@@ -137,19 +138,19 @@ class _BadgeChip extends StatelessWidget {
   IconData _getIconData(String iconName) {
     switch (iconName) {
       case 'verified':
-        return Icons.verified_rounded;
+        return HugeIconsSolid.checkmarkCircle01;
       case 'trending_up':
-        return Icons.trending_up_rounded;
+        return HugeIconsSolid.analytics01;
       case 'bolt':
-        return Icons.bolt_rounded;
+        return HugeIconsSolid.flash;
       case 'shield':
-        return Icons.shield_rounded;
+        return HugeIconsSolid.shield01;
       case 'diamond':
-        return Icons.diamond_rounded;
+        return HugeIconsSolid.diamond;
       case 'star':
-        return Icons.star_rounded;
+        return HugeIconsSolid.star;
       default:
-        return Icons.workspace_premium_rounded;
+        return HugeIconsSolid.medal01;
     }
   }
 }

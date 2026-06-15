@@ -17,6 +17,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class CryptoDepositScreen extends ConsumerStatefulWidget {
   const CryptoDepositScreen({super.key});
@@ -104,7 +105,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 56, color: colors.danger),
+            Icon(HugeIconsSolid.alertCircle, size: 56, color: colors.danger),
             const SizedBox(height: 16),
             Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 14)),
             const SizedBox(height: 20),
@@ -134,7 +135,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.hexagon_outlined, color: colors.accent, size: 18),
+                Icon(HugeIconsSolid.hexagon, color: colors.accent, size: 18),
                 const SizedBox(width: 8),
                 Text('Polygon Network', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 8),
@@ -197,7 +198,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _copyAddress,
-                    icon: Icon(Icons.copy_rounded, size: 16, color: colors.accent),
+                    icon: Icon(HugeIconsSolid.copy01, size: 16, color: colors.accent),
                     label: Text('Copy Address', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700)),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: colors.accent.withOpacity(0.4)),
@@ -226,7 +227,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: colors.warning, size: 20),
+                    Icon(HugeIconsSolid.alertCircle, color: colors.warning, size: 20),
                     const SizedBox(width: 8),
                     Text('Important', style: TextStyle(color: colors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
                   ],
@@ -250,7 +251,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_outline, color: colors.success, size: 18),
+                  Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(

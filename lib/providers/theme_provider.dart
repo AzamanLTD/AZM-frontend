@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_page_transitions.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 // ============================================================
 // AZAMAN THEME ENGINE — V3 (Immersive Planetary Themes)
@@ -232,11 +233,12 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: false,
           name: "Light",
-          icon: Icons.wb_sunny_rounded,
-          background: const Color(0xFFF5F5F7),
+          icon: HugeIconsSolid.sun01,
+          background: const Color(0xFFFAFAFB),
           surface: Colors.white,
           card: const Color(0xFFFFFFFF),
-          divider: const Color(0xFFD8D8DC),
+          softSurface: const Color(0xFFF1F1F3),
+          divider: const Color(0xFFE6E6E9),
           accent: const Color(0xFFB8860B),       // darker gold reads on white
           accentSecondary: const Color(0xFF8B6914),
           accentSurface: const Color(0xFFFDF6E3),
@@ -253,10 +255,11 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: true,
           name: "Dark",
-          icon: Icons.dark_mode_rounded,
+          icon: HugeIconsSolid.moon,
           background: const Color(0xFF0B0E11),
           surface: const Color(0xFF1E2329),
           card: const Color(0xFF1E2329),
+          softSurface: const Color(0xFF181D23),
           divider: Colors.white.withOpacity(0.06),
           accent: const Color(0xFFD4AF37),
           accentSecondary: const Color(0xFFF0B90B),
@@ -274,12 +277,13 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: true,
           name: "Midnight",
-          icon: Icons.bedtime_rounded,
+          icon: HugeIconsSolid.moon,
           // True blackout — almost zero ambient light. Violet accent so
           // numbers and CTAs read with weight against pitch black.
           background: const Color(0xFF000000),
           surface: const Color(0xFF0A0612),
           card: const Color(0xFF0F0820),
+          softSurface: const Color(0xFF0A0614),
           divider: const Color(0xFFBB86FC).withOpacity(0.08),
           accent: const Color(0xFFBB86FC),
           accentSecondary: const Color(0xFFE040FB),
@@ -309,6 +313,7 @@ class AzamanColors {
   final Color background;
   final Color surface;
   final Color card;
+  final Color softSurface;
   final Color divider;
 
   final Color accent;
@@ -332,6 +337,7 @@ class AzamanColors {
     required this.background,
     required this.surface,
     required this.card,
+    required this.softSurface,
     required this.divider,
     required this.accent,
     required this.accentSecondary,

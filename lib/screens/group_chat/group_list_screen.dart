@@ -13,6 +13,7 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_create_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class GroupListScreen extends ConsumerWidget {
   const GroupListScreen({super.key});
@@ -27,7 +28,7 @@ class GroupListScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Groups',
@@ -47,7 +48,7 @@ class GroupListScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 children: [
                   const SizedBox(height: 80),
-                  Icon(Icons.group_add_rounded, size: 56, color: colors.textTertiary),
+                  Icon(HugeIconsSolid.userAdd01, size: 56, color: colors.textTertiary),
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
@@ -105,7 +106,7 @@ class GroupListScreen extends ConsumerWidget {
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(Icons.group_add_rounded, size: 18),
+        icon: const Icon(HugeIconsSolid.userAdd01, size: 18),
         label: const Text('New Group',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3)),
       ),
@@ -193,7 +194,7 @@ class _GroupTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 16),
+                Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
               ],
             ),
           ),
@@ -241,7 +242,7 @@ class _SusuChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (configuring) ...[
-            Icon(Icons.timer_rounded, color: color, size: 8),
+            Icon(HugeIconsSolid.clock01, color: color, size: 8),
             const SizedBox(width: 3),
           ],
           Text(

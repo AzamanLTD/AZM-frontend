@@ -16,6 +16,7 @@ import 'vendor_trade_execution.dart';
 import 'vendor_settings_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class VendorDashboard extends ConsumerStatefulWidget {
   const VendorDashboard({super.key});
@@ -353,7 +354,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               // from the P2P pull-tab, so it MUST offer a way home.
               // Without this the user gets stranded on the dashboard.
               IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: gold, size: 20),
+                icon: Icon(HugeIconsSolid.arrowLeft01, color: gold, size: 20),
                 tooltip: 'Back',
                 onPressed: () {
                   HapticFeedback.lightImpact();
@@ -375,14 +376,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           Row(
             children: [
               IconButton(
-                icon: Icon(Icons.analytics_outlined, color: gold),
+                icon: Icon(HugeIconsSolid.analytics01, color: gold),
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorAnalyticsScreen()));
                 },
               ),
               IconButton(
-                icon: Icon(Icons.settings, color: gold), 
+                icon: Icon(HugeIconsSolid.settings01, color: gold), 
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => VendorSettingsScreen(
@@ -426,7 +427,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("VENDOR TRADING OVERVIEW", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-              Icon(Icons.shield_outlined, color: gold.withOpacity(0.5), size: 18),
+              Icon(HugeIconsSolid.shield01, color: gold.withOpacity(0.5), size: 18),
             ],
           ),
           const SizedBox(height: 10),
@@ -441,7 +442,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
-                child: Icon(_isBalanceVisible ? Icons.visibility_off : Icons.visibility, color: Colors.white24, size: 18),
+                child: Icon(_isBalanceVisible ? HugeIconsSolid.viewOff : HugeIconsSolid.view, color: Colors.white24, size: 18),
               )
             ],
           ),
@@ -492,7 +493,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.arrow_forward, size: 14, color: gold),
+                        Icon(HugeIconsSolid.arrowRight01, size: 14, color: gold),
                         const SizedBox(width: 6),
                         Text("Fund Pool", style: TextStyle(color: gold, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
@@ -513,7 +514,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.arrow_back, size: 14, color: Color(0xFF02C076)),
+                        Icon(HugeIconsSolid.arrowLeft01, size: 14, color: Color(0xFF02C076)),
                         SizedBox(width: 6),
                         Text("To Wallet", style: TextStyle(color: Color(0xFF02C076), fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
@@ -576,7 +577,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          direction == 'TO_POOL' ? Icons.account_balance_wallet : Icons.arrow_back,
+                          direction == 'TO_POOL' ? HugeIconsSolid.wallet01 : HugeIconsSolid.arrowLeft01,
                           color: accentColor, size: 20,
                         ),
                       ),
@@ -706,7 +707,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                       borderRadius: BorderRadius.circular(24),
                                       boxShadow: [BoxShadow(color: accentColor.withOpacity(0.4), blurRadius: 8)],
                                     ),
-                                    child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
+                                    child: const Icon(HugeIconsSolid.arrowRight01, color: Colors.white, size: 22),
                                   ),
                                 ),
                               ],
@@ -790,7 +791,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   color: const Color(0xFF02C076).withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle, color: Color(0xFF02C076), size: 48),
+                child: const Icon(HugeIconsSolid.checkmarkCircle01, color: Color(0xFF02C076), size: 48),
               ),
               const SizedBox(height: 16),
               Text('Transfer Complete', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -851,7 +852,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     if (_isLoadingTrades) {
       return Center(child: CircularProgressIndicator(color: ref.read(themeProvider).colors.accent));
     }
-    if (pendingTrades.isEmpty) return const AzamanEmptyState(icon: Icons.radar_rounded, title: "No Active Orders", subtitle: "New trade requests will appear here.");
+    if (pendingTrades.isEmpty) return const AzamanEmptyState(icon: HugeIconsSolid.radar01, title: "No Active Orders", subtitle: "New trade requests will appear here.");
     
     return ListView.builder(
       itemCount: pendingTrades.length,
@@ -879,7 +880,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         ),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: gold.withOpacity(0.1), child: Icon(Icons.notifications_active, color: gold, size: 20)),
+            CircleAvatar(backgroundColor: gold.withOpacity(0.1), child: Icon(HugeIconsSolid.notification01, color: gold, size: 20)),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
@@ -919,7 +920,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         }
 
         final ads = trade.myActiveAds;
-        if (ads.isEmpty) return const AzamanEmptyState(icon: Icons.layers_clear, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
+        if (ads.isEmpty) return const AzamanEmptyState(icon: HugeIconsSolid.layers01, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
 
         return RefreshIndicator(
           color: gold,
@@ -1082,7 +1083,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.notes_rounded, color: gold.withOpacity(0.5), size: 14),
+                  Icon(HugeIconsSolid.note01, color: gold.withOpacity(0.5), size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1146,7 +1147,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.rocket_launch_rounded,
+            const Icon(HugeIconsSolid.rocket,
                 size: 14, color: Color(0xFF02C076)),
             const SizedBox(width: 6),
             Text(
@@ -1188,7 +1189,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.rocket_launch_rounded, size: 14, color: gold),
+            Icon(HugeIconsSolid.rocket, size: 14, color: gold),
             const SizedBox(width: 6),
             Text(
               'BOOST AD',
@@ -1249,7 +1250,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   MaterialPageRoute(builder: (_) => const VendorAdCreator()),
                 ).then((_) => _fetchVendorAds()); // Refresh ads after returning
               },
-              icon: const Icon(Icons.add),
+              icon: const Icon(HugeIconsSolid.add01),
               label: const Text("CREATE NEW AD"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: gold.withOpacity(0.1),
@@ -1270,7 +1271,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   MaterialPageRoute(builder: (_) => const TradeAccountsScreen()),
                 );
               },
-              icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+              icon: const Icon(HugeIconsSolid.wallet01, size: 18),
               label: const Text("MANAGE TRADE ACCOUNTS"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white70,
@@ -1376,7 +1377,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
           // Title
           Row(
             children: [
-              Icon(Icons.rocket_launch_rounded, color: widget.gold, size: 22),
+              Icon(HugeIconsSolid.rocket, color: widget.gold, size: 22),
               const SizedBox(width: 10),
               const Text(
                 'BOOST AD',

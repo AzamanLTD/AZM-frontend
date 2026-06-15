@@ -88,6 +88,26 @@ class WithdrawalSummary {
   });
 }
 
+class TransactionSummary {
+  final String id;
+  final String title;
+  final double amount;
+  final bool isCredit;
+  final String status;
+  final String symbol;
+  final DateTime? createdAt;
+
+  const TransactionSummary({
+    required this.id,
+    required this.title,
+    required this.amount,
+    required this.isCredit,
+    required this.status,
+    required this.symbol,
+    required this.createdAt,
+  });
+}
+
 class FriendRequestSummary {
   final String id;
   final String requesterUsername;
@@ -116,6 +136,11 @@ class HomeSummary {
   final List<WithdrawalSummary> pendingWithdrawals;
   final int pendingWithdrawalsCount;
 
+  /// Most-recent wallet movements (any status) for the home "Activity"
+  /// section. Sourced from the same /wallet/history call as
+  /// `pendingWithdrawals` so it costs no extra round-trip.
+  final List<TransactionSummary> recentTransactions;
+
   final List<FriendRequestSummary> friendRequests;
   final int friendRequestsCount;
 
@@ -127,6 +152,7 @@ class HomeSummary {
   final String? ratesError;
   final String? tradesError;
   final String? withdrawalsError;
+  final String? transactionsError;
   final String? friendsError;
   final String? notificationsError;
 
@@ -140,12 +166,14 @@ class HomeSummary {
     required this.activeTradesCount,
     required this.pendingWithdrawals,
     required this.pendingWithdrawalsCount,
+    this.recentTransactions = const [],
     required this.friendRequests,
     required this.friendRequestsCount,
     required this.unreadNotifications,
     this.ratesError,
     this.tradesError,
     this.withdrawalsError,
+    this.transactionsError,
     this.friendsError,
     this.notificationsError,
     this.loading = false,
@@ -169,12 +197,14 @@ class HomeSummary {
         activeTradesCount: activeTradesCount,
         pendingWithdrawals: pendingWithdrawals,
         pendingWithdrawalsCount: pendingWithdrawalsCount,
+        recentTransactions: recentTransactions,
         friendRequests: friendRequests,
         friendRequestsCount: friendRequestsCount,
         unreadNotifications: unreadNotifications,
         ratesError: ratesError,
         tradesError: tradesError,
         withdrawalsError: withdrawalsError,
+        transactionsError: transactionsError,
         friendsError: friendsError,
         notificationsError: notificationsError,
         loading: loading ?? this.loading,
@@ -218,6 +248,8 @@ class HomeSummaryService {
       pendingWithdrawals: results[2].withdrawals ?? const [],
       pendingWithdrawalsCount: results[2].withdrawalCount ?? 0,
       withdrawalsError: results[2].error,
+      recentTransactions: results[2].transactions ?? const [],
+      transactionsError: results[2].error,
       friendRequests: results[3].friendRequests ?? const [],
       friendRequestsCount: results[3].friendRequestCount ?? 0,
       friendsError: results[3].error,
@@ -300,9 +332,12 @@ class HomeSummaryService {
       if (raw is! Map<String, dynamic> || raw['success'] != true) {
         return const _Section(error: 'Withdrawals unavailable.');
       }
-      final list = (raw['history'] as List?) ?? const [];
+      final list =
+          (raw['history'] as List? ?? raw['withdrawals'] as List? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .toList();
+
       final pending = list
-          .whereType<Map<String, dynamic>>()
           .where((w) =>
               (w['status']?.toString().toUpperCase() ?? '') == 'PENDING')
           .map((w) => WithdrawalSummary(
@@ -319,13 +354,80 @@ class HomeSummaryService {
               ))
           .toList();
 
+      final recent = list
+          .map(_txFromJson)
+          .toList()
+        ..sort((a, b) => (b.createdAt ?? DateTime(0))
+            .compareTo(a.createdAt ?? DateTime(0)));
+
       return _Section(
         withdrawals: pending.take(3).toList(growable: false),
         withdrawalCount: pending.length,
+        transactions: recent.take(4).toList(growable: false),
       );
     } catch (e) {
       return _Section(error: _humanise(e));
     }
+  }
+
+  static const _creditHints = {
+    'DEPOSIT', 'CREDIT', 'RECEIVE', 'RECEIVED', 'REFUND', 'TOPUP', 'TOP_UP',
+    'FUND', 'INCOMING', 'REWARD', 'CASHBACK', 'RELEASE',
+  };
+  static const _debitHints = {
+    'WITHDRAW', 'WITHDRAWAL', 'DEBIT', 'SEND', 'SENT', 'PAYOUT', 'FEE',
+    'PURCHASE', 'OUTGOING', 'TRANSFER_OUT', 'SPEND',
+  };
+
+  TransactionSummary _txFromJson(Map<String, dynamic> w) {
+    final type = (w['type'] ??
+            w['transactionType'] ??
+            w['category'] ??
+            w['kind'] ??
+            '')
+        .toString()
+        .toUpperCase();
+    final direction =
+        (w['direction'] ?? w['flow'] ?? '').toString().toUpperCase();
+    final method = (w['payoutMethod'] ?? w['network'] ?? '')
+        .toString()
+        .replaceAll('_', ' ')
+        .trim();
+
+    bool isCredit;
+    if (_creditHints.any(type.contains) || direction.contains('IN')) {
+      isCredit = true;
+    } else if (_debitHints.any(type.contains) || direction.contains('OUT')) {
+      isCredit = false;
+    } else {
+      isCredit = false;
+    }
+
+    String title;
+    if (type.isNotEmpty) {
+      final pretty = type
+          .replaceAll('_', ' ')
+          .toLowerCase()
+          .split(' ')
+          .where((s) => s.isNotEmpty)
+          .map((s) => '${s[0].toUpperCase()}${s.substring(1)}')
+          .join(' ');
+      title = method.isNotEmpty ? '$pretty · $method' : pretty;
+    } else if (method.isNotEmpty) {
+      title = method;
+    } else {
+      title = isCredit ? 'Money in' : 'Money out';
+    }
+
+    return TransactionSummary(
+      id: w['id']?.toString() ?? '',
+      title: title,
+      amount: _asDouble(w['amount']).abs(),
+      isCredit: isCredit,
+      status: (w['status']?.toString() ?? 'UNKNOWN').toUpperCase(),
+      symbol: (w['currency'] ?? w['crypto'] ?? 'USDC').toString().toUpperCase(),
+      createdAt: _asDate(w['createdAt']),
+    );
   }
 
   Future<_Section> _fetchFriendRequests() async {
@@ -386,6 +488,7 @@ class _Section {
   final int? tradeCount;
   final List<WithdrawalSummary>? withdrawals;
   final int? withdrawalCount;
+  final List<TransactionSummary>? transactions;
   final List<FriendRequestSummary>? friendRequests;
   final int? friendRequestCount;
   final int? unreadCount;
@@ -397,6 +500,7 @@ class _Section {
     this.tradeCount,
     this.withdrawals,
     this.withdrawalCount,
+    this.transactions,
     this.friendRequests,
     this.friendRequestCount,
     this.unreadCount,

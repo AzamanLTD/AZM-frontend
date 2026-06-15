@@ -17,6 +17,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/qr_scanner_screen.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class ShareProfileScreen extends ConsumerWidget {
   const ShareProfileScreen({super.key});
@@ -53,7 +54,7 @@ class ShareProfileScreen extends ConsumerWidget {
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+        icon: const Icon(HugeIconsSolid.qrCode, size: 20),
         label: const Text('Scan', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: Center(
@@ -160,7 +161,7 @@ class ShareProfileScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: Icon(Icons.copy_rounded, color: colors.accent, size: 18),
+                  icon: Icon(HugeIconsSolid.copy01, color: colors.accent, size: 18),
                   label: Text(
                     'Copy Username',
                     style: TextStyle(
@@ -199,7 +200,7 @@ class ShareProfileScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.share_rounded, size: 18),
+                  icon: const Icon(HugeIconsSolid.share01, size: 18),
                   label: const Text(
                     'Share Invite Link',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -228,7 +229,7 @@ class ShareProfileScreen extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: colors.accent, size: 18),
+                    Icon(HugeIconsSolid.informationCircle, color: colors.accent, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
