@@ -40,7 +40,7 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(
-      backgroundColor: colors.softSurface,
+      backgroundColor: colors.surface,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -62,7 +62,7 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: _CashBalanceCard(),
                 ),
-                SizedBox(height: 14),
+                SizedBox(height: 24),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: _FeatureGrid(),
@@ -118,7 +118,7 @@ class _MoneyHeader extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.card,
+                color: colors.softSurface,
               ),
               child: Text(
                 _initials(username),
@@ -162,7 +162,7 @@ class _CashBalanceCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.card,
+        color: colors.softSurface,
         borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -341,7 +341,7 @@ class _BalancePillState extends State<_BalancePill> {
           height: 50,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: c.softSurface,
+            color: c.surface,
             borderRadius: BorderRadius.circular(26),
           ),
           child: Text(
@@ -457,7 +457,7 @@ class _FeatureCard extends ConsumerWidget {
       child: Container(
         height: 172,
         decoration: BoxDecoration(
-          color: colors.card,
+          color: colors.softSurface,
           borderRadius: BorderRadius.circular(22),
         ),
         padding: const EdgeInsets.all(16),
@@ -508,7 +508,7 @@ class _ImageBox extends StatelessWidget {
       child: Container(
         width: double.infinity,
         height: double.infinity,
-        color: colors.softSurface,
+        color: colors.surface,
         child: imageAsset == null
             ? null
             : Image.asset(

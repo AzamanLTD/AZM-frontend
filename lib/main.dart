@@ -389,7 +389,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     // again, watch `tradeProvider.select((t) => t.currentRole)`.
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
 
 
