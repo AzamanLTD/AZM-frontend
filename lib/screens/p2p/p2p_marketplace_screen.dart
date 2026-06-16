@@ -47,25 +47,25 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
           onRefresh: _onRefresh,
           color: colors.accent,
           backgroundColor: colors.card,
-          child: const SingleChildScrollView(
-            physics: AlwaysScrollableScrollPhysics(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: EdgeInsets.only(bottom: 36),
+            padding: const EdgeInsets.only(bottom: 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 8),
-                _MoneyHeader(),
-                SizedBox(height: 20),
-                Padding(
+                const SizedBox(height: 8),
+                const _MoneyHeader(),
+                const SizedBox(height: 20),
+                const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: _CashBalanceCard(),
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _FeatureGrid(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _FeatureGrid(colors: colors),
                 ),
               ],
             ),
@@ -364,12 +364,27 @@ class _BalancePillState extends State<_BalancePill> {
 // Drop a gradient image into each card by setting `imageAsset`.
 // ─────────────────────────────────────────────────────────────────────────────
 class _FeatureGrid extends StatelessWidget {
-  const _FeatureGrid();
+  final AzamanColors colors;
+
+  const _FeatureGrid({required this.colors});
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            'Explore',
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
+            ),
+          ),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
