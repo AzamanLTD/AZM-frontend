@@ -163,7 +163,7 @@ class _SegmentedTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
         child: TabBar(
@@ -185,7 +185,7 @@ class _SegmentedTabs extends StatelessWidget {
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
           ),
-          labelPadding: const EdgeInsets.only(right: 32, bottom: 8),
+          labelPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
           dividerColor: Colors.transparent,
           splashFactory: NoSplash.splashFactory,
           overlayColor: WidgetStateProperty.all(Colors.transparent),
@@ -322,7 +322,6 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           _PanelHeading(
             colors: colors,
             title: 'Deposit USDC',
-            body: 'Scan the QR code or copy the address.',
           ),
           const SizedBox(height: 18),
           _CryptoAddressCard(
@@ -330,14 +329,6 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
             address: _address ?? '',
             onCopy: () => _copyAddress(colors),
             onShare: _shareAddress,
-          ),
-          const SizedBox(height: 14),
-          _NoticeCard(
-            colors: colors,
-            icon: HugeIconsSolid.alertCircle,
-            accent: colors.danger,
-            text:
-                'Send USDC on Polygon only. Other networks are not supported.',
           ),
         ],
       ),
@@ -477,8 +468,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         children: [
           _PanelHeading(
             colors: colors,
-            title: 'Deposit with Mobile Money',
-            body: 'Choose a saved number and enter the amount.',
+            title: 'Deposit with MoMo',
           ),
           const SizedBox(height: 18),
           accountsAsync.when(
@@ -508,15 +498,6 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'We send the prompt to your saved number when you start the deposit.',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 13,
-                          height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -563,9 +544,10 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           const SizedBox(height: 16),
           _PanelCard(
             colors: colors,
+            fillColor: Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   'Amount',
@@ -575,33 +557,50 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                TextField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
-                  ),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    hintText: '0.00',
-                    hintStyle: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'GH₵ ',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    prefixText: 'GH₵ ',
-                    prefixStyle: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 80),
+                      child: IntrinsicWidth(
+                        child: TextField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.8,
+                          ),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            filled: false,
+                            hintText: '0.00',
+                            hintStyle: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
+                            ),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -616,16 +615,18 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             isBusy: _isSubmitting,
           ),
           const SizedBox(height: 10),
-          Text(
-            _selectedAccountId == null
-                ? 'Choose a saved number to continue.'
-                : 'Approve the prompt on your phone to complete the deposit.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
+          Center(
+            child: Text(
+              _selectedAccountId == null
+                  ? 'Choose a saved number to continue.'
+                  : 'Approve to complete the deposit.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -718,13 +719,13 @@ class _PanelHeading extends StatelessWidget {
   final AzamanColors colors;
   final String? eyebrow;
   final String title;
-  final String body;
+  final String? body;
 
   const _PanelHeading({
     required this.colors,
     this.eyebrow,
     required this.title,
-    required this.body,
+    this.body,
   });
 
   @override
@@ -754,15 +755,17 @@ class _PanelHeading extends StatelessWidget {
             height: 1.1,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          body,
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 14,
-            height: 1.5,
+        if (body != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            body!,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 14,
+              height: 1.5,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -874,6 +877,7 @@ class _CryptoAddressCard extends StatelessWidget {
 
     return _PanelCard(
       colors: colors,
+      fillColor: Colors.transparent,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

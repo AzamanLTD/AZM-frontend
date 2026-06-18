@@ -54,58 +54,34 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
           loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (e, _) => Center(child: Text(e.toString())),
           data: (accounts) {
+            if (accounts.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(HugeIconsSolid.smartPhone01, size: 48, color: colors.textTertiary),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No deposit addresses yet',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap "+ Add Account" to save one.',
+                      style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                    ),
+                  ],
+                ),
+              );
+            }
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.accent.withOpacity(0.20)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(HugeIconsSolid.shield01, color: colors.accent, size: 16),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Save your mobile money numbers here. We verify the registered name on each one before you save it. Deposits trigger an STK push to the saved number — you don\'t enter payment details at deposit time.',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 11.5, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (accounts.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(HugeIconsSolid.smartPhone01, size: 48, color: colors.textTertiary),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No deposit addresses yet',
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tap "+ Add Account" to save one.',
-                            style: TextStyle(color: colors.textTertiary, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  ...accounts.asMap().entries.map(
+              children: accounts.asMap().entries.map(
                         (e) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _MomoTile(account: e.value, colors: colors)
@@ -113,13 +89,13 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
                               .fadeIn(delay: (e.key * 50).ms, duration: 280.ms)
                               .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
                         ),
-                      ),
-              ],
+                      ).toList(),
             );
           },
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        elevation: 0,
         onPressed: () {
           HapticFeedback.lightImpact();
           showModalBottomSheet(
