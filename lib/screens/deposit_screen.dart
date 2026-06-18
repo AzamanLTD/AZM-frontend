@@ -21,16 +21,13 @@
 // =============================================================================
 
 import 'dart:convert';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
@@ -96,14 +93,19 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colors.surface,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(
+            HugeIconsSolid.arrowLeft01,
+            color: colors.textPrimary,
+            size: 18,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -124,7 +126,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
               colors: colors,
               labels: const ['Crypto', 'Mobile Money'],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -160,35 +162,35 @@ class _SegmentedTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: controller,
-        indicator: BoxDecoration(
-          color: colors.accent,
-          borderRadius: BorderRadius.circular(10),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+        child: TabBar(
+          controller: controller,
+          isScrollable: true,
+          indicatorSize: TabBarIndicatorSize.label,
+          indicator: UnderlineTabIndicator(
+            borderSide: BorderSide(color: colors.accent, width: 2.5),
+          ),
+          labelColor: colors.accent,
+          unselectedLabelColor: colors.textPrimary,
+          labelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+          ),
+          labelPadding: const EdgeInsets.only(right: 32, bottom: 8),
+          dividerColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          tabs: labels.map((label) => Tab(text: label, height: 44)).toList(),
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: colors.isDark ? Colors.black : Colors.white,
-        unselectedLabelColor: colors.textSecondary,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.4,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-        dividerColor: Colors.transparent,
-        splashFactory: NoSplash.splashFactory,
-        overlayColor: WidgetStateProperty.all(Colors.transparent),
-        tabs: labels.map((l) => Tab(height: 38, text: l)).toList(),
       ),
     );
   }
@@ -226,8 +228,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
       _error = null;
     });
     try {
-      final response =
-          await apiClient.get('/wallet/deposit-address/polygon');
+      final response = await apiClient.get('/wallet/deposit-address/polygon');
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = jsonDecode(response.body);
         final data = body['data'] ?? body;
@@ -290,20 +291,20 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(HugeIconsSolid.alertCircle,
-                  size: 48, color: colors.danger),
+              Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
               const SizedBox(height: 12),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _fetchDepositAddress,
                 icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
-                label: Text('Retry',
-                    style: TextStyle(color: colors.accent)),
+                label: Text('Retry', style: TextStyle(color: colors.accent)),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                  side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                 ),
               ),
             ],
@@ -313,51 +314,51 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Network capsule ───────────────────────────────────────────────
-          _NetworkCapsule(colors: colors)
-              .animate()
-              .fadeIn(duration: 320.ms)
-              .slideY(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
-
-          const SizedBox(height: 18),
-
-          // ── Premium QR card (frosted, content-tight) ─────────────────────
-          _PremiumQrCard(
+          _PanelHeading(
             colors: colors,
-            address: _address ?? '',
-          )
-              .animate()
-              .fadeIn(delay: 120.ms, duration: 420.ms)
-              .slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-          const SizedBox(height: 14),
-
-          // ── Address card ──────────────────────────────────────────────────
-          _SlenderCard(
+            eyebrow: 'Crypto deposit',
+            title: 'Scan or copy your wallet address',
+            body:
+                'Use this address only for USDC on Polygon. Your balance updates after the network confirms the transfer.',
+          ),
+          const SizedBox(height: 20),
+          _QrDepositCard(colors: colors, address: _address ?? ''),
+          const SizedBox(height: 16),
+          _PanelCard(
             colors: colors,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _AddressLabelRow(colors: colors),
-                const SizedBox(height: 8),
+                Text(
+                  'Wallet address',
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 SelectableText(
                   _address ?? '',
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 13,
                     fontFamily: 'monospace',
-                    height: 1.5,
-                    letterSpacing: 0.2,
+                    height: 1.6,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
-                      child: _GhostAction(
+                      child: _SoftActionButton(
                         colors: colors,
                         icon: HugeIconsSolid.copy01,
                         label: 'Copy',
@@ -366,7 +367,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _GhostAction(
+                      child: _SoftActionButton(
                         colors: colors,
                         icon: HugeIconsSolid.share01,
                         label: 'Share',
@@ -377,51 +378,34 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
                 ),
               ],
             ),
-          )
-              .animate()
-              .fadeIn(delay: 220.ms, duration: 380.ms)
-              .slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-          const SizedBox(height: 14),
-
-          // ── Warning card ──────────────────────────────────────────────────
-          _SlenderCard(
+          ),
+          const SizedBox(height: 16),
+          _InstructionCard(
             colors: colors,
-            tintColor: colors.warning,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(HugeIconsSolid.alertCircle,
-                        color: colors.warning, size: 16),
-                    const SizedBox(width: 6),
-                    Text('Send only USDC on Polygon',
-                        style: TextStyle(
-                          color: colors.warning,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        )),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sending any other token, or USDC on the wrong network '
-                  '(Ethereum mainnet, BSC, Tron, etc.) will result in '
-                  'permanent loss. Funds credit in 2–5 minutes after '
-                  'on-chain confirmation.',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          )
-              .animate()
-              .fadeIn(delay: 320.ms, duration: 380.ms)
-              .slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
+            marker: '1',
+            text: 'Send only USDC on the Polygon network to this address.',
+          ),
+          const SizedBox(height: 12),
+          _InstructionCard(
+            colors: colors,
+            marker: '2',
+            text:
+                'If your wallet cannot scan the QR code, copy or share the address instead.',
+          ),
+          const SizedBox(height: 12),
+          _NoticeCard(
+            colors: colors,
+            icon: HugeIconsSolid.alertCircle,
+            accent: colors.danger,
+            text:
+                'USDC sent on Ethereum, BSC, Tron, or any unsupported network can be lost permanently.',
+          ),
+          const SizedBox(height: 18),
+          _PrimaryButton(
+            colors: colors,
+            label: 'Copy address',
+            onTap: () => _copyAddress(colors),
+          ),
         ],
       ),
     );
@@ -455,13 +439,6 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   bool _isSubmitting = false;
   Map<String, dynamic>? _depositResult;
 
-  static const _providers = [
-    _FiatProvider('MTN_MOMO', 'MTN MoMo', Color(0xFFFFCC00)),
-    _FiatProvider('VODAFONE_CASH', 'Vodafone Cash', Color(0xFFE60000)),
-    _FiatProvider('AIRTELTIGO', 'AirtelTigo / Telecel', Color(0xFF0066CC)),
-    _FiatProvider('BANK_TRANSFER', 'Bank Transfer', Color(0xFF2E7D32)),
-  ];
-
   @override
   bool get wantKeepAlive => true;
 
@@ -492,9 +469,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   Future<void> _initiateDeposit() async {
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
       return;
     }
 
@@ -507,8 +484,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         // Susu memo trace (Req 12.4) — the BE persists this on the
         // resulting deposit's transaction metadata so operators can
         // tie a deposit back to the cycle reminder that prompted it.
-        if (widget.memo != null && widget.memo!.isNotEmpty)
-          'memo': widget.memo,
+        if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
       });
       final body = jsonDecode(response.body);
 
@@ -525,8 +501,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(body['message']?.toString() ??
-                  'Failed to initiate deposit'),
+              content: Text(
+                body['message']?.toString() ?? 'Failed to initiate deposit',
+              ),
             ),
           );
         }
@@ -534,9 +511,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -553,87 +530,106 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     super.build(context);
     final colors = ref.watch(themeProvider).colors;
 
-    return _depositResult != null
-        ? _buildResult(colors)
-        : _buildForm(colors);
+    return _depositResult != null ? _buildResult(colors) : _buildForm(colors);
   }
 
   // ── Form ───────────────────────────────────────────────────────────────────
   Widget _buildForm(AzamanColors colors) {
     final accountsAsync = ref.watch(savedMomoProvider);
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _PanelHeading(
+            colors: colors,
+            eyebrow: 'Mobile money deposit',
+            title: 'Choose where we should send the prompt',
+            body:
+                'Pick a saved number, enter the amount, then approve the payment on your phone.',
+          ),
+          const SizedBox(height: 20),
           Text(
-            'Deposit From',
+            'Saved numbers',
             style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+              color: colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           accountsAsync.when(
             loading: () => Padding(
-              padding: const EdgeInsets.all(12),
-              child: Center(child: CircularProgressIndicator(color: colors.accent)),
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: CircularProgressIndicator(color: colors.accent),
+              ),
             ),
-            error: (e, _) => Text(e.toString()),
+            error: (e, _) => _NoticeCard(
+              colors: colors,
+              icon: HugeIconsSolid.alertCircle,
+              accent: colors.danger,
+              text: e.toString(),
+            ),
             data: (accounts) {
               if (accounts.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: colors.warning.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.warning.withOpacity(0.30)),
-                  ),
+                return _PanelCard(
+                  colors: colors,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 14),
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colors.accentSurface,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              HugeIconsSolid.smartPhone01,
+                              color: colors.accent,
+                              size: 18,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Text(
-                            'No saved deposit addresses',
-                            style: TextStyle(
-                                color: colors.warning, fontSize: 12, fontWeight: FontWeight.w800),
+                          Expanded(
+                            child: Text(
+                              'Add a mobile money number first',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 12),
                       Text(
-                        'Save a mobile-money number first. We send the deposit prompt to your saved number — you don\'t enter payment details here.',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SavedMomoAccountsScreen(),
-                              ),
-                            );
-                          },
-                          icon: Icon(HugeIconsSolid.add01, size: 16, color: colors.warning),
-                          label: Text(
-                            'Add a Deposit Address',
-                            style: TextStyle(color: colors.warning, fontWeight: FontWeight.w800),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: colors.warning.withOpacity(0.40)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
+                        'We send the deposit prompt to your saved number, so there is nothing to type at payment time.',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
+                          height: 1.5,
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      _PrimaryButton(
+                        colors: colors,
+                        label: 'Add saved number',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SavedMomoAccountsScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -641,97 +637,88 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               }
               return Column(
                 children: accounts
-                    .map((a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _SavedAccountTile(
-                            account: a,
-                            colors: colors,
-                            selected: _selectedAccountId == a.id,
-                            onTap: () => setState(() {
-                              _selectedAccountId = a.id;
-                              _selectedProvider = '${a.provider}_MOMO';
-                            }),
-                          ),
-                        ))
+                    .map(
+                      (a) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _SavedAccountTile(
+                          account: a,
+                          colors: colors,
+                          selected: _selectedAccountId == a.id,
+                          onTap: () => setState(() {
+                            _selectedAccountId = a.id;
+                            _selectedProvider = '${a.provider}_MOMO';
+                          }),
+                        ),
+                      ),
+                    )
                     .toList(),
               );
             },
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
           Text(
-            'Amount (GHS)',
+            'Amount',
             style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+              color: colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 8),
-          _SlenderCard(
+          const SizedBox(height: 10),
+          _PanelCard(
             colors: colors,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             child: TextField(
               controller: _amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: TextStyle(
                 color: colors.textPrimary,
-                fontSize: 22,
+                fontSize: 30,
                 fontWeight: FontWeight.w800,
+                letterSpacing: -0.8,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: '0.00',
                 hintStyle: TextStyle(
                   color: colors.textTertiary,
-                  fontSize: 22,
+                  fontSize: 30,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
                 ),
                 prefixText: 'GH₵ ',
                 prefixStyle: TextStyle(
                   color: colors.textSecondary,
-                  fontSize: 18,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: (_isSubmitting || _selectedAccountId == null) ? null : _initiateDeposit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                disabledBackgroundColor: colors.accent.withOpacity(0.4),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: _isSubmitting
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black))
-                  : const Text(
-                      'Send Deposit Prompt',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w800),
-                    ),
-            ),
+          const SizedBox(height: 16),
+          _InstructionCard(
+            colors: colors,
+            marker: '1',
+            text: 'We will send the approval prompt to your selected number.',
           ),
-          const SizedBox(height: 14),
-          Center(
-            child: Text(
-              'We send the prompt to your saved number — approve it on your phone.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textTertiary, fontSize: 11),
-            ),
+          const SizedBox(height: 12),
+          _InstructionCard(
+            colors: colors,
+            marker: '2',
+            text:
+                'Review the amount on your device, then approve the payment to continue.',
+          ),
+          const SizedBox(height: 18),
+          _PrimaryButton(
+            colors: colors,
+            label: _isSubmitting ? 'Sending prompt...' : 'Send deposit prompt',
+            onTap: (_isSubmitting || _selectedAccountId == null)
+                ? null
+                : _initiateDeposit,
+            isBusy: _isSubmitting,
           ),
         ],
       ),
@@ -741,23 +728,35 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // ── Result ────────────────────────────────────────────────────────────────
   Widget _buildResult(AzamanColors colors) {
     final reference = _depositResult?['reference'] ?? '';
-    final instructions = _depositResult?['instructions']?.toString() ??
+    final instructions =
+        _depositResult?['instructions']?.toString() ??
         'Follow the prompt on your device to complete payment.';
-    final amount = _depositResult?['amountGhs']?.toString() ??
-        _amountController.text;
+    final amount =
+        _depositResult?['amountGhs']?.toString() ?? _amountController.text;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SlenderCard(
+          _PanelHeading(
             colors: colors,
-            tintColor: colors.success,
+            eyebrow: 'Deposit status',
+            title: 'Deposit prompt sent',
+            body: 'Approve the request on your phone to complete this deposit.',
+          ),
+          const SizedBox(height: 20),
+          _PanelCard(
+            colors: colors,
+            fillColor: colors.success.withValues(alpha: 0.10),
             child: Column(
               children: [
-                Icon(HugeIconsSolid.checkmarkCircle01,
-                    size: 44, color: colors.success),
+                Icon(
+                  HugeIconsSolid.checkmarkCircle01,
+                  size: 44,
+                  color: colors.success,
+                ),
                 const SizedBox(height: 10),
                 Text(
                   'Deposit Initiated',
@@ -770,16 +769,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 const SizedBox(height: 4),
                 Text(
                   'GH₵ $amount via $_selectedProvider',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          _SlenderCard(
+          _PanelCard(
             colors: colors,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -787,10 +783,10 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 Text(
                   'Reference',
                   style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -807,10 +803,10 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 Text(
                   'Instructions',
                   style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -826,22 +822,10 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             ),
           ),
           const SizedBox(height: 18),
-          OutlinedButton(
-            onPressed: _reset,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: BorderSide(color: colors.divider),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Start another deposit',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          _PrimaryButton(
+            colors: colors,
+            label: 'Start another deposit',
+            onTap: _reset,
           ),
         ],
       ),
@@ -849,103 +833,68 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   }
 }
 
-class _FiatProvider {
-  final String id;
-  final String name;
-  final Color color;
-  const _FiatProvider(this.id, this.name, this.color);
-}
-
-class _ProviderTile extends StatelessWidget {
-  final _FiatProvider provider;
+class _PanelHeading extends StatelessWidget {
   final AzamanColors colors;
-  final bool selected;
-  final VoidCallback onTap;
+  final String eyebrow;
+  final String title;
+  final String body;
 
-  const _ProviderTile({
-    required this.provider,
+  const _PanelHeading({
     required this.colors,
-    required this.selected,
-    required this.onTap,
+    required this.eyebrow,
+    required this.title,
+    required this.body,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: selected
-                ? provider.color.withOpacity(0.1)
-                : colors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? provider.color.withOpacity(0.7)
-                  : colors.divider,
-              width: selected ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: provider.color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(HugeIconsSolid.smartPhone01,
-                    color: provider.color, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  provider.name,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 160),
-                child: selected
-                    ? Icon(HugeIconsSolid.checkmarkCircle01,
-                        key: const ValueKey('on'),
-                        color: provider.color,
-                        size: 20)
-                    : Icon(HugeIconsSolid.circle,
-                        key: const ValueKey('off'),
-                        color: colors.textTertiary,
-                        size: 20),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow,
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.1,
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          body,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reusable presentational helpers (private to this screen).
-// ─────────────────────────────────────────────────────────────────────────────
-class _SlenderCard extends StatelessWidget {
+class _PanelCard extends StatelessWidget {
   final AzamanColors colors;
   final Widget child;
-  final Color? tintColor;
+  final Color? fillColor;
   final EdgeInsetsGeometry? padding;
 
-  const _SlenderCard({
+  const _PanelCard({
     required this.colors,
     required this.child,
-    this.tintColor,
+    this.fillColor,
     this.padding,
   });
 
@@ -953,30 +902,23 @@ class _SlenderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: tintColor != null
-            ? tintColor!.withOpacity(0.06)
-            : colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: tintColor != null
-              ? tintColor!.withOpacity(0.25)
-              : colors.divider,
-        ),
+        color: fillColor ?? colors.softSurface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: child,
     );
   }
 }
 
-class _GhostAction extends StatelessWidget {
+class _SoftActionButton extends StatelessWidget {
   final AzamanColors colors;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _GhostAction({
+  const _SoftActionButton({
     required this.colors,
     required this.icon,
     required this.label,
@@ -985,65 +927,188 @@ class _GhostAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
+    return ElevatedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 14, color: colors.accent),
+      icon: Icon(icon, size: 16, color: colors.textPrimary),
       label: Text(
         label,
         style: TextStyle(
-          color: colors.accent,
-          fontSize: 12,
+          color: colors.textPrimary,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
       ),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: colors.accent.withOpacity(0.4)),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: colors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final AzamanColors colors;
+  final String label;
+  final VoidCallback? onTap;
+  final bool isBusy;
+
+  const _PrimaryButton({
+    required this.colors,
+    required this.label,
+    required this.onTap,
+    this.isBusy = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colors.accent,
+          foregroundColor: Colors.black,
+          disabledBackgroundColor: colors.softSurface,
+          disabledForegroundColor: colors.textTertiary,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        child: isBusy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.black,
+                ),
+              )
+            : Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _QrDepositCard extends StatelessWidget {
+  final AzamanColors colors;
+  final String address;
+  const _QrDepositCard({required this.colors, required this.address});
+
+  String _short(String addr) {
+    if (addr.length < 14) return addr;
+    return '${addr.substring(0, 6)}…${addr.substring(addr.length - 4)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qrSize = (MediaQuery.of(context).size.width - 130)
+        .clamp(190.0, 250.0)
+        .toDouble();
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: colors.divider),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: colors.divider),
+                ),
+                child: QrImageView(
+                  data: address,
+                  version: QrVersions.auto,
+                  size: qrSize,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _short(address),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'monospace',
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _NetworkCapsule extends StatelessWidget {
+class _InstructionCard extends StatelessWidget {
   final AzamanColors colors;
-  const _NetworkCapsule({required this.colors});
+  final String marker;
+  final String text;
+
+  const _InstructionCard({
+    required this.colors,
+    required this.marker,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.accent.withOpacity(0.30)),
-      ),
+    return _PanelCard(
+      colors: colors,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(HugeIconsSolid.hexagon, color: colors.accent, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            'Polygon',
-            style: TextStyle(
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
               color: colors.accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              marker,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-          Container(width: 1, height: 10, color: colors.accent.withOpacity(0.3)),
-          const SizedBox(width: 6),
-          Text(
-            'USDC',
-            style: TextStyle(
-              color: colors.success,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ),
         ],
@@ -1052,278 +1117,54 @@ class _NetworkCapsule extends StatelessWidget {
   }
 }
 
-
-// =============================================================================
-// PREMIUM QR CARD — frosted glass plate, gradient ring around the QR,
-// stylized eyes/dots, center "bolt" logo plate (covered by H-error correction).
-// Replaces the plain white QR rectangle.
-// =============================================================================
-class _PremiumQrCard extends ConsumerWidget {
+class _NoticeCard extends StatelessWidget {
   final AzamanColors colors;
-  final String address;
-  const _PremiumQrCard({required this.colors, required this.address});
+  final IconData icon;
+  final Color accent;
+  final String text;
 
-  String _short(String addr) {
-    if (addr.length < 14) return addr;
-    return '${addr.substring(0, 6)}…${addr.substring(addr.length - 4)}';
-  }
+  const _NoticeCard({
+    required this.colors,
+    required this.icon,
+    required this.accent,
+    required this.text,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).value;
-    final username =
-        (user?.username.isNotEmpty ?? false) ? user!.username : 'azaman';
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colors.accent.withOpacity(0.12),
-                Colors.white.withOpacity(0.02),
-              ],
+  Widget build(BuildContext context) {
+    return _PanelCard(
+      colors: colors,
+      fillColor: accent.withValues(alpha: 0.08),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colors.surface,
+              shape: BoxShape.circle,
             ),
-            border: Border.all(
-              color: colors.accent.withOpacity(0.25),
-              width: 1.0,
+            child: Icon(icon, color: accent, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.accent.withOpacity(0.18),
-                blurRadius: 28,
-                spreadRadius: -8,
-                offset: const Offset(0, 14),
-              ),
-            ],
           ),
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
-          child: Column(
-            children: [
-              // Top row — chain badge + handle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF8247E5),
-                              Color(0xFF5A2EBA),
-                            ],
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(HugeIconsSolid.hexagon,
-                            color: Colors.white, size: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '@$username',
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: colors.success.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                          color: colors.success.withOpacity(0.30),
-                          width: 0.7),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colors.success,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: colors.success,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              // QR centerpiece with gradient ring + frosted plate
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    colors: [
-                      colors.accent.withOpacity(0.55),
-                      colors.accentSecondary.withOpacity(0.55),
-                    ],
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      QrImageView(
-                        data: address,
-                        version: QrVersions.auto,
-                        size: 196,
-                        backgroundColor: Colors.white,
-                        errorCorrectionLevel: QrErrorCorrectLevel.H,
-                        eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.circle,
-                          color: Color(0xFF0B0B0D),
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.circle,
-                          color: Color(0xFF0B0B0D),
-                        ),
-                      ),
-                      // Center logo plate — H-error correction covers it
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(
-                            color: const Color(0xFF0B0B0D),
-                            width: 2,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          HugeIconsSolid.flash,
-                          color: Color(0xFF0B0B0D),
-                          size: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Truncated address chip
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.10),
-                    width: 0.8,
-                  ),
-                ),
-                child: Text(
-                  _short(address),
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'monospace',
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Scan to deposit USDC',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
 }
 
-// =============================================================================
-// ADDRESS LABEL ROW — slender section header with accent rule
-// =============================================================================
-class _AddressLabelRow extends StatelessWidget {
-  final AzamanColors colors;
-  const _AddressLabelRow({required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 12,
-          decoration: BoxDecoration(
-            color: colors.accent,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Polygon USDC Address',
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-
-// =============================================================================
-// SAVED ACCOUNT TILE — slender selectable row used by the deposit form to
-// pick which saved MoMo number receives the STK push.
-// =============================================================================
 class _SavedAccountTile extends StatelessWidget {
   final SavedMomoAccount account;
   final AzamanColors colors;
@@ -1338,11 +1179,11 @@ class _SavedAccountTile extends StatelessWidget {
   });
 
   Color _providerColor() => switch (account.provider) {
-        'MTN' => const Color(0xFFFFCC00),
-        'VODAFONE' => const Color(0xFFE60000),
-        'TELECEL' => const Color(0xFF0066CC),
-        _ => colors.textSecondary,
-      };
+    'MTN' => const Color(0xFFFFCC00),
+    'VODAFONE' => const Color(0xFFE60000),
+    'TELECEL' => const Color(0xFF0066CC),
+    _ => colors.textSecondary,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1351,25 +1192,21 @@ class _SavedAccountTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
         decoration: BoxDecoration(
-          color: selected ? pcolor.withOpacity(0.10) : colors.card.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? pcolor.withOpacity(0.55) : colors.divider,
-            width: selected ? 1.4 : 0.7,
-          ),
+          color: selected ? colors.accentSurface : colors.softSurface,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: pcolor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: pcolor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
+              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1383,38 +1220,55 @@ class _SavedAccountTile extends StatelessWidget {
                         account.nickname,
                         style: TextStyle(
                           color: colors.textPrimary,
-                          fontSize: 13.5,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       if (account.isPrimary) ...[
                         const SizedBox(width: 6),
-                        Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
+                        Icon(
+                          HugeIconsSolid.star,
+                          color: colors.warning,
+                          size: 12,
+                        ),
                       ],
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${account.provider} · ${account.phoneNumber}',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
                   ),
                   if (account.accountName != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       account.accountName!,
                       style: TextStyle(
-                          color: colors.success,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700),
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            Icon(
-              selected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
-              color: selected ? pcolor : colors.textTertiary,
-              size: 20,
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? colors.accent : colors.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                selected
+                    ? HugeIconsSolid.checkmarkCircle01
+                    : HugeIconsSolid.circle,
+                color: selected ? Colors.black : colors.textTertiary,
+                size: 16,
+              ),
             ),
           ],
         ),
