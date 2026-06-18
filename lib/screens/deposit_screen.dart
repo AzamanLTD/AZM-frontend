@@ -460,177 +460,192 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // ── Form ───────────────────────────────────────────────────────────────────
   Widget _buildForm(AzamanColors colors) {
     final accountsAsync = ref.watch(savedMomoProvider);
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _PanelHeading(
-            colors: colors,
-            title: 'Deposit with MoMo',
-          ),
-          const SizedBox(height: 18),
-          accountsAsync.when(
-            loading: () => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: CircularProgressIndicator(color: colors.accent),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 48, // Accounts for padding (16 + 32)
             ),
-            error: (e, _) => _NoticeCard(
-              colors: colors,
-              icon: HugeIconsSolid.alertCircle,
-              accent: colors.danger,
-              text: e.toString(),
-            ),
-            data: (accounts) {
-              if (accounts.isEmpty) {
-                return _PanelCard(
-                  colors: colors,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Add a mobile money number first',
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                        ),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _PanelHeading(
+                    colors: colors,
+                    title: 'Deposit with MoMo',
+                  ),
+                  const SizedBox(height: 18),
+                  accountsAsync.when(
+                    loading: () => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      child: Center(
+                        child: CircularProgressIndicator(color: colors.accent),
                       ),
-                      const SizedBox(height: 16),
-                      _PrimaryButton(
+                    ),
+                    error: (e, _) => _NoticeCard(
+                      colors: colors,
+                      icon: HugeIconsSolid.alertCircle,
+                      accent: colors.danger,
+                      text: e.toString(),
+                    ),
+                    data: (accounts) {
+                      if (accounts.isEmpty) {
+                        return _PanelCard(
+                          colors: colors,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Add a mobile money number first',
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _PrimaryButton(
+                                colors: colors,
+                                label: 'Add saved number',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const SavedMomoAccountsScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return _PanelCard(
                         colors: colors,
-                        label: 'Add saved number',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SavedMomoAccountsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return _PanelCard(
-                colors: colors,
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: accounts
-                      .map(
-                        (a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _SavedAccountTile(
-                            account: a,
-                            colors: colors,
-                            selected: _selectedAccountId == a.id,
-                            onTap: () => setState(() {
-                              _selectedAccountId = a.id;
-                              _selectedProvider = '${a.provider}_MOMO';
-                            }),
-                          ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: accounts
+                              .map(
+                                (a) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _SavedAccountTile(
+                                    account: a,
+                                    colors: colors,
+                                    selected: _selectedAccountId == a.id,
+                                    onTap: () => setState(() {
+                                      _selectedAccountId = a.id;
+                                      _selectedProvider = '${a.provider}_MOMO';
+                                    }),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
-                      )
-                      .toList(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          _PanelCard(
-            colors: colors,
-            fillColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Amount',
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'GH₵ ',
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 80),
-                      child: IntrinsicWidth(
-                        child: TextField(
-                          controller: _amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          onChanged: (_) => setState(() {}),
+                  const SizedBox(height: 24),
+                  _PanelCard(
+                    colors: colors,
+                    fillColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Amount',
                           style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.8,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            filled: false,
-                            hintText: '0.00',
-                            hintStyle: TextStyle(
-                              color: colors.textTertiary,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.8,
-                            ),
-                            contentPadding: EdgeInsets.zero,
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                'GH₵ ',
+                                style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 100),
+                              child: IntrinsicWidth(
+                                child: TextField(
+                                  controller: _amountController,
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                                  onChanged: (_) => setState(() {}),
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1.0,
+                                  ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    filled: false,
+                                    hintText: '0.00',
+                                    hintStyle: TextStyle(
+                                      color: colors.textTertiary,
+                                      fontSize: 56,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -1.0,
+                                    ),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(height: 16),
+                  _PrimaryButton(
+                    colors: colors,
+                    label: _isSubmitting ? 'Sending prompt...' : 'Send deposit prompt',
+                    onTap: (_isSubmitting || _selectedAccountId == null)
+                        ? null
+                        : _initiateDeposit,
+                    isBusy: _isSubmitting,
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Text(
+                      _selectedAccountId == null
+                          ? 'Choose a saved number to continue.'
+                          : 'Approve to complete the deposit.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _PrimaryButton(
-            colors: colors,
-            label: _isSubmitting ? 'Sending prompt...' : 'Send deposit prompt',
-            onTap: (_isSubmitting || _selectedAccountId == null)
-                ? null
-                : _initiateDeposit,
-            isBusy: _isSubmitting,
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Text(
-              _selectedAccountId == null
-                  ? 'Choose a saved number to continue.'
-                  : 'Approve to complete the deposit.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
