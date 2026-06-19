@@ -115,8 +115,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                Icon(HugeIconsSolid.notification01,
-                    color: colors.textPrimary, size: 24),
+                Icon(
+                  HugeIconsSolid.notification01,
+                  color: colors.textPrimary,
+                  size: 24,
+                ),
                 Positioned(
                   top: 3,
                   right: 4,
@@ -195,7 +198,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 colors: colors,
                 icon: HugeIconsSolid.flag01,
                 tint: colors.textPrimary,
-                background: colors.accent.withOpacity(0.07),
+                background: colors.accent.withValues(alpha: 0.07),
                 title: 'New goal',
                 subtitle: 'Save toward a target amount',
                 onTap: () => _showCreateGoalSheet(colors),
@@ -207,7 +210,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 colors: colors,
                 icon: HugeIconsSolid.lock,
                 tint: colors.textPrimary,
-                background: colors.success.withOpacity(0.08),
+                background: colors.success.withValues(alpha: 0.08),
                 title: 'Open a vault',
                 subtitle: 'Lock funds, earn rewards',
                 onTap: () {
@@ -228,7 +231,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 colors: colors,
                 icon: HugeIconsSolid.userGroup,
                 tint: colors.textPrimary,
-                background: colors.warning.withOpacity(0.10),
+                background: colors.warning.withValues(alpha: 0.10),
                 title: 'Join a Susu',
                 subtitle: 'Group rotational savings',
                 onTap: () => context.push('/susu'),
@@ -317,10 +320,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => _CreateGoalSheet(onCreated: _fetchOverview),
     );
   }
@@ -345,10 +345,32 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
   bool _isLocked = true;
   bool _isSubmitting = false;
 
+  static const List<String> _frequencies = [
+    'DAILY',
+    'WEEKLY',
+    'BIWEEKLY',
+    'MONTHLY',
+  ];
+
   Future<void> _submit() async {
-    if (_targetController.text.isEmpty || _amountController.text.isEmpty) {
+    final name = _nameController.text.trim();
+    final target = double.tryParse(_targetController.text.trim());
+    final amount = double.tryParse(_amountController.text.trim());
+
+    if (name.isEmpty || target == null || amount == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields.')),
+        const SnackBar(
+          content: Text('Enter a goal name, target, and deposit amount.'),
+        ),
+      );
+      return;
+    }
+
+    if (target <= 0 || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Target and deposit amount must be greater than zero.'),
+        ),
       );
       return;
     }
@@ -357,9 +379,9 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
 
     try {
       final response = await apiClient.post('/savings/goals', {
-        'name': _nameController.text,
-        'targetAmountGhs': double.tryParse(_targetController.text) ?? 0,
-        'frequencyAmount': double.tryParse(_amountController.text) ?? 0,
+        'name': name,
+        'targetAmountGhs': target,
+        'frequencyAmount': amount,
         'frequency': _frequency,
         'isLocked': _isLocked,
       });
@@ -371,15 +393,15 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -389,104 +411,156 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    final primaryTextOnAccent = colors.isDark ? Colors.black : Colors.white;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)),
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            10,
+            16,
+            MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Create savings goal',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _GoalTextField(
+                  colors: colors,
+                  controller: _nameController,
+                  label: 'Goal name',
+                  hint: 'Emergency fund',
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _GoalTextField(
+                        colors: colors,
+                        controller: _targetController,
+                        label: 'Target',
+                        hint: '1,500',
+                        prefixText: 'GHS ',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _GoalTextField(
+                        colors: colors,
+                        controller: _amountController,
+                        label: 'Deposit',
+                        hint: '100',
+                        prefixText: 'GHS ',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Frequency',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _frequencies
+                      .map(
+                        (frequency) => _FrequencyChip(
+                          colors: colors,
+                          label: frequency,
+                          selected: _frequency == frequency,
+                          onTap: () => setState(() => _frequency = frequency),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+                _LockGoalCard(
+                  colors: colors,
+                  isLocked: _isLocked,
+                  onChanged: (value) => setState(() => _isLocked = value),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor: primaryTextOnAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: primaryTextOnAccent,
+                            ),
+                          )
+                        : const Text(
+                            'Create goal',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-          Text('Create Savings Goal', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 20),
-
-          TextField(
-            controller: _nameController,
-            style: TextStyle(color: colors.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Goal Name',
-              labelStyle: TextStyle(color: colors.textTertiary),
-              filled: true,
-              fillColor: colors.card,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _targetController,
-            keyboardType: TextInputType.number,
-            style: TextStyle(color: colors.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Target Amount (GHS)',
-              labelStyle: TextStyle(color: colors.textTertiary),
-              filled: true,
-              fillColor: colors.card,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            style: TextStyle(color: colors.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Amount per deposit (GHS)',
-              labelStyle: TextStyle(color: colors.textTertiary),
-              filled: true,
-              fillColor: colors.card,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Frequency selector
-          DropdownButtonFormField<String>(
-            value: _frequency,
-            dropdownColor: colors.card,
-            style: TextStyle(color: colors.textPrimary, fontSize: 14),
-            decoration: InputDecoration(
-              labelText: 'Frequency',
-              labelStyle: TextStyle(color: colors.textTertiary),
-              filled: true,
-              fillColor: colors.card,
-            ),
-            items: ['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']
-                .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                .toList(),
-            onChanged: (v) => setState(() => _frequency = v!),
-          ),
-          const SizedBox(height: 12),
-
-          // Lock toggle
-          SwitchListTile(
-            title: Text('Lock funds until target reached', style: TextStyle(color: colors.textPrimary, fontSize: 14)),
-            subtitle: Text('2% penalty for early withdrawal', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-            value: _isLocked,
-            activeColor: colors.accent,
-            contentPadding: EdgeInsets.zero,
-            onChanged: (v) => setState(() => _isLocked = v),
-          ),
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _isSubmitting
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.isDark ? Colors.black : Colors.white))
-                  : const Text('Create Goal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -497,6 +571,211 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
     _targetController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+}
+
+class _GoalTextField extends StatelessWidget {
+  final AzamanColors colors;
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final String? prefixText;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
+
+  const _GoalTextField({
+    required this.colors,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.prefixText,
+    this.keyboardType,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixText: prefixText,
+            prefixStyle: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+            filled: true,
+            fillColor: colors.card,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: colors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: colors.accent.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FrequencyChip extends StatelessWidget {
+  final AzamanColors colors;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FrequencyChip({
+    required this.colors,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent.withValues(alpha: 0.12) : colors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? colors.accent.withValues(alpha: 0.28)
+                : colors.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? colors.accent : colors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LockGoalCard extends StatelessWidget {
+  final AzamanColors colors;
+  final bool isLocked;
+  final ValueChanged<bool> onChanged;
+
+  const _LockGoalCard({
+    required this.colors,
+    required this.isLocked,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final highlight = isLocked ? colors.accent : colors.textSecondary;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLocked
+              ? colors.accent.withValues(alpha: 0.16)
+              : colors.divider,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? colors.accent.withValues(alpha: 0.10)
+                  : colors.softSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(HugeIconsSolid.lock, color: highlight, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lock funds until target reached',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  isLocked
+                      ? '2% penalty on early withdrawal'
+                      : 'Withdraw before target if needed',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isLocked,
+            onChanged: onChanged,
+            activeThumbColor: colors.surface,
+            activeTrackColor: colors.accent,
+            inactiveThumbColor: colors.surface,
+            inactiveTrackColor: colors.divider,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -600,11 +879,16 @@ class _GoalCircle extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isAdd ? colors.softSurface : colors.accent.withOpacity(0.14),
+                color: isAdd
+                    ? colors.softSurface
+                    : colors.accent.withValues(alpha: 0.14),
               ),
               child: isAdd
-                  ? Icon(HugeIconsSolid.add01,
-                      color: colors.textSecondary, size: 26)
+                  ? Icon(
+                      HugeIconsSolid.add01,
+                      color: colors.textSecondary,
+                      size: 26,
+                    )
                   : Text(
                       initials ?? '?',
                       style: TextStyle(
