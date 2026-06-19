@@ -97,7 +97,7 @@ Compact, **not** a large framed card. Prefer a single inline row (icon tile + sh
 - Use `accent` (gold) only for the one primary action and active states.
 
 ### Don't
-- Don't add Backgrounds Behind Icons
+- Don't add Backgrounds or accent fill or borders Behind Icons
 - Don't make cards or elements carry too much accent fill
 - Don't outline every card, button, or icon circle. Borders are the exception, not the rule.
 - Don't build tall, empty cards or oversized empty states.

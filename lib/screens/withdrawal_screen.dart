@@ -33,14 +33,11 @@ import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
-import 'package:azaman/screens/user_local_payment_methods.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
-import 'package:azaman/widgets/azaman_button.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -60,29 +57,6 @@ extension on MomoNetwork {
         return 'VODAFONE';
       case MomoNetwork.airtelTigo:
         return 'AIRTELTIGO';
-    }
-  }
-
-  /// Human-readable label (Vodafone is rebranded as Telecel locally).
-  String get label {
-    switch (this) {
-      case MomoNetwork.mtn:
-        return 'MTN MoMo';
-      case MomoNetwork.vodafone:
-        return 'Vodafone / Telecel';
-      case MomoNetwork.airtelTigo:
-        return 'AirtelTigo';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case MomoNetwork.mtn:
-        return HugeIconsSolid.smartPhone01;
-      case MomoNetwork.vodafone:
-        return HugeIconsSolid.simcard01;
-      case MomoNetwork.airtelTigo:
-        return HugeIconsSolid.smartPhone01;
     }
   }
 }
@@ -123,7 +97,6 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   // ── Balance + role ──────────────────────────────────────────────────────
   double _availableBalance = 0.0; // USDC — used for both fiat and crypto paths
-  String _userRole = 'user';
 
   // ── AZM Fee Discount (Phase E2) ────────────────────────────────────────
   // The current AZM balance is read live from `azmSpendProvider.options`
@@ -137,6 +110,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   List<Map<String, dynamic>> _recentCompletedWithdrawals = [];
   bool _isLoadingHistory = false;
   bool _hasLoadedHistory = false;
+  bool _recentWithdrawalsExpanded = false;
   String? _downloadingId;
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -164,10 +138,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       if (response.statusCode == 200 && mounted) {
         final data = jsonDecode(response.body);
         setState(() {
-          _userRole = data['role']?.toString() ?? 'user';
           _availableBalance =
               double.tryParse(data['availableBalance']?.toString() ?? '0') ??
-                  0.0;
+              0.0;
         });
       }
     } catch (e) {
@@ -224,8 +197,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       return;
     }
     if (phone.length < 9) {
-      _showSnack('Enter a valid recipient phone number (min 9 digits)',
-          isError: true);
+      _showSnack(
+        'Enter a valid recipient phone number (min 9 digits)',
+        isError: true,
+      );
       return;
     }
 
@@ -255,7 +230,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // already supports a free-text reference field; the server-side
         // normaliser maps `accountName` → `note` for the gateway.
         if (accountName.isNotEmpty) 'accountName': accountName,
-        if (_selectedSavedMomoId != null) 'savedAccountId': _selectedSavedMomoId,
+        if (_selectedSavedMomoId != null)
+          'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
       });
@@ -291,7 +267,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         final msg = code == 'AZM_SPEND_FAILED'
             ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
             : (data['message']?.toString() ??
-                'Withdrawal failed (status ${response.statusCode})');
+                  'Withdrawal failed (status ${response.statusCode})');
         _showSnack(msg, isError: true);
       }
     } catch (e) {
@@ -321,7 +297,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     }
 
     final destination = _selectedWallet!['address']?.toString() ?? '';
-    final networkPref = _selectedWallet!['network']?.toString() ??
+    final networkPref =
+        _selectedWallet!['network']?.toString() ??
         _selectedWallet!['provider']?.toString() ??
         'MOMO';
 
@@ -339,12 +316,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         HapticFeedback.heavyImpact();
-        _showSnack(data['message']?.toString() ?? 'Withdrawal requested!',
-            isError: false);
+        _showSnack(
+          data['message']?.toString() ?? 'Withdrawal requested!',
+          isError: false,
+        );
         Navigator.pop(context);
       } else {
-        _showSnack(data['message']?.toString() ?? 'Withdrawal failed',
-            isError: true);
+        _showSnack(
+          data['message']?.toString() ?? 'Withdrawal failed',
+          isError: true,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -359,11 +340,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   void _showSnack(String msg, {required bool isError}) {
     if (!mounted) return;
     final colors = ref.read(themeProvider).colors;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? colors.danger : colors.success,
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? colors.danger : colors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _goToAddPaymentMethod() {
@@ -375,8 +358,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     // in both Settings → Deposit Addresses (legacy 'Withdrawal Addresses'
     // also pulls from this table) AND on the withdrawal screen after
     // we re-fetch.
-    final initialTab =
-        _mode == _WithdrawMode.cryptoWallet ? 'crypto' : 'mobileMoney';
+    final initialTab = _mode == _WithdrawMode.cryptoWallet
+        ? 'crypto'
+        : 'mobileMoney';
     AddPayoutSheet.show(
       context,
       onSaved: _fetchSavedWallets,
@@ -407,13 +391,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         final data = jsonDecode(response.body);
         final List history = data['history'] ?? data['withdrawals'] ?? [];
         final completed = history
-            .where((w) =>
-                (w['status']?.toString().toUpperCase() ?? '') == 'COMPLETED')
+            .where(
+              (w) =>
+                  (w['status']?.toString().toUpperCase() ?? '') == 'COMPLETED',
+            )
             .take(5)
             .toList();
         setState(() {
-          _recentCompletedWithdrawals =
-              completed.map<Map<String, dynamic>>((w) => w as Map<String, dynamic>).toList();
+          _recentCompletedWithdrawals = completed
+              .map<Map<String, dynamic>>((w) => w as Map<String, dynamic>)
+              .toList();
           _hasLoadedHistory = true;
         });
       }
@@ -438,64 +425,31 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           MaterialPageRoute(builder: (_) => const SmartRouteListScreen()),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.accent.withOpacity(0.10),
-              colors.accentSecondary.withOpacity(0.04),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: colors.accent.withOpacity(0.25),
-            width: 0.8,
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(HugeIconsSolid.directionLeft01, color: colors.accent, size: 18),
+            Icon(
+              HugeIconsSolid.directionLeft01,
+              color: colors.textPrimary,
+              size: 20,
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Smart Routes',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Set & forget recurring withdrawals — MoMo, transfers, savings.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11.5,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+              child: Text(
+                'Scheduled withdrawals',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            Icon(HugeIconsSolid.arrowRight01, color: colors.accent, size: 18),
+            Icon(
+              HugeIconsSolid.arrowRight01,
+              color: colors.textTertiary,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -507,29 +461,43 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: () {
-            if (!_hasLoadedHistory) _fetchRecentWithdrawals();
+          onTap: () async {
+            HapticFeedback.selectionClick();
+            if (_recentWithdrawalsExpanded) {
+              setState(() => _recentWithdrawalsExpanded = false);
+              return;
+            }
+            setState(() => _recentWithdrawalsExpanded = true);
+            if (!_hasLoadedHistory) await _fetchRecentWithdrawals();
           },
           child: Row(
             children: [
-              Icon(HugeIconsSolid.transactionHistory, color: colors.textTertiary, size: 16),
+              Icon(
+                HugeIconsSolid.transactionHistory,
+                color: colors.textPrimary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
-                'Recent Completed Withdrawals',
+                'Recent withdrawals',
                 style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const Spacer(),
-              if (!_hasLoadedHistory)
-                Icon(HugeIconsSolid.arrowDown01,
-                    color: colors.textTertiary, size: 18),
+              Icon(
+                _recentWithdrawalsExpanded
+                    ? HugeIconsSolid.cancel01
+                    : HugeIconsSolid.arrowDown01,
+                color: colors.textTertiary,
+                size: 18,
+              ),
             ],
           ),
         ),
-        if (_isLoadingHistory)
+        if (_recentWithdrawalsExpanded && _isLoadingHistory)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Center(
@@ -537,11 +505,15 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                    color: colors.accent, strokeWidth: 2),
+                  color: colors.accent,
+                  strokeWidth: 2,
+                ),
               ),
             ),
           ),
-        if (_hasLoadedHistory && _recentCompletedWithdrawals.isEmpty)
+        if (_recentWithdrawalsExpanded &&
+            _hasLoadedHistory &&
+            _recentCompletedWithdrawals.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
@@ -549,26 +521,27 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               style: TextStyle(color: colors.textTertiary, fontSize: 12),
             ),
           ),
-        if (_recentCompletedWithdrawals.isNotEmpty)
+        if (_recentWithdrawalsExpanded &&
+            _recentCompletedWithdrawals.isNotEmpty)
           ...List.generate(_recentCompletedWithdrawals.length, (i) {
             final w = _recentCompletedWithdrawals[i];
             final id = w['id']?.toString() ?? '';
             final amount = w['amount']?.toString() ?? '0';
-            final method = w['payoutMethod']?.toString() ?? w['network']?.toString() ?? 'Withdrawal';
+            final method =
+                w['payoutMethod']?.toString() ??
+                w['network']?.toString() ??
+                'Withdrawal';
             final isDownloading = _downloadingId == id;
 
-            return Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.divider),
-              ),
+            return Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01,
-                      color: colors.success, size: 18),
+                  Icon(
+                    HugeIconsSolid.checkmarkCircle01,
+                    color: colors.success,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -585,7 +558,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                         Text(
                           method,
                           style: TextStyle(
-                              color: colors.textTertiary, fontSize: 11),
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -594,14 +569,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     onTap: isDownloading
                         ? null
                         : () => _downloadWithdrawalReceipt(id, colors),
-                    child: Container(
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: colors.accent.withOpacity(0.3)),
+                        horizontal: 4,
+                        vertical: 6,
                       ),
                       child: isDownloading
                           ? SizedBox(
@@ -615,13 +586,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(HugeIconsSolid.download01,
-                                    color: colors.accent, size: 14),
+                                Icon(
+                                  HugeIconsSolid.download01,
+                                  color: colors.accent,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Receipt',
                                   style: TextStyle(
-                                    color: colors.accent,
+                                    color: colors.textPrimary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -639,7 +613,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   }
 
   Future<void> _downloadWithdrawalReceipt(
-      String id, AzamanColors colors) async {
+    String id,
+    AzamanColors colors,
+  ) async {
     setState(() => _downloadingId = id);
     try {
       await ReceiptService.downloadWithdrawalReceipt(id);
@@ -683,35 +659,45 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     final double activeBalance = _availableBalance;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.surface,
       appBar: AppBar(
-        title: Text(
-          'Request Withdrawal',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
         backgroundColor: colors.surface,
         elevation: 0,
-        iconTheme: IconThemeData(color: colors.textPrimary),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(
+            HugeIconsSolid.arrowLeft01,
+            color: colors.textPrimary,
+            size: 18,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Withdraw',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
       ),
       body: _isLoadingWallets
           ? Center(child: CircularProgressIndicator(color: colors.accent))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Phase B liquidity banner — only renders in MoMo mode.
                   if (isMomo) _buildFiatPoolBanner(colors),
                   _buildModeToggle(colors),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 28),
                   _buildBalanceCard(colors, balanceLabel, activeBalance),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   _buildAmountField(colors, balanceLabel, activeBalance),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   if (isMomo)
                     _buildMobileMoneyFields(colors)
                   else
@@ -721,19 +707,15 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     _buildFeePreview(colors),
                   ],
                   if (isMomo) ...[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 24),
                     _buildKotaniFeePreview(colors),
                     _buildAzmFeeDiscountSelector(colors),
                   ],
                   const SizedBox(height: 28),
                   _buildSubmitButton(colors),
-                  const SizedBox(height: 24),
-                  // Master Sprint v2 (2026-05-27): Smart Routes moved
-                  // here from the settings drawer. Recurring outbound
-                  // payments belong on the same screen where users
-                  // configure manual outbound payments.
+                  const SizedBox(height: 28),
                   _buildSmartRoutesEntry(colors),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _buildRecentWithdrawalsSection(colors),
                 ],
               ),
@@ -752,14 +734,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         if (!snap.isLimited) return const SizedBox.shrink();
         final isCritical = snap.status == FiatPoolStatus.critical;
         final accent = isCritical ? colors.danger : colors.warning;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 18),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: accent.withOpacity(0.10),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accent.withOpacity(0.45)),
-          ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -768,34 +744,20 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     ? HugeIconsSolid.alertCircle
                     : HugeIconsSolid.informationCircle,
                 color: accent,
-                size: 22,
+                size: 18,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isCritical
-                          ? 'CRITICAL — LOCAL FIAT LOW'
-                          : 'LIMITED LOCAL FIAT',
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      snap.bannerMessage,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 12.5,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  isCritical
+                      ? 'Local fiat is low. Withdrawals may take longer.'
+                      : 'Local fiat is limited. Some withdrawals may be delayed.',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -808,7 +770,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // ── Mode toggle ─────────────────────────────────────────────────────────
 
   Widget _buildModeToggle(AzamanColors colors) {
-    Widget tile(_WithdrawMode mode, String label, IconData icon) {
+    Widget tile(_WithdrawMode mode, String label) {
       final selected = _mode == mode;
       return Expanded(
         child: GestureDetector(
@@ -818,157 +780,144 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              color: selected ? colors.accent : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+              border: Border(
+                bottom: BorderSide(
+                  color: selected ? colors.textPrimary : Colors.transparent,
+                  width: 2,
+                ),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: selected
-                      ? (colors.isDark ? Colors.black : Colors.white)
-                      : colors.textTertiary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: selected
-                        ? (colors.isDark ? Colors.black : Colors.white)
-                        : colors.textTertiary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: selected ? colors.textPrimary : colors.textTertiary,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
             ),
           ),
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Row(
-        children: [
-          tile(_WithdrawMode.mobileMoney, 'MOBILE MONEY',
-              HugeIconsSolid.smartPhone01),
-          tile(_WithdrawMode.cryptoWallet, 'CRYPTO WALLET',
-              HugeIconsSolid.wallet01),
-        ],
-      ),
+    return Row(
+      children: [
+        tile(_WithdrawMode.mobileMoney, 'Mobile money'),
+        const SizedBox(width: 24),
+        tile(_WithdrawMode.cryptoWallet, 'Crypto wallet'),
+      ],
     );
   }
 
-  // ── Balance / amount ────────────────────────────────────────────────────
-
   Widget _buildBalanceCard(
-      AzamanColors colors, String balanceLabel, double active) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('AVAILABLE BALANCE',
-              style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(active.toStringAsFixed(2),
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Text(balanceLabel,
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold)),
-            ],
+    AzamanColors colors,
+    String balanceLabel,
+    double active,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Available',
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${active.toStringAsFixed(2)} $balanceLabel',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 34,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.8,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildAmountField(
-      AzamanColors colors, String balanceLabel, double active) {
+    AzamanColors colors,
+    String balanceLabel,
+    double active,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('WITHDRAWAL AMOUNT',
-            style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 12,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.divider),
+        Text(
+          'Amount',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
           ),
-          child: TextField(
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              hintText: '0.00',
-              hintStyle: TextStyle(color: colors.textTertiary),
-              prefixText: '$balanceLabel  ',
-              prefixStyle: TextStyle(color: colors.textTertiary, fontSize: 16),
-              suffixIcon: GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() {
-                    _amountController.text = active.toStringAsFixed(2);
-                  });
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colors.accentSurface,
-                    borderRadius: BorderRadius.circular(8),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: colors.softSurface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            hintText: '0.00',
+            hintStyle: TextStyle(color: colors.textTertiary),
+            prefixText: '$balanceLabel ',
+            prefixStyle: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            suffixIcon: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _amountController.text = active.toStringAsFixed(2);
+                });
+              },
+              child: Center(
+                widthFactor: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Max',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
                   ),
-                  child: Text('MAX',
-                      style: TextStyle(
-                          color: colors.accent,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12)),
                 ),
               ),
-              suffixIconConstraints:
-                  const BoxConstraints(minWidth: 0, minHeight: 0),
-              border: InputBorder.none,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
           ),
         ),
@@ -990,68 +939,80 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('SEND TO',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            )),
-        const SizedBox(height: 8),
+        Text(
+          'Send to',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 10),
         accountsAsync.when(
           loading: () => Padding(
             padding: const EdgeInsets.all(12),
-            child: Center(child: CircularProgressIndicator(color: colors.accent)),
+            child: Center(
+              child: CircularProgressIndicator(color: colors.accent),
+            ),
           ),
           error: (e, _) => Text(e.toString()),
           data: (accounts) {
             if (accounts.isEmpty) {
-              return Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: colors.warning.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.warning.withOpacity(0.30)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 14),
-                        const SizedBox(width: 8),
-                        Text('No saved MoMo addresses',
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        HugeIconsSolid.smartPhone01,
+                        color: colors.textPrimary,
+                        size: 19,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No saved mobile money account',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          AddPayoutSheet.show(
+                            context,
+                            onSaved: () {
+                              _fetchSavedWallets();
+                              ref.read(savedMomoProvider.notifier).refresh();
+                            },
+                            initialTab: 'mobileMoney',
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Add account',
                             style: TextStyle(
-                                color: colors.warning, fontSize: 12, fontWeight: FontWeight.w800)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Save a MoMo number first. We pre-verify the registered name on it before you can withdraw.',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
-                    ),
-                    const SizedBox(height: 10),
-                    AzamanButton(
-                      label: 'Add a MoMo Address',
-                      icon: HugeIconsSolid.add01,
-                      variant: AzamanButtonVariant.secondary,
-                      fullWidth: true,
-                      onPressed: () {
-                        // Master Sprint v2 — same pattern as the crypto
-                        // tab. Open the unified AddPayoutSheet pinned
-                        // to the Mobile Money sub-form, then refresh
-                        // both saved lists when the user backs out.
-                        AddPayoutSheet.show(
-                          context,
-                          onSaved: () {
-                            _fetchSavedWallets();
-                            ref.read(savedMomoProvider.notifier).refresh();
-                          },
-                          initialTab: 'mobileMoney',
-                        );
-                      },
-                    ),
-                  ],
+                              color: Colors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
@@ -1090,34 +1051,46 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             );
           },
         ),
-        const SizedBox(height: 18),
-        Text('REFERENCE (optional)',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            )),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.divider),
+        const SizedBox(height: 24),
+        Text(
+          'Reference',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
           ),
-          child: TextField(
-            controller: _accountNameController,
-            keyboardType: TextInputType.text,
-            maxLength: 80,
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              hintText: 'e.g. "Rent for May" — sent in the SMS to the recipient',
-              hintStyle: TextStyle(color: colors.textTertiary, fontSize: 12.5),
-              border: InputBorder.none,
-              counterText: '',
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _accountNameController,
+          keyboardType: TextInputType.text,
+          maxLength: 80,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: colors.softSurface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            hintText: 'Optional note',
+            hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+            counterText: '',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
           ),
         ),
@@ -1148,60 +1121,46 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   }
 
   Widget _buildEmptyMethodsCard(AzamanColors colors) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.warning.withOpacity(0.35)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: colors.warning.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(HugeIconsSolid.wallet01,
-                color: colors.warning, size: 30),
+          Row(
+            children: [
+              Icon(
+                HugeIconsSolid.wallet01,
+                color: colors.textPrimary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'No saved crypto wallet',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Text('No Payment Method On File',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16)),
           const SizedBox(height: 8),
           Text(
-            'For your security, Azaman only sends crypto withdrawals to '
-            'pre-verified payment methods. Add your first one to continue.',
-            textAlign: TextAlign.center,
-            style:
-                TextStyle(color: colors.textTertiary, fontSize: 12, height: 1.4),
+            'Add a verified wallet to withdraw.',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              onPressed: _goToAddPaymentMethod,
-              icon: const Icon(HugeIconsSolid.addCircle, size: 18),
-              label: const Text('GO TO SETTINGS TO ADD A METHOD',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: _goToAddPaymentMethod,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: colors.textPrimary,
+            ),
+            child: const Text(
+              'Add wallet',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -1209,7 +1168,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     );
   }
 
-  Widget _buildSavedMethodPicker(AzamanColors colors, [List<Map<String, dynamic>>? walletsOverride]) {
+  Widget _buildSavedMethodPicker(
+    AzamanColors colors, [
+    List<Map<String, dynamic>>? walletsOverride,
+  ]) {
     final wallets = walletsOverride ?? _savedWallets;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1217,18 +1179,24 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('PAYOUT DESTINATION',
-                style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'Wallet',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             GestureDetector(
               onTap: _goToAddPaymentMethod,
-              child: Text('+ Add New',
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
+              child: Text(
+                'Add',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -1236,9 +1204,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
-            color: colors.card,
+            color: colors.softSurface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.divider),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<Map<String, dynamic>>(
@@ -1247,7 +1214,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               value: wallets.contains(_selectedWallet)
                   ? _selectedWallet
                   : (wallets.isNotEmpty ? wallets.first : null),
-              icon: Icon(HugeIconsSolid.arrowDown01, color: colors.textTertiary),
+              icon: Icon(
+                HugeIconsSolid.arrowDown01,
+                color: colors.textTertiary,
+              ),
               items: wallets.map((wallet) {
                 final label = wallet['label']?.toString() ?? 'Unnamed';
                 final provider = wallet['provider']?.toString() ?? '';
@@ -1257,36 +1227,45 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   value: wallet,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(children: [
-                      Icon(_iconForProvider(provider),
-                          color: colors.accent, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$label  •  $provider',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                    child: Row(
+                      children: [
+                        Icon(
+                          _iconForProvider(provider),
+                          color: colors.accent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$label  •  $provider',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
                                   color: colors.textPrimary,
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            if (masked.isNotEmpty)
-                              Text(masked,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (masked.isNotEmpty)
+                                Text(
+                                  masked,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      color: colors.textTertiary,
-                                      fontSize: 11,
-                                      fontFamily: 'monospace')),
-                          ],
+                                    color: colors.textTertiary,
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ]),
+                      ],
+                    ),
                   ),
                 );
               }).toList(),
@@ -1320,27 +1299,31 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       subtitle = 'Funds settle to your saved MoMo / bank account in minutes.';
     } else {
       title = 'Split 50/50 + Platform Fee';
-      subtitle = 'Admin covers 50% of blockchain gas. Platform fee also applies.';
+      subtitle =
+          'Admin covers 50% of blockchain gas. Platform fee also applies.';
     }
 
     final amount = double.tryParse(_amountController.text) ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: previewColor.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: previewColor.withOpacity(0.3)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Network Fee:', style: TextStyle(color: colors.textSecondary)),
-              Text(title,
-                  style: TextStyle(color: previewColor, fontWeight: FontWeight.bold)),
+              Text(
+                'Network Fee:',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  color: previewColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           // Phase ADMIN-CONTROL-2-FE: live crypto fee breakdown for
@@ -1349,26 +1332,35 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             const SizedBox(height: 8),
             _buildCryptoFeeRow(
               colors: colors,
-              label: 'Gas fee (${(config.cryptoWithdrawalFeePct * 100).toStringAsFixed(2)}%):',
-              value: '${(amount * config.cryptoWithdrawalFeePct).toStringAsFixed(4)} USDC',
+              label:
+                  'Gas fee (${(config.cryptoWithdrawalFeePct * 100).toStringAsFixed(2)}%):',
+              value:
+                  '${(amount * config.cryptoWithdrawalFeePct).toStringAsFixed(4)} USDC',
             ),
             const SizedBox(height: 4),
             _buildCryptoFeeRow(
               colors: colors,
-              label: 'Platform fee (${(config.cryptoPlatformFeePct * 100).toStringAsFixed(2)}%):',
-              value: '${(amount * config.cryptoPlatformFeePct).toStringAsFixed(4)} USDC',
+              label:
+                  'Platform fee (${(config.cryptoPlatformFeePct * 100).toStringAsFixed(2)}%):',
+              value:
+                  '${(amount * config.cryptoPlatformFeePct).toStringAsFixed(4)} USDC',
             ),
             const SizedBox(height: 4),
             _buildCryptoFeeRow(
               colors: colors,
-              label: 'Total fee (${((config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct) * 100).toStringAsFixed(2)}%):',
-              value: '${(amount * (config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct)).toStringAsFixed(4)} USDC',
+              label:
+                  'Total fee (${((config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct) * 100).toStringAsFixed(2)}%):',
+              value:
+                  '${(amount * (config.cryptoWithdrawalFeePct + config.cryptoPlatformFeePct)).toStringAsFixed(4)} USDC',
               isBold: true,
               valueColor: previewColor,
             ),
           ],
-          const SizedBox(height: 8),
-          Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(color: colors.textTertiary, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -1406,7 +1398,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     final amount = double.tryParse(_amountController.text) ?? 0;
     final discountMultiplier = _selectedFeeDiscount?.discount ?? 0.0;
     // Live fee rate from backend — was hardcoded 0.02
-    final effectiveFeeRate = config.fiatWithdrawalFeePct * (1.0 - discountMultiplier);
+    final effectiveFeeRate =
+        config.fiatWithdrawalFeePct * (1.0 - discountMultiplier);
     final exitFee = amount * effectiveFeeRate;
     final double net = (amount - exitFee) > 0 ? (amount - exitFee) : 0.0;
     final bool hasDiscount = _selectedFeeDiscount != null;
@@ -1414,13 +1407,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         ? 'Exit Fee (${(effectiveFeeRate * 100).toStringAsFixed(1)}%):'
         : 'Exit Fee (${(config.fiatWithdrawalFeePct * 100).toStringAsFixed(1)}%):';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1433,7 +1421,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   if (hasDiscount) ...[
                     Text(
                       // Strikethrough: undiscounted fee
-                      '${(amount * config.fiatWithdrawalFeePct).toStringAsFixed(2)}',
+                      (amount * config.fiatWithdrawalFeePct).toStringAsFixed(2),
                       style: TextStyle(
                         color: colors.textTertiary,
                         fontWeight: FontWeight.w400,
@@ -1458,41 +1446,37 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('You will receive (USDC equiv.):', style: TextStyle(color: colors.textSecondary)),
-              Text(net.toStringAsFixed(2),
-                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
+              Text(
+                'You receive',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+              Text(
+                net.toStringAsFixed(2),
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           if (hasDiscount) ...[
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(HugeIconsSolid.diamond, size: 14, color: colors.success),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${_selectedFeeDiscount!.label} AZM discount applied',
-                    style: TextStyle(
-                      color: colors.success,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(HugeIconsSolid.diamond, size: 14, color: colors.success),
+                const SizedBox(width: 6),
+                Text(
+                  '${_selectedFeeDiscount!.label} AZM discount applied',
+                  style: TextStyle(
+                    color: colors.success,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 8),
-          Text(
-            'Funds settle via Kotani Pay to your mobile-money number, usually within minutes.',
-            style: TextStyle(color: colors.textTertiary, fontSize: 11),
-          ),
         ],
       ),
     );
@@ -1510,8 +1494,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     }
 
     // Don't show if user can't afford any tier
-    final affordableTiers =
-        options.feeDiscounts.where((t) => t.affordable).toList();
+    final affordableTiers = options.feeDiscounts
+        .where((t) => t.affordable)
+        .toList();
     if (affordableTiers.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1521,15 +1506,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // Header
         Row(
           children: [
-            Icon(HugeIconsSolid.diamond, size: 16, color: colors.accent),
+            Icon(HugeIconsSolid.diamond, size: 16, color: colors.textPrimary),
             const SizedBox(width: 8),
             Text(
-              'USE AZM TO REDUCE FEE',
+              'Use AZM to reduce the fee',
               style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const Spacer(),
@@ -1567,23 +1551,17 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? colors.accent.withOpacity(0.15)
+                      ? colors.softSurface
                       : canAfford
-                          ? colors.card
-                          : colors.card.withOpacity(0.4),
+                      ? Colors.transparent
+                      : colors.softSurface.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected
-                        ? colors.accent
-                        : canAfford
-                            ? colors.divider
-                            : colors.divider.withOpacity(0.3),
-                    width: isSelected ? 1.5 : 1.0,
-                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1592,10 +1570,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                       tier.label,
                       style: TextStyle(
                         color: isSelected
-                            ? colors.accent
+                            ? colors.textPrimary
                             : canAfford
-                                ? colors.textPrimary
-                                : colors.textTertiary,
+                            ? colors.textPrimary
+                            : colors.textTertiary,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1605,7 +1583,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                       '${tier.cost.toInt()} AZM',
                       style: TextStyle(
                         color: isSelected
-                            ? colors.accent
+                            ? colors.textSecondary
                             : colors.textTertiary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -1628,8 +1606,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     if (_mode == _WithdrawMode.mobileMoney) {
       // Master Sprint v2: must have selected a saved MoMo address. The
       // phone field is auto-populated from the picker — no manual entry.
-      final amountOk =
-          (double.tryParse(_amountController.text) ?? 0) > 0;
+      final amountOk = (double.tryParse(_amountController.text) ?? 0) > 0;
       canSubmit = _selectedSavedMomoId != null && amountOk;
     } else {
       canSubmit = _selectedWallet != null;
@@ -1649,7 +1626,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         height: 55,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: colors.accent.withOpacity(0.35),
+            backgroundColor: colors.accent.withValues(alpha: 0.35),
             foregroundColor: colors.isDark ? Colors.black : Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -1668,12 +1645,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 )
               : Text(
                   _mode == _WithdrawMode.mobileMoney
-                      ? 'COMPLETE THE FORM TO WITHDRAW'
-                      : 'SELECT A WALLET TO WITHDRAW',
+                      ? 'Choose an account'
+                      : 'Choose a wallet',
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
         ),
@@ -1737,7 +1713,6 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   }
 }
 
-
 // =============================================================================
 // MOMO ACCOUNT PICKER — slender selectable row used by the withdrawal
 // screen. Shows the registered name (auto-resolved at save time) + provider
@@ -1756,39 +1731,19 @@ class _MomoAccountPicker extends StatelessWidget {
     required this.onTap,
   });
 
-  Color _providerColor() => switch (account.provider) {
-        'MTN' => const Color(0xFFFFCC00),
-        'VODAFONE' => const Color(0xFFE60000),
-        'TELECEL' => const Color(0xFF0066CC),
-        _ => colors.textSecondary,
-      };
-
   @override
   Widget build(BuildContext context) {
-    final pcolor = _providerColor();
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: selected ? pcolor.withOpacity(0.10) : colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? pcolor.withOpacity(0.55) : colors.divider,
-            width: selected ? 1.4 : 0.7,
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: pcolor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
+            Icon(
+              HugeIconsSolid.smartPhone01,
+              color: colors.textPrimary,
+              size: 19,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1813,8 +1768,10 @@ class _MomoAccountPicker extends StatelessWidget {
               ),
             ),
             Icon(
-              selected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
-              color: selected ? pcolor : colors.textTertiary,
+              selected
+                  ? HugeIconsSolid.checkmarkCircle01
+                  : HugeIconsSolid.circle,
+              color: selected ? colors.textPrimary : colors.textTertiary,
               size: 20,
             ),
           ],
