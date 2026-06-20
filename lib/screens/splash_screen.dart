@@ -123,7 +123,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
           switch (status) {
             case AuthStatus.authenticated:
-              // Sync theme + settings from backend (cross-device persistence)
               ref.read(themeProvider).loadFromBackend();
               ref.read(settingsProvider).loadFromBackend();
               // Phase ADMIN-CONTROL-2-FE: Fetch live fee rates from backend.

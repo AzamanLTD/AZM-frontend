@@ -363,7 +363,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         : 'mobileMoney';
     AddPayoutSheet.show(
       context,
-      onSaved: _fetchSavedWallets,
+      onSaved: () {
+        if (!mounted) return;
+        _fetchSavedWallets();
+      },
       initialTab: initialTab,
     );
   }
@@ -382,30 +385,43 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   // ── Phase Q11: Recent completed withdrawals with receipt download ──────
   Future<void> _fetchRecentWithdrawals() async {
-    if (_hasLoadedHistory) return;
+    if (_hasLoadedHistory || !mounted) return;
     setState(() => _isLoadingHistory = true);
     try {
       final response = await apiClient.get('/wallet/history');
+      if (!mounted) return;
 
-      if (response.statusCode == 200 && mounted) {
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List history = data['history'] ?? data['withdrawals'] ?? [];
+        final rawHistory = data['history'] ?? data['withdrawals'] ?? const [];
+        final history = rawHistory is List ? rawHistory : const [];
         final completed = history
+            .whereType<Map>()
             .where(
               (w) =>
                   (w['status']?.toString().toUpperCase() ?? '') == 'COMPLETED',
             )
             .take(5)
+            .map((w) => Map<String, dynamic>.from(w))
             .toList();
         setState(() {
-          _recentCompletedWithdrawals = completed
-              .map<Map<String, dynamic>>((w) => w as Map<String, dynamic>)
-              .toList();
+          _recentCompletedWithdrawals = completed;
+          _hasLoadedHistory = true;
+        });
+      } else {
+        setState(() {
+          _recentCompletedWithdrawals = const [];
           _hasLoadedHistory = true;
         });
       }
     } catch (e) {
       debugPrint('[WithdrawalScreen] history fetch error: $e');
+      if (mounted) {
+        setState(() {
+          _recentCompletedWithdrawals = const [];
+          _hasLoadedHistory = true;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isLoadingHistory = false);
     }
@@ -462,6 +478,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       children: [
         GestureDetector(
           onTap: () async {
+            if (!mounted) return;
             HapticFeedback.selectionClick();
             if (_recentWithdrawalsExpanded) {
               setState(() => _recentWithdrawalsExpanded = false);
@@ -487,13 +504,30 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 ),
               ),
               const Spacer(),
-              Icon(
-                _recentWithdrawalsExpanded
-                    ? HugeIconsSolid.cancel01
-                    : HugeIconsSolid.arrowDown01,
-                color: colors.textTertiary,
-                size: 18,
-              ),
+              if (_recentWithdrawalsExpanded)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _recentWithdrawalsExpanded = false);
+                  },
+                  icon: Icon(
+                    HugeIconsSolid.cancel01,
+                    color: colors.textTertiary,
+                    size: 18,
+                  ),
+                )
+              else
+                Icon(
+                  HugeIconsSolid.arrowDown01,
+                  color: colors.textTertiary,
+                  size: 18,
+                ),
             ],
           ),
         ),
@@ -955,7 +989,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               child: CircularProgressIndicator(color: colors.accent),
             ),
           ),
-          error: (e, _) => Text(e.toString()),
+          error: (_, __) => Text(
+            'Could not load saved accounts.',
+            style: TextStyle(color: colors.textTertiary, fontSize: 12),
+          ),
           data: (accounts) {
             if (accounts.isEmpty) {
               return Padding(
@@ -986,6 +1023,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           AddPayoutSheet.show(
                             context,
                             onSaved: () {
+                              if (!mounted) return;
                               _fetchSavedWallets();
                               ref.read(savedMomoProvider.notifier).refresh();
                             },
