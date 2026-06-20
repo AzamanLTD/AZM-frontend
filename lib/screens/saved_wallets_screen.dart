@@ -505,7 +505,13 @@ class AddPayoutSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AddPayoutSheet(onSaved: onSaved, initialTab: initialTab),
+      builder: (sheetContext) {
+        final maxHeight = MediaQuery.sizeOf(sheetContext).height * 0.92;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: AddPayoutSheet(onSaved: onSaved, initialTab: initialTab),
+        );
+      },
     );
   }
 
@@ -654,37 +660,39 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Saving a payout destination requires re-entering your password.',
-                style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                obscureText: true,
-                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: colors.background.withOpacity(0.6),
-                  hintText: 'Password',
-                  hintStyle: TextStyle(color: colors.textTertiary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.divider),
-                  ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saving a payout destination requires re-entering your password.',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
                 ),
-                onSubmitted: (v) => Navigator.pop(ctx, v),
-              ),
-            ],
+                const SizedBox(height: 14),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  obscureText: true,
+                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: colors.background.withOpacity(0.6),
+                    hintText: 'Password',
+                    hintStyle: TextStyle(color: colors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.divider),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.divider),
+                    ),
+                  ),
+                  onSubmitted: (v) => Navigator.pop(ctx, v),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -701,7 +709,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         );
       },
     );
-    ctrl.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     return result == null || result.isEmpty ? null : result;
   }
 

@@ -20,8 +20,8 @@ import 'package:hugeicons_pro/hugeicons.dart';
 enum AzamanTheme {
   // Master Sprint v2 (2026-05-27): the theme catalogue is intentionally
   // small. Three identities, each with a strong, distinct character:
-  //   • light    — clean white surface with deep navy text + gold accent
-  //   • dark     — the canonical Binance-tier dark UI (default)
+  //   • light    — clean white surface with deep navy text + gold accent (default)
+  //   • dark     — the canonical Binance-tier dark UI
   //   • midnight — deep blackout with violet accent for night-shift use
   //
   // The previous catalogue (cyberBlue, mars, saturn, snow, neonTokyo,
@@ -58,10 +58,10 @@ class ThemeProvider with ChangeNotifier {
 
     // Migrate old indices. The previous catalogue had 12 themes; we now
     // have 3 (light=0, dark=1, midnight=2). Anything outside that range
-    // maps to dark so the user lands on a sensible default after upgrade.
+    // maps to light so the user lands on the default after upgrade.
     final clamped = (savedIndex >= 0 && savedIndex < AzamanTheme.values.length)
         ? savedIndex
-        : 1;
+        : 0;
     _currentTheme = AzamanTheme.values[clamped];
     _isLoaded = true;
     notifyListeners();
@@ -88,41 +88,24 @@ class ThemeProvider with ChangeNotifier {
     }
   }
 
-  /// Load theme from backend preferences (cross-device sync).
-  /// Call after successful authentication to restore the user's theme
-  /// from the server. Falls back to local SharedPreferences if the
-  /// backend call fails.
+  /// Push the local theme to the backend when the server has no preference.
+  /// Local SharedPreferences is the source of truth; we never override the
+  /// active theme from the server so new installs always start in light mode.
   Future<void> loadFromBackend() async {
     try {
       final response = await apiClient.get('/users/preferences');
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        final data = body['data'] as Map<String, dynamic>?;
-        if (data != null) {
-          final themeStr = data['theme'] as String?;
-          if (themeStr != null && themeStr.isNotEmpty) {
-            final resolved = _themeFromString(themeStr);
-            if (resolved != null && resolved != _currentTheme) {
-              _currentTheme = resolved;
-              notifyListeners();
-              // Also persist locally so offline launches use the same theme
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setInt('azaman_theme', resolved.index);
-            }
-          }
-        }
+      if (response.statusCode != 200) return;
+
+      final body = jsonDecode(response.body);
+      final data = body['data'] as Map<String, dynamic>?;
+      if (data == null) return;
+
+      final themeStr = data['theme'] as String?;
+      if (themeStr == null || themeStr.isEmpty) {
+        await _syncToBackend(_currentTheme);
       }
     } catch (_) {
-      // Non-fatal: if backend is unreachable, keep local theme
     }
-  }
-
-  /// Parse a theme string name (e.g. "mars", "neonTokyo") to AzamanTheme.
-  AzamanTheme? _themeFromString(String name) {
-    for (final t in AzamanTheme.values) {
-      if (t.name == name) return t;
-    }
-    return null;
   }
 
   // --- QUICK ACCESSORS FOR WIDGETS ---
