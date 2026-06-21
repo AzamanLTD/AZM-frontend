@@ -17,8 +17,11 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/services/api_client.dart';
@@ -57,6 +60,51 @@ typedef NearbyPage = ({
 class BusinessService {
   final ApiClient _client;
   BusinessService() : _client = ApiClient();
+
+  // ── IMAGE UPLOAD ───────────────────────────────────────────────────────────
+
+  /// Upload an image to the business Cloudinary folder.
+  ///
+  /// [folder] determines the Cloudinary destination:
+  ///   'products' → azaman/business/products/  (product images)
+  ///   'logos'    → azaman/business/logos/     (business logo)
+  ///   'kyb'      → azaman/business/kyb/       (KYB documents)
+  ///
+  /// Returns the permanent Cloudinary secure_url.
+  /// Throws on failure (via ApiClient._handleResponse / _ok).
+  Future<String> uploadBusinessImage(File file, {String folder = 'products'}) async {
+    final uri =
+        Uri.parse('${ApiClient.baseUrl}/business/upload/image?folder=$folder');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Determine mime type from extension
+    final ext = file.path.toLowerCase().split('.').last;
+    MediaType? contentType;
+    if (ext == 'jpg' || ext == 'jpeg') {
+      contentType = MediaType('image', 'jpeg');
+    } else if (ext == 'png') {
+      contentType = MediaType('image', 'png');
+    } else if (ext == 'webp') {
+      contentType = MediaType('image', 'webp');
+    } else if (ext == 'gif') {
+      contentType = MediaType('image', 'gif');
+    } else if (ext == 'heic') {
+      contentType = MediaType('image', 'heic');
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        contentType: contentType,
+      ),
+    );
+
+    final response =
+        await _client.multipart('/business/upload/image?folder=$folder', request);
+    final body = _ok(response.body, response.statusCode, 'Image upload failed');
+    return body['url'].toString();
+  }
 
   // ── BUSINESS PROFILE ───────────────────────────────────────────────────────
 

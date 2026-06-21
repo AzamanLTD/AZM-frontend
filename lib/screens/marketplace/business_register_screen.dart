@@ -3,7 +3,7 @@
 //
 // One-time registration form for creating a BusinessProfile: name, category,
 // description, website, contact email, phone, address, country and an optional
-// logo (image_picker → ChatMediaService → logoUrl). On success it seeds
+// logo (image_picker → BusinessService.uploadBusinessImage → logoUrl). On success it seeds
 // myBusinessProvider and lands the user on their new business profile.
 //
 // Guard: if the user already has a business, this screen redirects to its
@@ -22,7 +22,6 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/services/business_service.dart';
-import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 // A focused set of country codes (ISO 3166-1 alpha-2). Extend as needed.
@@ -90,11 +89,13 @@ class _BusinessRegisterScreenState
       _uploadingLogo = true;
     });
     try {
-      final result =
-          await ChatMediaService.instance.uploadImage(File(picked.path));
+      final url = await BusinessService().uploadBusinessImage(
+        File(picked.path),
+        folder: 'logos',
+      );
       if (!mounted) return;
       setState(() {
-        _logoUrl = result.url;
+        _logoUrl = url;
         _uploadingLogo = false;
       });
     } catch (e) {

@@ -22,7 +22,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
-import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 
@@ -564,11 +563,13 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
       _uploading = true;
     });
     try {
-      final result =
-          await ChatMediaService.instance.uploadImage(File(picked.path));
+      final url = await BusinessService().uploadBusinessImage(
+        File(picked.path),
+        folder: 'products',
+      );
       if (mounted) {
         setState(() {
-          _imageUrl = result.url;
+          _imageUrl = url;
           _uploading = false;
         });
       }
@@ -781,11 +782,13 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
     if (picked == null) return;
     setState(() => _uploadingType = type);
     try {
-      final result =
-          await ChatMediaService.instance.uploadImage(File(picked.path));
+      final url = await BusinessService().uploadBusinessImage(
+        File(picked.path),
+        folder: 'kyb',
+      );
       if (mounted) {
         setState(() {
-          _uploaded[type] = result.url;
+          _uploaded[type] = url;
           _uploadingType = null;
         });
       }
