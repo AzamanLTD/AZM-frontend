@@ -3,12 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
@@ -108,6 +111,11 @@ class _GreetingHeader extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
     final isVisible = ref.watch(balanceVisibleProvider);
 
+    // V3 Marketplace Sprint (2026-06-21): owner notification bell — only shown
+    // when the signed-in user has a registered business.
+    final hasBiz = ref.watch(myBusinessProvider).profile != null;
+    final bizUnread = ref.watch(bizUnreadCountProvider);
+
     final username = user?.username ?? '';
     final initials = _initials(username);
 
@@ -177,6 +185,52 @@ class _GreetingHeader extends ConsumerWidget {
               ),
             ),
           ),
+          if (hasBiz) ...[
+            const SizedBox(width: 10),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                AzamanHaptics.nav();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BusinessNotificationsScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.softSurface,
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(HugeIconsSolid.notification01,
+                        size: 18, color: colors.textSecondary),
+                    if (bizUnread > 0)
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: colors.danger,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.softSurface, width: 1),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: 10),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -311,6 +365,22 @@ class _ActionPills extends ConsumerWidget {
                     title: 'Savings',
                     body: SavingsScreen(),
                   ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          // V3 Marketplace Sprint (2026-06-21): entry into the Premium
+          // Marketplace (the same screen mounted as the 5th bottom-nav tab).
+          _pill(
+            colors: colors,
+            label: 'Marketplace',
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MarketplaceHomeScreen(),
                 ),
               );
             },

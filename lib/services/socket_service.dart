@@ -84,6 +84,21 @@ class SocketService {
   /// Trade completed events (success receipt dialog)
   void Function(Map<String, dynamic> data)? _onTradeCompleted;
 
+  // ── V3 Marketplace Sprint (2026-06-21): business + escrow callbacks ────────
+
+  /// New owner-facing business notification (drives the badge + feed).
+  void Function(Map<String, dynamic> data)? _onBizNotification;
+
+  /// Authoritative unread-count push (multi-device sync).
+  void Function(int unreadCount)? _onBizNotificationsUpdated;
+
+  /// A business order was marked delivered (customer-facing nudge).
+  void Function(Map<String, dynamic> data)? _onBusinessOrderDelivered;
+
+  /// Any `escrow_*` / `invoice_paid` event — the second arg is the event name
+  /// so a single handler can fan out (the ticket workspace filters by ticket).
+  void Function(Map<String, dynamic> data, String eventName)? _onEscrowEvent;
+
   // ── Registration methods ──────────────────────────────────────────────────
 
   void onAzmReward(
@@ -118,6 +133,37 @@ class SocketService {
 
   void onTradeCompleted(void Function(Map<String, dynamic> data) callback) {
     _onTradeCompleted = callback;
+  }
+
+  // ── V3 Marketplace Sprint registration methods ────────────────────────────
+
+  void onBizNotification(void Function(Map<String, dynamic>) cb) {
+    _onBizNotification = cb;
+  }
+
+  void onBizNotificationsUpdated(void Function(int) cb) {
+    _onBizNotificationsUpdated = cb;
+  }
+
+  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) {
+    _onBusinessOrderDelivered = cb;
+  }
+
+  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) {
+    _onEscrowEvent = cb;
+  }
+
+  // ── V3 Marketplace Sprint dispatch helpers ────────────────────────────────
+
+  Map<String, dynamic> _toMap(dynamic data) =>
+      data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
+
+  void _dispatchEscrow(dynamic data, String eventName) {
+    try {
+      _onEscrowEvent?.call(_toMap(data), eventName);
+    } catch (e) {
+      debugPrint('[SocketService] $eventName error: $e');
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -464,7 +510,34 @@ class SocketService {
         } catch (e) {
           debugPrint('[SocketService] trade_completed parse error: $e');
         }
-      });
+      })
+
+      // ── V3 Marketplace Sprint (2026-06-21): business + escrow events ────
+      ..on('biz_notification', (data) {
+        try {
+          _onBizNotification?.call(_toMap(data));
+        } catch (_) {}
+      })
+      ..on('biz_notifications_updated', (data) {
+        try {
+          _onBizNotificationsUpdated
+              ?.call(_toMap(data)['unreadCount'] as int? ?? 0);
+        } catch (_) {}
+      })
+      ..on('business_order_delivered', (data) {
+        try {
+          _onBusinessOrderDelivered?.call(_toMap(data));
+        } catch (_) {}
+      })
+      ..on('escrow_funded', (d) => _dispatchEscrow(d, 'escrow_funded'))
+      ..on('escrow_settled', (d) => _dispatchEscrow(d, 'escrow_settled'))
+      ..on('escrow_pending_settlement',
+          (d) => _dispatchEscrow(d, 'escrow_pending_settlement'))
+      ..on('escrow_disputed', (d) => _dispatchEscrow(d, 'escrow_disputed'))
+      ..on('escrow_resolved', (d) => _dispatchEscrow(d, 'escrow_resolved'))
+      ..on('escrow_terms_updated',
+          (d) => _dispatchEscrow(d, 'escrow_terms_updated'))
+      ..on('invoice_paid', (d) => _dispatchEscrow(d, 'invoice_paid'));
   }
 
   // -------------------------------------------------------------------------
@@ -609,7 +682,34 @@ class SocketService {
               : Map<String, dynamic>.from(data as Map);
           _onTradeCompleted?.call(raw);
         } catch (_) {}
-      });
+      })
+
+      // ── V3 Marketplace Sprint (2026-06-21): business + escrow events ────
+      ..on('biz_notification', (data) {
+        try {
+          _onBizNotification?.call(_toMap(data));
+        } catch (_) {}
+      })
+      ..on('biz_notifications_updated', (data) {
+        try {
+          _onBizNotificationsUpdated
+              ?.call(_toMap(data)['unreadCount'] as int? ?? 0);
+        } catch (_) {}
+      })
+      ..on('business_order_delivered', (data) {
+        try {
+          _onBusinessOrderDelivered?.call(_toMap(data));
+        } catch (_) {}
+      })
+      ..on('escrow_funded', (d) => _dispatchEscrow(d, 'escrow_funded'))
+      ..on('escrow_settled', (d) => _dispatchEscrow(d, 'escrow_settled'))
+      ..on('escrow_pending_settlement',
+          (d) => _dispatchEscrow(d, 'escrow_pending_settlement'))
+      ..on('escrow_disputed', (d) => _dispatchEscrow(d, 'escrow_disputed'))
+      ..on('escrow_resolved', (d) => _dispatchEscrow(d, 'escrow_resolved'))
+      ..on('escrow_terms_updated',
+          (d) => _dispatchEscrow(d, 'escrow_terms_updated'))
+      ..on('invoice_paid', (d) => _dispatchEscrow(d, 'invoice_paid'));
   }
 
   // -------------------------------------------------------------------------
@@ -630,6 +730,11 @@ class SocketService {
     _onNotificationsUpdated = null;
     _onNewTradeRequest = null;
     _onTradeCompleted = null;
+    // V3 Marketplace Sprint callbacks
+    _onBizNotification = null;
+    _onBizNotificationsUpdated = null;
+    _onBusinessOrderDelivered = null;
+    _onEscrowEvent = null;
     if (AppConfig.enableNetworkLogs) {
       debugPrint('[SocketService] Disposed');
     }

@@ -22,6 +22,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/escrow_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
@@ -30,6 +31,7 @@ import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:azaman/widgets/escrow_status_panel.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class TicketWorkspaceScreen extends ConsumerStatefulWidget {
@@ -55,6 +57,20 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   // in flight so a fast second hold can't kick off a parallel upload.
   bool _isUploadingAudio = false;
 
+  // V3 Marketplace Sprint (2026-06-21): per-ticket escrow socket subscriptions.
+  // We keep the handler refs so dispose() can `off(event, handler)` precisely —
+  // a bare `off(event)` would also nuke SocketService's own dispatcher for that
+  // event name.
+  static const _escrowEvents = [
+    'escrow_funded',
+    'escrow_settled',
+    'escrow_pending_settlement',
+    'escrow_disputed',
+    'escrow_resolved',
+    'escrow_terms_updated',
+  ];
+  final List<MapEntry<String, void Function(dynamic)>> _escrowSubs = [];
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +82,15 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
           .load();
       _joinRoom();
       _scrollToBottom();
+      // Once the ticket is loaded we know whether it's an escrow; if so, load
+      // the escrow state and start listening for realtime escrow_* events.
+      if (!mounted) return;
+      final loaded =
+          ref.read(ticketWorkspaceProvider(widget.ticketId)).ticket;
+      if (loaded?.type == TicketType.escrow) {
+        ref.read(escrowProvider(widget.ticketId).notifier).load();
+        _wireEscrowSocket();
+      }
     });
   }
 
@@ -73,9 +98,42 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _leaveRoom();
+    _unwireEscrowSocket();
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _wireEscrowSocket() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
+    for (final evt in _escrowEvents) {
+      void handler(dynamic data) {
+        try {
+          final raw = data is Map<String, dynamic>
+              ? data
+              : Map<String, dynamic>.from(data as Map);
+          if (raw['ticketId']?.toString() == widget.ticketId) {
+            ref
+                .read(escrowProvider(widget.ticketId).notifier)
+                .onRealtimeUpdate(raw, evt);
+            if (evt == 'escrow_settled') AzamanHaptics.confirm();
+            if (evt == 'escrow_disputed') AzamanHaptics.warn();
+          }
+        } catch (_) {}
+      }
+
+      _escrowSubs.add(MapEntry(evt, handler));
+      socket.on(evt, handler);
+    }
+  }
+
+  void _unwireEscrowSocket() {
+    final socket = SocketService.instance.rawSocket;
+    for (final sub in _escrowSubs) {
+      socket?.off(sub.key, sub.value);
+    }
+    _escrowSubs.clear();
   }
 
   @override
@@ -228,6 +286,12 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
     final state = ref.watch(ticketWorkspaceProvider(widget.ticketId));
     final myId = ref.watch(authProvider).user?.id;
 
+    // V3 Marketplace Sprint: escrow status panel (only for ESCROW tickets).
+    final isEscrow = state.ticket?.type == TicketType.escrow;
+    final escrowState =
+        isEscrow ? ref.watch(escrowProvider(widget.ticketId)) : null;
+    final currentUser = ref.watch(authProvider).user;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -298,6 +362,25 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
       ),
       body: Column(
         children: [
+          if (escrowState != null && currentUser != null)
+            EscrowStatusPanel(
+              escrow: escrowState.escrow,
+              currentUserId: int.tryParse(currentUser.id) ?? 0,
+              isLoading: escrowState.isLoading,
+              onFund: () =>
+                  ref.read(escrowProvider(widget.ticketId).notifier).fund(),
+              onSatisfy: () => ref
+                  .read(escrowProvider(widget.ticketId).notifier)
+                  .markSatisfied(),
+              onDispute: (r, u) => ref
+                  .read(escrowProvider(widget.ticketId).notifier)
+                  .raiseDispute(r, u),
+              onUpdateTerms: (t) => ref
+                  .read(escrowProvider(widget.ticketId).notifier)
+                  .updateTerms(t),
+              onCancel: () =>
+                  ref.read(escrowProvider(widget.ticketId).notifier).cancel(),
+            ),
           if (state.ticket != null) _Header(ticket: state.ticket!, colors: colors),
           if (state.counterpartyViewingUserId != null)
             _PresenceBanner(colors: colors, friendName: widget.friendUsername),
@@ -313,7 +396,7 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
                         itemCount: state.messages.length,
                         itemBuilder: (_, i) {
                           final msg = state.messages[i];
-                          final isMe = msg.senderId == myId;
+                          final isMe = msg.senderId.toString() == myId;
                           return _Bubble(
                               msg: msg, isMe: isMe, colors: colors);
                         },

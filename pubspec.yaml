@@ -121,6 +121,15 @@ dependencies:
   # the in-place flip overlay) is allowed to keep its own controller.
   flutter_animate: ^4.5.0
 
+  # --- FLUTTER V3 MARKETPLACE SPRINT (2026-06-21) ---
+  # `geolocator` resolves the user's GPS coordinates for the "Near You"
+  # nearby-business search (/api/business/search/nearby?lat=&lng=).
+  # `cached_network_image` caches product / business / location photos so
+  # marketplace grids don't re-fetch the same Cloudinary URLs on every
+  # scroll. Both are additive — no existing code depends on them yet.
+  geolocator: ^13.0.1
+  cached_network_image: ^3.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

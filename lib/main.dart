@@ -32,6 +32,7 @@ import 'package:azaman/screens/trades_tab_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/vendor_pull_tab.dart';
@@ -41,8 +42,10 @@ import 'package:azaman/providers/auth_provider.dart' as auth_pkg;
 import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
 import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
+import 'package:azaman/providers/business_provider.dart';
 
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/services/business_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
@@ -283,6 +286,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       const FriendsHubScreen(),
       const P2PMarketplaceScreen(),
       const SafeArea(bottom: false, child: SavingsScreen()),
+      const MarketplaceHomeScreen(), // V3: 5th tab — Premium Marketplace
     ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -347,6 +351,33 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         dismissDirection: DismissDirection.up,
       ));
     });
+
+    // ── V3 Marketplace Sprint (2026-06-21): business owner real-time wiring ──
+    // A new business notification bumps the badge; an authoritative
+    // unread-count push (multi-device sync) replaces it outright.
+    socketService.onBizNotification((data) {
+      if (!mounted) return;
+      ref.read(bizUnreadCountProvider.notifier).state++;
+    });
+    socketService.onBizNotificationsUpdated((count) {
+      if (!mounted) return;
+      ref.read(bizUnreadCountProvider.notifier).state = count;
+    });
+
+    // Load the signed-in user's own business (if any) so the home-screen
+    // notification bell + dashboard entry know whether to show, then seed the
+    // unread badge from the REST count.
+    ref.read(myBusinessProvider.notifier).load().then((_) async {
+      if (!mounted) return;
+      final biz = ref.read(myBusinessProvider).profile;
+      if (biz != null) {
+        try {
+          final count = await BusinessService().getUnreadCount();
+          if (!mounted) return;
+          ref.read(bizUnreadCountProvider.notifier).state = count;
+        } catch (_) {}
+      }
+    });
   }
 
   void _showSuccessReceipt(dynamic data) {
@@ -407,6 +438,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
               _pages[1],
               _pages[2],
               _pages[3],
+              _pages[4],
             ],
           ),
           // Vendor Pull Tab — only visible on the P2P tab AND only when

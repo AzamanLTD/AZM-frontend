@@ -48,6 +48,7 @@ import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/screens/vendor_dashboard.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
+import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class SettingsDrawer extends ConsumerWidget {
@@ -290,6 +291,17 @@ class SettingsDrawer extends ConsumerWidget {
                         'New',
                         colors,
                         destination: const AzamanStoreScreen(),
+                      ),
+                      // V3 Marketplace Sprint (2026-06-21): owner dashboard.
+                      // The screen self-redirects to registration when the
+                      // user has no business yet.
+                      _buildMenuItem(
+                        context,
+                        HugeIconsSolid.store01,
+                        'My Business',
+                        'Store',
+                        colors,
+                        destination: const BusinessDashboardScreen(),
                       ),
 
                       const SizedBox(height: 40),
