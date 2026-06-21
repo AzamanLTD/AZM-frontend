@@ -17,6 +17,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/image_lightbox.dart';
 
 class ProductCard extends ConsumerWidget {
   final BusinessProduct product;
@@ -49,7 +50,7 @@ class ProductCard extends ConsumerWidget {
         children: [
           AspectRatio(
             aspectRatio: isHorizontal ? 1.4 : 1.5,
-            child: _image(colors),
+            child: _image(context, colors),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -134,14 +135,21 @@ class ProductCard extends ConsumerWidget {
     return card;
   }
 
-  Widget _image(AzamanColors colors) {
-    final url = product.primaryImage;
-    if (url == null || url.isEmpty) return _placeholder(colors);
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (_, __) => _placeholder(colors),
-      errorWidget: (_, __, ___) => _placeholder(colors),
+  Widget _image(BuildContext context, AzamanColors colors) {
+    final urls = product.imageUrls;
+    if (urls.isEmpty) return _placeholder(colors);
+    // Tap opens the full-screen lightbox (Marketplace Premium Upgrade).
+    return GestureDetector(
+      onTap: () => ImageLightbox.show(context, urls: urls, initialIndex: 0),
+      child: Hero(
+        tag: 'lightbox_${urls.first}',
+        child: CachedNetworkImage(
+          imageUrl: urls.first,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _placeholder(colors),
+          errorWidget: (_, __, ___) => _placeholder(colors),
+        ),
+      ),
     );
   }
 

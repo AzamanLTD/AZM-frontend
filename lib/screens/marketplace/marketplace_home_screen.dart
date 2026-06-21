@@ -32,6 +32,7 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
+import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/business_card.dart';
@@ -364,6 +365,30 @@ class _MarketplaceHomeScreenState
                       color: _position != null
                           ? colors.accent
                           : colors.textSecondary),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Saved businesses (wishlist) — Marketplace Premium Upgrade.
+          GestureDetector(
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const SavedBusinessesScreen()),
+              );
+            },
+            child: Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Icon(HugeIconsStroke.bookmark02,
+                  size: 20, color: colors.textSecondary),
             ),
           ),
         ],

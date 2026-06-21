@@ -31,6 +31,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
@@ -38,6 +39,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
+import 'package:azaman/widgets/image_lightbox.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/review_card.dart';
 
@@ -686,17 +688,27 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
                 physics: const BouncingScrollPhysics(),
                 itemCount: loc.galleryUrls.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                    imageUrl: loc.galleryUrls[i],
-                    width: 110,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) =>
-                        Container(width: 110, color: colors.softSurface),
-                    errorWidget: (_, __, ___) =>
-                        Container(width: 110, color: colors.softSurface),
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => ImageLightbox.show(
+                    context,
+                    urls: loc.galleryUrls,
+                    initialIndex: i,
+                  ),
+                  child: Hero(
+                    tag: 'lightbox_${loc.galleryUrls[i]}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: loc.galleryUrls[i],
+                        width: 110,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) =>
+                            Container(width: 110, color: colors.softSurface),
+                        errorWidget: (_, __, ___) =>
+                            Container(width: 110, color: colors.softSurface),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -758,6 +770,37 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
                       fontWeight: FontWeight.w800)),
               const Spacer(),
               RatingStars(rating: business.averageRating, size: 15),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () async {
+                  final submitted =
+                      await LeaveReviewSheet.show(context, business: business);
+                  if (submitted && mounted) {
+                    // Refresh reviews after a successful submission.
+                    ref.invalidate(businessReviewsProvider(widget.bizId));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Review submitted. Thank you!')),
+                    );
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.accent),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '+ Review',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

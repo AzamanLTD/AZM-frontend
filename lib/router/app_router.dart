@@ -50,6 +50,7 @@ import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_search_screen.dart';
+import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
@@ -261,6 +262,14 @@ final GoRouter appRouter = GoRouter(
       path: '/business/search',
       name: 'business-search',
       builder: (_, __) => const BusinessSearchScreen(),
+    ),
+    // Saved businesses wishlist (Marketplace Premium Upgrade, 2026-06-21).
+    // Mounted under /biz/ (not /business/) so it never collides with the
+    // `/business/:bizId` catch route below.
+    GoRoute(
+      path: '/biz/saved',
+      name: 'saved-businesses',
+      builder: (_, __) => const SavedBusinessesScreen(),
     ),
     GoRoute(
       path: '/business/register',

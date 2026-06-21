@@ -271,6 +271,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               child: Column(
                 children: [
                   _buildPremiumHeader(azamanGold, binanceGreen),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                    child: _todayGlance(ref.read(themeProvider).colors),
+                  ),
+                  const SizedBox(height: 16),
                   _buildProtocolBalanceCard(azamanGold),
                   
                   Padding(
@@ -341,6 +346,149 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   }
 
   // --- WIDGETS ---
+
+  // "Today at a Glance" horizontal stats row (P2P Premium Sprint, 2026-06-21).
+  // Computed live from pendingTrades + the already-loaded balances. The trade
+  // maps in this screen carry `timestamp` (a DateTime) and `amountFiat`; there
+  // is no acceptedAt field, so the average-response metric shows "–" until that
+  // data is available rather than fabricating a value.
+  Widget _todayGlance(AzamanColors colors) {
+    final now = DateTime.now();
+    final todayTrades = pendingTrades.where((t) {
+      final created = _glanceCreated(t);
+      return created != null &&
+          created.year == now.year &&
+          created.month == now.month &&
+          created.day == now.day;
+    }).toList();
+
+    // Volume locked in escrow today
+    final todayVolume = todayTrades.fold<double>(
+        0, (s, t) => s + ((t['amountFiat'] as num?)?.toDouble() ?? 0));
+
+    // Avg response time (createdAt → first status change, in minutes)
+    double avgResponseMin = 0;
+    final responseTimes = <double>[];
+    for (final t in todayTrades) {
+      final created = _glanceCreated(t);
+      final accepted =
+          DateTime.tryParse(t['acceptedAt']?.toString() ?? '');
+      if (created != null && accepted != null) {
+        responseTimes.add(accepted.difference(created).inSeconds / 60.0);
+      }
+    }
+    if (responseTimes.isNotEmpty) {
+      avgResponseMin =
+          responseTimes.reduce((a, b) => a + b) / responseTimes.length;
+    }
+
+    final stats = [
+      _GlanceStat(
+        icon: HugeIconsSolid.shoppingBag01,
+        label: 'Today\'s Trades',
+        value: '${todayTrades.length}',
+        color: colors.accent,
+      ),
+      _GlanceStat(
+        icon: HugeIconsSolid.exchange01,
+        label: 'Today\'s Volume',
+        value: '\$${_fmt(todayVolume)}',
+        color: colors.success,
+      ),
+      _GlanceStat(
+        icon: HugeIconsSolid.wallet01,
+        label: 'Escrow Locked',
+        value: '\$${_fmt(_escrowLockedBalance)}',
+        color: colors.warning,
+      ),
+      _GlanceStat(
+        icon: HugeIconsSolid.clock01,
+        label: 'Avg Response',
+        value: responseTimes.isEmpty
+            ? '–'
+            : '${avgResponseMin.toStringAsFixed(1)} min',
+        color: colors.textSecondary,
+      ),
+      _GlanceStat(
+        icon: HugeIconsSolid.checkmarkCircle01,
+        label: 'Available',
+        value: '\$${_fmt(_availableBalance)}',
+        color: colors.success,
+      ),
+    ];
+
+    return SizedBox(
+      height: 88,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        itemCount: stats.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final s = stats[i];
+          return Container(
+            width: 130,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colors.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(s.icon, size: 13, color: s.color),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        s.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  s.value,
+                  style: TextStyle(
+                    color: s.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Extract the created timestamp from a pendingTrades entry. The maps store
+  /// it under `timestamp` as a DateTime (see _fetchPendingTrades), with an ISO
+  /// `createdAt` fallback for any payload that uses that key instead.
+  DateTime? _glanceCreated(Map<String, dynamic> t) {
+    final ts = t['timestamp'];
+    if (ts is DateTime) return ts;
+    return DateTime.tryParse(
+        t['timestamp']?.toString() ?? t['createdAt']?.toString() ?? '');
+  }
+
+  String _fmt(double v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
+  }
 
   Widget _buildPremiumHeader(Color gold, Color green) {
     return Padding(
@@ -1284,6 +1432,20 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       ),
     );
   }
+}
+
+// "Today at a Glance" stat descriptor (P2P Premium Sprint, 2026-06-21).
+class _GlanceStat {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _GlanceStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 }
 
 // --- Phase E2: Ad Boost Bottom Sheet ---

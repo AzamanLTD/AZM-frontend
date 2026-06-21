@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/trade_countdown_chip.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class TradesTabScreen extends ConsumerStatefulWidget {
@@ -166,6 +167,9 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
     final crypto = trade['crypto'] ?? 'USDT';
     final type = trade['type'] ?? 'SELL';
     final createdAt = trade['createdAt'] != null ? DateTime.tryParse(trade['createdAt'].toString()) : null;
+    // Live expiry countdown (only meaningful on active trades that carry a
+    // deadline field). Null → the chip is omitted entirely.
+    final deadlineMs = isActive ? _deadlineMsFor(trade) : null;
 
     final statusColor = _getStatusColor(status, colors);
     final statusIcon = _getStatusIcon(status);
@@ -223,6 +227,10 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                         ),
                       ),
                       const Spacer(),
+                      if (deadlineMs != null) ...[
+                        TradeCountdownChip(deadlineUtcMs: deadlineMs),
+                        const SizedBox(width: 8),
+                      ],
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -262,6 +270,29 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
         ),
       ),
     );
+  }
+
+  /// Resolve the trade's expiry deadline as a UTC epoch in milliseconds.
+  /// Accepts either a numeric `deadlineUtcMs` or an ISO timestamp under one of
+  /// the common deadline keys the /trades/history payload may use. Returns null
+  /// when no deadline is present (so the countdown chip is simply omitted rather
+  /// than showing a misleading "Expired").
+  int? _deadlineMsFor(Map<String, dynamic> trade) {
+    final ms = trade['deadlineUtcMs'];
+    if (ms is num) return ms.toInt();
+    for (final key in const [
+      'expiresAt',
+      'deadline',
+      'paymentDeadline',
+      'expiryAt',
+    ]) {
+      final v = trade[key];
+      if (v != null) {
+        final dt = DateTime.tryParse(v.toString());
+        if (dt != null) return dt.millisecondsSinceEpoch;
+      }
+    }
+    return null;
   }
 
   Widget _emptyState(AzamanColors colors, IconData icon, String title, String subtitle) {

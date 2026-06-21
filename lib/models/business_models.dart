@@ -169,6 +169,12 @@ class BusinessProfile {
   final double averageRating;
   final String username;
   final String? userProfilePictureUrl;
+  // Marketplace Premium Upgrade (2026-06-21): the public getBusinessByBizId /
+  // search payloads may embed the business's products + locations. Used by the
+  // premium BusinessCard for the cover photo, "from X USDC" anchor and the
+  // "Open Now" badge. Default to empty when the payload omits them.
+  final List<BusinessProduct> products;
+  final List<BusinessLocation> locations;
 
   const BusinessProfile({
     required this.id,
@@ -192,6 +198,8 @@ class BusinessProfile {
     this.address,
     this.country,
     this.userProfilePictureUrl,
+    this.products = const [],
+    this.locations = const [],
   });
 
   String get categoryLabel => BusinessCategories.labelFor(category);
@@ -201,6 +209,14 @@ class BusinessProfile {
     final user = json['user'] is Map<String, dynamic>
         ? json['user'] as Map<String, dynamic>
         : const <String, dynamic>{};
+    final products = (json['products'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(BusinessProduct.fromJson)
+        .toList();
+    final locations = (json['locations'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(BusinessLocation.fromJson)
+        .toList();
     return BusinessProfile(
       id: json['id'].toString(),
       bizId: (json['bizId'] ?? '').toString(),
@@ -223,6 +239,8 @@ class BusinessProfile {
       averageRating: _toDouble(json['averageRating']),
       username: (user['username'] ?? '').toString(),
       userProfilePictureUrl: user['profilePictureUrl']?.toString(),
+      products: products,
+      locations: locations,
     );
   }
 }

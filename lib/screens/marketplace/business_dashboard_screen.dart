@@ -10,6 +10,7 @@
 
 import 'dart:io';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,6 +136,8 @@ class _BusinessDashboardScreenState
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (!profile.isKybVerified) _kybBanner(colors, profile),
+                  if (_stats != null) _revenueChart(colors),
+                  if (_stats != null) const SizedBox(height: 20),
                   _statsGrid(colors),
                   const SizedBox(height: 20),
                   _quickActions(colors, profile),
@@ -365,6 +368,147 @@ class _BusinessDashboardScreenState
                 ),
               )),
       ],
+    );
+  }
+
+  // 7-day revenue bar chart (Marketplace Premium Upgrade, 2026-06-21).
+  // Aggregates BusinessStats.recentOrders by day-of-week over the last 7 days.
+  Widget _revenueChart(AzamanColors colors) {
+    final orders = _stats?.recentOrders ?? const [];
+    if (orders.isEmpty) return const SizedBox.shrink();
+    // Build a day-of-week aggregation for the last 7 days.
+    // Key = "Mon", "Tue", etc. Value = sum of order amounts.
+    final now = DateTime.now();
+    final days = List.generate(7, (i) {
+      final d = now.subtract(Duration(days: 6 - i));
+      return d;
+    });
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final Map<String, double> totals = {};
+    for (final d in days) {
+      totals[dayLabels[d.weekday % 7]] = 0;
+    }
+    for (final o in orders) {
+      final key = dayLabels[o.createdAt.weekday % 7];
+      totals[key] = (totals[key] ?? 0) + o.amountUsdc;
+    }
+    final bars = days.asMap().entries.map((entry) {
+      final label = dayLabels[entry.value.weekday % 7];
+      final value = totals[label] ?? 0;
+      return BarChartGroupData(
+        x: entry.key,
+        barRods: [
+          BarChartRodData(
+            toY: value,
+            color: colors.accent,
+            width: 18,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: (totals.values.isEmpty
+                      ? 1
+                      : totals.values.reduce((a, b) => a > b ? a : b)) *
+                  1.2,
+              color: colors.softSurface,
+            ),
+          ),
+        ],
+      );
+    }).toList();
+    final maxY = totals.values.isEmpty
+        ? 10.0
+        : (totals.values.reduce((a, b) => a > b ? a : b) * 1.3)
+            .clamp(1.0, double.infinity);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '7-Day Revenue',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'USDC  ·  last 7 days',
+            style: TextStyle(color: colors.textTertiary, fontSize: 11),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 140,
+            child: BarChart(
+              BarChartData(
+                maxY: maxY,
+                barGroups: bars,
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: maxY / 4,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: colors.divider,
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  topTitles:
+                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 36,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toStringAsFixed(0),
+                        style: TextStyle(
+                            color: colors.textTertiary, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, _) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= days.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          dayLabels[days[i].weekday % 7],
+                          style: TextStyle(
+                              color: colors.textTertiary, fontSize: 10),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+                      '${rod.toY.toStringAsFixed(2)} USDC',
+                      TextStyle(
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
