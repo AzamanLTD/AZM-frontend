@@ -46,6 +46,18 @@ import 'package:azaman/screens/susu/liability_acceptance_screen.dart';
 import 'package:azaman/screens/susu/proof_of_residency_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
+// V3 Marketplace Sprint (2026-06-21) — Premium Marketplace surfaces.
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/screens/marketplace/business_profile_screen.dart';
+import 'package:azaman/screens/marketplace/business_search_screen.dart';
+import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
+import 'package:azaman/screens/marketplace/business_register_screen.dart';
+import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
+import 'package:azaman/screens/marketplace/business_products_screen.dart';
+import 'package:azaman/screens/marketplace/my_orders_screen.dart';
+import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
+import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
+import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -209,6 +221,79 @@ final GoRouter appRouter = GoRouter(
       name: 'susu-contract',
       builder: (context, state) => LiabilityAcceptanceScreen(
         susuId: state.pathParameters['id']!,
+      ),
+    ),
+
+    // ── V3 Premium Marketplace (2026-06-21) ─────────────────────────────────
+    // NOTE: the existing `/marketplace` route is the P2P crypto market (FCM
+    // `OPEN_AD` targets it), so the new *business* marketplace is mounted under
+    // `/business-market` to avoid hijacking it. The `/business/:bizId`
+    // catch-style route MUST stay last among the `/business/...` group so the
+    // literal sub-routes (search / register / notifications / :bizId/products)
+    // win over it.
+    GoRoute(
+      path: '/business-market',
+      name: 'business-market',
+      builder: (_, __) => const MarketplaceHomeScreen(),
+    ),
+    GoRoute(
+      path: '/business-market/orders',
+      name: 'business-market-orders',
+      builder: (_, __) => const MyOrdersScreen(),
+    ),
+    GoRoute(
+      path: '/business-market/invoices',
+      name: 'business-market-invoices',
+      builder: (_, __) => const MyInvoicesScreen(),
+    ),
+    GoRoute(
+      path: '/business-market/invoices/:invoiceId',
+      name: 'invoice-detail',
+      builder: (_, state) => InvoiceDetailScreen(
+        invoiceId: state.pathParameters['invoiceId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/dashboard',
+      name: 'business-market-dashboard',
+      builder: (_, __) => const BusinessDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/business/search',
+      name: 'business-search',
+      builder: (_, __) => const BusinessSearchScreen(),
+    ),
+    // Saved businesses wishlist (Marketplace Premium Upgrade, 2026-06-21).
+    // Mounted under /biz/ (not /business/) so it never collides with the
+    // `/business/:bizId` catch route below.
+    GoRoute(
+      path: '/biz/saved',
+      name: 'saved-businesses',
+      builder: (_, __) => const SavedBusinessesScreen(),
+    ),
+    GoRoute(
+      path: '/business/register',
+      name: 'business-register',
+      builder: (_, __) => const BusinessRegisterScreen(),
+    ),
+    GoRoute(
+      path: '/business/notifications',
+      name: 'business-notifications',
+      builder: (_, __) => const BusinessNotificationsScreen(),
+    ),
+    GoRoute(
+      path: '/business/:bizId/products',
+      name: 'business-products',
+      builder: (_, state) => BusinessProductsScreen(
+        bizId: state.pathParameters['bizId']!,
+        businessName: state.uri.queryParameters['name'],
+      ),
+    ),
+    GoRoute(
+      path: '/business/:bizId',
+      name: 'business-profile',
+      builder: (_, state) => BusinessProfileScreen(
+        bizId: state.pathParameters['bizId']!,
       ),
     ),
   ],

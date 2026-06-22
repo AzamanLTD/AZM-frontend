@@ -357,20 +357,117 @@ final adsProvider =
 //      off, backend ordering (pricePerUSD ascending) is preserved.
 // ─────────────────────────────────────────────────────────────────────────────
 final filteredAdsProvider = Provider<AsyncValue<List<AdListing>>>((ref) {
-  final adsAsync = ref.watch(adsProvider);
+  final raw = ref.watch(adsProvider);
   final aiFilter = ref.watch(aiFilterProvider);
   final side = ref.watch(userSideProvider);
+  final filters = ref.watch(p2pFiltersProvider);
 
-  return adsAsync.whenData((ads) {
-    // Step 1: user-side tab filter.
-    final wantedAdType = side == UserSide.buy ? 'SELL' : 'BUY';
-    final tabFiltered = ads.where(
-      (a) => a.adType.toUpperCase() == wantedAdType,
-    ).toList();
+  return raw.whenData((ads) {
+    // Step 1: user-side tab filter (Buy tab → SELL ads, Sell tab → BUY ads)
+    var result = ads
+        .where((a) => side == UserSide.buy ? a.isSellAd : a.isBuyAd)
+        .toList();
 
-    // Step 2: AI re-rank (when on).
-    if (!aiFilter) return tabFiltered;
-    tabFiltered.sort((a, b) => b.aiScore.compareTo(a.aiScore));
-    return tabFiltered;
+    // Step 2: payment method filter
+    if (filters.paymentMethods.isNotEmpty) {
+      result = result
+          .where((a) =>
+              filters.paymentMethods.contains(a.paymentMethod.toUpperCase()))
+          .toList();
+    }
+
+    // Step 3: amount range filter — keep ads whose limit range overlaps
+    if (filters.minAmount != null) {
+      result = result.where((a) => a.maxLimit >= filters.minAmount!).toList();
+    }
+    if (filters.maxAmount != null) {
+      result = result.where((a) => a.minLimit <= filters.maxAmount!).toList();
+    }
+
+    // Step 4: completion rate floor
+    if (filters.minCompletionRate > 0) {
+      result = result
+          .where((a) => a.completionRate >= filters.minCompletionRate)
+          .toList();
+    }
+
+    // Step 5: online-only
+    if (filters.onlineOnly) {
+      result = result.where((a) => a.isOnline).toList();
+    }
+
+    // Step 6: AI sort (when AI filter is on, sort by aiScore desc)
+    if (aiFilter) {
+      result.sort((a, b) => b.aiScore.compareTo(a.aiScore));
+    }
+
+    return result;
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P2P Advanced Filters (P2P Premium Sprint, 2026-06-21)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Immutable value object for the P2P filter sheet state.
+class P2PFilters {
+  /// Selected payment methods (empty = all).
+  final Set<String> paymentMethods;
+
+  /// Min trade amount in USD (null = no floor).
+  final double? minAmount;
+
+  /// Max trade amount in USD (null = no ceiling).
+  final double? maxAmount;
+
+  /// Minimum completion rate 0–1 (0 = no filter).
+  final double minCompletionRate;
+
+  /// Only show vendors currently online.
+  final bool onlineOnly;
+
+  const P2PFilters({
+    this.paymentMethods = const {},
+    this.minAmount,
+    this.maxAmount,
+    this.minCompletionRate = 0,
+    this.onlineOnly = false,
+  });
+
+  bool get isEmpty =>
+      paymentMethods.isEmpty &&
+      minAmount == null &&
+      maxAmount == null &&
+      minCompletionRate == 0 &&
+      !onlineOnly;
+
+  int get activeCount {
+    int n = 0;
+    if (paymentMethods.isNotEmpty) n++;
+    if (minAmount != null) n++;
+    if (maxAmount != null) n++;
+    if (minCompletionRate > 0) n++;
+    if (onlineOnly) n++;
+    return n;
+  }
+
+  P2PFilters copyWith({
+    Set<String>? paymentMethods,
+    Object? minAmount = _sentinel,
+    Object? maxAmount = _sentinel,
+    double? minCompletionRate,
+    bool? onlineOnly,
+  }) {
+    return P2PFilters(
+      paymentMethods: paymentMethods ?? this.paymentMethods,
+      minAmount: minAmount == _sentinel ? this.minAmount : minAmount as double?,
+      maxAmount: maxAmount == _sentinel ? this.maxAmount : maxAmount as double?,
+      minCompletionRate: minCompletionRate ?? this.minCompletionRate,
+      onlineOnly: onlineOnly ?? this.onlineOnly,
+    );
+  }
+}
+
+const _sentinel = Object();
+
+final p2pFiltersProvider = StateProvider<P2PFilters>((ref) => const P2PFilters());

@@ -137,10 +137,12 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                     _buildReceiptCard(formattedDate, colors),
                     const SizedBox(height: 16),
                     _buildDownloadReceiptButton(colors),
+                    const SizedBox(height: 8),
+                    _statusTimeline(colors),
                     const SizedBox(height: 30),
-                    if (!_hasReviewed) 
+                    if (!_hasReviewed)
                       _buildReviewSection(colors)
-                    else 
+                    else
                       _buildThankYouCard(colors),
                   ],
                 ),
@@ -426,6 +428,134 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
     }
   }
 
+  // ── Trade status timeline (P2P Premium Sprint, 2026-06-21) ─────────────────
+  Widget _statusTimeline(AzamanColors colors) {
+    final data = widget.tradeData;
+    final steps = [
+      _TimelineStep(
+          label: 'Trade Opened',
+          done: true,
+          time: data['createdAt']?.toString()),
+      _TimelineStep(
+          label: 'Payment Sent',
+          done: (data['isPaid'] ?? false) as bool,
+          time: data['paidAt']?.toString()),
+      _TimelineStep(
+          label: 'Payment Confirmed',
+          done: (data['isCompleted'] ?? false) as bool,
+          time: data['completedAt']?.toString()),
+      _TimelineStep(
+          label: 'Released to Wallet',
+          done: (data['isCompleted'] ?? false) as bool,
+          time: data['releasedAt']?.toString()),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TRADE TIMELINE',
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < steps.length; i++) ...[
+            _timelineRow(steps[i],
+                isLast: i == steps.length - 1, colors: colors),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _timelineRow(_TimelineStep step,
+      {required bool isLast, required AzamanColors colors}) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left: dot + connector line
+          SizedBox(
+            width: 24,
+            child: Column(
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: step.done ? colors.success : colors.softSurface,
+                    border: Border.all(
+                      color: step.done ? colors.success : colors.divider,
+                      width: 2,
+                    ),
+                  ),
+                  child: step.done
+                      ? const Icon(Icons.check, size: 10, color: Colors.white)
+                      : null,
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: step.done
+                          ? colors.success.withValues(alpha: 0.4)
+                          : colors.divider,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Right: label + time
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    step.label,
+                    style: TextStyle(
+                      color:
+                          step.done ? colors.textPrimary : colors.textTertiary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (step.time != null && step.time!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatTime(step.time!),
+                      style:
+                          TextStyle(color: colors.textTertiary, fontSize: 11),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(String iso) {
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    return '${local.day}/${local.month}  $h:$m';
+  }
+
   Widget _buildBottomBar(AzamanColors colors) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -454,4 +584,11 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
       ),
     );
   }
+}
+
+class _TimelineStep {
+  final String label;
+  final bool done;
+  final String? time;
+  const _TimelineStep({required this.label, required this.done, this.time});
 }

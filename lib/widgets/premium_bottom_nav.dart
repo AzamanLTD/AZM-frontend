@@ -37,6 +37,12 @@ const _kNavItems = [
     activeIcon: HugeIconsSolid.piggyBank,
     label: 'Savings',
   ),
+  // V3 Marketplace Sprint (2026-06-21): 5th tab — Premium Marketplace.
+  _NavItem(
+    icon: HugeIconsStroke.store01,
+    activeIcon: HugeIconsSolid.store01,
+    label: 'Market',
+  ),
 ];
 
 class PremiumBottomNav extends ConsumerWidget {

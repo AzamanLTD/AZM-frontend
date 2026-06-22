@@ -10,8 +10,10 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/vendor_ad_creator.dart';
 import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
+import 'package:azaman/screens/p2p/p2p_filter_sheet.dart';
 import 'package:azaman/widgets/vendor_ad_card.dart';
 import 'package:azaman/widgets/ad_detail_flip_card.dart';
+import 'package:azaman/widgets/p2p_market_summary_bar.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 const double _kSegmentHeaderHeight = 56.0;
@@ -60,6 +62,45 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const SizedBox.shrink(),
+        actions: [
+          Consumer(
+            builder: (_, ref, __) {
+              final filters = ref.watch(p2pFiltersProvider);
+              final count = filters.activeCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(HugeIconsSolid.filterHorizontal,
+                        color: colors.textPrimary, size: 20),
+                    onPressed: () => P2PFilterSheet.show(context),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            color: colors.isDark ? Colors.black : Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
@@ -89,6 +130,13 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _SegmentHeaderDelegate(colors: colors),
+            ),
+            // Market depth / liquidity summary (P2P Premium Sprint).
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: P2PMarketSummaryBar(),
+              ),
             ),
             adsAsync.when(
               loading: () => const SliverToBoxAdapter(child: _LoadingShimmer()),
