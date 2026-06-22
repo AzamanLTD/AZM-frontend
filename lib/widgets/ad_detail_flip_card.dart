@@ -251,7 +251,11 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
               top: top + dragOffset,
               width: width,
               height: height,
-              child: Transform(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  ui.lerpDouble(12, 22, t) ?? 12,
+                ),
+                child: Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
                   ..setEntry(3, 2, 0.001)
@@ -279,6 +283,7 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
                         : _FrontFace(ad: widget.ad, colors: colors),
                   ),
                 ),
+              ),
               ),
             ),
           ],
@@ -321,59 +326,77 @@ class _FrontFace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _Avatar(initial: ad.vendorUsername, colors: colors),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ad.vendorUsername,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+    final method = ad.paymentMethod.trim();
+    final title = method.isEmpty
+        ? method
+        : '${method[0].toUpperCase()}${method.substring(1).toLowerCase()}';
+
+    return ColoredBox(
+      color: colors.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 15, 16, 15),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${ad.completedTrades} trades · ${(ad.completionRate * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${ad.vendorUsername} · '
+                    '\$${ad.minLimit.toStringAsFixed(0)}–'
+                    '\$${ad.maxLimit.toStringAsFixed(0)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            '${ad.paymentMethod}  ·  ${ad.isSellAd ? "SELL" : "BUY"}',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Limit: \$${ad.minLimit.toStringAsFixed(0)} – \$${ad.maxLimit.toStringAsFixed(0)}',
-            style: TextStyle(color: colors.textSecondary, fontSize: 12),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Text(
+              '${_fmt(ad.availableUsdc)} USDC',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.4,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  String _fmt(double v) {
+    if (v >= 1000) {
+      final s = v.toStringAsFixed(0);
+      final buffer = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) buffer.write(',');
+        buffer.write(s[i]);
+      }
+      return buffer.toString();
+    }
+    return v.toStringAsFixed(2);
   }
 }
 

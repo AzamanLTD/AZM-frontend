@@ -14,7 +14,7 @@ import 'package:azaman/widgets/vendor_ad_card.dart';
 import 'package:azaman/widgets/ad_detail_flip_card.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-const double _kSegmentHeaderHeight = 64.0;
+const double _kSegmentHeaderHeight = 56.0;
 
 class P2PMarketListScreen extends ConsumerStatefulWidget {
   const P2PMarketListScreen({super.key});
@@ -48,9 +48,10 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
     final adsAsync = ref.watch(filteredAdsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -58,16 +59,7 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
               color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        titleSpacing: 0,
-        title: Text(
-          'Buy & sell USDC',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
+        title: const SizedBox.shrink(),
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
@@ -79,6 +71,21 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: Text(
+                  'Buy & sell USDC',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    height: 1.08,
+                  ),
+                ),
+              ),
+            ),
             SliverPersistentHeader(
               pinned: true,
               delegate: _SegmentHeaderDelegate(colors: colors),
@@ -87,7 +94,7 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
               loading: () => const SliverToBoxAdapter(child: _LoadingShimmer()),
               error: (e, _) => SliverFillRemaining(
                 hasScrollBody: false,
-                child: _ErrorView(message: e.toString(), onRetry: _onRefresh),
+                child: _ErrorView(onRetry: _onRefresh),
               ),
               data: (ads) {
                 if (ads.isEmpty) {
@@ -106,21 +113,36 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
                     ),
                   );
                 }
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => KeyedSubtree(
-                      key: _keyFor(ads[index].id),
-                      child: VendorAdCard(
-                        ad: ads[index],
-                        onTap: () => _onCardTapped(
-                          context,
-                          ads[index],
-                          colors,
-                          cardKey: _keyFor(ads[index].id),
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Column(
+                          children: [
+                            for (int i = 0; i < ads.length; i++)
+                              KeyedSubtree(
+                                key: _keyFor(ads[i].id),
+                                child: VendorAdCard(
+                                  ad: ads[i],
+                                  showDivider: i < ads.length - 1,
+                                  onTap: () => _onCardTapped(
+                                    context,
+                                    ads[i],
+                                    colors,
+                                    cardKey: _keyFor(ads[i].id),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
-                    childCount: ads.length,
                   ),
                 );
               },
@@ -244,9 +266,8 @@ class _SegmentHeaderDelegate extends SliverPersistentHeaderDelegate {
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: colors.background,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      alignment: Alignment.centerLeft,
+      color: colors.surface,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: const _UserSideSegment(),
     );
   }
@@ -263,39 +284,43 @@ class _UserSideSegment extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     final side = ref.watch(userSideProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colors.softSurface,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _segment(
-            colors: colors,
-            label: 'Buy',
-            selected: side == UserSide.buy,
-            activeColor: colors.success,
-            onTap: () {
-              if (side == UserSide.buy) return;
-              HapticFeedback.selectionClick();
-              ref.read(userSideProvider.notifier).state = UserSide.buy;
-            },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth > 0 ? constraints.maxWidth : 320.0;
+        return Container(
+          width: width,
+          height: 36,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(9),
           ),
-          _segment(
-            colors: colors,
-            label: 'Sell',
-            selected: side == UserSide.sell,
-            activeColor: colors.danger,
-            onTap: () {
-              if (side == UserSide.sell) return;
-              HapticFeedback.selectionClick();
-              ref.read(userSideProvider.notifier).state = UserSide.sell;
-            },
+          child: Row(
+            children: [
+              _segment(
+                colors: colors,
+                label: 'Buy',
+                selected: side == UserSide.buy,
+                onTap: () {
+                  if (side == UserSide.buy) return;
+                  HapticFeedback.selectionClick();
+                  ref.read(userSideProvider.notifier).state = UserSide.buy;
+                },
+              ),
+              _segment(
+                colors: colors,
+                label: 'Sell',
+                selected: side == UserSide.sell,
+                onTap: () {
+                  if (side == UserSide.sell) return;
+                  HapticFeedback.selectionClick();
+                  ref.read(userSideProvider.notifier).state = UserSide.sell;
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -303,27 +328,28 @@ class _UserSideSegment extends ConsumerWidget {
     required AzamanColors colors,
     required String label,
     required bool selected,
-    required Color activeColor,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? colors.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? activeColor : colors.textTertiary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? colors.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? colors.textPrimary : colors.textTertiary,
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),
@@ -331,56 +357,74 @@ class _UserSideSegment extends ConsumerWidget {
   }
 }
 
-class _LoadingShimmer extends ConsumerStatefulWidget {
+class _LoadingShimmer extends ConsumerWidget {
   const _LoadingShimmer();
-  @override
-  ConsumerState<_LoadingShimmer> createState() => _LoadingShimmerState();
-}
-
-class _LoadingShimmerState extends ConsumerState<_LoadingShimmer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
 
   @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1400))
-      ..repeat();
-    _anim = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Column(
-        children: List.generate(
-          4,
-          (i) => Container(
-            height: 150,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: LinearGradient(
-                begin: Alignment(_anim.value - 1, 0),
-                end: Alignment(_anim.value + 1, 0),
-                colors: [
-                  colors.softSurface,
-                  colors.card,
-                  colors.softSurface,
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: List.generate(
+            3,
+            (i) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 15),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 14,
+                              width: 96,
+                              decoration: BoxDecoration(
+                                color: colors.divider.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 11,
+                              width: 140,
+                              decoration: BoxDecoration(
+                                color: colors.divider.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        height: 14,
+                        width: 72,
+                        decoration: BoxDecoration(
+                          color: colors.divider.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                if (i < 2)
+                  Divider(
+                    height: 0,
+                    thickness: 0.5,
+                    indent: 20,
+                    color: colors.divider.withValues(alpha: 0.65),
+                  ),
+              ],
             ),
           ),
         ),
@@ -390,9 +434,8 @@ class _LoadingShimmerState extends ConsumerState<_LoadingShimmer>
 }
 
 class _ErrorView extends ConsumerWidget {
-  final String message;
   final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({required this.onRetry});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -403,34 +446,26 @@ class _ErrorView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.softSurface,
+            Icon(HugeIconsSolid.cloud, size: 28, color: colors.textTertiary),
+            const SizedBox(height: 16),
+            Text(
+              'Markets unavailable',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
               ),
-              child: Icon(HugeIconsSolid.cloud,
-                  size: 32, color: colors.textTertiary),
             ),
-            const SizedBox(height: 18),
-            Text('Could not load markets',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3)),
             const SizedBox(height: 6),
-            Text(message,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+            Text(
+              'Pull to refresh.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 15),
+            ),
             const SizedBox(height: 20),
             _SoftPill(
               colors: colors,
-              label: 'Try again',
+              label: 'Retry',
               primary: true,
               onTap: onRetry,
             ),
@@ -451,8 +486,6 @@ class _EmptyState extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final isVendor = ref.watch(isVendorProvider);
-    final side = ref.watch(userSideProvider);
-    final isBuyTab = side == UserSide.buy;
 
     return Center(
       child: ConstrainedBox(
@@ -463,60 +496,41 @@ class _EmptyState extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 84,
-                height: 84,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.softSurface,
-                ),
-                child: Icon(
-                  HugeIconsSolid.store01,
-                  size: 34,
-                  color: colors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 22),
               Text(
-                isBuyTab ? 'No buy markets yet' : 'No sell markets yet',
+                'No offers',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.4,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 isVendor
-                    ? (isBuyTab
-                        ? 'Be the first to sell USDC. Post a sell ad and your inventory shows up here for buyers.'
-                        : 'Be the first to buy USDC. Post a buy ad and your bid shows up here for sellers.')
-                    : (isBuyTab
-                        ? 'No vendors selling USDC right now. Pull to refresh, or check back in a moment.'
-                        : 'No vendors buying USDC right now. Pull to refresh, or switch to the Buy tab.'),
+                    ? 'Post the first ad to get started.'
+                    : 'Check back soon or pull to refresh.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: colors.textTertiary,
-                  fontSize: 13.5,
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                  height: 1.35,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               if (isVendor)
                 _SoftPill(
                   colors: colors,
-                  label: 'Create first ad',
+                  label: 'Create ad',
                   primary: true,
                   onTap: onCreateAd,
                 )
               else
                 _SoftPill(
                   colors: colors,
-                  label: 'Refresh markets',
+                  label: 'Refresh',
                   primary: false,
                   onTap: onRefresh,
                 ),

@@ -11,6 +11,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
+import 'package:azaman/widgets/google_logo.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -375,8 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         const SizedBox(height: 12),
         _ssoButton(
           label: 'Continue with Google',
-          icon: HugeIconsSolid.google,
-          iconColor: const Color(0xFF4285F4),
+          leading: const GoogleLogo(size: 22),
           bgColor: Colors.white,
           borderColor: Colors.transparent,
           onTap: () => _signInWithSso(SsoProvider.google),
@@ -651,12 +651,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Widget _ssoButton({
     required String label,
-    required IconData icon,
-    required Color iconColor,
+    IconData? icon,
+    Color? iconColor,
+    Widget? leading,
     required Color bgColor,
     required Color borderColor,
     required VoidCallback onTap,
   }) {
+    assert(icon != null || leading != null);
     return SizedBox(
       height: 50,
       child: OutlinedButton(
@@ -676,7 +678,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 22, color: iconColor),
+            leading ?? Icon(icon!, size: 22, color: iconColor),
             const SizedBox(width: 10),
             Text(
               label,
