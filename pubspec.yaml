@@ -120,6 +120,7 @@ dependencies:
   # multi-controller geometry (e.g. the credit-card titanium sweep,
   # the in-place flip overlay) is allowed to keep its own controller.
   flutter_animate: ^4.5.0
+  flutter_svg: ^2.3.0
 
   # --- FLUTTER V3 MARKETPLACE SPRINT (2026-06-21) ---
   # `geolocator` resolves the user's GPS coordinates for the "Near You"
@@ -142,6 +143,7 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - assets/icons/
 
 dependency_overrides:
   objective_c: 9.3.0
