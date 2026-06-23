@@ -360,11 +360,41 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   final _amountController = TextEditingController();
   String _selectedProvider = 'MTN_MOMO';
   String? _selectedAccountId;
+  SavedMomoAccount? _selectedAccount;
   bool _isSubmitting = false;
   Map<String, dynamic>? _depositResult;
 
+  // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
+  // Name-validation dialog + OTP branch (Moolre TP14 returns requiresOtp).
+  String? _resolvedName;
+  bool _isValidatingName = false;
+  bool _requiresOtp = false;
+  String? _pendingReference;
+  final _otpController = TextEditingController();
+  bool _isConfirmingOtp = false;
+
   @override
   bool get wantKeepAlive => true;
+
+  /// Map the canonical saved-account provider (MTN | VODAFONE | TELECEL) to the
+  /// enum the backend's `initiateMoolreFiatDeposit` MOMO set accepts
+  /// (MTN_MOMO | VODAFONE_CASH | AIRTELTIGO). Telecel is the Vodafone Ghana
+  /// rebrand — the backend treats VODAFONE and TELECEL as the same channel —
+  /// so both map to VODAFONE_CASH. The same enum is accepted by
+  /// `/deposit/validate-name`, so one mapping serves both calls.
+  String _backendProvider(String provider) {
+    switch (provider) {
+      case 'MTN':
+        return 'MTN_MOMO';
+      case 'VODAFONE':
+      case 'TELECEL':
+        return 'VODAFONE_CASH';
+      case 'AIRTELTIGO':
+        return 'AIRTELTIGO';
+      default:
+        return '${provider}_MOMO';
+    }
+  }
 
   @override
   void initState() {
@@ -387,7 +417,61 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   @override
   void dispose() {
     _amountController.dispose();
+    _otpController.dispose();
     super.dispose();
+  }
+
+  /// Resolve the registered account name via Moolre, show a confirmation
+  /// dialog, then proceed to the deposit. Name validation is best-effort —
+  /// if it fails we proceed without it rather than block the deposit.
+  Future<void> _validateAndConfirm() async {
+    final account = _selectedAccount;
+    if (account == null) return;
+
+    setState(() => _isValidatingName = true);
+    try {
+      final resp = await apiClient.post('/deposit/validate-name', {
+        'phoneNumber': account.phoneNumber,
+        'provider': _backendProvider(account.provider),
+      });
+      final body = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && body['data'] != null) {
+        setState(() => _resolvedName = body['data'] as String?);
+      }
+    } catch (_) {
+      // Name validation is optional — proceed without it if it fails.
+    } finally {
+      if (mounted) setState(() => _isValidatingName = false);
+    }
+
+    if (_resolvedName != null && mounted) {
+      final colors = ref.read(themeProvider).colors;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text('Confirm account',
+              style: TextStyle(color: colors.textPrimary)),
+          content: Text(
+            'Paying to: $_resolvedName\nIs this correct?',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Confirm', style: TextStyle(color: colors.accent)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    await _initiateDeposit();
   }
 
   Future<void> _initiateDeposit() async {
@@ -398,35 +482,53 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
       return;
     }
+    final account = _selectedAccount;
+    if (account == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a payment account')));
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     try {
-      final response = await apiClient.post('/deposit/fiat/initiate', {
+      // All saved accounts in this picker are Mobile Money (MTN / Vodafone /
+      // Telecel), so every deposit routes through the Moolre PIN-push on-ramp.
+      final body = <String, dynamic>{
         'amountGhs': amount,
-        'provider': _selectedProvider,
-        if (_selectedAccountId != null) 'savedAccountId': _selectedAccountId,
-        // Susu memo trace (Req 12.4) — the BE persists this on the
-        // resulting deposit's transaction metadata so operators can
-        // tie a deposit back to the cycle reminder that prompted it.
+        'provider': _backendProvider(account.provider),
+        'phoneNumber': account.phoneNumber,
+        // Susu memo trace (Req 12.4) — persisted into the deposit's metadata
+        // server-side so operators can tie a deposit back to the cycle
+        // reminder that prompted it.
         if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
-      });
-      final body = jsonDecode(response.body);
+      };
+      final response =
+          await apiClient.post('/deposit/fiat/initiate/moolre', body);
+      final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         HapticFeedback.heavyImpact();
-        setState(() {
-          _depositResult = (body['data'] is Map<String, dynamic>)
-              ? body['data'] as Map<String, dynamic>
-              : body as Map<String, dynamic>;
-          _isSubmitting = false;
-        });
+        if (data['requiresOtp'] == true) {
+          setState(() {
+            _isSubmitting = false;
+            _requiresOtp = true;
+            _pendingReference = data['data']?['reference']?.toString();
+          });
+        } else {
+          setState(() {
+            _depositResult = (data['data'] is Map<String, dynamic>)
+                ? data['data'] as Map<String, dynamic>
+                : data as Map<String, dynamic>;
+            _isSubmitting = false;
+          });
+        }
       } else {
         setState(() => _isSubmitting = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                body['message']?.toString() ?? 'Failed to initiate deposit',
+                data['message']?.toString() ?? 'Failed to initiate deposit',
               ),
             ),
           );
@@ -442,9 +544,51 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     }
   }
 
+  /// Confirm a Moolre deposit that came back requiresOtp=true.
+  Future<void> _confirmOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.isEmpty) return;
+    setState(() => _isConfirmingOtp = true);
+    try {
+      final resp = await apiClient.post('/deposit/fiat/initiate/moolre/otp', {
+        'reference': _pendingReference,
+        'otpCode': otp,
+      });
+      final body = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && body['success'] == true) {
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _isConfirmingOtp = false;
+          _requiresOtp = false;
+          _depositResult = {'reference': _pendingReference};
+        });
+      } else {
+        setState(() => _isConfirmingOtp = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(body['message']?.toString() ?? 'OTP verification failed')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isConfirmingOtp = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   void _reset() {
     setState(() {
       _depositResult = null;
+      _requiresOtp = false;
+      _pendingReference = null;
+      _resolvedName = null;
+      _otpController.clear();
       _amountController.clear();
     });
   }
@@ -454,7 +598,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     super.build(context);
     final colors = ref.watch(themeProvider).colors;
 
-    return _depositResult != null ? _buildResult(colors) : _buildForm(colors);
+    return _requiresOtp
+        ? _buildOtpEntry(colors)
+        : _depositResult != null
+            ? _buildResult(colors)
+            : _buildForm(colors);
   }
 
   // ── Form ───────────────────────────────────────────────────────────────────
@@ -538,7 +686,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                                     selected: _selectedAccountId == a.id,
                                     onTap: () => setState(() {
                                       _selectedAccountId = a.id;
-                                      _selectedProvider = '${a.provider}_MOMO';
+                                      _selectedAccount = a;
+                                      _selectedProvider = a.provider;
                                     }),
                                   ),
                                 ),
@@ -619,11 +768,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   const SizedBox(height: 16),
                   _PrimaryButton(
                     colors: colors,
-                    label: _isSubmitting ? 'Sending prompt...' : 'Send deposit prompt',
-                    onTap: (_isSubmitting || _selectedAccountId == null)
+                    label: _isValidatingName
+                        ? 'Checking account...'
+                        : _isSubmitting
+                            ? 'Sending prompt...'
+                            : 'Send deposit prompt',
+                    onTap: (_isSubmitting ||
+                            _isValidatingName ||
+                            _selectedAccountId == null)
                         ? null
-                        : _initiateDeposit,
-                    isBusy: _isSubmitting,
+                        : _validateAndConfirm,
+                    isBusy: _isSubmitting || _isValidatingName,
                   ),
                   const SizedBox(height: 10),
                   Center(
@@ -723,6 +878,74 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             colors: colors,
             label: 'Start another deposit',
             onTap: _reset,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── OTP entry ───────────────────────────────────────────────────────────────
+  // Shown when Moolre returns requiresOtp=true (TP14). The user enters the code
+  // sent to their registered phone; _confirmOtp posts it to the OTP endpoint.
+  Widget _buildOtpEntry(AzamanColors colors) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PanelHeading(
+            colors: colors,
+            eyebrow: 'Verification',
+            title: 'Enter OTP',
+            body: 'Enter the code sent to your registered phone to authorise '
+                'this deposit.',
+          ),
+          const SizedBox(height: 18),
+          _PanelCard(
+            colors: colors,
+            child: TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              maxLength: 6,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4,
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '••••••',
+                hintStyle: TextStyle(
+                  color: colors.textTertiary,
+                  letterSpacing: 4,
+                ),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _PrimaryButton(
+            colors: colors,
+            label: _isConfirmingOtp ? 'Verifying...' : 'Confirm deposit',
+            onTap: _isConfirmingOtp ? null : _confirmOtp,
+            isBusy: _isConfirmingOtp,
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton(
+              onPressed: _isConfirmingOtp
+                  ? null
+                  : () => setState(() {
+                        _requiresOtp = false;
+                        _pendingReference = null;
+                        _otpController.clear();
+                      }),
+              child: Text('Cancel',
+                  style: TextStyle(color: colors.textTertiary)),
+            ),
           ),
         ],
       ),
