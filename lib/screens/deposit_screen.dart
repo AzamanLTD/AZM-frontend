@@ -32,6 +32,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -372,6 +373,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   String? _pendingReference;
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
+  bool _depositConfirmed = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -412,10 +414,32 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         _amountController.text = raw;
       }
     }
+    SocketService.instance.onDepositSuccess(
+      (amountGhs, amountUsdc, provider, reference) {
+        if (!mounted) return;
+        final pendingRef = _pendingReference ??
+            (_depositResult?['reference']?.toString() ?? '');
+        if (pendingRef.isEmpty || reference != pendingRef) return;
+        setState(() => _depositConfirmed = true);
+        final colors = ref.read(themeProvider).colors;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✓ Deposit confirmed — GH₵ ${amountGhs.toStringAsFixed(2)} credited to your wallet',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: colors.success,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
+    SocketService.instance.onDepositSuccess((_a, _b, _c, _d) {});
     _amountController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -588,6 +612,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       _requiresOtp = false;
       _pendingReference = null;
       _resolvedName = null;
+      _depositConfirmed = false;
       _otpController.clear();
       _amountController.clear();
     });
@@ -842,6 +867,25 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   ),
                 ),
                 const SizedBox(height: 4),
+                if (_depositConfirmed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 14, color: colors.success),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Funds confirmed',
+                          style: TextStyle(
+                            color: colors.success,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Text(
                   'Prompt sent to $_selectedProvider',
                   style: TextStyle(

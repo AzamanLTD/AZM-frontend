@@ -99,6 +99,11 @@ class SocketService {
   /// so a single handler can fan out (the ticket workspace filters by ticket).
   void Function(Map<String, dynamic> data, String eventName)? _onEscrowEvent;
 
+  /// Deposit confirmed by payment provider webhook (Moolre on-ramp).
+  /// Called with: amountGhs, amountUsdc, provider, reference.
+  void Function(double amountGhs, double amountUsdc, String provider, String reference)?
+      _onDepositSuccess;
+
   // ── Registration methods ──────────────────────────────────────────────────
 
   void onAzmReward(
@@ -151,6 +156,11 @@ class SocketService {
 
   void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) {
     _onEscrowEvent = cb;
+  }
+
+  void onDepositSuccess(
+      void Function(double amountGhs, double amountUsdc, String provider, String reference) callback) {
+    _onDepositSuccess = callback;
   }
 
   // ── V3 Marketplace Sprint dispatch helpers ────────────────────────────────
@@ -384,10 +394,22 @@ class SocketService {
         }
       })
 
-      // ── deposit_success ─────────────────────────────────────────────────
+      // ── deposit_success (Moolre on-ramp webhook confirmation) ────────────
       ..on('deposit_success', (data) {
-        if (AppConfig.enableNetworkLogs) {
-          debugPrint('[SocketService] deposit_success received');
+        try {
+          final raw = data is Map<String, dynamic>
+              ? data
+              : Map<String, dynamic>.from(data as Map);
+          final amountGhs  = _toDouble(raw['amountGhs']);
+          final amountUsdc = _toDouble(raw['amountUsdc']);
+          final provider   = raw['provider']?.toString() ?? 'MOBILE_MONEY';
+          final reference  = raw['reference']?.toString() ?? '';
+          if (AppConfig.enableNetworkLogs) {
+            debugPrint('[SocketService] deposit_success → GH₵$amountGhs / $amountUsdc USDC ($provider)');
+          }
+          _onDepositSuccess?.call(amountGhs, amountUsdc, provider, reference);
+        } catch (e) {
+          debugPrint('[SocketService] deposit_success parse error: $e');
         }
       })
 
@@ -735,6 +757,7 @@ class SocketService {
     _onBizNotificationsUpdated = null;
     _onBusinessOrderDelivered = null;
     _onEscrowEvent = null;
+    _onDepositSuccess = null;
     if (AppConfig.enableNetworkLogs) {
       debugPrint('[SocketService] Disposed');
     }
