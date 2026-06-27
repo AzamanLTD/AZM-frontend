@@ -102,6 +102,7 @@ class BusinessSearchState {
   final String query;
   final String? category;
   final bool? verified;
+  final String? subcategory;
 
   const BusinessSearchState({
     this.results = const [],
@@ -113,6 +114,7 @@ class BusinessSearchState {
     this.query = '',
     this.category,
     this.verified,
+    this.subcategory,
   });
 
   BusinessSearchState copyWith({
@@ -125,9 +127,11 @@ class BusinessSearchState {
     String? query,
     String? category,
     bool? verified,
+    String? subcategory,
     bool clearError = false,
     bool clearCategory = false,
     bool clearVerified = false,
+    bool clearSubcategory = false,
     bool clearCursor = false,
   }) {
     return BusinessSearchState(
@@ -140,6 +144,7 @@ class BusinessSearchState {
       query: query ?? this.query,
       category: clearCategory ? null : (category ?? this.category),
       verified: clearVerified ? null : (verified ?? this.verified),
+      subcategory: clearSubcategory ? null : (subcategory ?? this.subcategory),
     );
   }
 }
@@ -148,18 +153,21 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
   final BusinessService _service;
   BusinessSearchNotifier(this._service) : super(const BusinessSearchState());
 
-  Future<void> search(String query, {String? category, bool? verified}) async {
+  Future<void> search(String query,
+      {String? category, bool? verified, String? subcategory}) async {
     state = BusinessSearchState(
       isLoading: true,
       query: query,
       category: category,
       verified: verified,
+      subcategory: subcategory,
     );
     try {
       final page = await _service.searchBusinesses(
         q: query,
         category: category,
         verified: verified,
+        subcategory: subcategory,
       );
       if (!mounted) return;
       state = state.copyWith(
@@ -184,6 +192,7 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
         q: state.query,
         category: state.category,
         verified: state.verified,
+        subcategory: state.subcategory,
         cursor: state.nextCursor,
       );
       if (!mounted) return;

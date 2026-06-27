@@ -32,6 +32,7 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
+import 'package:azaman/screens/marketplace/category_drilldown_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
@@ -268,8 +269,8 @@ class _MarketplaceHomeScreenState
         child: Column(
           children: [
             _searchHeader(colors),
-            const SizedBox(height: 10),
-            _categoryCarousel(colors),
+            const SizedBox(height: 14),
+            _categoryGrid(colors),
             const SizedBox(height: 10),
             _controlBar(colors),
             const SizedBox(height: 6),
@@ -336,7 +337,29 @@ class _MarketplaceHomeScreenState
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+          // Filter
+          GestureDetector(
+            onTap: _openFilters,
+            child: Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: !_filters.isEmpty ? colors.accentSurface : colors.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: !_filters.isEmpty ? colors.accent : colors.divider,
+                ),
+              ),
+              child: Icon(
+                HugeIconsStroke.filterHorizontal,
+                size: 20,
+                color: !_filters.isEmpty ? colors.accent : colors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
               AzamanHaptics.nav();
@@ -396,66 +419,108 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  // ── Category carousel ───────────────────────────────────────────────────────
-  Widget _categoryCarousel(AzamanColors colors) {
-    final cats = BusinessCategories.withAll;
-    return SizedBox(
-      height: 78,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        physics: const BouncingScrollPhysics(),
-        itemCount: cats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final cat = cats[i];
-          final selected = i == _categoryIndex;
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (i == _categoryIndex) return;
-              AzamanHaptics.toggle();
-              setState(() => _categoryIndex = i);
-              _fireSearch();
-            },
-            child: Container(
-              width: 80,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: selected ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: selected ? colors.accent : colors.divider,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(cat.icon,
-                      size: 22,
-                      color:
-                          selected ? colors.accent : colors.textSecondary),
-                  const SizedBox(height: 6),
-                  Text(
-                    cat.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected ? colors.accent : colors.textTertiary,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+  // ── Category grid ───────────────────────────────────────────────────────────
+  Widget _categoryGrid(AzamanColors colors) {
+    final cats = BusinessCategories.values; // 11 real categories
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Browse by Category',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.65,
+            ),
+            itemCount: cats.length,
+            itemBuilder: (context, i) {
+              final cat = cats[i];
+              final isSelected = _categoryIndex == i + 1;
+              return _categoryTile(cat, i + 1, isSelected, colors);
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
 
-  // ── Control bar (view toggle + sort + verified + filter) ────────────────────
+  Widget _categoryTile(BusinessCategory cat, int index, bool isSelected,
+      AzamanColors colors) {
+    final accent = colors.accent;
+    final surface = colors.accentSurface;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (index == _categoryIndex) {
+          // Tap the same category: drill down
+          AzamanHaptics.nav();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  CategoryDrilldownScreen(parentWire: cat.wire, label: cat.label),
+            ),
+          );
+          return;
+        }
+        AzamanHaptics.toggle();
+        setState(() => _categoryIndex = index);
+        _fireSearch();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? surface : colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? accent : colors.divider,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(cat.icon,
+                size: 20,
+                color: isSelected ? accent : colors.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                cat.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color:
+                      isSelected ? accent : colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(HugeIconsStroke.arrowRight01,
+                size: 14, color: isSelected ? accent : colors.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Control bar (view toggle + sort only) ───────────────────────────────────
   Widget _controlBar(AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -464,10 +529,6 @@ class _MarketplaceHomeScreenState
           _viewToggle(colors),
           const SizedBox(width: 10),
           Expanded(child: _sortButton(colors)),
-          const SizedBox(width: 8),
-          _verifiedToggle(colors),
-          const SizedBox(width: 8),
-          _filterButton(colors),
         ],
       ),
     );
@@ -573,53 +634,6 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  Widget _verifiedToggle(AzamanColors colors) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        AzamanHaptics.toggle();
-        setState(() => _verifiedOnly = !_verifiedOnly);
-        _fireSearch();
-      },
-      child: Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: _verifiedOnly ? colors.success.withOpacity(0.14) : colors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _verifiedOnly ? colors.success : colors.divider,
-          ),
-        ),
-        child: Icon(
-          HugeIconsSolid.checkmarkCircle01,
-          size: 18,
-          color: _verifiedOnly ? colors.success : colors.textTertiary,
-        ),
-      ),
-    );
-  }
-
-  Widget _filterButton(AzamanColors colors) {
-    final active = !_filters.isEmpty;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _openFilters,
-      child: Container(
-        height: 42,
-        width: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active ? colors.accentSurface : colors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? colors.accent : colors.divider),
-        ),
-        child: Icon(HugeIconsStroke.filterHorizontal,
-            size: 18, color: active ? colors.accent : colors.textSecondary),
-      ),
-    );
-  }
-
   // ── LIST mode ──────────────────────────────────────────────────────────────
   Widget _listMode(AzamanColors colors) {
     final state = ref.watch(businessSearchProvider);
@@ -718,12 +732,6 @@ class _MarketplaceHomeScreenState
           ),
         ),
         const SizedBox(height: 20),
-        Text('All Businesses',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
       ],
     );
   }

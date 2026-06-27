@@ -26,6 +26,14 @@ class ReceiptService {
     );
   }
 
+  /// Download an invoice receipt PDF and open it with the system viewer.
+  static Future<String> downloadInvoiceReceipt(String invoiceRef) async {
+    return _downloadAndOpen(
+      '/receipts/invoice/$invoiceRef',
+      'azaman-receipt-$invoiceRef.pdf',
+    );
+  }
+
   /// Download a withdrawal receipt PDF and open it with the system viewer.
   /// Returns the file path on success, or throws on failure.
   static Future<String> downloadWithdrawalReceipt(String withdrawalId) async {

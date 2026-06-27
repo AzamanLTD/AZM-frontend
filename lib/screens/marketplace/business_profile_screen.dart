@@ -21,6 +21,8 @@
 // Pay-Invoice affordance, matching the Booking.com pattern of one primary CTA.
 // =============================================================================
 
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +37,7 @@ import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -52,9 +55,12 @@ class BusinessProfileScreen extends ConsumerStatefulWidget {
       _BusinessProfileScreenState();
 }
 
-class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
+class _BusinessProfileScreenState
+    extends ConsumerState<BusinessProfileScreen>
+    with TickerProviderStateMixin {
   final _scrollCtrl = ScrollController();
   final _reviewsKey = GlobalKey();
+  late final TabController _tabController;
 
   bool _loading = true;
   String? _error;
@@ -62,14 +68,20 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   List<BusinessLocation> _locations = const [];
   int _unpaidInvoices = 0;
 
+  List<CatalogSection> _menuSections = const [];
+  List<BusinessProduct> _uncategorisedProducts = const [];
+  bool _menuLoading = false;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 5, vsync: this);
     _load();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -102,6 +114,7 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
         _loading = false;
       });
       _loadUnpaidInvoices(business);
+      _loadMenu(business.bizId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -123,6 +136,29 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
           .length;
       setState(() => _unpaidInvoices = count);
     } catch (_) {}
+  }
+
+  Future<void> _loadMenu(String bizId) async {
+    setState(() => _menuLoading = true);
+    try {
+      final response = await apiClient.get('/business/$bizId/menu');
+      final body = jsonDecode(response.body);
+      final sections = body['sections'] as List<dynamic>? ?? [];
+      final uncategorised = body['uncategorisedProducts'] as List<dynamic>? ?? [];
+      if (!mounted) return;
+      setState(() {
+        _menuSections = sections
+            .map((e) => CatalogSection.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _uncategorisedProducts = uncategorised
+            .map((e) => BusinessProduct.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _menuLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _menuLoading = false);
+    }
   }
 
   void _scrollToReviews() {
@@ -220,20 +256,78 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
       backgroundColor: colors.background,
       body: Stack(
         children: [
-          CustomScrollView(
+          NestedScrollView(
             controller: _scrollCtrl,
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: _hero(business, colors)),
-              SliverToBoxAdapter(child: _quickInfoBar(business, colors)),
-              SliverToBoxAdapter(child: _about(business, colors)),
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-              SliverToBoxAdapter(child: _products(business, colors)),
-              SliverToBoxAdapter(child: _locationsSection(colors)),
-              SliverToBoxAdapter(child: _reviewsSection(business, colors)),
-              // Pad the tail so the sticky action bar never covers content.
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverOverlapAbsorber(
+                handle:
+                    NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                sliver: SliverAppBar(
+                  expandedHeight: 280,
+                  pinned: true,
+                  floating: false,
+                  backgroundColor: colors.surface,
+                  elevation: 0,
+                  iconTheme: IconThemeData(color: colors.textPrimary),
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: _hero(business, colors),
+                  ),
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(42),
+                    child: Container(
+                      color: colors.surface,
+                      child: _quickInfoBar(business, colors),
+                    ),
+                  ),
+                ),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyTabBarDelegate(
+                  child: Container(
+                    color: colors.background,
+                    child: TabBar(
+                      controller: _tabController,
+                      indicatorColor: colors.accent,
+                      labelColor: colors.accent,
+                      unselectedLabelColor: colors.textTertiary,
+                      labelStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      indicatorSize: TabBarIndicatorSize.label,
+                      tabs: const [
+                        Tab(text: 'Overview'),
+                        Tab(text: 'Menu'),
+                        Tab(text: 'Locations'),
+                        Tab(text: 'Reviews'),
+                        Tab(text: 'Book'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
+            body: Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _overviewTab(business, colors),
+                      _menuTab(business, colors),
+                      _locationsTab(colors),
+                      _reviewsTab(business, colors),
+                      _bookTab(colors),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           Positioned(left: 0, right: 0, bottom: 0, child: _actionBar(colors)),
         ],
@@ -926,6 +1020,262 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     );
   }
 
+  // ── Tab: Overview ──────────────────────────────────────────────────────────
+  Widget _overviewTab(BusinessProfile business, AzamanColors colors) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        _about(business, colors),
+        const SizedBox(height: 16),
+        _categoryFacts(business, colors),
+        const SizedBox(height: 16),
+        _hoursOverview(colors),
+        const SizedBox(height: 16),
+        _products(business, colors),
+      ],
+    );
+  }
+
+  Widget _categoryFacts(BusinessProfile business, AzamanColors colors) {
+    final chips = <Widget>[];
+    if (business.priceRange != null) {
+      chips.add(_factChip(colors, PriceRange.label(business.priceRange)));
+    }
+    for (final a in business.amenities.take(4)) {
+      chips.add(_factChip(colors, a));
+    }
+    for (final c in business.cuisineTypes.take(3)) {
+      chips.add(_factChip(colors, c));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: chips,
+    );
+  }
+
+  Widget _factChip(AzamanColors colors, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: colors.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _hoursOverview(AzamanColors colors) {
+    if (_locations.isEmpty) return const SizedBox.shrink();
+    final primary = _locations.firstWhere(
+      (l) => l.isPrimary,
+      orElse: () => _locations.first,
+    );
+    final hours = primary.operatingHours;
+    if (hours == null || hours.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hours',
+              style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(
+            _formatHours(hours),
+            style: TextStyle(color: colors.textSecondary, fontSize: 12.5, height: 1.45),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab: Menu ──────────────────────────────────────────────────────────────
+  Widget _menuTab(BusinessProfile business, AzamanColors colors) {
+    if (_menuLoading) {
+      return Center(child: CircularProgressIndicator(color: colors.accent));
+    }
+    final hasSections = _menuSections.isNotEmpty;
+    final hasUncat = _uncategorisedProducts.isNotEmpty;
+    if (!hasSections && !hasUncat) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(HugeIconsStroke.restaurant01,
+                  size: 40, color: colors.textTertiary),
+              const SizedBox(height: 10),
+              Text('Menu not yet available',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        if (hasSections)
+          ..._menuSections.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _menuSection(s, colors),
+              )),
+        if (hasUncat) ...[
+          _sectionHeader('Other Items', colors),
+          const SizedBox(height: 10),
+          ..._uncategorisedProducts.map(
+              (p) => _menuProductRow(p, business, colors)),
+        ],
+      ],
+    );
+  }
+
+  Widget _sectionHeader(String title, AzamanColors colors) {
+    return Text(title,
+        style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w800));
+  }
+
+  Widget _menuSection(CatalogSection section, AzamanColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(section.name, colors),
+        if (section.description != null && section.description!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(section.description!,
+                style:
+                    TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+          ),
+        const SizedBox(height: 10),
+        ...section.products.map(
+            (p) => _menuProductRow(p, _business!, colors)),
+      ],
+    );
+  }
+
+  Widget _menuProductRow(BusinessProduct product, BusinessProfile business,
+      AzamanColors colors) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openOrderSheet(product: product),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          border: Border(bottom: BorderSide(color: colors.divider)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700)),
+                  if (product.description != null &&
+                      product.description!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        product.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: colors.textTertiary, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '${product.priceUsdc.toStringAsFixed(2)} USDC',
+              style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tab: Locations ─────────────────────────────────────────────────────────
+  Widget _locationsTab(AzamanColors colors) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        _locationsSection(colors),
+      ],
+    );
+  }
+
+  // ── Tab: Reviews ───────────────────────────────────────────────────────────
+  Widget _reviewsTab(BusinessProfile business, AzamanColors colors) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        _reviewsSection(business, colors),
+      ],
+    );
+  }
+
+  // ── Tab: Book (placeholder) ────────────────────────────────────────────────
+  Widget _bookTab(AzamanColors colors) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(HugeIconsStroke.calendar03,
+                size: 48, color: colors.textTertiary),
+            const SizedBox(height: 14),
+            Text('Bookings Coming Soon',
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text(
+              'Reserve tables, appointments, and services directly through the app.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Sticky action bar ────────────────────────────────────────────────────
   Widget _actionBar(AzamanColors colors) {
     final onAccent = colors.isDark ? Colors.black : Colors.white;
@@ -994,4 +1344,29 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StickyTabBarDelegate — pinned header for the tab bar inside NestedScrollView.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyTabBarDelegate({required this.child});
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  double get maxExtent => 42;
+
+  @override
+  double get minExtent => 42;
+
+  @override
+  bool shouldRebuild(covariant _StickyTabBarDelegate oldDelegate) => true;
 }

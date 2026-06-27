@@ -147,6 +147,7 @@ class BusinessService {
     String? q,
     String? category,
     bool? verified,
+    String? subcategory,
     int limit = 20,
     String? cursor,
   }) async {
@@ -154,6 +155,8 @@ class BusinessService {
       if (q != null && q.isNotEmpty) 'q': q,
       if (category != null && category.isNotEmpty) 'category': category,
       if (verified != null) 'verified': '$verified',
+      if (subcategory != null && subcategory.isNotEmpty)
+        'subcategory': subcategory,
       'limit': '$limit',
       if (cursor != null) 'cursor': cursor,
     });

@@ -14,6 +14,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/marketplace/receipt_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
@@ -466,6 +467,29 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               _fmtDate(inv.paidAt!),
               style: TextStyle(color: colors.textTertiary, fontSize: 11),
             ),
+          const SizedBox(height: 14),
+          TextButton.icon(
+            onPressed: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReceiptScreen(
+                    invoice: inv,
+                    businessName: inv.businessName ?? 'Business',
+                    businessLogoUrl: inv.businessLogoUrl,
+                  ),
+                ),
+              );
+            },
+            icon: Icon(HugeIconsSolid.file01,
+                size: 16, color: colors.accent),
+            label: Text('View Full Receipt',
+                style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );

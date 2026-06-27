@@ -51,6 +51,10 @@ DateTime _toDateOr0(dynamic v) =>
 List<String> _toStringList(dynamic v) =>
     v is List ? v.map((e) => e.toString()).toList() : const [];
 
+extension _Let<T> on T {
+  R let<R>(R Function(T) block) => block(this);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Category catalogue — single source of truth for wire value ↔ label ↔ icon.
 // Used by the marketplace home carousel, the registration form dropdown and
@@ -144,6 +148,236 @@ class BusinessCategories {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BusinessSubcategory — pre-seeded lookup for the category drill-down UI.
+// Mirrors the backend BusinessSubcategory table.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class BusinessSubcategory {
+  final String id;
+  final String parentWire; // maps to BusinessCategory.wire
+  final String wire; // e.g. "RESTAURANT_FINE_DINING"
+  final String label; // "Fine Dining"
+  final String? imageUrl; // Cloudinary lifestyle photo
+  final int displayOrder;
+  final bool isActive;
+
+  const BusinessSubcategory({
+    required this.id,
+    required this.parentWire,
+    required this.wire,
+    required this.label,
+    this.imageUrl,
+    required this.displayOrder,
+    required this.isActive,
+  });
+
+  factory BusinessSubcategory.fromJson(Map<String, dynamic> json) {
+    return BusinessSubcategory(
+      id: json['id'] as String? ?? '',
+      parentWire: json['parentWire'] as String? ?? '',
+      wire: json['wire'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
+      displayOrder: _toInt(json['displayOrder']),
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CatalogSection — menu section (Starters / Mains / Drinks / Rooms etc.)
+// Each section contains an ordered list of BusinessProducts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CatalogSection {
+  final String id;
+  final String businessProfileId;
+  final String? locationId;
+  final String name;
+  final String? description;
+  final int displayOrder;
+  final String? availableFrom; // "06:00"
+  final String? availableTo; // "11:00"
+  final String? imageUrl;
+  final bool isActive;
+  final List<BusinessProduct> products;
+
+  const CatalogSection({
+    required this.id,
+    required this.businessProfileId,
+    this.locationId,
+    required this.name,
+    this.description,
+    required this.displayOrder,
+    this.availableFrom,
+    this.availableTo,
+    this.imageUrl,
+    required this.isActive,
+    this.products = const [],
+  });
+
+  factory CatalogSection.fromJson(Map<String, dynamic> json) {
+    return CatalogSection(
+      id: json['id'] as String? ?? '',
+      businessProfileId: json['businessProfileId'] as String? ?? '',
+      locationId: json['locationId'] as String?,
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String?,
+      displayOrder: _toInt(json['displayOrder']),
+      availableFrom: json['availableFrom'] as String?,
+      availableTo: json['availableTo'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      products: (json['products'] as List<dynamic>? ?? [])
+          .map((e) => BusinessProduct.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reservation — customer-held time-based booking.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ReservationStatus {
+  pending,
+  confirmed,
+  checkedIn,
+  checkedOut,
+  completed,
+  cancelledCustomer,
+  cancelledBusiness,
+  noShow,
+}
+
+class Reservation {
+  final String id;
+  final String reservationRef;
+  final String businessProfileId;
+  final String? locationId;
+  final int customerId;
+  final String? serviceItemId;
+  final ReservationStatus status;
+  final DateTime startDatetime;
+  final DateTime endDatetime;
+  final int partySize;
+  final double amountUsdc;
+  final double depositUsdc;
+  final String? cancellationPolicy;
+  final String? customerNotes;
+  final String? businessNotes;
+  final DateTime? confirmedAt;
+  final DateTime? cancelledAt;
+  final DateTime? checkedInAt;
+  final DateTime? checkedOutAt;
+  final String? escrowId;
+  final Map<String, dynamic>? metadata;
+  // Nested (from API include)
+  final String? businessName;
+  final String? businessLogoUrl;
+  final String? businessBizId;
+
+  const Reservation({
+    required this.id,
+    required this.reservationRef,
+    required this.businessProfileId,
+    this.locationId,
+    required this.customerId,
+    this.serviceItemId,
+    required this.status,
+    required this.startDatetime,
+    required this.endDatetime,
+    required this.partySize,
+    required this.amountUsdc,
+    required this.depositUsdc,
+    this.cancellationPolicy,
+    this.customerNotes,
+    this.businessNotes,
+    this.confirmedAt,
+    this.cancelledAt,
+    this.checkedInAt,
+    this.checkedOutAt,
+    this.escrowId,
+    this.metadata,
+    this.businessName,
+    this.businessLogoUrl,
+    this.businessBizId,
+  });
+
+  static ReservationStatus _parseStatus(String? s) {
+    switch (s) {
+      case 'CONFIRMED':
+        return ReservationStatus.confirmed;
+      case 'CHECKED_IN':
+        return ReservationStatus.checkedIn;
+      case 'CHECKED_OUT':
+        return ReservationStatus.checkedOut;
+      case 'COMPLETED':
+        return ReservationStatus.completed;
+      case 'CANCELLED_CUSTOMER':
+        return ReservationStatus.cancelledCustomer;
+      case 'CANCELLED_BUSINESS':
+        return ReservationStatus.cancelledBusiness;
+      case 'NO_SHOW':
+        return ReservationStatus.noShow;
+      default:
+        return ReservationStatus.pending;
+    }
+  }
+
+  factory Reservation.fromJson(Map<String, dynamic> json) {
+    final biz = json['businessProfile'] as Map<String, dynamic>?;
+    return Reservation(
+      id: json['id'] as String? ?? '',
+      reservationRef: json['reservationRef'] as String? ?? '',
+      businessProfileId: json['businessProfileId'] as String? ?? '',
+      locationId: json['locationId'] as String?,
+      customerId: _toInt(json['customerId']),
+      serviceItemId: json['serviceItemId'] as String?,
+      status: _parseStatus(json['status'] as String?),
+      startDatetime: _toDateOr0(json['startDatetime']),
+      endDatetime: _toDateOr0(json['endDatetime']),
+      partySize: _toInt(json['partySize']).let((v) => v == 0 ? 1 : v),
+      amountUsdc: _toDouble(json['amountUsdc']),
+      depositUsdc: _toDouble(json['depositUsdc']),
+      cancellationPolicy: json['cancellationPolicy'] as String?,
+      customerNotes: json['customerNotes'] as String?,
+      businessNotes: json['businessNotes'] as String?,
+      confirmedAt: _toDate(json['confirmedAt']),
+      cancelledAt: _toDate(json['cancelledAt']),
+      checkedInAt: _toDate(json['checkedInAt']),
+      checkedOutAt: _toDate(json['checkedOutAt']),
+      escrowId: json['escrowId'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
+      businessName: biz?['businessName'] as String?,
+      businessLogoUrl: biz?['logoUrl'] as String?,
+      businessBizId: biz?['bizId'] as String?,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PriceRange — renders 1=₵  2=₵₵  3=₵₵₵  4=₵₵₵₵
+// ─────────────────────────────────────────────────────────────────────────────
+class PriceRange {
+  PriceRange._();
+  static String label(int? range) {
+    switch (range) {
+      case 1:
+        return '₵';
+      case 2:
+        return '₵₵';
+      case 3:
+        return '₵₵₵';
+      case 4:
+        return '₵₵₵₵';
+      default:
+        return '';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BusinessProfile
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -167,6 +401,12 @@ class BusinessProfile {
   final int userId;
   final double totalVolume;
   final double averageRating;
+  // Marketplace hierarchy additions (2026-06-24)
+  final String? subcategory;
+  final int? priceRange;
+  final List<String> amenities;
+  final List<String> cuisineTypes;
+  final Map<String, dynamic>? businessMeta;
   final String username;
   final String? userProfilePictureUrl;
   // Marketplace Premium Upgrade (2026-06-21): the public getBusinessByBizId /
@@ -189,6 +429,11 @@ class BusinessProfile {
     required this.userId,
     required this.totalVolume,
     required this.averageRating,
+    this.subcategory,
+    this.priceRange,
+    this.amenities = const [],
+    this.cuisineTypes = const [],
+    this.businessMeta,
     required this.username,
     this.description,
     this.website,
@@ -237,6 +482,11 @@ class BusinessProfile {
       userId: _toInt(user['id']),
       totalVolume: _toDouble(json['totalVolume']),
       averageRating: _toDouble(json['averageRating']),
+      subcategory: json['subcategory'] as String?,
+      priceRange: _toInt(json['priceRange']).let((v) => v == 0 ? null : v),
+      amenities: _toStringList(json['amenities']),
+      cuisineTypes: _toStringList(json['cuisineTypes']),
+      businessMeta: json['businessMeta'] as Map<String, dynamic>?,
       username: (user['username'] ?? '').toString(),
       userProfilePictureUrl: user['profilePictureUrl']?.toString(),
       products: products,
@@ -264,6 +514,7 @@ class BusinessProduct {
   final List<String> imageUrls;
   final bool isActive;
   final int totalOrders;
+  final List<String> tags;
 
   const BusinessProduct({
     required this.id,
@@ -275,6 +526,7 @@ class BusinessProduct {
     required this.imageUrls,
     required this.isActive,
     required this.totalOrders,
+    this.tags = const [],
     this.description,
     this.category,
     this.locationId,
@@ -300,6 +552,7 @@ class BusinessProduct {
       imageUrls: _toStringList(json['imageUrls']),
       isActive: json['isActive'] != false,
       totalOrders: _toInt(json['totalOrders']),
+      tags: _toStringList(json['tags']),
     );
   }
 }
