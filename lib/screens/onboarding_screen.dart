@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/main.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -35,22 +36,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
-      icon: HugeIconsSolid.exchange01,
-      title: 'Welcome to Azaman',
-      subtitle:
-          'The fastest peer-to-peer trading platform. Buy and sell USDC directly with other users at the best rates — no middleman, no delays.',
+      icon: HugeIconsSolid.flash,
+      title: "Ghana's Fastest P2P Platform",
+      subtitle: "Buy and sell USDC instantly via MTN MoMo or Vodafone Cash. "
+        "No bank account needed — just your phone number.",
     ),
     _OnboardingPageData(
       icon: HugeIconsSolid.shield01,
-      title: 'Secure & Fast',
-      subtitle:
-          'Every trade is protected by smart escrow. Funds are locked until both parties confirm — ensuring instant, trustless settlement every time.',
+      title: "Every Trade is Escrow-Protected",
+      subtitle: "Funds are locked in smart escrow until both parties confirm. "
+        "No fraud, no chargebacks — just safe, instant settlement.",
     ),
     _OnboardingPageData(
-      icon: HugeIconsSolid.rocket,
-      title: 'Start Trading',
-      subtitle:
-          'Fund your wallet with crypto or fiat, browse live offers, and make your first trade in under 60 seconds. Welcome to the future of P2P.',
+      icon: HugeIconsSolid.userGroup,
+      title: "Grow With Your Community",
+      subtitle: "Join a Susu circle with friends and family. "
+        "Contribute together, collect in turns — the traditional way, "
+        "powered by modern fintech.",
     ),
   ];
 
@@ -86,6 +88,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
       (route) => false,
     );
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (context.mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)));
+      }
+    });
   }
 
   void _nextPage() {

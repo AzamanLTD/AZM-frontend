@@ -14,8 +14,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -272,6 +274,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     padding: const EdgeInsets.only(bottom: 40),
                     child: Column(
                       children: [
+                        _kycBanner(colors),
                         const SizedBox(height: 28),
                         _buildAvatarSection(colors),
                         const SizedBox(height: 24),
@@ -304,6 +307,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
 
+  Widget _kycBanner(AzamanColors colors) {
+    final status = _kycStatus.toUpperCase();
+    final isVerified = status == "VERIFIED";
+    final isPending  = status == "PENDING";
+    final color = isVerified ? colors.success
+      : isPending ? colors.warning : colors.danger;
+    final icon = isVerified ? HugeIconsSolid.shield01
+      : isPending ? HugeIconsSolid.clock01 : HugeIconsSolid.alertCircle;
+    final label = isVerified ? "KYC Verified"
+      : isPending ? "KYC Pending Review"
+      : "Verify Identity to Unlock Higher Limits";
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.4), width: 1.2),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label,
+          style: TextStyle(color: color, fontSize: 13,
+            fontWeight: FontWeight.w700))),
+        if (!isVerified && !isPending)
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const KycVerificationScreen())),
+            child: Text("Verify ->",
+              style: TextStyle(color: color, fontSize: 12,
+                fontWeight: FontWeight.w800)),
+          ),
+      ]),
+    );
+  }
+
   Widget _buildErrorState(AzamanColors colors) {
     return Center(
       child: Column(
@@ -326,6 +367,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _initialsAvatar(AzamanColors colors) {
+    final initial = _displayName.isNotEmpty
+        ? _displayName[0].toUpperCase()
+        : (_username.isNotEmpty ? _username[0].toUpperCase() : 'A');
+    return Container(
+      width: 88, height: 88,
+      color: colors.accent.withOpacity(0.15),
+      child: Center(child: Text(initial, style: TextStyle(
+        color: colors.accent, fontSize: 32,
+        fontWeight: FontWeight.w800))),
+    );
+  }
+
   Widget _buildAvatarSection(AzamanColors colors) {
     final initial = _displayName.isNotEmpty
         ? _displayName[0].toUpperCase()
@@ -333,30 +387,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Column(
       children: [
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.accent.withOpacity(0.12),
-            border: Border.all(color: colors.accent.withOpacity(0.3), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: colors.glow.withOpacity(0.15),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              initial,
-              style: TextStyle(
-                color: colors.accent,
-                fontSize: 36,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+        CircleAvatar(
+          radius: 44,
+          backgroundColor: colors.card,
+          child: ClipOval(
+            child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+              ? CachedNetworkImage(
+                  imageUrl: _avatarUrl!,
+                  width: 88, height: 88,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => CircularProgressIndicator(
+                    strokeWidth: 2, color: colors.accent),
+                  errorWidget: (_, __, ___) => _initialsAvatar(colors),
+                )
+              : _initialsAvatar(colors),
           ),
         ),
         const SizedBox(height: 14),

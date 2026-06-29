@@ -106,6 +106,23 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // retired.
   FeeDiscountTier? _selectedFeeDiscount;
 
+  // ── Fee preview ────────────────────────────────────────────────────────
+  double _feeComputed = 0.0;
+  double _youReceive  = 0.0;
+  double _amountVal   = 0.0;
+
+  void _updateFeePreview(String raw) {
+    final amt = double.tryParse(raw) ?? 0.0;
+    const baseRate = 0.02;
+    final discount = _selectedFeeDiscount?.discount ?? 0.0;
+    final fee = amt * baseRate * (1 - discount);
+    setState(() {
+      _amountVal   = amt;
+      _feeComputed = fee;
+      _youReceive  = amt - fee;
+    });
+  }
+
   // ── Recent Withdrawals (Phase Q11) ─────────────────────────────────────
   List<Map<String, dynamic>> _recentCompletedWithdrawals = [];
   bool _isLoadingHistory = false;
@@ -897,7 +914,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         TextField(
           controller: _amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => setState(() {}),
+          onChanged: (v) { setState(() {}); _updateFeePreview(v); },
           style: TextStyle(
             color: colors.textPrimary,
             fontSize: 24,
@@ -1694,7 +1711,24 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       );
     }
 
-    return SlideToConfirm(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_youReceive > 0) ...[
+          const SizedBox(height: 12),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider)),
+            child: Column(children: [
+              _FeeRow("Amount", "${_amountVal.toStringAsFixed(2)} USDC", colors),
+              _FeeRow("Service fee (2%)", "-${_feeComputed.toStringAsFixed(2)} USDC", colors, isDanger: true),
+              const Divider(height: 16),
+              _FeeRow("You receive", "${_youReceive.toStringAsFixed(2)} USDC", colors, isBold: true),
+            ]),
+          ),
+        ],
+        SlideToConfirm(
       key: _slideKey,
       text: _mode == _WithdrawMode.mobileMoney
           ? 'Slide to send mobile money'
@@ -1720,6 +1754,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           onCancelled: () => _slideKey.currentState?.reset(),
         );
       },
+    ),
+      ],
     );
   }
 
@@ -1815,6 +1851,30 @@ class _MomoAccountPicker extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FeeRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final AzamanColors colors;
+  final bool isDanger;
+  final bool isBold;
+  const _FeeRow(this.label, this.value, this.colors,
+    {this.isDanger = false, this.isBold = false});
+  @override
+  Widget build(BuildContext context) {
+    final color = isDanger ? colors.danger
+      : isBold ? colors.textPrimary : colors.textSecondary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+          Text(value, style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.w800 : FontWeight.w500)),
+        ]),
     );
   }
 }

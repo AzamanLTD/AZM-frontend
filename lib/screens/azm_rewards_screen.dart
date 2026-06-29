@@ -13,7 +13,9 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/azm_reward_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -97,6 +99,33 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
+                  // 0. Auction entry card
+                  SliverToBoxAdapter(
+                    child: GestureDetector(
+                      onTap: () { HapticFeedback.lightImpact(); context.push("/azm-auction"); },
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            colors.accent.withOpacity(0.15),
+                            colors.accentSecondary.withOpacity(0.08)]),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.accent.withOpacity(0.3))),
+                        child: Row(children: [
+                          Container(width: 44, height: 44,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent.withOpacity(0.15)),
+                            child: Icon(HugeIconsSolid.megaphone02, color: colors.accent, size: 22)),
+                          const SizedBox(width: 14),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text("AZM Auction", style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+                            Text("Bid with AZM to boost your ads", style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                          ])),
+                          Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 18),
+                        ]),
+                      ),
+                    ),
+                  ),
                   // 1. Summary card
                   SliverToBoxAdapter(
                     child: _buildSummaryCard(colors, azmBalance, state.summary),

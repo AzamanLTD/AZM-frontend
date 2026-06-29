@@ -268,6 +268,21 @@ class _MarketplaceHomeScreenState
         bottom: false,
         child: Column(
           children: [
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: colors.success.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.success.withOpacity(0.25))),
+              child: Row(children: [
+                Icon(HugeIconsSolid.shield01, color: colors.success, size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Text(
+                  "Every order is escrow-protected. Funds held safely until delivery.",
+                  style: TextStyle(color: colors.success, fontSize: 11, height: 1.4))),
+              ]),
+            ),
             _searchHeader(colors),
             const SizedBox(height: 14),
             _categoryGrid(colors),

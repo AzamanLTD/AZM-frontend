@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -7,6 +8,31 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+
+String _humanLabel(String type) {
+  switch (type) {
+    case "DEPOSIT_FIAT":             return "MoMo Deposit";
+    case "DEPOSIT_CRYPTO":           return "Crypto Deposit";
+    case "WITHDRAWAL_FIAT":          return "MoMo Withdrawal";
+    case "WITHDRAWAL_CRYPTO":        return "Crypto Withdrawal";
+    case "P2P_TRADE":                return "P2P Trade Payout";
+    case "INTERNAL_TRANSFER":        return "Transfer";
+    case "AZM_REWARD":               return "AZM Reward";
+    case "VAULT_DEPOSIT":            return "Vault Lock";
+    case "VAULT_RELEASE":            return "Vault Return";
+    case "SUSU_CONTRIBUTION":        return "Susu Contribution";
+    case "SUSU_PAYOUT":              return "Susu Payout";
+    case "SUSU_REFUND":              return "Susu Refund";
+    case "SMART_ROUTE_RUN":          return "Smart Route";
+    case "TICKET_ESCROW_FUND":       return "Escrow Funded";
+    case "TICKET_ESCROW_RELEASE":    return "Escrow Released";
+    case "TICKET_ESCROW_REFUND":     return "Escrow Refunded";
+    case "BUSINESS_INVOICE_PAYMENT": return "Invoice Payment";
+    default:
+      final words = type.split("_");
+      return words.map((w) => w.isEmpty ? "" : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(" ");
+  }
+}
 
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -17,6 +43,7 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
 
 class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScreen> {
   final ScrollController _scrollController = ScrollController();
+  String _searchQuery = "";
   String? _expandedId;
 
   @override
@@ -91,132 +118,177 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               }).toList(),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: TextField(
+              onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: "Search transactions...",
+                hintStyle: TextStyle(color: colors.textTertiary),
+                prefixIcon: Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 18),
+                filled: true, fillColor: colors.card,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
           Expanded(
             child: state.isLoading && state.items.isEmpty
                 ? _buildShimmer(colors)
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: state.items.length + (state.isLoading ? 3 : 0),
-                    itemBuilder: (_, i) {
-                      if (i >= state.items.length) {
-                        return _buildShimmerRow(colors);
-                      }
-                      final txn = state.items[i];
-                      final isExpanded = _expandedId == txn.id;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _expandedId = isExpanded ? null : txn.id;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    txn.type == 'OUT'
-                                        ? HugeIconsSolid.arrowUp01
-                                        : txn.type == 'INTERNAL'
-                                            ? HugeIconsSolid.arrowsRight
-                                            : HugeIconsSolid.arrowDown01,
-                                    color: txn.type == 'OUT'
-                                        ? colors.danger
-                                        : txn.type == 'INTERNAL'
-                                            ? colors.accent
-                                            : colors.success,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          txn.type == 'OUT' ? 'Sent' : txn.type == 'INTERNAL' ? 'Internal' : 'Received',
-                                          style: TextStyle(
-                                            color: colors.textPrimary,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          _relativeDate(txn.createdAt),
-                                          style: TextStyle(
-                                            color: colors.textSecondary,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    '${txn.type == 'OUT' ? '-' : '+'}\$${txn.amountUsdc.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      color: txn.type == 'OUT' ? colors.danger : colors.success,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (isExpanded) ...[
-                                const SizedBox(height: 12),
-                                Divider(color: colors.divider),
-                                _detailRow(colors, 'Reference', 'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}'),
-                                _detailRow(colors, 'Provider', txn.provider),
-                                _detailRow(colors, 'GHS Equivalent', 'GH₵ ${txn.amountGhs.toStringAsFixed(2)}'),
-                                _detailRow(colors, 'Rate', '${txn.rateAtInitiation.toStringAsFixed(2)}'),
-                                _detailRow(colors, 'Settled', _formatDate(txn.createdAt)),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _showReceiptPopup(txn, colors),
-                                        icon: const Icon(Icons.receipt, size: 16),
-                                        label: const Text('Receipt', style: TextStyle(fontSize: 11)),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: colors.accent,
-                                          side: BorderSide(color: colors.accent),
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _shareReceipt(txn),
-                                        icon: const Icon(Icons.share, size: 16),
-                                        label: const Text('Share', style: TextStyle(fontSize: 11)),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: colors.accent,
-                                          side: BorderSide(color: colors.accent),
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                : _buildGroupedList(colors, state),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state) {
+    final allTxns = state.items;
+    final filtered = _searchQuery.isEmpty ? allTxns : allTxns.where((t) {
+      final label = _humanLabel(t.type).toLowerCase();
+      final amt = t.amountUsdc.toString();
+      final id = t.id.toLowerCase();
+      return label.contains(_searchQuery) || amt.contains(_searchQuery) || id.contains(_searchQuery);
+    }).toList();
+
+    final Map<String, List<TransactionRecord>> grouped = {};
+    for (final t in filtered) {
+      grouped.putIfAbsent(_dateHeader(t.createdAt), () => []).add(t);
+    }
+    final keys = grouped.keys.toList();
+
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: keys.length,
+      itemBuilder: (context, i) {
+        final header = keys[i];
+        final items = grouped[header]!;
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+            child: Text(header, style: TextStyle(
+              color: colors.textTertiary, fontSize: 11,
+              fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+          ),
+          ...items.map((txn) {
+            final isExpanded = _expandedId == txn.id;
+            return GestureDetector(
+              onTap: () { setState(() { _expandedId = isExpanded ? null : txn.id; }); },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          txn.type == 'OUT'
+                              ? HugeIconsSolid.arrowUp01
+                              : txn.type == 'INTERNAL'
+                                  ? HugeIconsSolid.arrowsRight
+                                  : HugeIconsSolid.arrowDown01,
+                          color: txn.type == 'OUT'
+                              ? colors.danger
+                              : txn.type == 'INTERNAL'
+                                  ? colors.accent
+                                  : colors.success,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _humanLabel(txn.type),
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _relativeDate(txn.createdAt),
+                                style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${txn.type == 'OUT' ? '-' : '+'}\$${txn.amountUsdc.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: txn.type == 'OUT' ? colors.danger : colors.success,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isExpanded) ...[
+                      const SizedBox(height: 12),
+                      Divider(color: colors.divider),
+                      _detailRow(colors, 'Reference', 'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}'),
+                      _detailRow(colors, 'Provider', txn.provider),
+                      _detailRow(colors, 'GHS Equivalent', 'GH₵ ${txn.amountGhs.toStringAsFixed(2)}'),
+                      _detailRow(colors, 'Rate', '${txn.rateAtInitiation.toStringAsFixed(2)}'),
+                      _detailRow(colors, 'Settled', _formatDate(txn.createdAt)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showReceiptPopup(txn, colors),
+                              icon: const Icon(Icons.receipt, size: 16),
+                              label: const Text('Receipt', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colors.accent,
+                                side: BorderSide(color: colors.accent),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _shareReceipt(txn),
+                              icon: const Icon(Icons.share, size: 16),
+                              label: const Text('Share', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colors.accent,
+                                side: BorderSide(color: colors.accent),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      );
+    },
+  );
+}
+
+  String _dateHeader(DateTime dt) {
+    final today = DateTime.now();
+    final diff = today.difference(DateTime(dt.year, dt.month, dt.day)).inDays;
+    if (diff == 0) return "Today";
+    if (diff == 1) return "Yesterday";
+    return DateFormat("EEEE, d MMM").format(dt);
   }
 
   Widget _detailRow(AzamanColors colors, String label, String value) {

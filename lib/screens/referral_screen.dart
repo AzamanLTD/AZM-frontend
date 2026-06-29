@@ -36,13 +36,23 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
   }
 
   Future<void> _loadCode() async {
+    setState(() => _isLoading = true);
     try {
-      final response = await apiClient.get('/users/preferences');
-
-      // For now, use a generated code based on user data
-      // The referral code comes from the user profile
-      if (mounted) setState(() => _isLoading = false);
-    } catch (e) {
+      final response = await apiClient.get('/users/profile');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final code = data["data"]?["influencerCode"]
+                  ?? data["user"]?["influencerCode"]
+                  ?? data["influencerCode"];
+        if (mounted) setState(() {
+          _referralCode = (code?.toString() ?? "").isNotEmpty
+            ? code.toString() : null;
+          _isLoading = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -50,8 +60,8 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final referralCode = _referralCode ?? 'AZM-INVITE';
-    final hasCode = true; // All users get a default code
+    final referralCode = _referralCode ?? '—';
+    final hasCode = _referralCode != null;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -153,9 +163,12 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: hasCode ? () {
-                            Share.share(
-                              'Join Azaman P2P and get the best rates on crypto! Use my code: $referralCode\n\nDownload: https://azaman.me/app',
-                            );
+                            final shareText = hasCode
+                              ? "Join Azaman — Ghana's fastest P2P crypto app!\n"
+                                "Use my code: $referralCode\n"
+                                "https://azaman.app/invite/$referralCode"
+                              : "Join Azaman!";
+                            Share.share(shareText);
                           } : null,
                           icon: const Icon(HugeIconsSolid.share01, size: 16),
                           label: const Text('Share'),

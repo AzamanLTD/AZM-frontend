@@ -33,6 +33,7 @@ import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/messages_hub_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
@@ -166,6 +167,11 @@ final GoRouter appRouter = GoRouter(
       path: '/leaderboard',
       name: 'leaderboard',
       builder: (context, state) => const LeaderboardScreen(),
+    ),
+    GoRoute(
+      path: '/azm-auction',
+      name: 'azm-auction',
+      builder: (context, state) => const AzmAuctionScreen(),
     ),
 
     // ── Marketplace + savings (deep-linkable from FCM "trade match"

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -86,10 +87,51 @@ class HologramBalanceCard extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          _BalanceNumber(
-            value: totalUsdc,
-            isVisible: isVisible,
-            colors: colors,
+          Consumer(
+            builder: (context, ref, _) {
+              final rate = ref.watch(oracleRateProvider);
+              final ghsVal = totalUsdc * rate;
+              final currency = ref.watch(currencyProvider);
+              final ghsFirst = currency == DisplayCurrency.ghs;
+              String fmtGhs(double v) => v >= 1000
+                  ? "${(v / 1000).toStringAsFixed(1)}K"
+                  : v.toStringAsFixed(2);
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  ghsFirst
+                      ? "GH₵ ${fmtGhs(ghsVal)}"
+                      : "${totalUsdc.toStringAsFixed(2)} USDC",
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  ghsFirst
+                      ? "${totalUsdc.toStringAsFixed(2)} USDC"
+                      : "GH₵ ${fmtGhs(ghsVal)}",
+                  style: TextStyle(
+                    color: colors.textSecondary.withOpacity(0.75),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(children: [
+                  Container(width: 6, height: 6,
+                    decoration: BoxDecoration(color: colors.success, shape: BoxShape.circle)),
+                  const SizedBox(width: 5),
+                  Text("1 USDC = GH₵ ${rate.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    )),
+                ]),
+              ]);
+            },
           ),
         ],
       ),

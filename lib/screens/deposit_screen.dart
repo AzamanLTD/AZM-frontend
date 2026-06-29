@@ -20,11 +20,13 @@
 // flow to pick from a chooser sheet.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lottie/lottie.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -666,35 +668,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     ),
                     data: (accounts) {
                       if (accounts.isEmpty) {
-                        return _PanelCard(
+                        return _InlineAddMomoCard(
                           colors: colors,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Add a mobile money number first',
-                                style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _PrimaryButton(
-                                colors: colors,
-                                label: 'Add saved number',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const SavedMomoAccountsScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                          onAdded: () => ref.invalidate(savedMomoProvider),
                         );
                       }
                       return _PanelCard(
@@ -786,6 +762,37 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8, runSpacing: 6,
+                          children: [50, 100, 200, 500].map((amt) {
+                            final isSelected = _amountController.text == amt.toString();
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _amountController.text = amt.toString();
+                                  _amountController.selection = TextSelection.fromPosition(
+                                    TextPosition(offset: _amountController.text.length));
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? colors.accent : colors.card,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: isSelected ? colors.accent : colors.accent.withOpacity(0.3)),
+                                ),
+                                child: Text("GH₵ $amt",
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : colors.accent,
+                                    fontSize: 13, fontWeight: FontWeight.w700)),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ],
                     ),
                   ),
@@ -851,76 +858,87 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             body: 'Approve it on your phone to complete the deposit.',
           ),
           const SizedBox(height: 18),
-          _PanelCard(
-            colors: colors,
-            fillColor: colors.success.withValues(alpha: 0.10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'GH₵ $amount',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (_depositConfirmed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 2),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle_rounded,
-                            size: 14, color: colors.success),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Funds confirmed',
-                          style: TextStyle(
-                            color: colors.success,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            transitionBuilder: (child, anim) => ScaleTransition(
+              scale: anim, child: FadeTransition(opacity: anim, child: child)),
+            child: _depositConfirmed
+              ? Column(key: const ValueKey("confirmed"),
+                  mainAxisSize: MainAxisSize.min, children: [
+                  Lottie.asset("assets/animations/success.json",
+                    width: 110, height: 110, repeat: false),
+                  const SizedBox(height: 8),
+                  Text("Deposit Confirmed!", style: TextStyle(
+                    color: colors.success, fontSize: 20, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text("Your wallet has been funded.", style: TextStyle(
+                    color: colors.textSecondary, fontSize: 13)),
+                ])
+              : Column(key: const ValueKey("waiting"),
+                  mainAxisSize: MainAxisSize.min, children: [
+                  _PulsingDots(color: colors.accent),
+                  const SizedBox(height: 14),
+                  Text("Waiting for confirmation...", style: TextStyle(
+                    color: colors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text("Approve the prompt on your phone.", style: TextStyle(
+                    color: colors.textTertiary, fontSize: 12)),
+                ]),
+          ),
+          if (_depositConfirmed) ...[
+            const SizedBox(height: 12),
+            _PanelCard(
+              colors: colors,
+              fillColor: colors.success.withValues(alpha: 0.10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GH₵ $amount',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
                     ),
                   ),
-                Text(
-                  'Prompt sent to $_selectedProvider',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Prompt sent to $_selectedProvider',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                SelectableText(
-                  reference.toString(),
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 14),
+                  SelectableText(
+                    reference.toString(),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            instructions,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 13,
-              height: 1.5,
+            const SizedBox(height: 12),
+            Text(
+              instructions,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
+          ],
           _PrimaryButton(
             colors: colors,
-            label: 'Start another deposit',
+            label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
             onTap: _reset,
           ),
         ],
@@ -1422,6 +1440,162 @@ class _SavedAccountTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _InlineAddMomoCard extends ConsumerStatefulWidget {
+  final AzamanColors colors;
+  final VoidCallback onAdded;
+  const _InlineAddMomoCard({required this.colors, required this.onAdded});
+  @override
+  ConsumerState<_InlineAddMomoCard> createState() => _InlineAddMomoCardState();
+}
+
+class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
+  final _phoneCtrl = TextEditingController();
+  String _provider = "MTN_MOMO";
+  bool _loading = false;
+  String? _resolvedName;
+  String? _error;
+  final _providers = ["MTN_MOMO", "VODAFONE_CASH", "AIRTELTIGO"];
+
+  Future<void> _validateName() async {
+    if (_phoneCtrl.text.trim().length < 9) {
+      setState(() => _error = "Enter a valid phone number"); return;
+    }
+    setState(() { _loading = true; _error = null; _resolvedName = null; });
+    try {
+      final resp = await apiClient.post("/deposit/validate-name", {
+        "phoneNumber": _phoneCtrl.text.trim(), "provider": _provider });
+      final body = jsonDecode(resp.body);
+      if (body["success"] == true && body["data"]?["accountName"] != null) {
+        setState(() { _resolvedName = body["data"]["accountName"]; _loading = false; });
+      } else {
+        setState(() { _error = body["message"] ?? "Could not verify"; _loading = false; });
+      }
+    } catch (_) {
+      setState(() { _error = "Network error"; _loading = false; });
+    }
+  }
+
+  Future<void> _saveAndContinue() async {
+    if (_resolvedName == null) return;
+    setState(() => _loading = true);
+    try {
+      await apiClient.post("/saved-momo", {
+        "phoneNumber": _phoneCtrl.text.trim(),
+        "provider": _provider,
+        "accountName": _resolvedName,
+      });
+      widget.onAdded();
+    } catch (e) {
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  void dispose() { _phoneCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.colors;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.divider)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text("Add Mobile Money Number", style: TextStyle(color: c.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: _provider,
+          dropdownColor: c.card,
+          decoration: InputDecoration(labelText: "Provider", labelStyle: TextStyle(color: c.textSecondary),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.divider))),
+          items: _providers.map((p) => DropdownMenuItem(value: p, child: Text(p.replaceAll("_"," "), style: TextStyle(color: c.textPrimary)))).toList(),
+          onChanged: (v) => setState(() => _provider = v!),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+          style: TextStyle(color: c.textPrimary),
+          decoration: InputDecoration(
+            labelText: "Phone number", labelStyle: TextStyle(color: c.textSecondary),
+            hintText: "024 XXX XXXX", hintStyle: TextStyle(color: c.textTertiary),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.divider))),
+        ),
+        if (_resolvedName != null) ...[
+          const SizedBox(height: 8),
+          Row(children: [Icon(Icons.check_circle, color: c.success, size: 16), const SizedBox(width: 6),
+            Text(_resolvedName!, style: TextStyle(color: c.success, fontWeight: FontWeight.w700))]),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 6), Text(_error!, style: TextStyle(color: c.danger, fontSize: 12)),
+        ],
+        const SizedBox(height: 14),
+        SizedBox(width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: c.accent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: _loading ? null : (_resolvedName == null ? _validateName : _saveAndContinue),
+            child: _loading
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Text(_resolvedName == null ? "Verify Number" : "Save & Continue",
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _PulsingDots extends StatefulWidget {
+  final Color color;
+  const _PulsingDots({required this.color});
+  @override
+  State<_PulsingDots> createState() => _PulsingDotsState();
+}
+
+class _PulsingDotsState extends State<_PulsingDots>
+    with TickerProviderStateMixin {
+  late final List<AnimationController> _ctrls;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrls = List.generate(3, (i) => AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 600)));
+    for (var i = 0; i < 3; i++) {
+      Future.delayed(Duration(milliseconds: i * 180), () {
+        if (mounted) _ctrls[i].repeat(reverse: true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctrls) c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) => AnimatedBuilder(
+        animation: _ctrls[i],
+        builder: (_, __) => Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 10,
+          height: 10 + (_ctrls[i].value * 10),
+          decoration: BoxDecoration(
+            color: widget.color.withOpacity(0.4 + _ctrls[i].value * 0.6),
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ),
+      )),
     );
   }
 }

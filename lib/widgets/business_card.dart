@@ -201,8 +201,26 @@ class BusinessCard extends ConsumerWidget {
               ]),
             ),
           ],
+          const SizedBox(height: 8),
+          _escrowBadge(colors),
         ],
       ),
+    );
+  }
+
+  Widget _escrowBadge(AzamanColors colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.success.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: colors.success.withOpacity(0.3))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(HugeIconsSolid.shield01, size: 10, color: colors.success),
+        const SizedBox(width: 3),
+        Text("Escrow Protected", style: TextStyle(
+          color: colors.success, fontSize: 9, fontWeight: FontWeight.w700)),
+      ]),
     );
   }
 

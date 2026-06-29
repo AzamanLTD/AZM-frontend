@@ -8,6 +8,20 @@ import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
+({IconData icon, Color color}) _notifStyle(
+    NotificationCategory category, AzamanColors colors) {
+  switch (category) {
+    case NotificationCategory.securityAccount:
+      return (icon: HugeIconsSolid.shield01, color: colors.danger);
+    case NotificationCategory.vendorPriority:
+      return (icon: HugeIconsSolid.store01, color: colors.success);
+    case NotificationCategory.adminSystem:
+      return (icon: HugeIconsSolid.settings02, color: colors.textTertiary);
+    case NotificationCategory.general:
+      return (icon: HugeIconsSolid.notification01, color: colors.accent);
+  }
+}
+
 class NotificationHubScreen extends ConsumerStatefulWidget {
   const NotificationHubScreen({super.key});
 
@@ -514,33 +528,17 @@ class _NotificationTile extends StatelessWidget {
   }
 
   Widget _buildLeadingIcon() {
-    IconData icon;
-    Color iconColor;
-    switch (notification.category) {
-      case NotificationCategory.securityAccount:
-        icon = HugeIconsSolid.security;
-        iconColor = colors.danger;
-      case NotificationCategory.general:
-        icon = HugeIconsSolid.notification01;
-        iconColor = colors.accent;
-      case NotificationCategory.vendorPriority:
-        icon = HugeIconsSolid.store01;
-        iconColor = colors.success;
-      case NotificationCategory.adminSystem:
-        icon = HugeIconsSolid.security;
-        iconColor = colors.warning;
-    }
-
+    final style = _notifStyle(notification.category, colors);
     return Stack(
       children: [
         Container(
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
+            color: style.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: iconColor, size: 22),
+          child: Icon(style.icon, color: style.color, size: 22),
         ),
         if (!notification.isRead)
           Positioned(

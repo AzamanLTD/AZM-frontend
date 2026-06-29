@@ -10,6 +10,22 @@ import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 
+String _recentLabel(String title) {
+  final t = title.toUpperCase();
+  if (t.contains("DEPOSIT") || t.contains("MOMO") || t.contains("FIAT")) return "MoMo Deposit";
+  if (t.contains("WITHDRAWAL")) return "MoMo Withdrawal";
+  if (t.contains("P2P") || t.contains("TRADE")) return "P2P Trade Payout";
+  if (t.contains("SUSU") && t.contains("PAYOUT")) return "Susu Payout";
+  if (t.contains("SUSU")) return "Susu Contribution";
+  if (t.contains("VAULT") || t.contains("LOCK")) return "Vault Lock";
+  if (t.contains("ESCROW") || t.contains("TICKET")) return "Escrow Funded";
+  if (t.contains("INVOICE")) return "Invoice Payment";
+  if (t.contains("REWARD") || t.contains("AZM")) return "AZM Reward";
+  if (t.contains("SEND") || t.contains("OUT")) return "Sent";
+  if (t.contains("RECEIVE") || t.contains("IN")) return "Received";
+  return title;
+}
+
 class RecentActivitySection extends ConsumerWidget {
   const RecentActivitySection({super.key});
 
@@ -128,7 +144,7 @@ class _ActivityRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn.title,
+                  _recentLabel(txn.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

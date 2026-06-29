@@ -29,6 +29,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  String _passwordText = "";
   final _storage = const FlutterSecureStorage();
 
   @override
@@ -57,8 +58,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
 
-    if (password.length < 6) {
-      setState(() => _errorMessage = 'Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setState(() => _errorMessage = 'Password must be at least 8 characters.');
+      return;
+    }
+    if (!RegExp(r"[A-Z]").hasMatch(password) || !RegExp(r"[0-9]").hasMatch(password)) {
+      setState(() => _errorMessage =
+        "Password needs at least one uppercase letter and one number.");
       return;
     }
 
@@ -269,6 +275,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 controller: _passwordController,
                 style: TextStyle(color: colors.textPrimary),
                 obscureText: true,
+                onChanged: (v) => setState(() => _passwordText = v),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
@@ -283,10 +290,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
                   ),
-                  helperText: 'Minimum 6 characters',
+                  helperText: 'Minimum 8 characters, 1 uppercase & 1 number',
                   helperStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
                 ),
               ),
+              if (_passwordText.isNotEmpty)
+                _PasswordStrengthBar(password: _passwordText),
               const SizedBox(height: 14),
               TextField(
                 controller: _confirmPasswordController,
@@ -571,6 +580,45 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PasswordStrengthBar extends StatelessWidget {
+  final String password;
+  const _PasswordStrengthBar({required this.password});
+  int get _score {
+    int s = 0;
+    if (password.length >= 8) s++;
+    if (RegExp(r"[A-Z]").hasMatch(password)) s++;
+    if (RegExp(r"[0-9]").hasMatch(password)) s++;
+    if (RegExp(r"[!@#\$%^&*]").hasMatch(password)) s++;
+    return s;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final labels = ["Too weak", "Weak", "Fair", "Strong", "Very strong"];
+    final score  = _score;
+    final clr = score <= 1
+      ? const Color(0xFFEF4444)
+      : score == 2
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF10B981);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: List.generate(4, (i) => Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+            decoration: BoxDecoration(
+              color: i < score ? clr : const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2))))),
+          ),
+        const SizedBox(height: 4),
+        Text(labels[score], style: TextStyle(
+          color: clr, fontSize: 11, fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }
