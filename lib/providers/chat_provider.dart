@@ -11,8 +11,12 @@
 //   • Ripple extension (time request) logic
 // =============================================================================
 
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+
+import 'package:azaman/services/api_client.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Message Type Enum
@@ -317,3 +321,17 @@ final directChatProvider =
     );
   },
 );
+
+final totalUnreadChatCountProvider = FutureProvider<int>((ref) async {
+  try {
+    final resp = await apiClient.get("/friends/chats");
+    if (resp.statusCode == 200) {
+      final data = jsonDecode(resp.body);
+      final chats = data["chats"] as List? ?? [];
+      return chats.fold<int>(0, (sum, c) {
+        return sum + ((c["unreadCount"] as num?)?.toInt() ?? 0);
+      });
+    }
+    return 0;
+  } catch (_) { return 0; }
+});

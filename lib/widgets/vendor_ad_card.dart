@@ -69,6 +69,24 @@ class VendorAdCard extends ConsumerWidget {
                             height: 1.2,
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colors.success.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: colors.success.withOpacity(0.3)),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(HugeIconsSolid.shield01, size: 9, color: colors.success),
+                              const SizedBox(width: 3),
+                              Text("Escrow",
+                                style: TextStyle(color: colors.success,
+                                  fontSize: 9, fontWeight: FontWeight.w700)),
+                            ]),
+                          ),
+                        ]),
                       ],
                     ),
                   ),

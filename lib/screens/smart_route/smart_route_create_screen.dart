@@ -103,6 +103,32 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Explainer card
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.accent.withOpacity(0.2)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(HugeIconsSolid.flash, size: 18, color: colors.accent),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("What is a Smart Route?", style: TextStyle(
+                    color: colors.accent, fontSize: 13, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Smart Routes run automatically on a schedule. "
+                    "Set up a monthly MoMo withdrawal, recurring vault deposit, "
+                    "or scheduled transfer — once. It runs on its own after that.",
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ])),
+              ]),
+            ),
             _label(colors, 'Action'),
             Wrap(
               spacing: 6,

@@ -47,6 +47,16 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Azaman uses your camera to scan QR codes and upload identity documents for KYC verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Azaman uses your photo library to upload proof of payment and your profile photo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Azaman uses your microphone to send voice messages in trade and group chats.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Azaman uses Face ID to authenticate financial transactions securely.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Azaman uses your location to show nearby businesses in the Marketplace.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -275,10 +275,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           }
           final goal = Map<String, dynamic>.from(goals[index - 1] as Map);
           final name = goal['name']?.toString() ?? 'Goal';
+          final current = (goal["currentAmountGhs"] as num?)?.toDouble() ?? 0.0;
+          final target  = (goal["targetAmountGhs"] as num?)?.toDouble() ?? 1.0;
+          final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
           return _GoalCircle(
             colors: colors,
             label: name.split(' ').first,
             initials: _initials(name),
+            progress: progress,
             onTap: () {
               HapticFeedback.selectionClick();
               SavingsGoalSheet.show(
@@ -853,6 +857,7 @@ class _GoalCircle extends StatelessWidget {
   final String label;
   final String? initials;
   final bool isAdd;
+  final double progress;
   final VoidCallback onTap;
 
   const _GoalCircle({
@@ -861,6 +866,7 @@ class _GoalCircle extends StatelessWidget {
     required this.onTap,
     this.initials,
     this.isAdd = false,
+    this.progress = 0.0,
   });
 
   @override
@@ -873,46 +879,66 @@ class _GoalCircle extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isAdd
-                    ? colors.softSurface
-                    : colors.accent.withValues(alpha: 0.14),
-              ),
-              child: isAdd
-                  ? Icon(
-                      HugeIconsSolid.add01,
-                      color: colors.textSecondary,
-                      size: 26,
-                    )
-                  : Text(
-                      initials ?? '?',
-                      style: TextStyle(
+            SizedBox(
+              width: 68, height: 68,
+              child: Stack(alignment: Alignment.center, children: [
+                if (!isAdd)
+                  SizedBox(
+                    width: 68, height: 68,
+                    child: CircularProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      strokeWidth: 3.5,
+                      color: colors.accent,
+                      backgroundColor: colors.softSurface,
+                    ),
+                  ),
+                Container(
+                  width: 56, height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isAdd
+                      ? colors.softSurface
+                      : colors.accent.withValues(alpha: 0.14),
+                  ),
+                  child: isAdd
+                    ? Icon(HugeIconsSolid.add01,
+                        color: colors.textSecondary, size: 24)
+                    : Text(initials ?? "?",
+                        style: TextStyle(color: colors.accent,
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                ),
+                if (!isAdd)
+                  Positioned(
+                    bottom: 2, right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
                         color: colors.accent,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "${(progress * 100).toInt()}%",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
+                  ),
+              ]),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             SizedBox(
-              width: 64,
-              child: Text(
-                label,
+              width: 68,
+              child: Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.2,
-                ),
-              ),
+                style: TextStyle(color: colors.textSecondary,
+                  fontSize: 11, fontWeight: FontWeight.w500)),
             ),
           ],
         ),

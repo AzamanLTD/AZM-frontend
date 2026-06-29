@@ -37,18 +37,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
       icon: HugeIconsSolid.flash,
+      imagePath: "assets/images/1.webp",
       title: "Ghana's Fastest P2P Platform",
       subtitle: "Buy and sell USDC instantly via MTN MoMo or Vodafone Cash. "
         "No bank account needed — just your phone number.",
     ),
     _OnboardingPageData(
       icon: HugeIconsSolid.shield01,
+      imagePath: "assets/images/2.webp",
       title: "Every Trade is Escrow-Protected",
       subtitle: "Funds are locked in smart escrow until both parties confirm. "
         "No fraud, no chargebacks — just safe, instant settlement.",
     ),
     _OnboardingPageData(
       icon: HugeIconsSolid.userGroup,
+      imagePath: "assets/images/3.webp",
       title: "Grow With Your Community",
       subtitle: "Join a Susu circle with friends and family. "
         "Contribute together, collect in turns — the traditional way, "
@@ -225,11 +228,13 @@ class _OnboardingPageData {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String? imagePath;
 
   const _OnboardingPageData({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.imagePath,
   });
 }
 
@@ -249,31 +254,39 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // ── Icon with glow effect ─────────────────────────────────────
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withOpacity(0.08),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.glow.withOpacity(0.2),
-                  blurRadius: 40,
-                  spreadRadius: 4,
+          // ── Hero image or icon with glow ──────────────────────────────
+          Expanded(
+            child: data.imagePath != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(
+                    data.imagePath!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                )
+              : Center(
+                  child: Container(
+                    width: 120, height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.accent.withOpacity(0.08),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.glow.withOpacity(0.2),
+                          blurRadius: 40,
+                          spreadRadius: 4,
+                        ),
+                        BoxShadow(
+                          color: colors.glow.withOpacity(0.1),
+                          blurRadius: 80,
+                          spreadRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Icon(data.icon, size: 52, color: colors.accent),
+                  ),
                 ),
-                BoxShadow(
-                  color: colors.glow.withOpacity(0.1),
-                  blurRadius: 80,
-                  spreadRadius: 8,
-                ),
-              ],
-            ),
-            child: Icon(
-              data.icon,
-              size: 52,
-              color: colors.accent,
-            ),
           ),
           const SizedBox(height: 48),
 

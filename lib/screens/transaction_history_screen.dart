@@ -1,6 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -191,7 +197,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           txn.type == 'OUT'
                               ? HugeIconsSolid.arrowUp01
                               : txn.type == 'INTERNAL'
-                                  ? HugeIconsSolid.arrowsRight
+                                  ? HugeIconsSolid.arrowRightDouble
                                   : HugeIconsSolid.arrowDown01,
                           color: txn.type == 'OUT'
                               ? colors.danger
@@ -370,7 +376,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                txn.type == 'OUT' ? 'Sent' : 'Received',
+                _humanLabel(txn.type),
                 style: TextStyle(
                   color: txn.type == 'OUT' ? colors.danger : colors.success,
                   fontSize: 11, fontWeight: FontWeight.bold,
@@ -389,7 +395,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _savePdf(txn);
+                    },
                     icon: const Icon(Icons.download, size: 16),
                     label: const Text('Save PDF', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
@@ -421,15 +430,94 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
     );
   }
 
-  void _shareReceipt(TransactionRecord txn) {
-    Share.share(
-      'Azaman Transaction\n'
-      'Amount: \$${txn.amountUsdc.toStringAsFixed(2)}\n'
-      'Type: ${txn.type}\n'
-      'Status: ${txn.status}\n'
-      'Reference: ${txn.id}\n'
-      'Date: ${_formatDate(txn.createdAt)}',
+  Future<void> _savePdf(TransactionRecord txn) async {
+    try {
+      final pdfDoc = pw.Document();
+      pdfDoc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text("AZAMAN", style: pw.TextStyle(
+              fontSize: 28, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text("Transaction Receipt",
+              style: const pw.TextStyle(fontSize: 14)),
+            pw.Divider(height: 32),
+            _pdfRow("Type",      _humanLabel(txn.type)),
+            _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
+            _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
+            _pdfRow("Status",    txn.status),
+            _pdfRow("Reference", txn.id),
+            _pdfRow("Date",      _formatDate(txn.createdAt)),
+            pw.SizedBox(height: 32),
+            pw.Text("Azaman Financial Platform  |  Ghana",
+              style: const pw.TextStyle(fontSize: 10)),
+          ],
+        ),
+      ));
+      final dir  = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/azaman_receipt_${txn.id.substring(0,8)}.pdf");
+      await file.writeAsBytes(await pdfDoc.save());
+      await OpenFilex.open(file.path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not save PDF: $e")));
+      }
+    }
+  }
+
+  pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text(value),
+        ],
+      ),
     );
+  }
+
+  Future<void> _shareReceipt(TransactionRecord txn) async {
+    try {
+      final pdfDoc = pw.Document();
+      pdfDoc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text("AZAMAN", style: pw.TextStyle(
+              fontSize: 28, fontWeight: pw.FontWeight.bold)),
+            pw.Text("Transaction Receipt",
+              style: const pw.TextStyle(fontSize: 14)),
+            pw.Divider(height: 32),
+            _pdfRow("Type",      _humanLabel(txn.type)),
+            _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
+            _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
+            _pdfRow("Status",    txn.status),
+            _pdfRow("Reference", txn.id),
+            _pdfRow("Date",      _formatDate(txn.createdAt)),
+            pw.SizedBox(height: 32),
+            pw.Text("Azaman Financial Platform  |  Ghana",
+              style: const pw.TextStyle(fontSize: 10)),
+          ],
+        ),
+      ));
+      final bytes = await pdfDoc.save();
+      final dir  = await getTemporaryDirectory();
+      final file = File("${dir.path}/azaman_receipt_${txn.id.substring(0,8)}.pdf");
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: "Azaman Transaction Receipt",
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Share failed: $e")));
+    }
   }
 
   String _relativeDate(DateTime dt) {

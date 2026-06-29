@@ -196,8 +196,7 @@ class _GreetingHeader extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           const NotificationBell(),
-          const SizedBox(width: 4),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {

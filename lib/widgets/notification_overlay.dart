@@ -102,7 +102,15 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
     return GestureDetector(
       onVerticalDragUpdate: (d) {
         setState(() => _dragOffset += d.primaryDelta!);
-        if (_dragOffset > 60) _dismiss();
+      },
+      onVerticalDragEnd: (d) {
+        if (d.primaryVelocity != null && d.primaryVelocity! < -500) {
+          _dismiss();
+        } else if (_dragOffset > 60) {
+          _dismiss();
+        } else {
+          setState(() => _dragOffset = 0);
+        }
       },
       child: Stack(
         children: [
@@ -125,9 +133,15 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                       bottom: Radius.circular(24),
                     ),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
                       child: Container(
-                        color: Colors.black.withOpacity(0.55),
+                        decoration: BoxDecoration(
+                          color: colors.isDark
+                            ? Colors.black.withOpacity(0.72)
+                            : Colors.white.withOpacity(0.68),
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(24)),
+                        ),
                         child: Column(
                           children: [
                             // Handle
@@ -144,10 +158,13 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Swipe up to close',
+                                    'swipe up to close',
                                     style: TextStyle(
-                                      color: colors.textSecondary,
+                                      color: colors.isDark
+                                        ? Colors.white.withOpacity(0.5)
+                                        : Colors.black.withOpacity(0.4),
                                       fontSize: 10,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
                                 ],

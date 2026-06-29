@@ -340,3 +340,18 @@ class TradeProvider with ChangeNotifier {
 final tradeProvider = ChangeNotifierProvider<TradeProvider>((ref) {
   return TradeProvider();
 });
+
+final activeTradeCountProvider = FutureProvider<int>((ref) async {
+  try {
+    final resp = await apiClient.get("/trades/active");
+    if (resp.statusCode == 200) {
+      final data = jsonDecode(resp.body);
+      final trades = data["trades"] as List? ?? [];
+      return trades.where((t) {
+        final status = t["status"]?.toString() ?? "";
+        return ["PENDING_PAYMENT","PAID","DISPUTED"].contains(status);
+      }).length;
+    }
+    return 0;
+  } catch (_) { return 0; }
+});

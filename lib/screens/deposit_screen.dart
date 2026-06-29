@@ -40,7 +40,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({
     super.key,
-    this.initialTab = DepositTab.crypto,
+    this.initialTab = DepositTab.fiat,
     this.prefillAmount,
     this.memo,
   });
@@ -333,9 +333,53 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
             onCopy: () => _copyAddress(colors),
             onShare: _shareAddress,
           ),
+          const SizedBox(height: 20),
+          FutureBuilder<List<Map<String,dynamic>>>(
+            future: _fetchRecentCryptoDeposits(),
+            builder: (context, snap) {
+              if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text("Recent Deposits",
+                  style: TextStyle(color: colors.textTertiary,
+                    fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                ...snap.data!.map((d) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(children: [
+                    Icon(Icons.check_circle, color: colors.success, size: 14),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      "${(d["amountUsdc"] as num?)?.toStringAsFixed(2) ?? "0"} USDC",
+                      style: TextStyle(color: colors.textPrimary,
+                        fontSize: 13, fontWeight: FontWeight.w600))),
+                    Text(_formatCryptoDate(DateTime.parse(d["createdAt"] ?? "")),
+                      style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+                  ]),
+                )),
+              ]);
+            },
+          ),
         ],
       ),
     );
+  }
+
+  Future<List<Map<String,dynamic>>> _fetchRecentCryptoDeposits() async {
+    try {
+      final resp = await apiClient.get("/finance/transactions?type=DEPOSIT_CRYPTO&limit=2");
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        return List<Map<String,dynamic>>.from(data["items"] ?? []);
+      }
+      return [];
+    } catch (_) { return []; }
+  }
+
+  String _formatCryptoDate(DateTime dt) {
+    final diff = DateTime.now().difference(dt).inDays;
+    if (diff == 0) return "Today";
+    if (diff == 1) return "Yesterday";
+    return "${dt.day}/${dt.month}/${dt.year}";
   }
 }
 

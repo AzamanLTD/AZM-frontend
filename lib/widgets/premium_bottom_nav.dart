@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/chat_provider.dart';
+import 'package:azaman/providers/trade_provider.dart';
 
 class _NavItem {
   final IconData icon;
@@ -30,7 +32,7 @@ const _kNavItems = [
   _NavItem(
     icon: HugeIconsStroke.creditCard,
     activeIcon: HugeIconsSolid.creditCard,
-    label: 'P2P',
+    label: 'Trade',
   ),
   _NavItem(
     icon: HugeIconsStroke.piggyBank,
@@ -89,6 +91,7 @@ class PremiumBottomNav extends ConsumerWidget {
               (i) => _NavButton(
                 item: _kNavItems[i],
                 isSelected: selectedIndex == i,
+                index: i,
                 colors: colors,
                 onTap: () => _handleTap(i),
               ),
@@ -103,12 +106,14 @@ class PremiumBottomNav extends ConsumerWidget {
 class _NavButton extends StatelessWidget {
   final _NavItem item;
   final bool isSelected;
+  final int index;
   final AzamanColors colors;
   final VoidCallback onTap;
 
   const _NavButton({
     required this.item,
     required this.isSelected,
+    required this.index,
     required this.colors,
     required this.onTap,
   });
@@ -126,11 +131,7 @@ class _NavButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isSelected ? item.activeIcon : item.icon,
-                color: color,
-                size: 23,
-              ),
+              _iconWithBadge(color),
               const SizedBox(height: 4),
               Text(
                 item.label,
@@ -146,5 +147,64 @@ class _NavButton extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _iconWithBadge(Color color) {
+    final icon = Icon(
+      isSelected ? item.activeIcon : item.icon,
+      color: color,
+      size: 23,
+    );
+    if (index == 1) {
+      return Consumer(
+        builder: (context, ref, child) {
+          final count = ref.watch(totalUnreadChatCountProvider).value ?? 0;
+          return Stack(clipBehavior: Clip.none, children: [
+            child!,
+            if (count > 0)
+              Positioned(
+                right: -6, top: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    count > 99 ? "99+" : count.toString(),
+                    style: const TextStyle(
+                      color: Colors.white, fontSize: 9,
+                      fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+          ]);
+        },
+        child: icon,
+      );
+    }
+    if (index == 2) {
+      return Consumer(
+        builder: (context, ref, child) {
+          final count = ref.watch(activeTradeCountProvider).value ?? 0;
+          return Stack(clipBehavior: Clip.none, children: [
+            child!,
+            if (count > 0)
+              Positioned(
+                right: -4, top: -4,
+                child: Container(
+                  width: 8, height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ]);
+        },
+        child: icon,
+      );
+    }
+    return icon;
   }
 }

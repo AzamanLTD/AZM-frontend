@@ -946,7 +946,10 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           Column(
             children: [
               if (!_isChatOpen) const TradeDisclaimer(compact: true),
-              if (!_isChatOpen) const RateLockDisclaimer(compact: true),
+              if (!_isChatOpen) RateLockDisclaimer(
+                compact: true,
+                lockedRate: ref.read(tradeProvider).yellowCardRate,
+              ),
               if (_isDisputed && !_isChatOpen) _buildDisputeBanner(),
               Expanded(
                 child: _isChatOpen
