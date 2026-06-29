@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/trade_countdown_chip.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -249,10 +250,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '\$${amountFiat.toStringAsFixed(2)} | ${amountCrypto.toStringAsFixed(4)} $crypto',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                  ),
+                  DualCurrencyText(usdc: amountCrypto, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                   if (createdAt != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),

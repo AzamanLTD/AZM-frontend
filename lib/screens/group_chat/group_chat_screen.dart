@@ -11,12 +11,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart' as intl;
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
+import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -30,12 +35,16 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final _input = TextEditingController();
   final _focusNode = FocusNode();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _sending = false;
 
   // Master Sprint v2: @-mentions overlay state. When the user types `@`
   // we show a member picker; tapping inserts `@username` at the cursor.
   bool _showMentionPicker = false;
   String _mentionFilter = '';
+
+  GroupMessage? _replyToMessage;
+  final Map<String, DateTime> _typingMembers = {};
 
   @override
   void initState() {
@@ -96,6 +105,79 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       selection: TextSelection.collapsed(offset: at + replacement.length),
     );
     setState(() => _showMentionPicker = false);
+  }
+
+  Future<void> _pickImage() async {
+    final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+  }
+
+  Future<void> _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles();
+  }
+
+  void _showStickerSheet() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Stickers coming soon')),
+    );
+  }
+
+  Widget _buildGroupTypingIndicator(AzamanColors colors) {
+    String label;
+    final names = _typingMembers.keys.take(3).toList();
+    if (names.isEmpty) return const SizedBox();
+    if (names.length == 1) {
+      label = '$names is typing…';
+    } else if (names.length == 2) {
+      label = '${names[0]} and ${names[1]} are typing…';
+    } else {
+      label = 'Several people are typing…';
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const SizedBox(width: 28),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            radius: 5,
+            backgroundColor: colors.accent,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateChip(DateTime date, AzamanColors colors) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDate = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(msgDate).inDays;
+    String label;
+    if (diff == 0) label = 'Today';
+    else if (diff == 1) label = 'Yesterday';
+    else label = intl.DateFormat('EEE d MMM').format(date);
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+          style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
   }
 
   Future<void> _send() async {
@@ -192,7 +274,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
               loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
               error: (e, _) => Center(child: Text(e.toString())),
               data: (msgs) {
-                if (msgs.isEmpty) {
+                if (msgs.isEmpty && _typingMembers.isEmpty) {
                   return Center(
                     child: Text(
                       'No messages yet — say hi!',
@@ -200,11 +282,54 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                     ),
                   );
                 }
+                final sorted = List<GroupMessage>.from(msgs)
+                  ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                final typingCount = _typingMembers.length;
+                final totalItems = sorted.length + (typingCount > 0 ? 1 : 0);
                 return ListView.builder(
-                  reverse: true,
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  itemCount: msgs.length,
-                  itemBuilder: (context, i) => _MessageBubble(msg: msgs[i], colors: colors),
+                  itemCount: totalItems,
+                  itemBuilder: (context, i) {
+                    if (typingCount > 0 && i == sorted.length) {
+                      return _buildGroupTypingIndicator(colors);
+                    }
+                    final msg = sorted[i];
+                    final prevMsg = i > 0 ? sorted[i - 1] : null;
+                    if (prevMsg != null) {
+                      final diff = msg.createdAt.difference(prevMsg.createdAt);
+                      if (diff.inDays >= 1) {
+                        return Column(
+                          children: [
+                            _buildDateChip(msg.createdAt, colors),
+                            const SizedBox(height: 8),
+                            _MessageBubble(
+                              msg: msg,
+                              colors: colors,
+                              showAvatar: true,
+                              showSenderName: true,
+                              onLongPress: () {},
+                            ),
+                          ],
+                        );
+                      }
+                      final sameSender = msg.senderId == prevMsg.senderId;
+                      final closeEnough = diff.inMinutes < 2;
+                      return _MessageBubble(
+                        msg: msg,
+                        colors: colors,
+                        showAvatar: !(sameSender && closeEnough),
+                        showSenderName: !(sameSender && closeEnough),
+                        onLongPress: () {},
+                      );
+                    }
+                    return _MessageBubble(
+                      msg: msg,
+                      colors: colors,
+                      showAvatar: true,
+                      showSenderName: true,
+                      onLongPress: () {},
+                    );
+                  },
                 );
               },
             ),
@@ -301,6 +426,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             sending: _sending,
             onSend: _send,
             colors: colors,
+            onImageTap: _pickImage,
+            onDocumentTap: _pickDocument,
+            onStickerTap: _showStickerSheet,
           ),
         ],
       ),
@@ -311,7 +439,17 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final GroupMessage msg;
   final AzamanColors colors;
-  const _MessageBubble({required this.msg, required this.colors});
+  final bool showAvatar;
+  final bool showSenderName;
+  final VoidCallback? onLongPress;
+
+  const _MessageBubble({
+    required this.msg,
+    required this.colors,
+    this.showAvatar = true,
+    this.showSenderName = true,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,64 +468,69 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     }
+    final isMine = msg.senderId == 'me';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withOpacity(0.15),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
-              style: TextStyle(
-                color: colors.accent,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-          ),
+          if (showAvatar)
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: colors.accent.withOpacity(0.15),
+              backgroundImage: msg.senderProfilePictureUrl != null
+                  ? CachedNetworkImageProvider(msg.senderProfilePictureUrl!)
+                  : null,
+              child: msg.senderProfilePictureUrl == null
+                  ? Text(
+                      (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    )
+                  : null,
+            )
+          else
+            const SizedBox(width: 28),
           const SizedBox(width: 8),
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.divider, width: 0.6),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    msg.senderUsername ?? 'Unknown',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  // Master Sprint v2: render @-mentions in accent color so
-                  // they stand out from the rest of the body. Splits the
-                  // text on a regex matching `@\w+` and recombines into
-                  // styled spans.
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 13,
+            child: GestureDetector(
+              onLongPress: onLongPress,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isMine ? colors.accent.withOpacity(0.15) : colors.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.divider, width: 0.6),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showSenderName && !isMine)
+                      Text(
+                        msg.senderUsername ?? 'Unknown',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      children: _buildBodySpans(msg.content ?? '', colors),
+                    if (showSenderName && !isMine)
+                      const SizedBox(height: 2),
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13,
+                        ),
+                        children: _buildBodySpans(msg.content ?? '', colors),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -403,6 +546,9 @@ class _Composer extends StatelessWidget {
   final bool sending;
   final VoidCallback onSend;
   final AzamanColors colors;
+  final VoidCallback? onImageTap;
+  final VoidCallback? onDocumentTap;
+  final VoidCallback? onStickerTap;
 
   const _Composer({
     required this.controller,
@@ -410,6 +556,9 @@ class _Composer extends StatelessWidget {
     required this.sending,
     required this.onSend,
     required this.colors,
+    this.onImageTap,
+    this.onDocumentTap,
+    this.onStickerTap,
   });
 
   @override
@@ -420,6 +569,12 @@ class _Composer extends StatelessWidget {
         color: Colors.transparent,
         child: Row(
           children: [
+            ChatPlusMenu(
+              onImageTap: onImageTap,
+              onDocumentTap: onDocumentTap,
+              onStickerTap: onStickerTap,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

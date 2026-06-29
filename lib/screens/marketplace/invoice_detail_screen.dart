@@ -10,10 +10,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/screens/marketplace/receipt_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -106,6 +108,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             content: Text('Invoice paid. Thank you!'),
             behavior: SnackBarBehavior.floating,
           ));
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (!mounted) return;
+            LeaveReviewSheet.show(context, business: inv.businessName ?? '');
+          });
         } catch (e) {
           if (!mounted) return;
           setState(() => _paying = false);
@@ -176,15 +182,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.accentSurface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(HugeIconsSolid.store01, color: colors.accent, size: 22),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: colors.accentSurface,
+            backgroundImage: inv.businessLogoUrl != null
+                ? CachedNetworkImageProvider(inv.businessLogoUrl!)
+                : null,
+            child: inv.businessLogoUrl == null
+                ? Icon(HugeIconsSolid.store01, color: colors.accent, size: 22)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -192,6 +198,13 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text('BILL FROM',
+                    style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2)),
+                const SizedBox(height: 3),
                 Text(
                   inv.businessName ?? 'Business',
                   style: TextStyle(

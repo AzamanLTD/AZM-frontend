@@ -15,6 +15,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Message Type Enum
+// ─────────────────────────────────────────────────────────────────────────────
+enum MessageType {
+  text,
+  system,
+  transaction,
+  timeRequest,
+  timeApproved,
+  timeRejected,
+  image,
+  video,
+  audio,
+  document,
+  sticker,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Message Model
 // ─────────────────────────────────────────────────────────────────────────────
 class ChatMessage {
@@ -29,6 +46,22 @@ class ChatMessage {
   final double? amount;
   final String? currency;
 
+  // Reply-to support
+  final String? replyToId;
+  final String? replyToText;
+  final String? replyToSenderName;
+
+  // Rich media
+  final String? mediaUrl;
+  final String? mediaType;
+  final String? mediaMimeType;
+  final int? mediaDuration;
+  final List<int>? waveformPeaks;
+
+  // Sticker
+  final String? stickerAssetPath;
+  final bool isAnimatedSticker;
+
   ChatMessage({
     required this.id,
     required this.senderId,
@@ -38,6 +71,16 @@ class ChatMessage {
     required this.isMe,
     this.amount,
     this.currency,
+    this.replyToId,
+    this.replyToText,
+    this.replyToSenderName,
+    this.mediaUrl,
+    this.mediaType,
+    this.mediaMimeType,
+    this.mediaDuration,
+    this.waveformPeaks,
+    this.stickerAssetPath,
+    this.isAnimatedSticker = false,
   });
 
   ChatMessage copyWith({
@@ -49,6 +92,16 @@ class ChatMessage {
     bool? isMe,
     double? amount,
     String? currency,
+    String? replyToId,
+    String? replyToText,
+    String? replyToSenderName,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaMimeType,
+    int? mediaDuration,
+    List<int>? waveformPeaks,
+    String? stickerAssetPath,
+    bool? isAnimatedSticker,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -59,17 +112,18 @@ class ChatMessage {
       isMe: isMe ?? this.isMe,
       amount: amount ?? this.amount,
       currency: currency ?? this.currency,
+      replyToId: replyToId ?? this.replyToId,
+      replyToText: replyToText ?? this.replyToText,
+      replyToSenderName: replyToSenderName ?? this.replyToSenderName,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaType: mediaType ?? this.mediaType,
+      mediaMimeType: mediaMimeType ?? this.mediaMimeType,
+      mediaDuration: mediaDuration ?? this.mediaDuration,
+      waveformPeaks: waveformPeaks ?? this.waveformPeaks,
+      stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
+      isAnimatedSticker: isAnimatedSticker ?? this.isAnimatedSticker,
     );
   }
-}
-
-enum MessageType {
-  text,
-  system,
-  transaction,
-  timeRequest,
-  timeApproved,
-  timeRejected,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

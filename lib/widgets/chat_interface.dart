@@ -11,6 +11,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class ChatInterface extends ConsumerStatefulWidget {
@@ -217,9 +218,35 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           Padding(
             padding: const EdgeInsets.only(left: 20, bottom: 10),
             child: Row(children: [
-              SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent)),
-              const SizedBox(width: 10),
-              Text("Typing...", style: TextStyle(color: colors.accent.withOpacity(0.8), fontSize: 12)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.6, end: 1.0),
+                      duration: Duration(milliseconds: 400 + i * 200),
+                      builder: (_, val, __) {
+                        return Transform.scale(
+                          scale: val,
+                          child: Container(
+                            width: 6, height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: colors.textTertiary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+              ),
             ]),
           ),
 
@@ -1109,17 +1136,16 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // ── + button (non-admin only) — opens action sheet ──────────────
+          // ── + button (non-admin only) — ChatPlusMenu ────────────────────
           if (!isAdmin)
-            SizedBox(
-              width: 38,
-              height: 38,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: Icon(HugeIconsSolid.add01, color: c.accent, size: 22),
-                onPressed: widget.isUploading ? null : _showAttachmentSheet,
-                tooltip: 'Attach',
-              ),
+            ChatPlusMenu(
+              onImageTap: widget.onPickGallery,
+              onDocumentTap: () {},
+              onStickerTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Stickers coming soon')),
+                );
+              },
             ),
 
           // ── Text input field ─────────────────────────────────────────────

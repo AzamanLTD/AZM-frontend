@@ -18,6 +18,7 @@ import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
+import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -186,18 +187,18 @@ class _GreetingHeader extends ConsumerWidget {
             ),
           ),
           if (hasBiz) ...[
-            const SizedBox(width: 10),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                AzamanHaptics.nav();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const BusinessNotificationsScreen(),
-                  ),
-                );
-              },
+          const SizedBox(width: 10),
+          const NotificationBell(),
+          const SizedBox(width: 10),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BusinessNotificationsScreen()),
+              );
+            },
               child: Container(
                 width: 40,
                 height: 40,

@@ -46,6 +46,7 @@ import 'package:azaman/screens/susu/liability_acceptance_screen.dart';
 import 'package:azaman/screens/susu/proof_of_residency_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
+import 'package:azaman/screens/transaction_history_screen.dart';
 // V3 Marketplace Sprint (2026-06-21) — Premium Marketplace surfaces.
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
@@ -138,6 +139,11 @@ final GoRouter appRouter = GoRouter(
       path: '/account/delete',
       name: 'account-delete',
       builder: (context, state) => const AccountDeactivationScreen(),
+    ),
+    GoRoute(
+      path: '/transactions',
+      name: 'transactions',
+      builder: (context, state) => const TransactionHistoryScreen(),
     ),
 
     // ── Social: friends, messages, referral, leaderboard ────────────────────

@@ -32,6 +32,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -202,15 +203,19 @@ class SettingsScreen extends ConsumerWidget {
               _NavRow(
                 colors: colors,
                 icon: HugeIconsSolid.dollar01,
-                title: 'Default Currency',
-                trailingText: settings.defaultCurrency,
+                title: 'Display Currency',
+                trailingText: ref.watch(currencyProvider).name.toUpperCase(),
                 onTap: () => _pickFromList(
                   context,
                   colors,
-                  title: 'Default Currency',
-                  options: const ['USD', 'GHS', 'EUR', 'GBP', 'NGN'],
-                  current: settings.defaultCurrency,
-                  onPicked: settings.setDefaultCurrency,
+                  title: 'Display Currency',
+                  options: const ['USDC', 'GHS'],
+                  current: ref.watch(currencyProvider).name.toUpperCase(),
+                  onPicked: (v) {
+                    ref.read(currencyProvider.notifier).set(
+                          v == 'GHS' ? DisplayCurrency.ghs : DisplayCurrency.usdc,
+                        );
+                  },
                 ),
               ),
               _Divider(colors),

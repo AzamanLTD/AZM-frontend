@@ -88,10 +88,10 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
           indicatorColor: colors.accent,
           labelStyle:
               const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
-          tabs: const [
-            Tab(text: 'Unpaid'),
-            Tab(text: 'Paid'),
-            Tab(text: 'All'),
+          tabs: [
+            Tab(text: 'Unpaid  (${state.invoices.where((i) => i.status == InvoiceStatus.sent).length})'),
+            Tab(text: 'Paid  (${state.invoices.where((i) => i.status == InvoiceStatus.paid).length})'),
+            Tab(text: 'All  (${state.invoices.length})'),
           ],
         ),
       ),

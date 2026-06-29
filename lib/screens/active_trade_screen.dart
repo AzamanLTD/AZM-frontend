@@ -23,6 +23,7 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/screens/trade_summary_screen.dart';
+import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class ActiveTradeScreen extends ConsumerStatefulWidget {
@@ -1183,11 +1184,10 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("\$${_tradeAmount.toStringAsFixed(2)}",
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold)),
+              DualCurrencyText(
+                usdc: _tradeAmount,
+                style: TextStyle(color: colors.accent, fontSize: 32, fontWeight: FontWeight.bold),
+              ),
               IconButton(
                   onPressed: () => _handlePaymentAction(isSharing: true),
                   icon: Icon(HugeIconsSolid.share01, color: colors.textSecondary)),

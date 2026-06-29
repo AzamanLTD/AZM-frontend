@@ -15,14 +15,24 @@
 //   • Transaction message bubbles
 // =============================================================================
 
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart' as intl;
+
 import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
-import 'dart:ui';
+import 'package:azaman/models/chat_theme_model.dart';
+import 'package:azaman/widgets/chat_plus_menu.dart';
+import 'package:azaman/widgets/sticker_sheet.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
@@ -47,8 +57,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final LocalAuthentication _localAuth = LocalAuthentication();
+  final ImagePicker _imagePicker = ImagePicker();
 
-
+  ChatMessage? _replyToMessage;
+  bool _partnerIsTyping = false;
+  Timer? _typingTimer;
 
   @override
   void initState() {
@@ -60,6 +73,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _typingTimer?.cancel();
     super.dispose();
   }
 
@@ -98,14 +112,17 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
             id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
             senderId: 'me',
             text: text,
-
             timestamp: DateTime.now(),
             type: MessageType.text,
             isMe: true,
+            replyToId: _replyToMessage?.id,
+            replyToText: _replyToMessage?.text,
+            replyToSenderName: _replyToMessage?.isMe == true ? 'You' : widget.contactName,
           ),
         );
 
     _messageController.clear();
+    setState(() => _replyToMessage = null);
     _scrollToBottom();
   }
 
@@ -119,6 +136,163 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         );
       }
     });
+  }
+
+  void _showWallpaperPicker() {
+    final chatTheme = ref.read(chatThemeProvider(widget.chatId));
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: ref.read(themeProvider).colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Chat Wallpaper',
+              style: TextStyle(
+                color: ref.read(themeProvider).colors.textPrimary,
+                fontSize: 16, fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: 7,
+              itemBuilder: (ctx, i) {
+                final wallpapers = ChatWallpaper.values;
+                final wp = wallpapers[i];
+                final isSelected = chatTheme.wallpaper == wp;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(chatThemeProvider(widget.chatId).notifier).setWallpaper(wp);
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    width: 60, height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? ref.read(themeProvider).colors.accent : Colors.transparent,
+                        width: 2,
+                      ),
+                      image: wp == ChatWallpaper.none ? null : DecorationImage(
+                        image: AssetImage('assets/chat_wallpapers/wp_${wp.name}.jpg'),
+                        fit: BoxFit.cover,
+                      ),
+                      color: wp == ChatWallpaper.none ? ref.read(themeProvider).colors.card : null,
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    final params = {
+      'chatId': widget.chatId,
+      'contactId': widget.contactId,
+      'contactName': widget.contactName,
+    };
+    ref.read(directChatProvider(params).notifier).addMessage(
+      ChatMessage(
+        id: 'img_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: 'me',
+        text: '',
+        timestamp: DateTime.now(),
+        type: MessageType.image,
+        isMe: true,
+        mediaUrl: file.path,
+        mediaType: 'image',
+      ),
+    );
+  }
+
+  Future<void> _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null) return;
+    final params = {
+      'chatId': widget.chatId,
+      'contactId': widget.contactId,
+      'contactName': widget.contactName,
+    };
+    ref.read(directChatProvider(params).notifier).addMessage(
+      ChatMessage(
+        id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: 'me',
+        text: result.files.single.name,
+        timestamp: DateTime.now(),
+        type: MessageType.document,
+        isMe: true,
+        mediaUrl: path,
+        mediaType: 'document',
+      ),
+    );
+  }
+
+  void _showStickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StickerSheet(
+        onStickerSelected: (path, isAnimated) {
+          _sendSticker(path, isAnimated);
+        },
+      ),
+    );
+  }
+
+  void _sendSticker(String assetPath, bool isAnimated) {
+    final params = {
+      'chatId': widget.chatId,
+      'contactId': widget.contactId,
+      'contactName': widget.contactName,
+    };
+    ref.read(directChatProvider(params).notifier).addMessage(
+      ChatMessage(
+        id: 'sticker_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: 'me',
+        text: '',
+        timestamp: DateTime.now(),
+        type: MessageType.sticker,
+        isMe: true,
+        stickerAssetPath: assetPath,
+        isAnimatedSticker: isAnimated,
+      ),
+    );
+    _scrollToBottom();
   }
 
   void _showValueTransferSheet() {
@@ -264,73 +438,119 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: colors.glow.withOpacity(0.2),
-              radius: 18,
-              child: Text(
-                widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: colors.glow,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+        title: GestureDetector(
+          onTap: () {},
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: colors.glow.withOpacity(0.2),
+                radius: 18,
+                child: Text(
+                  widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: colors.glow,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.contactName,
-
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.contactName,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  '@${widget.contactAzamanId}',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _partnerIsTyping
+                              ? colors.success
+                              : colors.textTertiary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _partnerIsTyping ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.informationCircle, color: colors.glow),
-            onPressed: () {
-              // Show contact info
-            },
+            icon: Icon(HugeIconsSolid.call01, color: colors.glow),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(HugeIconsSolid.paintBoard, color: colors.glow),
+            onPressed: () => _showWallpaperPicker(),
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Messages list
-          Expanded(
-            child: chatState.messages.isEmpty
-                ? _buildEmptyState(colors)
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                    itemCount: chatState.messages.length,
-                    itemBuilder: (context, i) {
-                      final msg = chatState.messages[i];
-                      return _buildMessageBubble(msg, colors);
-                    },
+          // Wallpaper background
+          Consumer(
+            builder: (ctx, ref, _) {
+              final theme = ref.watch(chatThemeProvider(widget.chatId));
+              if (theme.wallpaper != ChatWallpaper.none) {
+                return Positioned.fill(
+                  child: Image.asset(
+                    theme.wallpaperAsset,
+                    fit: BoxFit.cover,
                   ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
+          Column(
+            children: [
+              // Messages list
+              Expanded(
+                child: chatState.messages.isEmpty
+                    ? _buildEmptyState(colors)
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        itemCount: chatState.messages.length + (_partnerIsTyping ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (_partnerIsTyping && i == chatState.messages.length) {
+                            return _buildTypingIndicator(colors);
+                          }
+                          final msg = chatState.messages[i];
+                          final prevMsg = i > 0 ? chatState.messages[i - 1] : null;
+                          return _buildMessageBubble(msg, prevMsg, colors);
+                        },
+                      ),
+              ),
 
-          // Message input with action button
-          _buildInputField(colors),
+              // Reply banner
+              if (_replyToMessage != null)
+                _buildReplyBanner(colors),
+
+              // Message input with action button
+              _buildInputField(colors),
+            ],
+          ),
         ],
       ),
 
@@ -358,14 +578,243 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg, AzamanColors colors) {
-    if (msg.type == MessageType.system) {
-      return _buildSystemMessage(msg, colors);
-    } else if (msg.type == MessageType.transaction) {
-      return _buildTransactionBubble(msg, colors);
-    } else {
-      return _buildTextBubble(msg, colors);
+  Widget _buildReplyBanner(AzamanColors colors) {
+    final msg = _replyToMessage!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.divider)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 32,
+            color: colors.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  msg.isMe ? 'You' : widget.contactName,
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  msg.text.length > 200
+                      ? '${msg.text.substring(0, 200)}...'
+                      : msg.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(HugeIconsSolid.cancel01, color: colors.textTertiary, size: 16),
+            onPressed: () => setState(() => _replyToMessage = null),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator(AzamanColors colors) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.6, end: 1.0),
+              duration: Duration(milliseconds: 400 + i * 200),
+              builder: (_, val, __) {
+                return Transform.scale(
+                  scale: val,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: colors.textTertiary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMessage msg, ChatMessage? prevMsg, AzamanColors colors) {
+    if (_shouldShowDateChip(msg, prevMsg)) {
+      return Column(
+        children: [
+          _buildDateChip(msg.timestamp, colors),
+          const SizedBox(height: 8),
+          _buildBubbleForType(msg, colors),
+        ],
+      );
     }
+    return _buildBubbleForType(msg, colors);
+  }
+
+  bool _shouldShowDateChip(ChatMessage msg, ChatMessage? prevMsg) {
+    if (prevMsg == null) return true;
+    final current = DateTime(msg.timestamp.year, msg.timestamp.month, msg.timestamp.day);
+    final previous = DateTime(prevMsg.timestamp.year, prevMsg.timestamp.month, prevMsg.timestamp.day);
+    return current != previous;
+  }
+
+  Widget _buildDateChip(DateTime date, AzamanColors colors) {
+    String label;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDate = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(msgDate).inDays;
+    if (diff == 0) {
+      label = 'Today';
+    } else if (diff == 1) {
+      label = 'Yesterday';
+    } else {
+      label = intl.DateFormat('EEE d MMM').format(date);
+    }
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBubbleForType(ChatMessage msg, AzamanColors colors) {
+    switch (msg.type) {
+      case MessageType.system:
+        return _buildSystemMessage(msg, colors);
+      case MessageType.transaction:
+        return _buildTransactionBubble(msg, colors);
+      case MessageType.image:
+        return _buildMediaBubble(msg, colors);
+      case MessageType.document:
+        return _buildDocumentBubble(msg, colors);
+      case MessageType.sticker:
+        return _buildStickerBubble(msg, colors);
+      default:
+        return _buildTextBubble(msg, colors);
+    }
+  }
+
+  Widget _buildMediaBubble(ChatMessage msg, AzamanColors colors) {
+    return GestureDetector(
+      onLongPress: () => setState(() => _replyToMessage = msg),
+      child: Align(
+        alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          width: 220,
+          constraints: const BoxConstraints(maxHeight: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: colors.card,
+          ),
+          child: msg.mediaUrl != null && msg.mediaUrl!.startsWith('http')
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(msg.mediaUrl!, fit: BoxFit.cover),
+                )
+              : Icon(HugeIconsSolid.image01, color: colors.textTertiary, size: 48),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentBubble(ChatMessage msg, AzamanColors colors) {
+    return GestureDetector(
+      onLongPress: () => setState(() => _replyToMessage = msg),
+      child: Align(
+        alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.6,
+          ),
+          decoration: BoxDecoration(
+            color: msg.isMe ? colors.glow : colors.card,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(HugeIconsSolid.folder01, color: colors.accent, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  msg.text.isNotEmpty ? msg.text : 'Document',
+                  style: TextStyle(color: colors.textPrimary, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStickerBubble(ChatMessage msg, AzamanColors colors) {
+    return GestureDetector(
+      onLongPress: () => setState(() => _replyToMessage = msg),
+      child: Align(
+        alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: msg.stickerAssetPath != null
+              ? Image.asset(msg.stickerAssetPath!, width: 120, height: 120)
+              : null,
+        ),
+      ),
+    );
   }
 
   Widget _buildSystemMessage(ChatMessage msg, AzamanColors colors) {
@@ -400,117 +849,190 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   }
 
   Widget _buildTransactionBubble(ChatMessage msg, AzamanColors colors) {
-    return Align(
-      alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: msg.isMe
-                ? [colors.success.withOpacity(0.25), colors.success.withOpacity(0.15)]
-                : [colors.card, colors.card.withOpacity(0.8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: msg.isMe ? colors.success : colors.accentSecondary,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: msg.isMe ? colors.success.withOpacity(0.2) : colors.accentSecondary.withOpacity(0.15),
-              blurRadius: 12,
-
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: msg.isMe ? colors.success.withOpacity(0.2) : colors.accentSecondary.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    HugeIconsSolid.bitcoin,
-                    color: msg.isMe ? colors.success : colors.accentSecondary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'CRYPTO TRANSFER',
-                  style: TextStyle(
-                    color: msg.isMe ? colors.success : colors.accentSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
-                ),
+    final label = msg.isMe ? 'Sent' : 'Received';
+    final contact = msg.isMe ? widget.contactName : widget.contactName;
+    return GestureDetector(
+      onTap: () => _showTransactionDetails(msg),
+      child: Align(
+        alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          width: 280,
+          height: 100,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colors.glow.withOpacity(0.85),
+                colors.accent.withOpacity(0.7),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(
-                  '${msg.amount?.toStringAsFixed(2) ?? '0.00'}',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  msg.currency ?? 'AZM',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                colors: [Colors.white.withOpacity(0.3), Colors.transparent],
+                stops: const [0.0, 0.1],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Completed',
-                      style: TextStyle(
-                        color: colors.success,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Icon(HugeIconsSolid.transfer, color: Colors.white, size: 20),
+                        const SizedBox(width: 6),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${msg.amount?.toStringAsFixed(2) ?? '0.00'}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          msg.currency ?? 'USDC',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Text(
+                          '${msg.isMe ? "To" : "From"}: $contact',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 10,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Confirmed',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                Text(
-                  _formatTime(msg.timestamp),
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 10,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionDetails(ChatMessage msg) {
+    final colors = ref.read(themeProvider).colors;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: colors.textTertiary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Transaction Details',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18, fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _detailRow('Reference', msg.id.length > 12 ? 'REF: ${msg.id.substring(0, 12)}' : msg.id, colors),
+            _detailRow('Timestamp', _formatTime(msg.timestamp), colors),
+            _detailRow('Amount', '${msg.amount?.toStringAsFixed(2) ?? '0.00'} ${msg.currency ?? 'USDC'}', colors),
+            _detailRow('Status', 'Confirmed', colors),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Share.share(
+                    'Azaman Transaction\n'
+                    'Amount: ${msg.amount?.toStringAsFixed(2) ?? '0.00'} ${msg.currency ?? 'USDC'}\n'
+                    'Status: Confirmed\n'
+                    'Reference: ${msg.id}\n'
+                    'Date: ${msg.timestamp}',
+                  );
+                },
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('Share Receipt'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ],
+              ),
             ),
+            const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value, AzamanColors colors) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -520,53 +1042,91 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     final bubbleColor = isMe ? colors.glow : colors.card;
     final textColor = isMe ? Colors.black : colors.textPrimary;
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-
-        ),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+    return GestureDetector(
+      onLongPress: () => setState(() => _replyToMessage = msg),
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
           ),
-          border: isMe ? null : Border.all(color: colors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: isMe ? colors.glow.withOpacity(0.2) : Colors.black26,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+              bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
             ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              msg.text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+            border: isMe ? null : Border.all(color: colors.divider),
+            boxShadow: [
+              BoxShadow(
+                color: isMe ? colors.glow.withOpacity(0.2) : Colors.black26,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTime(msg.timestamp),
-              style: TextStyle(
-                color: isMe ? Colors.black54 : colors.textTertiary,
-                fontSize: 10,
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (msg.replyToId != null)
+                _buildQuotedMessage(msg, colors),
+              Text(
+                msg.text,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                _formatTime(msg.timestamp),
+                style: TextStyle(
+                  color: isMe ? Colors.black54 : colors.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuotedMessage(ChatMessage msg, AzamanColors colors) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: colors.accent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(left: BorderSide(color: colors.accent, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            msg.replyToSenderName ?? 'Unknown',
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            msg.replyToText ?? '',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -583,32 +1143,12 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       ),
       child: Row(
         children: [
-          // Action button (+) for value transfers
-          GestureDetector(
-            onTap: _showValueTransferSheet,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [colors.accentSecondary, colors.accentSecondary.withOpacity(0.8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.accentSecondary.withOpacity(0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                HugeIconsSolid.add01,
-                color: Colors.black,
-                size: 24,
-              ),
-            ),
+          // Chat Plus Menu
+          ChatPlusMenu(
+            onTransferTap: _showValueTransferSheet,
+            onImageTap: _pickImage,
+            onDocumentTap: _pickDocument,
+            onStickerTap: _showStickerSheet,
           ),
           const SizedBox(width: 12),
           Expanded(

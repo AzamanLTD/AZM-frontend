@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -105,7 +106,41 @@ class _CategoryDrilldownScreenState
           },
         ),
       ),
-      body: _showBusinessList ? _businessList(colors) : _subcategoryGrid(colors),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Text(
+                    'Marketplace',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(' › ', style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _showBusinessList ? _businessList(colors) : _subcategoryGrid(colors),
+          ),
+        ],
+      ),
     );
   }
 
@@ -161,54 +196,72 @@ class _CategoryDrilldownScreenState
       behavior: HitTestBehavior.opaque,
       onTap: () => _selectSubcategory(sub),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        height: 100,
         decoration: BoxDecoration(
-          color: colors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.divider),
+          image: sub.imageUrl != null
+              ? DecorationImage(
+                  image: CachedNetworkImageProvider(sub.imageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+          gradient: sub.imageUrl == null
+              ? LinearGradient(
+                  colors: [colors.accent.withOpacity(0.3), colors.card],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.accentSurface,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(HugeIconsSolid.tag01,
-                  size: 16, color: colors.accent),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [Colors.transparent, Colors.black54],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
-            const Spacer(),
-            Text(
-              sub.label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Text(
-                  'Browse',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${sub.displayOrder} businesses',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                sub.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
                 ),
-                const SizedBox(width: 4),
-                Icon(HugeIconsStroke.arrowRight01,
-                    size: 12, color: colors.accent),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

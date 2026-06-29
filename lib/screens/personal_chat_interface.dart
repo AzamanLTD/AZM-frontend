@@ -856,14 +856,9 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
 
             const SizedBox(width: 4),
 
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: colors.softSurface,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
+            CircleAvatar(
+              radius: 19,
+              backgroundColor: colors.softSurface,
               child: Text(
                 _displayName.isNotEmpty
                     ? _displayName[0].toUpperCase()
@@ -894,22 +889,52 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 1),
-                  Text(
-                    '@${widget.contactAzamanId}',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Container(
+                        width: 6, height: 6,
+                        decoration: BoxDecoration(
+                          color: colors.success,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Online',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
+            // Ticket-type badge placeholder
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: colors.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'TICKET',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 6),
+
             GestureDetector(
-              onTap: _showMoreActions,
+              onTap: () {},
               child: Container(
                 width: 36,
                 height: 36,
@@ -919,7 +944,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                 ),
                 alignment: Alignment.center,
                 child: Icon(
-                  HugeIconsSolid.moreHorizontal,
+                  HugeIconsSolid.informationCircle,
                   color: colors.textSecondary,
                   size: 18,
                 ),
@@ -1193,23 +1218,12 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          GestureDetector(
-            onTap: _showMoreActions,
-            child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(bottom: 2),
-              decoration: BoxDecoration(
-                color: colors.softSurface,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                HugeIconsSolid.add01,
-                color: colors.textSecondary,
-                size: 18,
-              ),
-            ),
+          ChatPlusMenu(
+            onTransferTap: _handleSendCrypto,
+            onEscrowTap: _showEscrowInstructions,
+            onImageTap: _pickImage,
+            onDocumentTap: _pickDocument,
+            onStickerTap: _showStickerSheet,
           ),
 
           const SizedBox(width: 8),
@@ -1274,6 +1288,124 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showEscrowInstructions() {
+    final colors = ref.read(themeProvider).colors;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (_, scrollCtrl) => Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: ListView(
+            controller: scrollCtrl,
+            children: [
+              Center(
+                child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('How Escrow Works',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 20, fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _escrowStep(colors, '1', 'Agree Terms', 'Both parties confirm the deal details in the ticket.'),
+              _escrowStep(colors, '2', 'Buyer Funds Escrow', 'The buyer locks funds using the Initiate Escrow button. Funds are held securely.'),
+              _escrowStep(colors, '3', 'Seller Delivers', 'The seller fulfils the agreed service or delivers the goods.'),
+              _escrowStep(colors, '4', 'Automatic Release', 'Once the buyer confirms delivery, funds are released. Disputes trigger admin review.'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Initiate Escrow Now',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _escrowStep(AzamanColors colors, String num, String title, String desc) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28, height: 28,
+            decoration: BoxDecoration(
+              color: colors.accent,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(num,
+              style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(desc,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _pickImage() {}
+  void _pickDocument() {}
+  void _showStickerSheet() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Stickers coming soon')),
     );
   }
 }

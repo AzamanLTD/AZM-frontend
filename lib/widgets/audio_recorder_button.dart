@@ -262,6 +262,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
         onDragUpdate: _onDragUpdate,
         onDragEnd: _onDragEnd,
         size: widget.size,
+        peaks: _peaks,
       );
     }
     return GestureDetector(
@@ -284,7 +285,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
   }
 }
 
-class _RecordingStrip extends StatelessWidget {
+class _RecordingStrip extends StatefulWidget {
   final Duration elapsed;
   final bool cancelling;
   final double dragDx;
@@ -294,6 +295,7 @@ class _RecordingStrip extends StatelessWidget {
   final void Function(DragUpdateDetails) onDragUpdate;
   final void Function(DragEndDetails) onDragEnd;
   final double size;
+  final List<int> peaks;
 
   const _RecordingStrip({
     required this.elapsed,
@@ -305,7 +307,37 @@ class _RecordingStrip extends StatelessWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.size,
+    required this.peaks,
   });
+
+  @override
+  State<_RecordingStrip> createState() => _RecordingStripState();
+}
+
+class _RecordingStripState extends State<_RecordingStrip>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseCtrl;
+  late AnimationController _chevronCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+    _chevronCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _chevronCtrl.dispose();
+    super.dispose();
+  }
 
   String _formatElapsed(Duration d) {
     final m = d.inMinutes;
@@ -315,113 +347,132 @@ class _RecordingStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (dragDx / cancelThresholdDx).clamp(0.0, 1.0);
-    final dotColor = cancelling
-        ? colors.danger
-        : Color.lerp(colors.danger, colors.warning, pct) ?? colors.danger;
+    final visualWarning = widget.dragDx < -40;
+    final isCancelling = widget.cancelling;
+    final baseColor = isCancelling ? widget.colors.danger : widget.colors.accent;
+
     return GestureDetector(
-      onHorizontalDragStart: onDragStart,
-      onHorizontalDragUpdate: onDragUpdate,
-      onHorizontalDragEnd: onDragEnd,
-      child: Container(
-        height: size,
-        constraints: const BoxConstraints(minWidth: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: cancelling
-              ? colors.danger.withOpacity(0.15)
-              : colors.danger.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(size / 2),
-          border: Border.all(
-              color: dotColor.withOpacity(cancelling ? 0.7 : 0.35), width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PulseDot(color: dotColor),
-            const SizedBox(width: 8),
-            Text(
-              _formatElapsed(elapsed),
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    cancelling
-                        ? HugeIconsSolid.cancel01
-                        : HugeIconsSolid.arrowLeft01,
-                    color: dotColor,
-                    size: 14,
+      onHorizontalDragStart: widget.onDragStart,
+      onHorizontalDragUpdate: widget.onDragUpdate,
+      onHorizontalDragEnd: widget.onDragEnd,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.size / 2),
+        child: Container(
+          height: widget.size,
+          constraints: const BoxConstraints(minWidth: 220),
+          decoration: BoxDecoration(
+            color: visualWarning
+                ? widget.colors.danger.withOpacity(0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(widget.size / 2),
+          ),
+          child: Stack(
+            children: [
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: widget.colors.surface.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(widget.size / 2),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    cancelling ? 'Release to cancel' : 'Slide to cancel',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 600),
+                      width: _pulseCtrl.value * 4 + 10,
+                      height: _pulseCtrl.value * 4 + 10,
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatElapsed(widget.elapsed),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 28,
+                      width: widget.peaks.length * 4 + 4,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(
+                          widget.peaks.length.clamp(0, 30),
+                          (i) {
+                            final peak = widget.peaks[i];
+                            final barHeight = peak / 100 * 28;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 80),
+                              width: 2,
+                              height: barHeight.clamp(2, 28),
+                              margin: const EdgeInsets.only(right: 2),
+                              decoration: BoxDecoration(
+                                color: isCancelling
+                                    ? widget.colors.danger
+                                    : widget.colors.accent,
+                                borderRadius: BorderRadius.circular(1),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Opacity(
+                      opacity: isCancelling
+                          ? 1.0
+                          : (1.0 - (widget.dragDx / -40).clamp(0, 1)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _chevronCtrl,
+                            builder: (_, __) {
+                              return Transform.translate(
+                                offset: Offset(
+                                  -_chevronCtrl.value * 4,
+                                  0,
+                                ),
+                                child: Icon(
+                                  HugeIconsSolid.arrowLeft01,
+                                  color: widget.colors.textTertiary,
+                                  size: 14,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isCancelling
+                                ? 'Release to cancel'
+                                : 'Slide to cancel',
+                            style: TextStyle(
+                              color: widget.colors.textTertiary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _PulseDot extends StatefulWidget {
-  final Color color;
-  const _PulseDot({required this.color});
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        // Sine-eased pulse 0..1 across the cycle, mapped to 0.5..1.0 alpha.
-        final t = (math.sin(_ctrl.value * 2 * math.pi) + 1) / 2;
-        final alpha = 0.5 + 0.5 * t;
-        return Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: widget.color.withOpacity(alpha),
-            shape: BoxShape.circle,
-          ),
-        );
-      },
     );
   }
 }
