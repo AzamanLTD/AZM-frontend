@@ -949,6 +949,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
               if (!_isChatOpen) RateLockDisclaimer(
                 compact: true,
                 lockedRate: ref.read(tradeProvider).yellowCardRate,
+                lockExpiresAt: _tradeExpiresAt,
               ),
               if (_isDisputed && !_isChatOpen) _buildDisputeBanner(),
               Expanded(

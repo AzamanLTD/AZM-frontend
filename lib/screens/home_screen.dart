@@ -179,10 +179,12 @@ class _GreetingHeader extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
-                  const SizedBox(width: 6),
+                  Icon(HugeIconsSolid.gift, size: 14, color: colors.success),
+                  const SizedBox(width: 5),
                   Text(
-                    'Earn AZM',
+                    (user?.azmBalance ?? 0) > 0
+                        ? "${user!.azmBalance.toStringAsFixed(0)} AZM"
+                        : 'Earn AZM',
                     style: TextStyle(
                       color: colors.success,
                       fontSize: 13,

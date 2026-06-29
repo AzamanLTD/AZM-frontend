@@ -324,11 +324,11 @@ final directChatProvider =
 
 final totalUnreadChatCountProvider = FutureProvider<int>((ref) async {
   try {
-    final resp = await apiClient.get("/friends/chats");
+    final resp = await apiClient.get("/friends");
     if (resp.statusCode == 200) {
       final data = jsonDecode(resp.body);
-      final chats = data["chats"] as List? ?? [];
-      return chats.fold<int>(0, (sum, c) {
+      final friends = data["friends"] as List? ?? [];
+      return friends.fold<int>(0, (sum, c) {
         return sum + ((c["unreadCount"] as num?)?.toInt() ?? 0);
       });
     }
