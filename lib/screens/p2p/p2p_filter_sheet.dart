@@ -15,7 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -135,7 +135,7 @@ class _P2PFilterSheetState extends ConsumerState<P2PFilterSheet> {
             // Header
             Row(
               children: [
-                Icon(HugeIconsSolid.filterHorizontal,
+                Icon(Icons.filter_list,
                     color: colors.accent, size: 20),
                 const SizedBox(width: 8),
                 Text('Filter Ads',

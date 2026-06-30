@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VouchFormScreen extends ConsumerStatefulWidget {
   final PendingVouch vouch;
@@ -78,7 +78,7 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Vouch Form',
@@ -97,7 +97,7 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.shield01, color: colors.warning, size: 18),
+                Icon(Icons.shield_outlined, color: colors.warning, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

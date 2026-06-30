@@ -24,7 +24,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -276,7 +276,7 @@ class _MarketplaceHomeScreenState
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: colors.success.withOpacity(0.25))),
               child: Row(children: [
-                Icon(HugeIconsSolid.shield01, color: colors.success, size: 18),
+                Icon(Icons.shield_outlined, color: colors.success, size: 18),
                 const SizedBox(width: 10),
                 Expanded(child: Text(
                   "Every order is escrow-protected. Funds held safely until delivery.",
@@ -319,12 +319,12 @@ class _MarketplaceHomeScreenState
                   hintText: 'Search businesses, services, products…',
                   hintStyle:
                       TextStyle(color: colors.textTertiary, fontSize: 14),
-                  prefixIcon: Icon(HugeIconsStroke.search01,
+                  prefixIcon: Icon(Icons.search,
                       size: 19, color: colors.textTertiary),
                   suffixIcon: _searchCtrl.text.isEmpty
                       ? null
                       : IconButton(
-                          icon: Icon(HugeIconsStroke.cancelCircle,
+                          icon: Icon(Icons.cancel_outlined,
                               size: 18, color: colors.textTertiary),
                           onPressed: () {
                             _searchCtrl.clear();
@@ -368,7 +368,7 @@ class _MarketplaceHomeScreenState
                 ),
               ),
               child: Icon(
-                HugeIconsStroke.filterHorizontal,
+                Icons.filter_list,
                 size: 20,
                 color: !_filters.isEmpty ? colors.accent : colors.textSecondary,
               ),
@@ -398,7 +398,7 @@ class _MarketplaceHomeScreenState
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: colors.accent),
                     )
-                  : Icon(HugeIconsStroke.location01,
+                  : Icon(Icons.location_on_outlined,
                       size: 20,
                       color: _position != null
                           ? colors.accent
@@ -425,7 +425,7 @@ class _MarketplaceHomeScreenState
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: colors.divider),
               ),
-              child: Icon(HugeIconsStroke.bookmark02,
+              child: Icon(Icons.bookmark_outline,
                   size: 20, color: colors.textSecondary),
             ),
           ),
@@ -527,7 +527,7 @@ class _MarketplaceHomeScreenState
                 ),
               ),
             ),
-            Icon(HugeIconsStroke.arrowRight01,
+            Icon(Icons.arrow_forward,
                 size: 14, color: isSelected ? accent : colors.textTertiary),
           ],
         ),
@@ -581,8 +581,8 @@ class _MarketplaceHomeScreenState
       ),
       child: Row(
         children: [
-          seg(HugeIconsStroke.menu01, _ViewMode.list),
-          seg(HugeIconsStroke.location01, _ViewMode.map),
+          seg(Icons.widgets_outlined, _ViewMode.list),
+          seg(Icons.location_on_outlined, _ViewMode.map),
         ],
       ),
     );
@@ -605,8 +605,8 @@ class _MarketplaceHomeScreenState
                   children: [
                     Icon(
                       m == _sort
-                          ? HugeIconsSolid.checkmarkCircle01
-                          : HugeIconsStroke.circle,
+                          ? Icons.check_circle_outline
+                          : Icons.circle_outlined,
                       size: 16,
                       color: m == _sort ? colors.accent : colors.textTertiary,
                     ),
@@ -627,7 +627,7 @@ class _MarketplaceHomeScreenState
         ),
         child: Row(
           children: [
-            Icon(HugeIconsStroke.arrowDataTransferVertical,
+            Icon(Icons.widgets_outlined,
                 size: 15, color: colors.textTertiary),
             const SizedBox(width: 6),
             Expanded(
@@ -641,7 +641,7 @@ class _MarketplaceHomeScreenState
                     fontWeight: FontWeight.w700),
               ),
             ),
-            Icon(HugeIconsStroke.arrowDown01,
+            Icon(Icons.arrow_downward,
                 size: 14, color: colors.textTertiary),
           ],
         ),
@@ -669,7 +669,7 @@ class _MarketplaceHomeScreenState
           children: [
             const SizedBox(height: 80),
             AzamanEmptyState(
-              icon: HugeIconsSolid.store01,
+              icon: Icons.storefront_outlined,
               title: 'No businesses found',
               subtitle: 'Try a different search, category, or filter.',
             ),
@@ -788,7 +788,7 @@ class _MarketplaceHomeScreenState
                 ),
                 const Spacer(),
                 if (b.isVerified)
-                  Icon(HugeIconsSolid.checkmarkCircle01,
+                  Icon(Icons.check_circle_outline,
                       size: 16, color: colors.success),
               ],
             ),
@@ -812,7 +812,7 @@ class _MarketplaceHomeScreenState
             const Spacer(),
             Row(
               children: [
-                Icon(HugeIconsSolid.star, size: 13, color: colors.warning),
+                Icon(Icons.star_outline, size: 13, color: colors.warning),
                 const SizedBox(width: 4),
                 Text(b.averageRating.toStringAsFixed(1),
                     style: TextStyle(
@@ -866,7 +866,7 @@ class _MarketplaceHomeScreenState
 
     if (locations.isEmpty) {
       return AzamanEmptyState(
-        icon: HugeIconsSolid.location01,
+        icon: Icons.location_on_outlined,
         title: 'Nothing nearby',
         subtitle: 'No business locations found within range. Try a wider search.',
       );
@@ -884,7 +884,7 @@ class _MarketplaceHomeScreenState
           ),
           child: Row(
             children: [
-              Icon(HugeIconsStroke.location01,
+              Icon(Icons.location_on_outlined,
                   size: 15, color: colors.accent),
               const SizedBox(width: 8),
               Expanded(
@@ -954,7 +954,7 @@ class _MarketplaceHomeScreenState
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(HugeIconsSolid.location01,
+              child: Icon(Icons.location_on_outlined,
                   size: 20, color: colors.accent),
             ),
             const SizedBox(width: 12),
@@ -994,7 +994,7 @@ class _MarketplaceHomeScreenState
                           fontSize: 12,
                           fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Icon(HugeIconsStroke.navigation03,
+                Icon(Icons.widgets_outlined,
                     size: 16, color: colors.textTertiary),
               ],
             ),
@@ -1011,7 +1011,7 @@ class _MarketplaceHomeScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.location01, size: 48, color: colors.accent),
+            Icon(Icons.location_on_outlined, size: 48, color: colors.accent),
             const SizedBox(height: 14),
             Text(
               'Find businesses near you',
@@ -1040,7 +1040,7 @@ class _MarketplaceHomeScreenState
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              icon: const Icon(HugeIconsStroke.location01, size: 18),
+              icon: const Icon(Icons.location_on_outlined, size: 18),
               label: const Text('Use my location',
                   style: TextStyle(fontWeight: FontWeight.w800)),
             ),

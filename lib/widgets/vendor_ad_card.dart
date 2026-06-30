@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VendorAdCard extends ConsumerWidget {
   final AdListing ad;
@@ -79,7 +79,7 @@ class VendorAdCard extends ConsumerWidget {
                               border: Border.all(color: colors.success.withOpacity(0.3)),
                             ),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(HugeIconsSolid.shield01, size: 9, color: colors.success),
+                              Icon(Icons.shield_outlined, size: 9, color: colors.success),
                               const SizedBox(width: 3),
                               Text("Escrow",
                                 style: TextStyle(color: colors.success,
@@ -122,7 +122,7 @@ class VendorAdCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 6),
                   Icon(
-                    HugeIconsSolid.arrowRight01,
+                    Icons.arrow_forward,
                     size: 14,
                     color: colors.textTertiary.withValues(alpha: 0.45),
                   ),

@@ -6,7 +6,7 @@ import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class HologramBalanceCard extends ConsumerWidget {
   const HologramBalanceCard({super.key});
@@ -69,7 +69,7 @@ class HologramBalanceCard extends ConsumerWidget {
             Row(
               children: [
                 Icon(
-                  HugeIconsSolid.wallet01,
+                  Icons.account_balance_wallet_outlined,
                   size: 14,
                   color: colors.textTertiary,
                 ),

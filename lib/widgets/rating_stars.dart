@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/theme_provider.dart';
 
@@ -55,13 +55,13 @@ class RatingStars extends ConsumerWidget {
     IconData icon;
     Color color;
     if (value >= filledThreshold) {
-      icon = HugeIconsSolid.star;
+      icon = Icons.star_outline;
       color = colors.warning;
     } else if (value >= halfThreshold) {
-      icon = HugeIconsSolid.starHalf;
+      icon = Icons.star_half;
       color = colors.warning;
     } else {
-      icon = HugeIconsSolid.star;
+      icon = Icons.star_outline;
       color = colors.divider;
     }
 

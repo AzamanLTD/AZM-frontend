@@ -26,7 +26,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -231,7 +231,7 @@ class _BusinessProfileScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(HugeIconsSolid.store01,
+                Icon(Icons.storefront_outlined,
                     size: 48, color: colors.textTertiary),
                 const SizedBox(height: 12),
                 Text(
@@ -371,12 +371,12 @@ class _BusinessProfileScreenState
               child: Row(
                 children: [
                   _circleButton(
-                    HugeIconsSolid.arrowLeft01,
+                    Icons.arrow_back,
                     () => Navigator.maybePop(context),
                   ),
                   const Spacer(),
                   _circleButton(
-                    HugeIconsSolid.share08,
+                    Icons.ios_share_outlined,
                     () => _launch(business.website ?? ''),
                   ),
                 ],
@@ -411,7 +411,7 @@ class _BusinessProfileScreenState
                   const SizedBox(width: 8),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: Icon(HugeIconsSolid.checkmarkCircle01,
+                    child: Icon(Icons.check_circle_outline,
                         color: colors.success, size: 22),
                   ),
                 ],
@@ -436,7 +436,7 @@ class _BusinessProfileScreenState
         ),
       ),
       child: Center(
-        child: Icon(HugeIconsSolid.store01,
+        child: Icon(Icons.storefront_outlined,
             size: 72, color: Colors.white.withOpacity(0.35)),
       ),
     );
@@ -503,7 +503,7 @@ class _BusinessProfileScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsStroke.checkmarkBadge01,
+                  Icon(Icons.widgets_outlined,
                       size: 13, color: colors.textTertiary),
                   const SizedBox(width: 4),
                   Text(
@@ -524,7 +524,7 @@ class _BusinessProfileScreenState
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(HugeIconsSolid.shield01,
+                    Icon(Icons.shield_outlined,
                         size: 13, color: colors.success),
                     const SizedBox(width: 4),
                     Text(
@@ -565,20 +565,20 @@ class _BusinessProfileScreenState
         business.description != null && business.description!.trim().isNotEmpty;
     final contacts = <Widget>[];
     if (business.phoneNumber != null && business.phoneNumber!.isNotEmpty) {
-      contacts.add(_contactRow(colors, HugeIconsStroke.call02,
+      contacts.add(_contactRow(colors, Icons.widgets_outlined,
           business.phoneNumber!, () => _launch('tel:${business.phoneNumber}')));
     }
     if (business.contactEmail != null && business.contactEmail!.isNotEmpty) {
-      contacts.add(_contactRow(colors, HugeIconsStroke.mail01,
+      contacts.add(_contactRow(colors, Icons.mail_outline,
           business.contactEmail!, () => _launch('mailto:${business.contactEmail}')));
     }
     if (business.website != null && business.website!.isNotEmpty) {
-      contacts.add(_contactRow(colors, HugeIconsStroke.globe02,
+      contacts.add(_contactRow(colors, Icons.widgets_outlined,
           business.website!, () => _launch(business.website!)));
     }
     if (business.address != null && business.address!.isNotEmpty) {
       contacts.add(_contactRow(
-          colors, HugeIconsStroke.location01, business.address!, null));
+          colors, Icons.location_on_outlined, business.address!, null));
     }
 
     if (!hasDescription && contacts.isEmpty) return const SizedBox.shrink();
@@ -689,7 +689,7 @@ class _BusinessProfileScreenState
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(width: 4),
-                  Icon(HugeIconsStroke.arrowRight01,
+                  Icon(Icons.arrow_forward,
                       size: 14, color: colors.accent),
                 ],
               ),
@@ -735,7 +735,7 @@ class _BusinessProfileScreenState
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.location01, size: 18, color: colors.accent),
+              Icon(Icons.location_on_outlined, size: 18, color: colors.accent),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -818,7 +818,7 @@ class _BusinessProfileScreenState
             },
             child: Row(
               children: [
-                Icon(HugeIconsStroke.navigation03,
+                Icon(Icons.widgets_outlined,
                     size: 15, color: colors.accent),
                 const SizedBox(width: 6),
                 Text('Get directions',
@@ -916,7 +916,7 @@ class _BusinessProfileScreenState
                   ),
                   child: Column(
                     children: [
-                      Icon(HugeIconsStroke.star,
+                      Icon(Icons.star_outline,
                           size: 28, color: colors.textTertiary),
                       const SizedBox(height: 8),
                       Text('No reviews yet',
@@ -990,7 +990,7 @@ class _BusinessProfileScreenState
                             fontSize: 12,
                             fontWeight: FontWeight.w700)),
                   ),
-                  Icon(HugeIconsSolid.star, size: 11, color: colors.warning),
+                  Icon(Icons.star_outline, size: 11, color: colors.warning),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ClipRRect(
@@ -1120,7 +1120,7 @@ class _BusinessProfileScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsStroke.restaurant01,
+              Icon(Icons.restaurant_outlined,
                   size: 40, color: colors.textTertiary),
               const SizedBox(height: 10),
               Text('Menu not yet available',
@@ -1256,7 +1256,7 @@ class _BusinessProfileScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsStroke.calendar03,
+            Icon(Icons.widgets_outlined,
                 size: 48, color: colors.textTertiary),
             const SizedBox(height: 14),
             Text('Bookings Coming Soon',
@@ -1305,7 +1305,7 @@ class _BusinessProfileScreenState
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                icon: const Icon(HugeIconsSolid.shoppingBag03, size: 18),
+                icon: const Icon(Icons.local_mall_outlined, size: 18),
                 label: const Text('Order Now',
                     style:
                         TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),

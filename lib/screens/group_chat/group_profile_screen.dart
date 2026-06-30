@@ -24,7 +24,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/susu/initiate_susu_sheet.dart';
 import 'package:azaman/widgets/susu/verification_chip.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class GroupProfileScreen extends ConsumerWidget {
   final String groupId;
@@ -43,7 +43,7 @@ class GroupProfileScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -117,7 +117,7 @@ class GroupProfileScreen extends ConsumerWidget {
                       if (iAmAdmin && !hasSusu)
                         TextButton.icon(
                           onPressed: () => _addMember(context, ref),
-                          icon: Icon(HugeIconsSolid.userAdd01,
+                          icon: Icon(Icons.person_add_outlined,
                               size: 15, color: colors.accent),
                           label: Text('Add',
                               style: TextStyle(
@@ -202,7 +202,7 @@ class GroupProfileScreen extends ConsumerWidget {
                       ],
                       if (gm.role == 'ADMIN') ...[
                         const SizedBox(width: 4),
-                        Icon(HugeIconsSolid.shield01,
+                        Icon(Icons.shield_outlined,
                             color: colors.warning, size: 12),
                       ],
                     ],
@@ -224,7 +224,7 @@ class GroupProfileScreen extends ConsumerWidget {
                         ),
                         if (proj.ready) ...[
                           const SizedBox(width: 6),
-                          Icon(HugeIconsSolid.checkmarkCircle01,
+                          Icon(Icons.check_circle_outline,
                               color: colors.success, size: 14),
                         ],
                       ],
@@ -411,7 +411,7 @@ class _InitiateCta extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank,
+              Icon(Icons.account_balance_outlined,
                   color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text('Start a Susu in this group',
@@ -434,7 +434,7 @@ class _InitiateCta extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: canStart ? onTap : null,
-              icon: const Icon(HugeIconsSolid.rocket, size: 16),
+              icon: const Icon(Icons.rocket_launch_outlined, size: 16),
               label: Text(
                 canStart
                     ? 'Initiate Susu'
@@ -490,7 +490,7 @@ class _InitiationSummary extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.clock01, color: colors.warning, size: 16),
+              Icon(Icons.access_time, color: colors.warning, size: 16),
               const SizedBox(width: 6),
               Text('Susu configuring',
                   style: TextStyle(
@@ -588,7 +588,7 @@ class _ActiveSusuBadge extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+          Icon(Icons.check_circle_outline, color: colors.success, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

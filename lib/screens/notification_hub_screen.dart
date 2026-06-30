@@ -6,19 +6,19 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 ({IconData icon, Color color}) _notifStyle(
     NotificationCategory category, AzamanColors colors) {
   switch (category) {
     case NotificationCategory.securityAccount:
-      return (icon: HugeIconsSolid.shield01, color: colors.danger);
+      return (icon: Icons.shield_outlined, color: colors.danger);
     case NotificationCategory.vendorPriority:
-      return (icon: HugeIconsSolid.store01, color: colors.success);
+      return (icon: Icons.storefront_outlined, color: colors.success);
     case NotificationCategory.adminSystem:
-      return (icon: HugeIconsSolid.settings02, color: colors.textTertiary);
+      return (icon: Icons.tune, color: colors.textTertiary);
     case NotificationCategory.general:
-      return (icon: HugeIconsSolid.notification01, color: colors.accent);
+      return (icon: Icons.notifications_outlined, color: colors.accent);
   }
 }
 
@@ -181,7 +181,7 @@ class _NotificationHubScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(HugeIconsSolid.store01, size: 16),
+                  const Icon(Icons.storefront_outlined, size: 16),
                   const SizedBox(width: 6),
                   const Text('Vendor Inbox'),
                   const SizedBox(width: 6),
@@ -212,7 +212,7 @@ class _NotificationHubScreenState
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(HugeIconsSolid.notification01,
+                        Icon(Icons.notifications_outlined,
                             size: 64, color: colors.textTertiary),
                         const SizedBox(height: 16),
                         Text(
@@ -411,7 +411,7 @@ class _MarkAllReadAction extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation(colors.accent),
                 ),
               )
-            : Icon(HugeIconsSolid.checkmarkCircle01, size: 18, color: colors.accent),
+            : Icon(Icons.check_circle_outline, size: 18, color: colors.accent),
         label: Text(
           'Mark all read',
           style: TextStyle(

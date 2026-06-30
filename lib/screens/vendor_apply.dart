@@ -24,7 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 
 class VendorApplyScreen extends ConsumerStatefulWidget {
@@ -142,12 +142,12 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(HugeIconsSolid.camera01, color: colors.accent),
+              leading: Icon(Icons.camera_alt_outlined, color: colors.accent),
               title: Text('Camera', style: TextStyle(color: colors.textPrimary)),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: Icon(HugeIconsSolid.image01, color: colors.accent),
+              leading: Icon(Icons.image_outlined, color: colors.accent),
               title: Text('Gallery', style: TextStyle(color: colors.textPrimary)),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
@@ -328,7 +328,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 color: colors.success.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 48),
+              child: Icon(Icons.check_circle_outline, color: colors.success, size: 48),
             ),
             const SizedBox(height: 20),
             Text(
@@ -450,7 +450,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                       ),
                       child: Center(
                         child: isDone
-                            ? const Icon(HugeIconsSolid.checkmarkCircle01, color: Colors.white, size: 14)
+                            ? const Icon(Icons.check_circle_outline, color: Colors.white, size: 14)
                             : Text(
                                 '${i + 1}',
                                 style: TextStyle(
@@ -556,11 +556,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel(colors, 'Legal Full Name'),
-        _textField(colors, _legalNameCtrl, 'As it appears on your ID', HugeIconsSolid.user),
+        _textField(colors, _legalNameCtrl, 'As it appears on your ID', Icons.person_outline),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Date of Birth'),
-        _textField(colors, _dobCtrl, 'DD/MM/YYYY', HugeIconsSolid.calendar01,
+        _textField(colors, _dobCtrl, 'DD/MM/YYYY', Icons.calendar_today_outlined,
           onTap: () async {
             final date = await showDatePicker(
               context: context,
@@ -605,7 +605,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: 18),
+              Icon(Icons.info_outline, color: colors.warning, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -638,19 +638,19 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         const SizedBox(height: 20),
 
         _sectionLabel(colors, 'Street Address'),
-        _textField(colors, _streetCtrl, 'House number and street name', HugeIconsSolid.location01),
+        _textField(colors, _streetCtrl, 'House number and street name', Icons.location_on_outlined),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'City'),
-        _textField(colors, _cityCtrl, 'City or town', HugeIconsSolid.building01),
+        _textField(colors, _cityCtrl, 'City or town', Icons.business_outlined),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Region / State'),
-        _textField(colors, _regionCtrl, 'Region or state', HugeIconsSolid.googleMaps),
+        _textField(colors, _regionCtrl, 'Region or state', Icons.map_outlined),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Postal Code (Optional)'),
-        _textField(colors, _postalCtrl, 'Postal / ZIP code', HugeIconsSolid.mail01),
+        _textField(colors, _postalCtrl, 'Postal / ZIP code', Icons.mail_outline),
       ],
     );
   }
@@ -667,7 +667,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         _dropdown(colors, _sourceOfFunds, _fundSources, (v) => setState(() => _sourceOfFunds = v!)),
         if (_sourceOfFunds == 'Other') ...[
           const SizedBox(height: 12),
-          _textField(colors, _sourceOtherCtrl, 'Please explain', HugeIconsSolid.pencilEdit01),
+          _textField(colors, _sourceOtherCtrl, 'Please explain', Icons.edit_outlined),
         ],
         const SizedBox(height: 20),
 
@@ -690,7 +690,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           _textField(
             colors, _previousPlatformsCtrl,
             'Which platforms? (e.g. Binance P2P, Paxful)',
-            HugeIconsSolid.task01,
+            Icons.task_alt_outlined,
           ),
         ],
       ],
@@ -730,7 +730,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.creditCard, color: colors.accent, size: 20),
+              Icon(Icons.credit_card_outlined, color: colors.accent, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -742,7 +742,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 ),
               ),
               IconButton(
-                icon: Icon(HugeIconsSolid.cancel01, color: colors.danger, size: 18),
+                icon: Icon(Icons.cancel_outlined, color: colors.danger, size: 18),
                 onPressed: () => setState(() => _paymentMethods.removeAt(entry.key)),
               ),
             ],
@@ -764,9 +764,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
             children: [
               Text('Add Payment Method', style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
-              _textField(colors, _pmTypeCtrl, 'Type (e.g. MTN MoMo, CashApp, Bank)', HugeIconsSolid.grid),
+              _textField(colors, _pmTypeCtrl, 'Type (e.g. MTN MoMo, CashApp, Bank)', Icons.grid_view_outlined),
               const SizedBox(height: 10),
-              _textField(colors, _pmDetailsCtrl, 'Account details (number/tag/email)', HugeIconsSolid.informationCircle),
+              _textField(colors, _pmDetailsCtrl, 'Account details (number/tag/email)', Icons.info_outline),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -783,7 +783,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                     });
                     HapticFeedback.lightImpact();
                   },
-                  icon: Icon(HugeIconsSolid.add01, color: colors.accent, size: 18),
+                  icon: Icon(Icons.add, color: colors.accent, size: 18),
                   label: Text('Add', style: TextStyle(color: colors.accent)),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: colors.accent.withOpacity(0.4)),
@@ -818,7 +818,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.shield01, color: colors.accent, size: 24),
+                  Icon(Icons.shield_outlined, color: colors.accent, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -893,7 +893,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           },
           child: Row(
             children: [
-              Icon(HugeIconsSolid.share01, color: colors.accent, size: 16),
+              Icon(Icons.share_outlined, color: colors.accent, size: 16),
               const SizedBox(width: 8),
               Text(
                 'Read full vendor agreement on azaman.me/vendors',
@@ -990,7 +990,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(HugeIconsSolid.camera01, color: colors.accent, size: 28),
+                  Icon(Icons.camera_alt_outlined, color: colors.accent, size: 28),
                   const SizedBox(height: 8),
                   Text(hint, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
                 ],
@@ -1009,7 +1009,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                         color: colors.success,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(HugeIconsSolid.checkmarkCircle01, color: Colors.white, size: 14),
+                      child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 14),
                     ),
                   ),
                   Positioned(
@@ -1025,7 +1025,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(HugeIconsSolid.refresh01, color: Colors.white, size: 14),
+                            Icon(Icons.refresh, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text('Change', style: TextStyle(color: Colors.white, fontSize: 11)),
                           ],

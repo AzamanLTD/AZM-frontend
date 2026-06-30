@@ -19,7 +19,7 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -161,11 +161,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildTextField(colors, nameCtrl, 'Display Name', HugeIconsSolid.user),
+            _buildTextField(colors, nameCtrl, 'Display Name', Icons.person_outline),
             const SizedBox(height: 12),
-            _buildTextField(colors, bioCtrl, 'Bio', HugeIconsSolid.pencilEdit01, maxLines: 3),
+            _buildTextField(colors, bioCtrl, 'Bio', Icons.edit_outlined, maxLines: 3),
             const SizedBox(height: 12),
-            _buildTextField(colors, phoneCtrl, 'Phone', HugeIconsSolid.telephone),
+            _buildTextField(colors, phoneCtrl, 'Phone', Icons.phone_outlined),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -249,7 +249,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         iconTheme: IconThemeData(color: colors.textPrimary),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.pencilEdit01, color: colors.accent, size: 22),
+            icon: Icon(Icons.edit_outlined, color: colors.accent, size: 22),
             onPressed: _showEditSheet,
             tooltip: 'Edit Profile',
           ),
@@ -313,8 +313,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isPending  = status == "PENDING";
     final color = isVerified ? colors.success
       : isPending ? colors.warning : colors.danger;
-    final icon = isVerified ? HugeIconsSolid.shield01
-      : isPending ? HugeIconsSolid.clock01 : HugeIconsSolid.alertCircle;
+    final icon = isVerified ? Icons.shield_outlined
+      : isPending ? Icons.access_time : Icons.error_outline;
     final label = isVerified ? "KYC Verified"
       : isPending ? "KYC Pending Review"
       : "Verify Identity to Unlock Higher Limits";
@@ -350,7 +350,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(HugeIconsSolid.cloud, color: colors.textTertiary, size: 48),
+          Icon(Icons.cloud_outlined, color: colors.textTertiary, size: 48),
           const SizedBox(height: 12),
           Text(
             _error ?? 'Something went wrong',
@@ -359,7 +359,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: _fetchProfile,
-            icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
+            icon: Icon(Icons.refresh, color: colors.accent),
             label: Text('Retry', style: TextStyle(color: colors.accent)),
           ),
         ],
@@ -436,17 +436,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     switch (_kycStatus.toUpperCase()) {
       case 'VERIFIED':
         badgeColor = colors.success;
-        badgeIcon = HugeIconsSolid.checkmarkCircle01;
+        badgeIcon = Icons.check_circle_outline;
         badgeText = 'Verified';
         break;
       case 'PENDING':
         badgeColor = colors.warning;
-        badgeIcon = HugeIconsSolid.hourglass;
+        badgeIcon = Icons.hourglass_empty;
         badgeText = 'Pending';
         break;
       default:
         badgeColor = colors.danger;
-        badgeIcon = HugeIconsSolid.alertCircle;
+        badgeIcon = Icons.error_outline;
         badgeText = 'Unverified';
     }
 
@@ -638,7 +638,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           child: ListTile(
             onTap: _showDeleteConfirmation,
-            leading: Icon(HugeIconsSolid.delete01, color: colors.danger),
+            leading: Icon(Icons.delete_outline, color: colors.danger),
             title: Text(
               'Delete Account',
               style: TextStyle(
@@ -655,7 +655,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             trailing: Icon(
-              HugeIconsSolid.arrowRight01,
+              Icons.arrow_forward,
               color: colors.danger.withOpacity(0.5),
               size: 14,
             ),

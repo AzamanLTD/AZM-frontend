@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class CorporatePurchaseScreen extends ConsumerStatefulWidget {
   const CorporatePurchaseScreen({super.key});
@@ -113,7 +113,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 56),
+            Icon(Icons.check_circle_outline, color: colors.success, size: 56),
             const SizedBox(height: 16),
             Text(
               'OTC Logged Successfully',
@@ -169,7 +169,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                 color: colors.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.bank, color: colors.accent, size: 18),
+              child: Icon(Icons.account_balance_outlined, color: colors.accent, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -189,7 +189,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 80),
+                  Icon(Icons.check_circle_outline, color: colors.success, size: 80),
                   const SizedBox(height: 20),
                   Text(
                     'OTC Recorded',
@@ -210,7 +210,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionHeader('MANUAL OTC LOGGING', HugeIconsSolid.noteEdit, colors),
+                    _buildSectionHeader('MANUAL OTC LOGGING', Icons.edit_note_outlined, colors),
                     const SizedBox(height: 6),
                     Text(
                       'Record a corporate OTC trade with exact financial details.',
@@ -258,7 +258,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                     ),
                     const SizedBox(height: 28),
 
-                    _buildSectionHeader('TRANSACTION RECEIPT', HugeIconsSolid.receiptDollar, colors),
+                    _buildSectionHeader('TRANSACTION RECEIPT', Icons.receipt_long_outlined, colors),
                     const SizedBox(height: 4),
                     Text(
                       'Upload a clear screenshot of the payment confirmation. This is mandatory.',
@@ -293,7 +293,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(HugeIconsSolid.cloudUpload),
+                            : const Icon(Icons.cloud_upload_outlined),
                         label: Text(
                           _isUploading ? 'SUBMITTING...' : 'LOG OTC TO LEDGER',
                           style: const TextStyle(
@@ -422,7 +422,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      HugeIconsSolid.camera01,
+                      Icons.camera_alt_outlined,
                       color: colors.accent,
                       size: 36,
                     ),
@@ -468,7 +468,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(HugeIconsSolid.refresh01, color: Colors.white, size: 14),
+                            Icon(Icons.refresh, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text(
                               'Change',
@@ -491,7 +491,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(HugeIconsSolid.checkmarkCircle01, color: Colors.white, size: 14),
+                          Icon(Icons.check_circle_outline, color: Colors.white, size: 14),
                           SizedBox(width: 4),
                           Text(
                             'RECEIPT ATTACHED',

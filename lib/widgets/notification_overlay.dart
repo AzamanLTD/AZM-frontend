@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -238,7 +238,7 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
-                                            HugeIconsSolid.notification01,
+                                            Icons.notifications_outlined,
                                             size: 14,
                                             color: colors.accent,
                                           ),
@@ -360,7 +360,7 @@ class _NotificationItem extends StatelessWidget {
             ),
           ),
           Icon(
-            HugeIconsSolid.arrowRight01,
+            Icons.arrow_forward,
             color: colors.textTertiary,
             size: 14,
           ),

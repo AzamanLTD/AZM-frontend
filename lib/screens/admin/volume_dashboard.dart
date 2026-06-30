@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VolumeDashboard extends ConsumerStatefulWidget {
   const VolumeDashboard({super.key});
@@ -105,7 +105,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
                 color: colors.warning.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.bank, color: colors.warning, size: 18),
+              child: Icon(Icons.account_balance_outlined, color: colors.warning, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -121,7 +121,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary),
+            icon: Icon(Icons.refresh, color: colors.textTertiary),
             onPressed: _fetchData,
           ),
         ],
@@ -154,7 +154,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
         padding: const EdgeInsets.all(32),
         children: [
           const SizedBox(height: 80),
-          Icon(HugeIconsSolid.cloud, size: 48, color: colors.danger),
+          Icon(Icons.cloud_outlined, size: 48, color: colors.danger),
           const SizedBox(height: 16),
           Text('Failed to load', textAlign: TextAlign.center,
               style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -165,7 +165,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
           Center(
             child: ElevatedButton.icon(
               onPressed: _fetchData,
-              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
+              icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(backgroundColor: colors.accent, foregroundColor: Colors.black),
             ),
@@ -180,15 +180,15 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
       children: [
         _buildStatsRow(colors),
         const SizedBox(height: 24),
-        _buildSectionHeader('SYSTEM RESERVES', HugeIconsSolid.savings, colors),
+        _buildSectionHeader('SYSTEM RESERVES', Icons.savings_outlined, colors),
         const SizedBox(height: 12),
         _buildReservesGrid(colors),
         const SizedBox(height: 24),
-        _buildSectionHeader('RESERVE DISTRIBUTION', HugeIconsSolid.pieChart, colors),
+        _buildSectionHeader('RESERVE DISTRIBUTION', Icons.pie_chart_outline, colors),
         const SizedBox(height: 12),
         _buildDistributionBar(colors),
         const SizedBox(height: 24),
-        _buildSectionHeader('TOTAL SYSTEM VALUE', HugeIconsSolid.diamond, colors),
+        _buildSectionHeader('TOTAL SYSTEM VALUE', Icons.diamond_outlined, colors),
         const SizedBox(height: 12),
         _buildTotalValueCard(colors),
         const SizedBox(height: 32),
@@ -199,11 +199,11 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
   Widget _buildStatsRow(AzamanColors colors) {
     return Row(
       children: [
-        Expanded(child: _statCard('24h Fiat Volume', 'GHS ${_formatAmount(_fiatVolume24h)}', HugeIconsSolid.analytics01, colors.success, colors)),
+        Expanded(child: _statCard('24h Fiat Volume', 'GHS ${_formatAmount(_fiatVolume24h)}', Icons.analytics_outlined, colors.success, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('24h Crypto', '\$${_formatAmount(_cryptoVolume24h)}', HugeIconsSolid.bitcoin, colors.warning, colors)),
+        Expanded(child: _statCard('24h Crypto', '\$${_formatAmount(_cryptoVolume24h)}', Icons.currency_bitcoin, colors.warning, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('All-Time Fiat', 'GHS ${_formatAmount(_totalFiatVolume)}', HugeIconsSolid.calendar01, colors.accent, colors)),
+        Expanded(child: _statCard('All-Time Fiat', 'GHS ${_formatAmount(_totalFiatVolume)}', Icons.calendar_today_outlined, colors.accent, colors)),
       ],
     );
   }
@@ -241,10 +241,10 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
 
   Widget _buildReservesGrid(AzamanColors colors) {
     final reserves = [
-      _ReserveEntry(label: 'Hot Wallet', value: _hotWalletBalance, color: colors.warning, icon: HugeIconsSolid.fire),
-      _ReserveEntry(label: 'Master Crypto', value: _masterCryptoBalance, color: colors.accent, icon: HugeIconsSolid.snow),
-      _ReserveEntry(label: 'Fiat Pool', value: _fiatPoolBalance, color: colors.success, icon: HugeIconsSolid.bank),
-      _ReserveEntry(label: 'Profit Fees', value: _profitFeesBalance, color: const Color(0xFF8B5CF6), icon: HugeIconsSolid.dollar01),
+      _ReserveEntry(label: 'Hot Wallet', value: _hotWalletBalance, color: colors.warning, icon: Icons.local_fire_department_outlined),
+      _ReserveEntry(label: 'Master Crypto', value: _masterCryptoBalance, color: colors.accent, icon: Icons.ac_unit),
+      _ReserveEntry(label: 'Fiat Pool', value: _fiatPoolBalance, color: colors.success, icon: Icons.account_balance_outlined),
+      _ReserveEntry(label: 'Profit Fees', value: _profitFeesBalance, color: const Color(0xFF8B5CF6), icon: Icons.attach_money),
     ];
 
     return GridView.count(
@@ -374,7 +374,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
               color: colors.accent.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(HugeIconsSolid.diamond, color: colors.accent, size: 24),
+            child: Icon(Icons.diamond_outlined, color: colors.accent, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(

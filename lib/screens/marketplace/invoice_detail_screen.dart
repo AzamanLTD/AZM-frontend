@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -110,7 +110,24 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           ));
           Future.delayed(const Duration(milliseconds: 600), () {
             if (!mounted) return;
-            LeaveReviewSheet.show(context, business: inv.businessName ?? '');
+            LeaveReviewSheet.show(context, business: BusinessProfile(
+              id: inv.businessProfileId,
+              bizId: inv.businessBizId ?? '',
+              businessName: inv.businessName ?? '',
+              category: '',
+              isVerified: false,
+              isSuspended: false,
+              kybStatus: 'UNVERIFIED',
+              totalEscrows: 0,
+              completedEscrows: 0,
+              userId: 0,
+              totalVolume: 0,
+              averageRating: 0,
+              amenities: [],
+              cuisineTypes: [],
+              username: '',
+              logoUrl: inv.businessLogoUrl,
+            ));
           });
         } catch (e) {
           if (!mounted) return;
@@ -189,7 +206,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ? CachedNetworkImageProvider(inv.businessLogoUrl!)
                 : null,
             child: inv.businessLogoUrl == null
-                ? Icon(HugeIconsSolid.store01, color: colors.accent, size: 22)
+                ? Icon(Icons.storefront_outlined, color: colors.accent, size: 22)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -373,7 +390,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           decoration: InputDecoration(
             labelText: 'Tip (optional)',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsStroke.coins01,
+            prefixIcon: Icon(Icons.widgets_outlined,
                 size: 18, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
@@ -462,7 +479,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Column(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01,
+          Icon(Icons.check_circle_outline,
               color: colors.success, size: 40),
           const SizedBox(height: 8),
           Text('Paid',
@@ -495,7 +512,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ),
               );
             },
-            icon: Icon(HugeIconsSolid.file01,
+            icon: Icon(Icons.insert_drive_file_outlined,
                 size: 16, color: colors.accent),
             label: Text('View Full Receipt',
                 style: TextStyle(
@@ -517,7 +534,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.cancelCircle, color: colors.textTertiary),
+          Icon(Icons.cancel_outlined, color: colors.textTertiary),
           const SizedBox(width: 10),
           Expanded(
             child: Text('This invoice was voided by the business.',

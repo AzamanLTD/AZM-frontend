@@ -49,7 +49,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // MODELS — preserved verbatim from previous main.dart
@@ -389,7 +389,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 80),
+          Icon(Icons.check_circle_outline, color: colors.success, size: 80),
           const SizedBox(height: 16),
           Text('Order Completed',
               style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),

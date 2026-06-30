@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class RateLockDisclaimer extends ConsumerStatefulWidget {
   final bool compact;
@@ -59,7 +59,7 @@ class _RateLockDisclaimerState extends ConsumerState<RateLockDisclaimer> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.accent.withOpacity(0.25))),
       child: Row(children: [
-        Icon(HugeIconsSolid.lock, color: colors.accent, size: widget.compact ? 14 : 16),
+        Icon(Icons.lock_outline, color: colors.accent, size: widget.compact ? 14 : 16),
         const SizedBox(width: 10),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -6,7 +6,7 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
@@ -89,7 +89,7 @@ class _SavedBusinessesScreenState
           ? Center(child: CircularProgressIndicator(color: colors.accent))
           : saved.isEmpty
               ? const AzamanEmptyState(
-                  icon: HugeIconsStroke.bookmark02,
+                  icon: Icons.bookmark_outline,
                   title: 'No saved businesses',
                   subtitle: 'Tap the bookmark icon on any business to save it here.',
                 )
@@ -123,7 +123,7 @@ class _SavedBusinessesScreenState
                           color: colors.danger,
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(HugeIconsSolid.delete02,
+                        child: const Icon(Icons.delete_forever_outlined,
                             color: Colors.white, size: 22),
                       ),
                       child: BusinessCard(

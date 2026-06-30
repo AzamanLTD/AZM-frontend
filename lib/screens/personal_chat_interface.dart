@@ -7,7 +7,8 @@ import 'package:local_auth/local_auth.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
+import 'package:azaman/widgets/chat_plus_menu.dart';
 
 class PersonalChatMessage {
   final String id;
@@ -361,7 +362,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             const SizedBox(height: 20),
             _buildActionRow(
               colors: colors,
-              icon: HugeIconsSolid.bitcoin,
+              icon: Icons.currency_bitcoin,
               title: 'Send Crypto',
               subtitle: 'Transfer AZM directly',
               onTap: () {
@@ -372,7 +373,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             const SizedBox(height: 4),
             _buildActionRow(
               colors: colors,
-              icon: HugeIconsSolid.image01,
+              icon: Icons.image_outlined,
               title: 'Send Photo',
               subtitle: 'Share from gallery',
               onTap: () {
@@ -382,7 +383,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             const SizedBox(height: 4),
             _buildActionRow(
               colors: colors,
-              icon: HugeIconsSolid.pencilEdit01,
+              icon: Icons.edit_outlined,
               title: 'Edit Nickname',
               subtitle: 'Change display name',
               onTap: () {
@@ -441,7 +442,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
               ),
             ),
             Icon(
-              HugeIconsSolid.arrowRight01,
+              Icons.arrow_forward,
               color: colors.textTertiary,
               size: 16,
             ),
@@ -847,7 +848,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Icon(
-                  HugeIconsSolid.arrowLeft01,
+                  Icons.arrow_back,
                   color: colors.textPrimary,
                   size: 22,
                 ),
@@ -944,7 +945,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
                 ),
                 alignment: Alignment.center,
                 child: Icon(
-                  HugeIconsSolid.informationCircle,
+                  Icons.info_outline,
                   color: colors.textSecondary,
                   size: 18,
                 ),
@@ -1038,13 +1039,13 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
   Widget _statusIcon(String status, AzamanColors colors) {
     switch (status) {
       case 'sending':
-        return Icon(HugeIconsSolid.clock01, size: 12, color: colors.textTertiary.withValues(alpha: 0.5));
+        return Icon(Icons.access_time, size: 12, color: colors.textTertiary.withValues(alpha: 0.5));
       case 'failed':
-        return Icon(HugeIconsSolid.alertCircle, size: 12, color: colors.danger);
+        return Icon(Icons.error_outline, size: 12, color: colors.danger);
       case 'read':
-        return Icon(HugeIconsSolid.checkmarkCircle01, size: 12, color: colors.accent);
+        return Icon(Icons.check_circle_outline, size: 12, color: colors.accent);
       default:
-        return Icon(HugeIconsSolid.checkmarkCircle01, size: 12, color: colors.textTertiary.withValues(alpha: 0.5));
+        return Icon(Icons.check_circle_outline, size: 12, color: colors.textTertiary.withValues(alpha: 0.5));
     }
   }
 
@@ -1070,7 +1071,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
             Row(
               children: [
                 Icon(
-                  HugeIconsSolid.bitcoin,
+                  Icons.currency_bitcoin,
                   size: 20,
                   color: statusColor,
                 ),
@@ -1278,7 +1279,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface> {
               ),
               alignment: Alignment.center,
               child: Icon(
-                HugeIconsSolid.sent,
+                Icons.send_outlined,
                 color: _inputHasText
                     ? (colors.isDark ? Colors.black : Colors.white)
                     : colors.textTertiary,

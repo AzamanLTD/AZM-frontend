@@ -7,7 +7,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -141,7 +141,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                             ),
                             alignment: Alignment.center,
                             child: Icon(
-                              HugeIconsSolid.cancel01,
+                              Icons.cancel_outlined,
                               color: colors.textPrimary,
                               size: 18,
                             ),
@@ -346,7 +346,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           ),
                           alignment: Alignment.center,
                           child: Icon(
-                            HugeIconsStroke.clipboard,
+                            Icons.widgets_outlined,
                             color: colors.textPrimary,
                             size: 20,
                           ),
@@ -384,7 +384,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        _isSearching ? HugeIconsSolid.cancel01 : HugeIconsStroke.chatSearch01,
+                        _isSearching ? Icons.cancel_outlined : Icons.widgets_outlined,
                         color: _isSearching ? colors.accent : colors.textPrimary,
                         size: 20,
                       ),
@@ -406,7 +406,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Row(
                     children: [
-                      Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 18),
+                      Icon(Icons.search, color: colors.textTertiary, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
@@ -463,7 +463,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.userSearch01, size: 44, color: colors.textTertiary),
+            Icon(Icons.manage_search, size: 44, color: colors.textTertiary),
             const SizedBox(height: 14),
             Text(
               'Search by username or ID',
@@ -492,7 +492,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.search01, size: 44, color: colors.textTertiary),
+            Icon(Icons.search, size: 44, color: colors.textTertiary),
             const SizedBox(height: 14),
             Text(
               'No users found',
@@ -639,7 +639,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                HugeIconsStroke.messageMultiple01,
+                Icons.widgets_outlined,
                 color: colors.textPrimary,
                 size: 116,
               ),
@@ -841,7 +841,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ),
                       if (isVerifiedVendor) ...[
                         const SizedBox(width: 4),
-                        Icon(HugeIconsSolid.checkmarkCircle01,
+                        Icon(Icons.check_circle_outline,
                             color: colors.accent, size: 13),
                       ],
                     ],
@@ -851,7 +851,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     Row(
                       children: [
                         if (rating != null) ...[
-                          Icon(HugeIconsSolid.star, color: colors.warning, size: 11),
+                          Icon(Icons.star_outline, color: colors.warning, size: 11),
                           const SizedBox(width: 2),
                           Text(
                             rating.toStringAsFixed(1),
@@ -959,7 +959,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsStroke.clipboard, size: 44, color: colors.textTertiary),
+            Icon(Icons.widgets_outlined, size: 44, color: colors.textTertiary),
             const SizedBox(height: 14),
             Text(
               'No requests',
@@ -1237,7 +1237,7 @@ class _GroupChatTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 16),
           ],
         ),
       ),

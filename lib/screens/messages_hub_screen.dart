@@ -6,7 +6,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/personal_chat_interface.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class PersonalChat {
   final String id;
@@ -152,7 +152,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 14, right: 10),
                       child: Icon(
-                        HugeIconsSolid.hashtag,
+                        Icons.tag,
                         color: colors.textTertiary,
                         size: 18,
                       ),
@@ -308,7 +308,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        HugeIconsSolid.pencilEdit01,
+                        Icons.edit_outlined,
                         color: colors.textPrimary,
                         size: 18,
                       ),
@@ -331,7 +331,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                 child: Row(
                   children: [
                     Icon(
-                      HugeIconsSolid.search01,
+                      Icons.search,
                       color: colors.textTertiary,
                       size: 18,
                     ),
@@ -405,7 +405,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                HugeIconsSolid.search01,
+                Icons.search,
                 color: colors.textTertiary,
                 size: 44,
               ),
@@ -439,7 +439,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              HugeIconsSolid.bubbleChat,
+              Icons.chat_bubble_outline,
               color: colors.textTertiary,
               size: 56,
             ),

@@ -13,7 +13,7 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -132,7 +132,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(
-                      HugeIconsSolid.star,
+                      Icons.star_outline,
                       size: 38,
                       color: star <= _rating ? colors.warning : colors.divider,
                     ),

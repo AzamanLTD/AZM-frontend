@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -99,7 +99,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
           ? const Center(child: CircularProgressIndicator())
           : invoices.isEmpty
               ? AzamanEmptyState(
-                  icon: HugeIconsSolid.invoice01,
+                  icon: Icons.receipt_outlined,
                   title: 'No invoices here',
                   subtitle: 'Invoices from businesses will appear here.',
                 )
@@ -180,7 +180,7 @@ class _InvoiceCard extends StatelessWidget {
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(HugeIconsSolid.invoice01,
+              child: Icon(Icons.receipt_outlined,
                   color: colors.accent, size: 20),
             ),
             const SizedBox(width: 12),

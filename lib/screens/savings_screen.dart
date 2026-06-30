@@ -9,7 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -116,7 +116,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               alignment: Alignment.center,
               children: [
                 Icon(
-                  HugeIconsSolid.notification01,
+                  Icons.notifications_outlined,
                   color: colors.textPrimary,
                   size: 24,
                 ),
@@ -171,7 +171,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           ),
         ),
         const SizedBox(width: 2),
-        Icon(HugeIconsSolid.arrowDown01, color: colors.textTertiary, size: 16),
+        Icon(Icons.arrow_downward, color: colors.textTertiary, size: 16),
       ],
     );
   }
@@ -196,7 +196,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.flag01,
+                icon: Icons.flag_outlined,
                 tint: colors.textPrimary,
                 background: colors.accent.withValues(alpha: 0.07),
                 title: 'New goal',
@@ -208,7 +208,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.lock,
+                icon: Icons.lock_outline,
                 tint: colors.textPrimary,
                 background: colors.success.withValues(alpha: 0.08),
                 title: 'Open a vault',
@@ -229,7 +229,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.userGroup,
+                icon: Icons.group_outlined,
                 tint: colors.textPrimary,
                 background: colors.warning.withValues(alpha: 0.10),
                 title: 'Join a Susu',
@@ -241,7 +241,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.wallet01,
+                icon: Icons.account_balance_wallet_outlined,
                 tint: colors.textPrimary,
                 background: colors.softSurface,
                 title: 'Quick deposit',
@@ -740,7 +740,7 @@ class _LockGoalCard extends StatelessWidget {
                   : colors.softSurface,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(HugeIconsSolid.lock, color: highlight, size: 16),
+            child: Icon(Icons.lock_outline, color: highlight, size: 16),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -902,7 +902,7 @@ class _GoalCircle extends StatelessWidget {
                       : colors.accent.withValues(alpha: 0.14),
                   ),
                   child: isAdd
-                    ? Icon(HugeIconsSolid.add01,
+                    ? Icon(Icons.add,
                         color: colors.textSecondary, size: 24)
                     : Text(initials ?? "?",
                         style: TextStyle(color: colors.accent,

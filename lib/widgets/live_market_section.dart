@@ -33,7 +33,7 @@ import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/services/rate_alert_service.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/rate_alert_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // ── In-memory rate history (Phase G + Phase H review pass) ─────────────────
 //
@@ -190,7 +190,7 @@ class _GhsHeroCard extends StatelessWidget {
                     border: Border.all(color: colors.divider),
                   ),
                   child: Icon(
-                    HugeIconsSolid.exchange01,
+                    Icons.swap_horiz,
                     size: 14,
                     color: colors.textTertiary,
                   ),
@@ -395,7 +395,7 @@ class _RateAlertRow extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(HugeIconsSolid.notification01,
+                Icon(Icons.notifications_outlined,
                     size: 17, color: colors.textPrimary),
                 const SizedBox(width: 8),
                 Text(
@@ -489,7 +489,7 @@ class _AlertChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isAbove ? HugeIconsSolid.analytics01 : HugeIconsSolid.analytics01,
+            isAbove ? Icons.analytics_outlined : Icons.analytics_outlined,
             size: 12,
             color: chipColor,
           ),

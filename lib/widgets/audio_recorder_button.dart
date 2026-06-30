@@ -25,6 +25,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,7 +36,7 @@ import 'package:record/record.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// Callback fired when a successful recording finishes. The file is on
 /// the local filesystem; the caller uploads it via
@@ -276,7 +277,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          HugeIconsSolid.mic01,
+          Icons.mic_none_outlined,
           color: colors.accent.withOpacity(widget.disabled ? 0.4 : 1.0),
           size: 18,
         ),
@@ -445,7 +446,7 @@ class _RecordingStripState extends State<_RecordingStrip>
                                   0,
                                 ),
                                 child: Icon(
-                                  HugeIconsSolid.arrowLeft01,
+                                  Icons.arrow_back,
                                   color: widget.colors.textTertiary,
                                   size: 14,
                                 ),

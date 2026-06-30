@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:hugeicons_pro/hugeicons_pro.dart';
+
 
 import 'package:azaman/providers/theme_provider.dart';
 
@@ -81,35 +81,35 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     final items = <_MenuItem>[];
     if (widget.onImageTap != null) {
       items.add(_MenuItem(
-        icon: HugeIconsSolid.image01,
+        icon: Icons.image_outlined,
         label: 'Image',
         onTap: () => _handleTap(widget.onImageTap),
       ));
     }
     if (widget.onDocumentTap != null) {
       items.add(_MenuItem(
-        icon: HugeIconsSolid.folder01,
+        icon: Icons.folder_outlined,
         label: 'Document',
         onTap: () => _handleTap(widget.onDocumentTap),
       ));
     }
     if (widget.onStickerTap != null) {
       items.add(_MenuItem(
-        icon: HugeIconsSolid.stickerCircle,
+        icon: Icons.emoji_emotions_outlined,
         label: 'Sticker',
         onTap: () => _handleTap(widget.onStickerTap),
       ));
     }
     if (widget.onTransferTap != null) {
       items.add(_MenuItem(
-        icon: HugeIconsSolid.transfer,
+        icon: Icons.compare_arrows,
         label: 'Transfer',
         onTap: () => _handleTap(widget.onTransferTap),
       ));
     }
     if (widget.onEscrowTap != null) {
       items.add(_MenuItem(
-        icon: HugeIconsSolid.lockKey,
+        icon: Icons.key_outlined,
         label: 'Escrow',
         onTap: () => _handleTap(widget.onEscrowTap),
       ));
@@ -181,7 +181,7 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
                         ),
                       ),
                       child: Icon(
-                        HugeIconsSolid.add01,
+                        Icons.add,
                         color: colors.accent,
                         size: 20,
                       ),

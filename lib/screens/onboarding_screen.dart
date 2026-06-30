@@ -19,7 +19,7 @@ import 'package:azaman/main.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -36,21 +36,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
-      icon: HugeIconsSolid.flash,
+      icon: Icons.bolt_outlined,
       imagePath: "assets/images/1.webp",
       title: "Ghana's Fastest P2P Platform",
       subtitle: "Buy and sell USDC instantly via MTN MoMo or Vodafone Cash. "
         "No bank account needed — just your phone number.",
     ),
     _OnboardingPageData(
-      icon: HugeIconsSolid.shield01,
+      icon: Icons.shield_outlined,
       imagePath: "assets/images/2.webp",
       title: "Every Trade is Escrow-Protected",
       subtitle: "Funds are locked in smart escrow until both parties confirm. "
         "No fraud, no chargebacks — just safe, instant settlement.",
     ),
     _OnboardingPageData(
-      icon: HugeIconsSolid.userGroup,
+      icon: Icons.group_outlined,
       imagePath: "assets/images/3.webp",
       title: "Grow With Your Community",
       subtitle: "Join a Susu circle with friends and family. "

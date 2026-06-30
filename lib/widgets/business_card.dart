@@ -22,7 +22,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
@@ -174,7 +174,7 @@ class BusinessCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(HugeIconsStroke.checkmarkBadge01, size: 12, color: colors.textTertiary),
+              Icon(Icons.widgets_outlined, size: 12, color: colors.textTertiary),
               const SizedBox(width: 3),
               Text(
                 '${business.completedEscrows} deals',
@@ -216,7 +216,7 @@ class BusinessCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: colors.success.withOpacity(0.3))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(HugeIconsSolid.shield01, size: 10, color: colors.success),
+        Icon(Icons.shield_outlined, size: 10, color: colors.success),
         const SizedBox(width: 3),
         Text("Escrow Protected", style: TextStyle(
           color: colors.success, fontSize: 9, fontWeight: FontWeight.w700)),
@@ -261,7 +261,7 @@ class BusinessCard extends ConsumerWidget {
                     ),
                     if (business.isVerified) ...[
                       const SizedBox(width: 5),
-                      Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.success),
+                      Icon(Icons.check_circle_outline, size: 13, color: colors.success),
                     ],
                   ]),
                   const SizedBox(height: 3),
@@ -290,7 +290,7 @@ class BusinessCard extends ConsumerWidget {
             const SizedBox(width: 8),
             _BookmarkButton(bizId: business.bizId, size: 18),
             const SizedBox(width: 4),
-            Icon(HugeIconsSolid.arrowRight01, size: 14, color: colors.textTertiary),
+            Icon(Icons.arrow_forward, size: 14, color: colors.textTertiary),
           ],
         ),
       ),
@@ -430,7 +430,7 @@ class _BookmarkButton extends ConsumerWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: Icon(
-          isSaved ? HugeIconsSolid.bookmark02 : HugeIconsStroke.bookmark02,
+          isSaved ? Icons.bookmark_outline : Icons.bookmark_outline,
           key: ValueKey(isSaved),
           size: size,
           color: isSaved ? colors.accent : colors.textTertiary,

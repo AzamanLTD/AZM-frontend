@@ -12,7 +12,7 @@ import 'package:azaman/widgets/ai_command_menu.dart';
 import 'package:azaman/widgets/ai_dispute_summary.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AdminWarRoomScreen extends ConsumerStatefulWidget {
   const AdminWarRoomScreen({super.key});
@@ -274,7 +274,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             children: [
               FadeTransition(
                 opacity: _radarController,
-                child: Icon(HugeIconsSolid.radar01, color: colors.danger, size: 22),
+                child: Icon(Icons.radar, color: colors.danger, size: 22),
               ),
               const SizedBox(width: 10),
               Text("OVERSIGHT COMMAND",
@@ -295,12 +295,12 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                     side: BorderSide(color: colors.accent.withOpacity(0.3)),
                   ),
                 ),
-                icon: const Icon(HugeIconsSolid.sparkles, size: 14),
+                icon: const Icon(Icons.auto_awesome, size: 14),
                 label: const Text('AI CMD', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
                 onPressed: () => AiCommandMenu.show(context),
               ),
             ),
-            IconButton(icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary), onPressed: _fetchGodModeData),
+            IconButton(icon: Icon(Icons.refresh, color: colors.textTertiary), onPressed: _fetchGodModeData),
           ],
           bottom: TabBar(
             isScrollable: true,
@@ -396,7 +396,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
               style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
           const SizedBox(height: 15),
           if (_allLiveTrades.isEmpty)
-            const AzamanEmptyState(icon: HugeIconsSolid.wifi01, title: "No Active Trades", subtitle: "No trades are currently live on the network.", compact: true)
+            const AzamanEmptyState(icon: Icons.wifi, title: "No Active Trades", subtitle: "No trades are currently live on the network.", compact: true)
           else
             ..._allLiveTrades.map((trade) => _buildMasterTradeCard(trade, isDispute: false, colors: colors)),
         ],
@@ -417,7 +417,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
         padding: const EdgeInsets.all(15),
         children: [
           if (_disputes.isEmpty)
-            const AzamanEmptyState(icon: HugeIconsSolid.shield01, title: "Platform is Secure", subtitle: "No active disputes.", compact: true)
+            const AzamanEmptyState(icon: Icons.shield_outlined, title: "Platform is Secure", subtitle: "No active disputes.", compact: true)
           else
             ..._disputes.map((d) => _buildMasterTradeCard(d, isDispute: true, colors: colors)),
         ],
@@ -438,7 +438,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
         padding: const EdgeInsets.all(15),
         children: [
           if (_kycApplications.isEmpty)
-            const AzamanEmptyState(icon: HugeIconsSolid.shield01, title: "No Pending KYC", subtitle: "No pending KYC applications.", compact: true)
+            const AzamanEmptyState(icon: Icons.shield_outlined, title: "No Pending KYC", subtitle: "No pending KYC applications.", compact: true)
           else
             ..._kycApplications.map((app) => _buildKycCard(app, colors)),
         ],
@@ -459,7 +459,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
         padding: const EdgeInsets.all(15),
         children: [
           if (_vendorApplications.isEmpty)
-            const AzamanEmptyState(icon: HugeIconsSolid.store01, title: "No Pending Applications", subtitle: "No vendor applications awaiting review.", compact: true)
+            const AzamanEmptyState(icon: Icons.storefront_outlined, title: "No Pending Applications", subtitle: "No vendor applications awaiting review.", compact: true)
           else
             ..._vendorApplications.map((app) => _buildVendorApplicationCard(app, colors)),
         ],
@@ -507,7 +507,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(HugeIconsSolid.store01, color: colors.accent, size: 20),
+                child: Icon(Icons.storefront_outlined, color: colors.accent, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -586,7 +586,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          icon: const Icon(HugeIconsSolid.cancel01, size: 18),
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
                           label: const Text("Reject", style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () => _showVendorRejectDialog(applicationId, username, colors),
                         ),
@@ -601,7 +601,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          icon: const Icon(HugeIconsSolid.checkmarkCircle01, size: 18),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
                           label: const Text("Approve", style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () => _showVendorApproveDialog(applicationId, username, colors),
                         ),
@@ -716,7 +716,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: colors.warning.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(HugeIconsSolid.userSearch01, color: colors.warning, size: 20),
+                child: Icon(Icons.manage_search, color: colors.warning, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -778,7 +778,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          icon: const Icon(HugeIconsSolid.cancel01, size: 18),
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
                           label: const Text("Reject", style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () => _showRejectDialog(userId, username, colors),
                         ),
@@ -793,7 +793,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          icon: const Icon(HugeIconsSolid.checkmarkCircle01, size: 18),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
                           label: const Text("Approve", style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () => _showApproveDialog(userId, username, colors),
                         ),
@@ -829,7 +829,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                     padding: const EdgeInsets.all(40),
                     color: colors.card,
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(HugeIconsSolid.image01, color: colors.danger, size: 48),
+                      Icon(Icons.image_outlined, color: colors.danger, size: 48),
                       const SizedBox(height: 12),
                       Text("Failed to load image", style: TextStyle(color: colors.textSecondary)),
                     ]),
@@ -856,7 +856,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                     Image.network(
                       imageUrl.startsWith('http') ? imageUrl : '${AppConfig.baseUrl}$imageUrl',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(child: Icon(HugeIconsSolid.image01, color: colors.textTertiary)),
+                      errorBuilder: (_, __, ___) => Center(child: Icon(Icons.image_outlined, color: colors.textTertiary)),
                     ),
                     Positioned(
                       bottom: 0, left: 0, right: 0,
@@ -872,7 +872,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(HugeIconsSolid.image01, color: colors.textTertiary, size: 24),
+                  Icon(Icons.image_outlined, color: colors.textTertiary, size: 24),
                   const SizedBox(height: 4),
                   Text("No $label", style: TextStyle(color: colors.textTertiary, fontSize: 10)),
                 ],
@@ -953,11 +953,11 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
   Widget _buildStatsGrid(AzamanColors colors) {
     return Row(
       children: [
-        Expanded(child: _statCard("Total Users", _stats['totalUsers']?.toString() ?? "0", HugeIconsSolid.userGroup, colors.accent, colors)),
+        Expanded(child: _statCard("Total Users", _stats['totalUsers']?.toString() ?? "0", Icons.group_outlined, colors.accent, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard("Vol (GHS)", "${_stats['totalFiatVolume'] ?? 0}", HugeIconsSolid.presentationBarChart01, colors.warning, colors)),
+        Expanded(child: _statCard("Vol (GHS)", "${_stats['totalFiatVolume'] ?? 0}", Icons.bar_chart, colors.warning, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard("Profit", "${_stats['totalAdminProfit'] ?? 0}", HugeIconsSolid.bank, colors.success, colors)),
+        Expanded(child: _statCard("Profit", "${_stats['totalAdminProfit'] ?? 0}", Icons.account_balance_outlined, colors.success, colors)),
       ],
     );
   }
@@ -1013,7 +1013,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             padding: const EdgeInsets.only(top: 8.0),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.circle, size: 8, color: _getStatusColor(status, colors)),
+                Icon(Icons.circle_outlined, size: 8, color: _getStatusColor(status, colors)),
                 const SizedBox(width: 5),
                 Text(status, style: TextStyle(color: _getStatusColor(status, colors), fontSize: 10, fontWeight: FontWeight.bold)),
               ],
@@ -1041,8 +1041,8 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _actionButton(HugeIconsSolid.receiptDollar, "Receipt", () => _viewProofDialog(trade['proofUrl']), colors),
-                      _actionButton(HugeIconsSolid.chat01, "Intercept", () => _openChatInterceptor(trade), colors),
+                      _actionButton(Icons.receipt_long_outlined, "Receipt", () => _viewProofDialog(trade['proofUrl']), colors),
+                      _actionButton(Icons.chat_outlined, "Intercept", () => _openChatInterceptor(trade), colors),
                     ],
                   ),
 
@@ -1305,7 +1305,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.alertCircle, color: isBuyerWin ? colors.success : colors.danger, size: 24),
+            Icon(Icons.error_outline, color: isBuyerWin ? colors.success : colors.danger, size: 24),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -1374,7 +1374,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
           ],
         ),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -1389,7 +1389,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.shield01, color: colors.danger, size: 16),
+                Icon(Icons.shield_outlined, color: colors.danger, size: 16),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1454,7 +1454,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            icon: const Icon(HugeIconsSolid.judge, size: 22),
+                            icon: const Icon(Icons.gavel, size: 22),
                             label: const Text("FORCE RELEASE\nTO BUYER",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
@@ -1473,7 +1473,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            icon: const Icon(HugeIconsSolid.undo, size: 22),
+                            icon: const Icon(Icons.undo, size: 22),
                             label: const Text("REFUND\nTO VENDOR",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),

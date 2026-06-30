@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class PromotedAdBadge extends StatelessWidget {
   final int? rank;
@@ -34,7 +34,7 @@ class PromotedAdBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(HugeIconsSolid.fire, size: 11, color: Colors.white),
+          const Icon(Icons.local_fire_department_outlined, size: 11, color: Colors.white),
           const SizedBox(width: 4),
           Text(
             rank != null ? 'BOOSTED #$rank' : 'BOOSTED',

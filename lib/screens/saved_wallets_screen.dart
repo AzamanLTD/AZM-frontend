@@ -44,7 +44,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_button.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SavedWalletsScreen extends ConsumerStatefulWidget {
   const SavedWalletsScreen({super.key});
@@ -238,7 +238,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -252,7 +252,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.add01, color: colors.accent, size: 24),
+            icon: Icon(Icons.add, color: colors.accent, size: 24),
             onPressed: () => _showAddSheet(colors),
           ),
         ],
@@ -304,8 +304,8 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
             children: [
               Icon(
                 isCrypto
-                    ? HugeIconsSolid.bitcoin
-                    : HugeIconsSolid.smartPhone01,
+                    ? Icons.currency_bitcoin
+                    : Icons.smartphone_outlined,
                 size: 44,
                 color: colors.textTertiary,
               ),
@@ -433,8 +433,8 @@ class _WalletTile extends StatelessWidget {
             ),
             child: Icon(
               isCrypto
-                  ? HugeIconsSolid.bitcoin
-                  : HugeIconsSolid.smartPhone01,
+                  ? Icons.currency_bitcoin
+                  : Icons.smartphone_outlined,
               color: accent,
               size: 20,
             ),
@@ -467,7 +467,7 @@ class _WalletTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.delete01,
+            icon: Icon(Icons.delete_outline,
                 color: colors.danger, size: 18),
             onPressed: onDelete,
           ),
@@ -648,7 +648,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Row(
             children: [
-              Icon(HugeIconsSolid.lock, color: colors.warning, size: 18),
+              Icon(Icons.lock_outline, color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Confirm with Password',
@@ -886,7 +886,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               label: _accountNameCtrl.text.isEmpty
                   ? 'Verify Account Holder'
                   : 'Re-verify',
-              icon: HugeIconsSolid.search01,
+              icon: Icons.search,
               variant: AzamanButtonVariant.secondary,
               onPressed: () async {
                 final phone = _phoneCtrl.text.trim();
@@ -934,7 +934,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+              Icon(Icons.check_circle_outline, color: colors.success, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

@@ -11,7 +11,7 @@ import 'package:azaman/screens/admin/profit_dashboard.dart';
 import 'package:azaman/screens/admin/users_dashboard.dart';
 import 'package:azaman/screens/admin/volume_dashboard.dart';
 import 'package:azaman/screens/admin_war_room_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -156,7 +156,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
                 color: colors.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.radar01, color: colors.accent, size: 18),
+              child: Icon(Icons.radar, color: colors.accent, size: 18),
             ),
           ),
           const SizedBox(width: 10),
@@ -175,7 +175,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
       actions: [
         IconButton(
           onPressed: _fetchAll,
-          icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
+          icon: Icon(Icons.refresh, color: colors.accent),
           tooltip: 'Refresh',
         ),
       ],
@@ -206,7 +206,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 48),
+              Icon(Icons.error_outline, color: colors.danger, size: 48),
               const SizedBox(height: 16),
               Text(
                 'Failed to load data',
@@ -226,7 +226,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
               ElevatedButton.icon(
                 onPressed: _fetchAll,
-                icon: const Icon(HugeIconsSolid.refresh01),
+                icon: const Icon(Icons.refresh),
                 label: const Text('RETRY'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
@@ -273,7 +273,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: 'Profit\n(PnL)',
             value: _formatUsd(_stats['totalAdminProfit']),
-            icon: HugeIconsSolid.analytics01,
+            icon: Icons.analytics_outlined,
             accentColor: colors.accent,
             colors: colors,
             onTap: () {
@@ -290,7 +290,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: 'Total\nUsers',
             value: _formatNumber(_stats['totalUsers']),
-            icon: HugeIconsSolid.userGroup,
+            icon: Icons.group_outlined,
             accentColor: colors.success,
             colors: colors,
             onTap: () {
@@ -307,7 +307,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: '24h\nVolume',
             value: _formatGhs(_stats['fiatVolume24h']),
-            icon: HugeIconsSolid.bank,
+            icon: Icons.account_balance_outlined,
             accentColor: colors.warning,
             colors: colors,
 
@@ -384,7 +384,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               ),
             ),
             const SizedBox(height: 4),
-            Icon(HugeIconsSolid.arrowRight01, size: 10, color: colors.textTertiary),
+            Icon(Icons.arrow_forward, size: 10, color: colors.textTertiary),
           ],
         ),
       ),
@@ -399,7 +399,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'SYSTEM HEALTH',
-      icon: HugeIconsSolid.favourite,
+      icon: Icons.favorite_outline,
       colors: colors,
       child: Column(
         children: [
@@ -524,7 +524,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'ORACLE STATUS',
-      icon: HugeIconsSolid.cloud,
+      icon: Icons.cloud_outlined,
       colors: colors,
       child: Column(
         children: [
@@ -556,7 +556,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               ),
               const Spacer(),
 
-              Icon(HugeIconsSolid.clock01, size: 11, color: colors.textTertiary),
+              Icon(Icons.access_time, size: 11, color: colors.textTertiary),
               const SizedBox(width: 4),
               Text(
                 _formatTimestamp(lastSync),
@@ -617,7 +617,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'ENGINE STATUS',
-      icon: HugeIconsSolid.cpu,
+      icon: Icons.memory_outlined,
       colors: colors,
       child: Column(
         children: [
@@ -669,10 +669,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           const SizedBox(height: 14),
           Row(
             children: [
-              _engineMetric('Uptime', uptime, HugeIconsSolid.clock01, colors),
+              _engineMetric('Uptime', uptime, Icons.access_time, colors),
               const SizedBox(width: 16),
               _engineMetric(
-                  'Memory', memory, HugeIconsSolid.sdCard, colors),
+                  'Memory', memory, Icons.sd_card_outlined, colors),
             ],
           ),
         ],
@@ -828,7 +828,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(HugeIconsSolid.medal01, color: Colors.white, size: 20),
+            const Icon(Icons.military_tech_outlined, color: Colors.white, size: 20),
             const SizedBox(width: 10),
             const Text(
               'OPEN WAR ROOM',

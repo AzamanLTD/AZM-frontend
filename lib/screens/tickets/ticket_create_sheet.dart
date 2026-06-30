@@ -24,7 +24,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 const _kCurrencies = ['USD', 'GHS', 'USDC', 'USDT', 'AZM', 'EUR', 'GBP', 'NGN'];
 
@@ -260,7 +260,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Icon(HugeIconsSolid.ticket01,
+                    Icon(Icons.confirmation_number_outlined,
                         color: colors.accent, size: 20),
                     const SizedBox(width: 8),
                     Text('New Ticket',
@@ -416,7 +416,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
                               color: colors.isDark ? Colors.black : Colors.white,
                             ),
                           )
-                        : const Icon(HugeIconsSolid.ticket01, size: 18),
+                        : const Icon(Icons.confirmation_number_outlined, size: 18),
                     label: Text(_submitting ? 'Creating…' : 'Create Ticket'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
@@ -501,7 +501,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.store01, color: colors.accent, size: 20),
+            Icon(Icons.storefront_outlined, color: colors.accent, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -530,7 +530,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
                   _bizResults = const [];
                   _bizSearchCtrl.clear();
                 }),
-                child: Icon(HugeIconsStroke.cancelCircle,
+                child: Icon(Icons.cancel_outlined,
                     color: colors.textTertiary, size: 20),
               ),
           ],
@@ -563,7 +563,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading:
-                  Icon(HugeIconsSolid.store01, color: colors.accent, size: 18),
+                  Icon(Icons.storefront_outlined, color: colors.accent, size: 18),
               title: Text(b.businessName,
                   style: TextStyle(
                       color: colors.textPrimary,
@@ -638,7 +638,7 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
             ),
             child: Row(
               children: [
-                Icon(HugeIconsStroke.calendar03,
+                Icon(Icons.widgets_outlined,
                     size: 18, color: colors.textTertiary),
                 const SizedBox(width: 10),
                 Text(

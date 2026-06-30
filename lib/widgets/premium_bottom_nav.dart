@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/chat_provider.dart';
@@ -20,29 +20,29 @@ class _NavItem {
 
 const _kNavItems = [
   _NavItem(
-    icon: HugeIconsStroke.home01,
-    activeIcon: HugeIconsSolid.home01,
+    icon: Icons.home_outlined,
+    activeIcon: Icons.home_outlined,
     label: 'Home',
   ),
   _NavItem(
-    icon: HugeIconsStroke.message01,
-    activeIcon: HugeIconsSolid.message01,
+    icon: Icons.message_outlined,
+    activeIcon: Icons.message_outlined,
     label: 'Chat',
   ),
   _NavItem(
-    icon: HugeIconsStroke.creditCard,
-    activeIcon: HugeIconsSolid.creditCard,
+    icon: Icons.credit_card_outlined,
+    activeIcon: Icons.credit_card_outlined,
     label: 'Trade',
   ),
   _NavItem(
-    icon: HugeIconsStroke.piggyBank,
-    activeIcon: HugeIconsSolid.piggyBank,
+    icon: Icons.savings_outlined,
+    activeIcon: Icons.savings_outlined,
     label: 'Savings',
   ),
   // V3 Marketplace Sprint (2026-06-21): 5th tab — Premium Marketplace.
   _NavItem(
-    icon: HugeIconsStroke.store01,
-    activeIcon: HugeIconsSolid.store01,
+    icon: Icons.storefront_outlined,
+    activeIcon: Icons.storefront_outlined,
     label: 'Market',
   ),
 ];

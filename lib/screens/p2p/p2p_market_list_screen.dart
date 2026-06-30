@@ -14,7 +14,7 @@ import 'package:azaman/screens/p2p/p2p_filter_sheet.dart';
 import 'package:azaman/widgets/vendor_ad_card.dart';
 import 'package:azaman/widgets/ad_detail_flip_card.dart';
 import 'package:azaman/widgets/p2p_market_summary_bar.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 const double _kSegmentHeaderHeight = 56.0;
 
@@ -57,7 +57,7 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -70,7 +70,7 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
               return Stack(
                 children: [
                   IconButton(
-                    icon: Icon(HugeIconsSolid.filterHorizontal,
+                    icon: Icon(Icons.filter_list,
                         color: colors.textPrimary, size: 20),
                     onPressed: () => P2PFilterSheet.show(context),
                   ),
@@ -494,7 +494,7 @@ class _ErrorView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.cloud, size: 28, color: colors.textTertiary),
+            Icon(Icons.cloud_outlined, size: 28, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text(
               'Markets unavailable',

@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultCreateScreen extends ConsumerStatefulWidget {
   const VaultCreateScreen({super.key});
@@ -120,7 +120,7 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
           ),
         ),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
@@ -312,7 +312,7 @@ class _DatePill extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.calendar01, color: colors.accent, size: 16),
+            Icon(Icons.calendar_today_outlined, color: colors.accent, size: 16),
             const SizedBox(width: 8),
             Text(
               '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
@@ -323,7 +323,7 @@ class _DatePill extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Icon(HugeIconsSolid.calendar01, color: colors.textTertiary, size: 14),
+            Icon(Icons.calendar_today_outlined, color: colors.textTertiary, size: 14),
           ],
         ),
       ),
@@ -391,7 +391,7 @@ class _RulesSheetState extends State<_RulesSheet> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Icon(HugeIconsSolid.judge, color: colors.warning, size: 18),
+                  Icon(Icons.gavel, color: colors.warning, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     'Rules of the Game',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -137,7 +137,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                   color: colors.success.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(HugeIconsSolid.checkmarkCircle01,
+                child: Icon(Icons.check_circle_outline,
                     color: colors.success, size: 40),
               ),
             ),
@@ -219,7 +219,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             // Action buttons
             AzamanButton(
               label: 'Share Receipt',
-              icon: HugeIconsSolid.share08,
+              icon: Icons.ios_share_outlined,
               variant: AzamanButtonVariant.primary,
               size: AzamanButtonSize.large,
               fullWidth: true,
@@ -228,7 +228,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             const SizedBox(height: 12),
             AzamanButton(
               label: 'Download PDF',
-              icon: HugeIconsSolid.download01,
+              icon: Icons.download_outlined,
               variant: AzamanButtonVariant.secondary,
               size: AzamanButtonSize.large,
               fullWidth: true,
@@ -252,7 +252,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             color: colors.accentSurface,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(HugeIconsSolid.store01, size: 20),
+          child: const Icon(Icons.storefront_outlined, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/notification_overlay.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class NotificationBell extends ConsumerWidget {
   const NotificationBell({super.key});
@@ -20,7 +20,7 @@ class NotificationBell extends ConsumerWidget {
         clipBehavior: Clip.none,
         children: [
           Icon(
-            HugeIconsSolid.notification01,
+            Icons.notifications_outlined,
             color: colors.textPrimary,
             size: 22,
           ),

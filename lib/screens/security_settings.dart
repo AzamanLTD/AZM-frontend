@@ -9,7 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -352,7 +352,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -370,7 +370,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             children: [
               _toggleRow(
                 colors,
-                icon: HugeIconsSolid.security,
+                icon: Icons.security,
                 title: 'Google Authenticator',
                 subtitle: 'Add an extra layer of security',
                 value: _twoFactorEnabled,
@@ -484,7 +484,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             children: [
               _toggleRow(
                 colors,
-                icon: HugeIconsSolid.fingerPrintScan,
+                icon: Icons.fingerprint,
                 title: _biometricAvailable
                     ? 'Biometric on financial actions'
                     : 'Biometric not available on this device',
@@ -558,7 +558,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        HugeIconsSolid.checkmarkCircle01,
+                        Icons.check_circle_outline,
                         color: colors.success,
                         size: 24,
                       ),
@@ -727,7 +727,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            obscure ? HugeIconsSolid.viewOff : HugeIconsSolid.view,
+            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
             color: colors.textTertiary,
             size: 20,
           ),

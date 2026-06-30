@@ -44,7 +44,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// All metadata needed to render a media bubble. Wraps the wire format so
 /// callers don't have to remember which message field maps to which UI bit.
@@ -215,7 +215,7 @@ class _ImageBubble extends StatelessWidget {
           height: 240,
           errorBuilder: (_, __, ___) => _ErrorTile(
             colors: colors,
-            icon: HugeIconsSolid.image01,
+            icon: Icons.image_outlined,
             label: 'Image unavailable',
           ),
           loadingBuilder: (_, child, p) =>
@@ -252,7 +252,7 @@ class _VideoBubble extends StatelessWidget {
               width: 260,
               height: 160,
               color: colors.card,
-              child: const Icon(HugeIconsSolid.film01,
+              child: const Icon(Icons.movie_outlined,
                   size: 40, color: Colors.white24),
             ),
             Container(
@@ -261,7 +261,7 @@ class _VideoBubble extends StatelessWidget {
                 color: Colors.black.withOpacity(0.55),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(HugeIconsSolid.play,
+              child: const Icon(Icons.play_circle_outline,
                   color: Colors.white, size: 28),
             ),
             if (payload.duration != null)
@@ -462,8 +462,8 @@ class _AudioBubbleState extends State<_AudioBubble> {
                       )
                     : Icon(
                         _playing
-                            ? HugeIconsSolid.pause
-                            : HugeIconsSolid.play,
+                            ? Icons.pause_circle_outline
+                            : Icons.play_circle_outline,
                         color: accent,
                         size: 22,
                       ),
@@ -653,7 +653,7 @@ class _DocumentBubble extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.download01,
+            Icon(Icons.download_outlined,
                 color: colors.textTertiary, size: 18),
           ],
         ),
@@ -662,17 +662,17 @@ class _DocumentBubble extends StatelessWidget {
   }
 
   IconData _iconForMime(String? mime) {
-    if (mime == null) return HugeIconsSolid.file01;
-    if (mime.contains('pdf')) return HugeIconsSolid.pdf01;
+    if (mime == null) return Icons.insert_drive_file_outlined;
+    if (mime.contains('pdf')) return Icons.picture_as_pdf_outlined;
     if (mime.contains('word') || mime.contains('msword')) {
-      return HugeIconsSolid.note01;
+      return Icons.note_outlined;
     }
     if (mime.contains('excel') || mime.contains('spreadsheet')) {
-      return HugeIconsSolid.grid02;
+      return Icons.grid_on_outlined;
     }
-    if (mime.contains('presentation')) return HugeIconsSolid.film01;
-    if (mime.startsWith('text')) return HugeIconsSolid.note01;
-    return HugeIconsSolid.file01;
+    if (mime.contains('presentation')) return Icons.movie_outlined;
+    if (mime.startsWith('text')) return Icons.note_outlined;
+    return Icons.insert_drive_file_outlined;
   }
 }
 
@@ -711,7 +711,7 @@ class _LinkBubble extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.link01, color: colors.accent, size: 18),
+              Icon(Icons.link, color: colors.accent, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

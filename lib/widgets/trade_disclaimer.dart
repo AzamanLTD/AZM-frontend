@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TradeDisclaimer extends ConsumerWidget {
   final bool compact;
@@ -24,7 +24,7 @@ class TradeDisclaimer extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: compact ? 14 : 16),
+          Icon(Icons.info_outline, color: colors.warning, size: compact ? 14 : 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

@@ -23,7 +23,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AzmRewardsScreen extends ConsumerStatefulWidget {
   const AzmRewardsScreen({super.key});
@@ -74,7 +74,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 20),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -115,13 +115,13 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
                         child: Row(children: [
                           Container(width: 44, height: 44,
                             decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent.withOpacity(0.15)),
-                            child: Icon(HugeIconsSolid.megaphone02, color: colors.accent, size: 22)),
+                            child: Icon(Icons.campaign_outlined, color: colors.accent, size: 22)),
                           const SizedBox(width: 14),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text("AZM Auction", style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
                             Text("Bid with AZM to boost your ads", style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                           ])),
-                          Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 18),
+                          Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
                         ]),
                       ),
                     ),

@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SmartRouteCreateScreen extends ConsumerStatefulWidget {
   const SmartRouteCreateScreen({super.key});
@@ -88,7 +88,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('New Smart Route',
@@ -114,7 +114,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                 border: Border.all(color: colors.accent.withOpacity(0.2)),
               ),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(HugeIconsSolid.flash, size: 18, color: colors.accent),
+                Icon(Icons.bolt_outlined, size: 18, color: colors.accent),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text("What is a Smart Route?", style: TextStyle(

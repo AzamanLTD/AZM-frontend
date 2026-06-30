@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class UsersDashboard extends ConsumerStatefulWidget {
   const UsersDashboard({super.key});
@@ -85,7 +85,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
                 color: colors.success.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.userGroup, color: colors.success, size: 18),
+              child: Icon(Icons.group_outlined, color: colors.success, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -101,7 +101,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary),
+            icon: Icon(Icons.refresh, color: colors.textTertiary),
             onPressed: _fetchData,
           ),
         ],
@@ -134,7 +134,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
         padding: const EdgeInsets.all(32),
         children: [
           const SizedBox(height: 80),
-          Icon(HugeIconsSolid.cloud, size: 48, color: colors.danger),
+          Icon(Icons.cloud_outlined, size: 48, color: colors.danger),
           const SizedBox(height: 16),
           Text('Failed to load', textAlign: TextAlign.center,
               style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -145,7 +145,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
           Center(
             child: ElevatedButton.icon(
               onPressed: _fetchData,
-              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
+              icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(backgroundColor: colors.accent, foregroundColor: Colors.black),
             ),
@@ -160,7 +160,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
       children: [
         _buildStatsRow(colors),
         const SizedBox(height: 24),
-        _buildSectionHeader('TOP USERS', HugeIconsSolid.award01, colors),
+        _buildSectionHeader('TOP USERS', Icons.emoji_events_outlined, colors),
         const SizedBox(height: 12),
         _buildUsersList(colors),
         const SizedBox(height: 32),
@@ -171,11 +171,11 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
   Widget _buildStatsRow(AzamanColors colors) {
     return Row(
       children: [
-        Expanded(child: _statCard('Total Users', _formatNum(_totalUsers), HugeIconsSolid.userGroup, colors.success, colors)),
+        Expanded(child: _statCard('Total Users', _formatNum(_totalUsers), Icons.group_outlined, colors.success, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('Vendors', _formatNum(_activeVendors), HugeIconsSolid.store01, colors.accent, colors)),
+        Expanded(child: _statCard('Vendors', _formatNum(_activeVendors), Icons.storefront_outlined, colors.accent, colors)),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('Pending KYC', _formatNum(_pendingKyc), HugeIconsSolid.hourglass, colors.warning, colors)),
+        Expanded(child: _statCard('Pending KYC', _formatNum(_pendingKyc), Icons.hourglass_empty, colors.warning, colors)),
       ],
     );
   }

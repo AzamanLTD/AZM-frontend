@@ -21,7 +21,7 @@ import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_create_screen.dart';
 import 'package:azaman/screens/vault/vault_detail_screen.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultListScreen extends ConsumerWidget {
   const VaultListScreen({super.key});
@@ -38,7 +38,7 @@ class VaultListScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -75,7 +75,7 @@ class VaultListScreen extends ConsumerWidget {
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(HugeIconsSolid.add01, size: 18),
+        icon: const Icon(Icons.add, size: 18),
         label: const Text(
           'Create Vault',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -97,7 +97,7 @@ class _Body extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         children: [
           const SizedBox(height: 80),
-          Icon(HugeIconsSolid.lock, size: 56, color: colors.textTertiary),
+          Icon(Icons.lock_outline, size: 56, color: colors.textTertiary),
           const SizedBox(height: 16),
           Center(
             child: Text(
@@ -162,13 +162,13 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(HugeIconsSolid.cloud, size: 48, color: Colors.redAccent),
+            const Icon(Icons.cloud_outlined, size: 48, color: Colors.redAccent),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(HugeIconsSolid.refresh01),
+              icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
           ],

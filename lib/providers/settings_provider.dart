@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// All available shortcuts the user can pin to their HQ drawer
 class HQShortcut {
@@ -37,15 +37,15 @@ class SettingsProvider with ChangeNotifier {
 
   // --- HQ SHORTCUTS ---
   List<HQShortcut> _shortcuts = [
-    HQShortcut(id: 'deposit', label: 'Deposit', icon: HugeIconsSolid.wallet01, order: 0),
-    HQShortcut(id: 'withdraw', label: 'Withdraw', icon: HugeIconsSolid.sent, order: 1),
-    HQShortcut(id: 'history', label: 'History', icon: HugeIconsSolid.transactionHistory, order: 2),
-    HQShortcut(id: 'stats', label: 'Stats', icon: HugeIconsSolid.analytics01, order: 3),
-    HQShortcut(id: 'p2p', label: 'P2P Trading', icon: HugeIconsSolid.exchange01, order: 4),
-    HQShortcut(id: 'savings', label: 'Savings', icon: HugeIconsSolid.savings, order: 5),
-    HQShortcut(id: 'support', label: 'Support', icon: HugeIconsSolid.headset, order: 6),
-    HQShortcut(id: 'ads', label: 'Ad Manager', icon: HugeIconsSolid.megaphone01, order: 7),
-    HQShortcut(id: 'settings', label: 'Settings', icon: HugeIconsSolid.settings01, order: 8),
+    HQShortcut(id: 'deposit', label: 'Deposit', icon: Icons.account_balance_wallet_outlined, order: 0),
+    HQShortcut(id: 'withdraw', label: 'Withdraw', icon: Icons.send_outlined, order: 1),
+    HQShortcut(id: 'history', label: 'History', icon: Icons.history, order: 2),
+    HQShortcut(id: 'stats', label: 'Stats', icon: Icons.analytics_outlined, order: 3),
+    HQShortcut(id: 'p2p', label: 'P2P Trading', icon: Icons.swap_horiz, order: 4),
+    HQShortcut(id: 'savings', label: 'Savings', icon: Icons.savings_outlined, order: 5),
+    HQShortcut(id: 'support', label: 'Support', icon: Icons.headset_mic_outlined, order: 6),
+    HQShortcut(id: 'ads', label: 'Ad Manager', icon: Icons.campaign_outlined, order: 7),
+    HQShortcut(id: 'settings', label: 'Settings', icon: Icons.settings_outlined, order: 8),
   ];
 
   bool _isLoaded = false;

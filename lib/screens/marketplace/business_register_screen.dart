@@ -14,7 +14,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:image_picker/image_picker.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -273,7 +273,7 @@ class _BusinessRegisterScreenState
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(HugeIconsStroke.camera01,
+                      Icon(Icons.camera_alt_outlined,
                           color: colors.textTertiary, size: 24),
                       const SizedBox(height: 4),
                       Text('Logo',

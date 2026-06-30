@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:record/record.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AccountDeactivationScreen extends ConsumerStatefulWidget {
   const AccountDeactivationScreen({super.key});
@@ -99,7 +99,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 22),
+            Icon(Icons.error_outline, color: colors.danger, size: 22),
             const SizedBox(width: 10),
             Text(
               'Delete Account?',
@@ -172,7 +172,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.shield01, color: colors.danger, size: 24),
+                Icon(Icons.shield_outlined, color: colors.danger, size: 24),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -248,7 +248,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(HugeIconsSolid.delete01, size: 20),
+              icon: const Icon(Icons.delete_outline, size: 20),
               label: const Text(
                 'CONFIRM DELETION',
                 style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -305,7 +305,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                             : [],
                   ),
                   child: Icon(
-                    _hasRecording ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.mic01,
+                    _hasRecording ? Icons.check_circle_outline : Icons.mic_none_outlined,
                     color: _isRecording
                         ? Colors.white
                         : _hasRecording
@@ -325,7 +325,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                     : _hasRecording
                         ? Row(
                             children: [
-                              Icon(HugeIconsSolid.musicNote01, color: colors.success, size: 18),
+                              Icon(Icons.music_note_outlined, color: colors.success, size: 18),
                               const SizedBox(width: 8),
                               Text(
                                 'Recording captured',
@@ -338,7 +338,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                               const Spacer(),
                               GestureDetector(
                                 onTap: _clearRecording,
-                                child: Icon(HugeIconsSolid.cancel01, color: colors.textTertiary, size: 18),
+                                child: Icon(Icons.cancel_outlined, color: colors.textTertiary, size: 18),
                               ),
                             ],
                           )

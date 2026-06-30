@@ -23,7 +23,7 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class InitiateSusuSheet extends ConsumerStatefulWidget {
   final String groupId;
@@ -249,7 +249,7 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.black),
                         )
-                      : const Icon(HugeIconsSolid.rocket, size: 16),
+                      : const Icon(Icons.rocket_launch_outlined, size: 16),
                   label: Text(
                     _busy ? 'Initiating…' : 'Initiate Susu',
                     style: const TextStyle(

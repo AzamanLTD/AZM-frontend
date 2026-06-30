@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class DraggableTimerPill extends StatefulWidget {
   final int secondsRemaining;
@@ -66,8 +66,8 @@ class _DraggableTimerPillState extends State<DraggableTimerPill> {
             children: [
               Icon(
                 widget.isExpired || widget.isDisputed
-                    ? HugeIconsSolid.clock01
-                    : HugeIconsSolid.clock01,
+                    ? Icons.access_time
+                    : Icons.access_time,
                 size: 14,
                 color: accent,
               ),

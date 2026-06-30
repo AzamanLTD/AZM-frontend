@@ -22,7 +22,7 @@ import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/trade_countdown_chip.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TradesTabScreen extends ConsumerStatefulWidget {
   const TradesTabScreen({super.key});
@@ -126,7 +126,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_activeTrades.isEmpty) {
-      return _emptyState(colors, HugeIconsSolid.exchange01, 'No Active Trades',
+      return _emptyState(colors, Icons.swap_horiz, 'No Active Trades',
           'Start a trade from the P2P marketplace to see it here.');
     }
 
@@ -146,7 +146,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_completedTrades.isEmpty) {
-      return _emptyState(colors, HugeIconsSolid.transactionHistory, 'No Trade History',
+      return _emptyState(colors, Icons.history, 'No Trade History',
           'Completed and cancelled trades will appear here.');
     }
 
@@ -263,7 +263,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
               ),
             ),
 
-            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 20),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 20),
           ],
         ),
       ),
@@ -325,13 +325,13 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'PENDING_PAYMENT': return HugeIconsSolid.hourglass;
-      case 'PAID': return HugeIconsSolid.checkmarkCircle01;
-      case 'COMPLETED': return HugeIconsSolid.checkmarkCircle01;
-      case 'DISPUTED': return HugeIconsSolid.judge;
+      case 'PENDING_PAYMENT': return Icons.hourglass_empty;
+      case 'PAID': return Icons.check_circle_outline;
+      case 'COMPLETED': return Icons.check_circle_outline;
+      case 'DISPUTED': return Icons.gavel;
       case 'CANCELLED':
-      case 'AUTO_CANCELLED': return HugeIconsSolid.cancel01;
-      default: return HugeIconsSolid.exchange01;
+      case 'AUTO_CANCELLED': return Icons.cancel_outlined;
+      default: return Icons.swap_horiz;
     }
   }
 

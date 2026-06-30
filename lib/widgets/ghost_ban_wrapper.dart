@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 enum BanStatus { active, warned, restricted, banned }
 
@@ -155,7 +155,7 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
-                          HugeIconsSolid.shield01,
+                          Icons.shield_outlined,
                           color: Colors.white,
                           size: 18,
                         ),
@@ -252,7 +252,7 @@ class _AppealButtonState extends State<_AppealButton> with SingleTickerProviderS
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.mail01, color: Colors.white, size: 14),
+              Icon(Icons.mail_outline, color: Colors.white, size: 14),
               SizedBox(width: 6),
               Text(
                 'Appeal',

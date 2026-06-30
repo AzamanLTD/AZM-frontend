@@ -25,7 +25,7 @@ import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AzamanHomePage extends ConsumerStatefulWidget {
   const AzamanHomePage({super.key});
@@ -179,7 +179,7 @@ class _GreetingHeader extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.gift, size: 14, color: colors.success),
+                  Icon(Icons.card_giftcard_outlined, size: 14, color: colors.success),
                   const SizedBox(width: 5),
                   Text(
                     (user?.azmBalance ?? 0) > 0
@@ -216,7 +216,7 @@ class _GreetingHeader extends ConsumerWidget {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Icon(
-                  isVisible ? HugeIconsSolid.view : HugeIconsSolid.viewOff,
+                  isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   key: ValueKey(isVisible),
                   size: 18,
                   color: colors.textSecondary,
@@ -285,20 +285,20 @@ class _ActionPills extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final pills = [
-      _PillData(label: "Add Money", icon: HugeIconsSolid.add01,
+      _PillData(label: "Add Money", icon: Icons.add,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)))),
-      _PillData(label: "Send", icon: HugeIconsSolid.arrowDataTransferHorizontal,
+      _PillData(label: "Send", icon: Icons.swap_horiz,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const FriendsHubScreen()))),
-      _PillData(label: "Withdraw", icon: HugeIconsSolid.bank,
+      _PillData(label: "Withdraw", icon: Icons.account_balance_outlined,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const WithdrawalScreen()))),
-      _PillData(label: "Savings", icon: HugeIconsSolid.piggyBank,
+      _PillData(label: "Savings", icon: Icons.savings_outlined,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const RoutedTabSurface(
             title: 'Savings', body: SavingsScreen())))),
-      _PillData(label: "Market", icon: HugeIconsSolid.store01,
+      _PillData(label: "Market", icon: Icons.storefront_outlined,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const MarketplaceHomeScreen()))),
     ];
@@ -398,7 +398,7 @@ class _NewWalletCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: colors.accent.withOpacity(0.12),
               ),
-              child: Icon(HugeIconsSolid.add01, size: 20, color: colors.accent),
+              child: Icon(Icons.add, size: 20, color: colors.accent),
             ),
             const Spacer(),
             Text("Fund",
@@ -442,13 +442,13 @@ class _SusuShortcutCard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: colors.accent.withOpacity(0.2))),
             child: Row(children: [
-              Icon(HugeIconsSolid.userGroup, color: colors.accent, size: 24),
+              Icon(Icons.group_outlined, color: colors.accent, size: 24),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text("Susu Circle", style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800)),
                 Text(next.name, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
               ])),
-              Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 18),
+              Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
             ]),
           ),
         );

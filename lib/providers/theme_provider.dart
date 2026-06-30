@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_page_transitions.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // ============================================================
 // AZAMAN THEME ENGINE — V3 (Immersive Planetary Themes)
@@ -216,7 +216,7 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: false,
           name: "Light",
-          icon: HugeIconsSolid.sun01,
+          icon: Icons.wb_sunny_outlined,
           background: const Color(0xFFFAFAFB),
           surface: Colors.white,
           card: const Color(0xFFFFFFFF),
@@ -238,7 +238,7 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: true,
           name: "Dark",
-          icon: HugeIconsSolid.moon,
+          icon: Icons.dark_mode_outlined,
           background: const Color(0xFF0B0E11),
           surface: const Color(0xFF1E2329),
           card: const Color(0xFF1E2329),
@@ -260,7 +260,7 @@ class ThemeProvider with ChangeNotifier {
         return AzamanColors(
           isDark: true,
           name: "Midnight",
-          icon: HugeIconsSolid.moon,
+          icon: Icons.dark_mode_outlined,
           // True blackout — almost zero ambient light. Violet accent so
           // numbers and CTAs read with weight against pitch black.
           background: const Color(0xFF000000),

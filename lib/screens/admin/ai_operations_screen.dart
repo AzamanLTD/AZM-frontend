@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AiOperationsScreen extends ConsumerStatefulWidget {
   const AiOperationsScreen({super.key});
@@ -177,7 +177,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                 color: colors.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(HugeIconsSolid.sparkles, color: Color(0xFFD4AF37), size: 18),
+              child: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -193,7 +193,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary),
+            icon: Icon(Icons.refresh, color: colors.textTertiary),
             onPressed: () {
               setState(() {
                 _isLoadingInsights = true;
@@ -225,7 +225,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('AI CFO INSIGHTS', HugeIconsSolid.bank, colors),
+        _sectionHeader('AI CFO INSIGHTS', Icons.account_balance_outlined, colors),
         const SizedBox(height: 12),
         _isLoadingInsights
             ? _loadingCard(colors)
@@ -251,7 +251,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
           children: [
             Expanded(
               child: _insightCard(
-                HugeIconsSolid.fire,
+                Icons.local_fire_department_outlined,
                 'MATIC Burn',
                 '$maticBurn $maticLabel',
                 '${monthlyBurn} MATIC / mo',
@@ -262,7 +262,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: _insightCard(
-                HugeIconsSolid.wallet01,
+                Icons.account_balance_wallet_outlined,
                 'Treasury',
                 treasuryHealth,
                 '${_cfoInsights['treasuryBalance'] ?? '---'} MATIC',
@@ -280,7 +280,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
               )),
         if (apiRenewals == null)
           _insightCard(
-            HugeIconsSolid.refresh01,
+            Icons.refresh,
             'Next API Renewal',
             renewalDate,
             '\$${renewalCost} USD',
@@ -364,7 +364,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
               color: colors.warning.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(HugeIconsSolid.refresh01, color: colors.warning, size: 18),
+            child: Icon(Icons.refresh, color: colors.warning, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -416,7 +416,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('DISCOUNT CREDIT APPROVAL', HugeIconsSolid.percent, colors),
+        _sectionHeader('DISCOUNT CREDIT APPROVAL', Icons.percent, colors),
         const SizedBox(height: 6),
         Text(
           'Users who have hit milestones — review and grant fee discounts.',
@@ -453,7 +453,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       ),
       child: Column(
         children: [
-          Icon(HugeIconsSolid.party, color: colors.success.withOpacity(0.4), size: 40),
+          Icon(Icons.celebration_outlined, color: colors.success.withOpacity(0.4), size: 40),
           const SizedBox(height: 12),
           Text(
             'No discount candidates right now',
@@ -497,7 +497,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    HugeIconsSolid.award01,
+                    Icons.emoji_events_outlined,
                     color: colors.success,
                     size: 18,
                   ),
@@ -661,7 +661,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                           color: colors.success,
                         ),
                       )
-                    : const Icon(HugeIconsSolid.checkmarkCircle01, size: 18),
+                    : const Icon(Icons.check_circle_outline, size: 18),
                 label: Text(
                   isApproving ? 'APPROVING...' : 'APPROVE DISCOUNT CREDIT',
                   style: const TextStyle(
@@ -723,7 +723,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 20),
+          Icon(Icons.error_outline, color: colors.danger, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

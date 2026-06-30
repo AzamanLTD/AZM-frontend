@@ -25,7 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_profile_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// Public entry point — opens the breakdown as a modal bottom sheet.
 Future<void> showTrustBreakdownSheet(
@@ -140,7 +140,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
                         if (isVerifiedVendor) ...[
                           const SizedBox(width: 5),
                           Icon(
-                            HugeIconsSolid.checkmarkCircle01,
+                            Icons.check_circle_outline,
                             color: colors.accent,
                             size: 14,
                           ),
@@ -218,7 +218,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
                     if (rating != null)
                       Row(
                         children: [
-                          Icon(HugeIconsSolid.star,
+                          Icon(Icons.star_outline,
                               color: colors.warning, size: 18),
                           const SizedBox(width: 2),
                           Text(
@@ -266,7 +266,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
           // Per-category rows
           _CategoryRow(
             colors: colors,
-            icon: HugeIconsSolid.exchange01,
+            icon: Icons.swap_horiz,
             iconTint: colors.success,
             label: 'P2P Trades',
             description: 'Escrow-backed buy/sell trades on the marketplace',
@@ -275,7 +275,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
           const SizedBox(height: 8),
           _CategoryRow(
             colors: colors,
-            icon: HugeIconsSolid.wallet01,
+            icon: Icons.account_balance_wallet_outlined,
             iconTint: colors.accent,
             label: 'Peer Transfers',
             description: 'Direct money transfers between friends',
@@ -284,7 +284,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
           const SizedBox(height: 8),
           _CategoryRow(
             colors: colors,
-            icon: HugeIconsSolid.ticket01,
+            icon: Icons.confirmation_number_outlined,
             iconTint: colors.warning,
             label: 'Tickets Closed',
             description: 'Deal-tracking workspaces marked complete',
@@ -303,7 +303,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01,
+                  Icon(Icons.check_circle_outline,
                       color: colors.accent, size: 16),
                   const SizedBox(width: 8),
                   Expanded(

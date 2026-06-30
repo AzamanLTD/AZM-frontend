@@ -22,7 +22,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -208,7 +208,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: groupAsync.when(
@@ -240,7 +240,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         fontWeight: FontWeight.w800),
                   ),
                 ),
-                Icon(HugeIconsSolid.arrowDown01,
+                Icon(Icons.arrow_downward,
                     color: colors.textTertiary, size: 18),
               ],
             ),
@@ -249,7 +249,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         actions: [
           IconButton(
             tooltip: 'Group profile',
-            icon: Icon(HugeIconsSolid.userGroup, color: colors.accent, size: 20),
+            icon: Icon(Icons.group_outlined, color: colors.accent, size: 20),
             onPressed: () {
               Navigator.push(
                 context,
@@ -478,19 +478,15 @@ class _MessageBubble extends StatelessWidget {
             CircleAvatar(
               radius: 14,
               backgroundColor: colors.accent.withOpacity(0.15),
-              backgroundImage: msg.senderProfilePictureUrl != null
-                  ? CachedNetworkImageProvider(msg.senderProfilePictureUrl!)
-                  : null,
-              child: msg.senderProfilePictureUrl == null
-                  ? Text(
+              backgroundImage: null,
+              child: Text(
                       (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
                       style: TextStyle(
                         color: colors.accent,
                         fontWeight: FontWeight.w800,
                         fontSize: 11,
                       ),
-                    )
-                  : null,
+                    ),
             )
           else
             const SizedBox(width: 28),
@@ -600,7 +596,7 @@ class _Composer extends StatelessWidget {
             const SizedBox(width: 8),
             IconButton(
               onPressed: sending ? null : onSend,
-              icon: Icon(HugeIconsSolid.sent, color: colors.accent),
+              icon: Icon(Icons.send_outlined, color: colors.accent),
             ),
           ],
         ),
@@ -717,7 +713,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.bank,
+              Icon(Icons.account_balance_outlined,
                   color: colors.success, size: 14),
               const SizedBox(width: 8),
               Expanded(
@@ -729,7 +725,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                       fontWeight: FontWeight.w700),
                 ),
               ),
-              Icon(HugeIconsSolid.arrowRight01, color: colors.success, size: 14),
+              Icon(Icons.arrow_forward, color: colors.success, size: 14),
             ],
           ),
         ),
@@ -761,7 +757,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.clock01, color: colors.warning, size: 14),
+                  Icon(Icons.access_time, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -782,8 +778,8 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                   ),
                   Icon(
                     _expanded
-                        ? HugeIconsSolid.arrowUp01
-                        : HugeIconsSolid.arrowDown01,
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward,
                     color: colors.warning,
                     size: 18,
                   ),
@@ -819,7 +815,7 @@ class _SusuBannerState extends ConsumerState<_SusuBanner> {
                           ),
                         );
                       },
-                      icon: Icon(HugeIconsSolid.task01,
+                      icon: Icon(Icons.task_alt_outlined,
                           size: 14, color: colors.warning),
                       label: Text('View members & verification',
                           style: TextStyle(

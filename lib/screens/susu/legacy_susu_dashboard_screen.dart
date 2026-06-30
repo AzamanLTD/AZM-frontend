@@ -17,7 +17,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/susu/susu_warning_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class LegacySusuDashboardScreen extends ConsumerWidget {
   final String susuGroupId;
@@ -36,7 +36,7 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Susu',
@@ -81,7 +81,7 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(HugeIconsSolid.judge, size: 16),
+                  icon: const Icon(Icons.gavel, size: 16),
                   label: const Text(
                     'Read Contract & Sign',
                     style: TextStyle(fontWeight: FontWeight.w800),
@@ -152,7 +152,7 @@ class _Hero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank, color: colors.warning, size: 18),
+              Icon(Icons.account_balance_outlined, color: colors.warning, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Susu · ${susu.frequency}',

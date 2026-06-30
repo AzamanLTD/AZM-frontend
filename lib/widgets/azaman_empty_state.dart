@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // AZAMAN EMPTY STATE — Reusable empty/no-data display widget
@@ -13,7 +13,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 //
 // Usage:
 //   AzamanEmptyState(
-//     icon: HugeIconsSolid.inbox,
+//     icon: Icons.inbox_outlined,
 //     title: 'No notifications yet',
 //     subtitle: 'You\'ll see updates here when something happens.',
 //     actionLabel: 'Refresh',

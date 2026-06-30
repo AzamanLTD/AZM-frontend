@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/azm_auction_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AzmAuctionScreen extends ConsumerStatefulWidget {
   const AzmAuctionScreen({super.key});
@@ -149,7 +149,7 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('AZM Auction',
@@ -271,7 +271,7 @@ class _Hero extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(HugeIconsSolid.sparkles, color: Color(0xFF9D8FFF), size: 18),
+                  const Icon(Icons.auto_awesome, color: Color(0xFF9D8FFF), size: 18),
                   const SizedBox(width: 6),
                   Text(
                     'AZM Auction',
@@ -314,14 +314,14 @@ class _Hero extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(HugeIconsSolid.userGroup, color: colors.textTertiary, size: 14),
+                  Icon(Icons.group_outlined, color: colors.textTertiary, size: 14),
                   const SizedBox(width: 6),
                   Text(
                     '$participants vendors bidding',
                     style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                   const Spacer(),
-                  Icon(HugeIconsSolid.fire, color: colors.warning, size: 14),
+                  Icon(Icons.local_fire_department_outlined, color: colors.warning, size: 14),
                   const SizedBox(width: 4),
                   Text(
                     'Top 3 burn AZM, get 24h boost',
@@ -356,7 +356,7 @@ class _MyBidCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.judge, color: colors.textTertiary, size: 16),
+            Icon(Icons.gavel, color: colors.textTertiary, size: 16),
             const SizedBox(width: 8),
             Text('No active bid', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
           ],
@@ -372,7 +372,7 @@ class _MyBidCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.accent, size: 16),
+          Icon(Icons.check_circle_outline, color: colors.accent, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -491,7 +491,7 @@ class _BidForm extends StatelessWidget {
               border: InputBorder.none,
               hintText: 'Bid (AZM)',
               hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-              prefixIcon: Icon(HugeIconsSolid.flash, color: colors.accentSecondary, size: 18),
+              prefixIcon: Icon(Icons.bolt_outlined, color: colors.accentSecondary, size: 18),
             ),
           ),
         ),
@@ -553,7 +553,7 @@ class _PromotedStrip extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(HugeIconsSolid.fire,
+                      Icon(Icons.local_fire_department_outlined,
                           color: colors.warning, size: 14),
                       const SizedBox(width: 8),
                       Text(

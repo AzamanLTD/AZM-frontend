@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -93,7 +93,7 @@ class _CategoryDrilldownScreenState
           ),
         ),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () {
             if (_showBusinessList) {
               setState(() {
@@ -156,7 +156,7 @@ class _CategoryDrilldownScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.grid, size: 48, color: colors.textTertiary),
+              Icon(Icons.grid_view_outlined, size: 48, color: colors.textTertiary),
               const SizedBox(height: 12),
               Text(
                 'Could not load categories',
@@ -169,7 +169,7 @@ class _CategoryDrilldownScreenState
       data: (subcategories) {
         if (subcategories.isEmpty) {
           return AzamanEmptyState(
-            icon: HugeIconsSolid.grid,
+            icon: Icons.grid_view_outlined,
             title: 'No subcategories',
             subtitle: 'No subcategories available for this category yet.',
           );
@@ -308,7 +308,7 @@ class _CategoryDrilldownScreenState
     final results = state.results;
     if (results.isEmpty) {
       return AzamanEmptyState(
-        icon: HugeIconsSolid.store01,
+        icon: Icons.storefront_outlined,
         title: 'No businesses found',
         subtitle: 'No businesses listed in this subcategory yet.',
       );

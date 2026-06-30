@@ -21,7 +21,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class WaitingRoomScreen extends ConsumerStatefulWidget {
   final int queuePosition;
@@ -349,7 +349,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(HugeIconsSolid.alertCircle, color: colors.warning, size: 18),
+          Icon(Icons.error_outline, color: colors.warning, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
   final String vaultId;
@@ -103,7 +103,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Vault',
@@ -176,7 +176,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => _confirmBreak(v, colors),
-                  icon: Icon(HugeIconsSolid.lockKey, color: colors.danger, size: 16),
+                  icon: Icon(Icons.key_outlined, color: colors.danger, size: 16),
                   label: Text(
                     'Break Vault Early',
                     style: TextStyle(color: colors.danger, fontWeight: FontWeight.w800),
@@ -229,7 +229,7 @@ class _Hero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.lock, color: colors.accent, size: 18),
+              Icon(Icons.lock_outline, color: colors.accent, size: 18),
               const SizedBox(width: 8),
               Text(
                 v.name,
@@ -296,11 +296,11 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Streak', '${v.streakCount}', HugeIconsSolid.fire, colors.warning),
-      ('Best', '${v.longestStreak}', HugeIconsSolid.award01, colors.accent),
-      ('AZM', v.totalAzmEarned.toStringAsFixed(0), HugeIconsSolid.flash, colors.accentSecondary),
+      ('Streak', '${v.streakCount}', Icons.local_fire_department_outlined, colors.warning),
+      ('Best', '${v.longestStreak}', Icons.emoji_events_outlined, colors.accent),
+      ('AZM', v.totalAzmEarned.toStringAsFixed(0), Icons.bolt_outlined, colors.accentSecondary),
       ('Score', '${v.consistencyScore.toStringAsFixed(0)}%',
-          HugeIconsSolid.analytics01, colors.success),
+          Icons.analytics_outlined, colors.success),
     ];
     return Row(
       children: items
@@ -413,9 +413,9 @@ class _DepositTile extends StatelessWidget {
   const _DepositTile({required this.d, required this.colors});
 
   IconData get _icon => switch (d.type) {
-        'AUTO_RULE' => HugeIconsSolid.refresh01,
-        'BONUS' => HugeIconsSolid.gift,
-        _ => HugeIconsSolid.arrowDown01,
+        'AUTO_RULE' => Icons.refresh,
+        'BONUS' => Icons.card_giftcard_outlined,
+        _ => Icons.arrow_downward,
       };
 
   Color get _color => switch (d.status) {

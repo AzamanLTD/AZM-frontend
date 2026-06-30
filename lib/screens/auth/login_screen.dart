@@ -12,7 +12,7 @@ import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
 import 'package:azaman/widgets/google_logo.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -234,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(HugeIconsSolid.exchange01, size: 72, color: colors.accent),
+        Icon(Icons.swap_horiz, size: 72, color: colors.accent),
         const SizedBox(height: 20),
         Text(
           'Welcome to Azaman',
@@ -276,7 +276,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: InputDecoration(
             labelText: 'Email',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.mail01, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.mail_outline, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -297,7 +297,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: InputDecoration(
             labelText: 'Password',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -367,7 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
         _ssoButton(
           label: 'Continue with Apple',
-          icon: HugeIconsSolid.apple,
+          icon: Icons.apple,
           iconColor: Colors.white,
           bgColor: Colors.black,
           borderColor: Colors.white.withOpacity(0.15),
@@ -445,7 +445,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             shape: BoxShape.circle,
           ),
           child: Icon(
-            HugeIconsSolid.mic01,
+            Icons.mic_none_outlined,
             size: 36,
             color: colors.accent,
           ),
@@ -479,7 +479,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: InputDecoration(
             hintText: 'Influencer Code',
             hintStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.hashtag, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.tag, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -618,7 +618,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.informationCircle, color: colors.accent),
+            Icon(Icons.info_outline, color: colors.accent),
             const SizedBox(width: 10),
             Text(
               '$providerLabel Sign-In',

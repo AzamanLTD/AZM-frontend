@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultProgressCard extends StatelessWidget {
   final Vault vault;
@@ -84,7 +84,7 @@ class VaultProgressCard extends StatelessWidget {
                         ),
                       ),
                       child: Icon(
-                        isActive ? HugeIconsSolid.lock : HugeIconsSolid.lockKey,
+                        isActive ? Icons.lock_outline : Icons.key_outlined,
                         color: accent,
                         size: 16,
                       ),
@@ -165,13 +165,13 @@ class VaultProgressCard extends StatelessWidget {
                 Row(
                   children: [
                     _Chip(
-                      icon: HugeIconsSolid.fire,
+                      icon: Icons.local_fire_department_outlined,
                       label: '${vault.streakCount}',
                       color: colors.warning,
                     ),
                     const SizedBox(width: 6),
                     _Chip(
-                      icon: HugeIconsSolid.flash,
+                      icon: Icons.bolt_outlined,
                       label: vault.totalAzmEarned.toStringAsFixed(0),
                       color: colors.accentSecondary,
                     ),

@@ -52,7 +52,7 @@ import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -74,7 +74,7 @@ class SettingsScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -102,7 +102,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.user,
+                icon: Icons.person_outline,
                 title: 'Edit Profile',
                 onTap: () => Navigator.push(
                   context,
@@ -114,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.gift,
+                icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
                 onTap: () => Navigator.push(
                   context,
@@ -133,7 +133,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.paintBoard,
+                icon: Icons.palette_outlined,
                 title: 'Theme',
                 trailingText: themeLabel,
                 onTap: () {
@@ -156,7 +156,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.notification01,
+                icon: Icons.notifications_outlined,
                 title: 'Push Notifications',
                 subtitle: 'Receive alerts on your device',
                 value: settings.pushNotifications,
@@ -165,7 +165,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.exchange01,
+                icon: Icons.swap_horiz,
                 title: 'Trade Alerts',
                 subtitle: 'New orders, releases, cancellations',
                 value: settings.tradeAlerts,
@@ -174,7 +174,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.bubbleChat,
+                icon: Icons.chat_bubble_outline,
                 title: 'Chat Messages',
                 subtitle: 'In-trade chat notifications',
                 value: settings.chatNotifications,
@@ -186,7 +186,7 @@ class SettingsScreen extends ConsumerWidget {
               // vendor portal entry point need to see the side ribbon.
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.store01,
+                icon: Icons.storefront_outlined,
                 title: 'Show Vendor Tag',
                 subtitle: 'Pull-tab on the P2P tab to enter the vendor portal',
                 value: settings.vendorTagEnabled,
@@ -202,7 +202,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.dollar01,
+                icon: Icons.attach_money,
                 title: 'Display Currency',
                 trailingText: ref.watch(currencyProvider).name.toUpperCase(),
                 onTap: () => _pickFromList(
@@ -221,7 +221,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.internet,
+                icon: Icons.language,
                 title: 'Language',
                 trailingText: settings.appLanguage,
                 onTap: () => _pickFromList(
@@ -243,7 +243,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.shield01,
+                icon: Icons.shield_outlined,
                 title: 'Identity Verification (KYC)',
                 onTap: () => Navigator.push(
                   context,
@@ -255,7 +255,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.security,
+                icon: Icons.security,
                 title: 'Two-Factor & PIN',
                 onTap: () => Navigator.push(
                   context,
@@ -267,7 +267,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.lock,
+                icon: Icons.lock_outline,
                 title: 'Change Password',
                 onTap: () => Navigator.push(
                   context,
@@ -279,7 +279,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.transactionHistory,
+                icon: Icons.history,
                 title: 'Account Activity',
                 onTap: () => Navigator.push(
                   context,
@@ -308,7 +308,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.wallet01,
+                icon: Icons.account_balance_wallet_outlined,
                 title: 'Withdrawal Addresses',
                 onTap: () => Navigator.push(
                   context,
@@ -320,7 +320,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.arrowDown01,
+                icon: Icons.arrow_downward,
                 title: 'Deposit Addresses',
                 onTap: () => Navigator.push(
                   context,
@@ -339,7 +339,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.delete01,
+                icon: Icons.delete_outline,
                 title: 'Clear Cache',
                 onTap: () {
                   AzamanHaptics.nav();
@@ -356,14 +356,14 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.informationCircle,
+                icon: Icons.info_outline,
                 title: 'About Azaman',
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'Azaman Protocol',
                   applicationVersion: 'v3.1 (Phase F)',
                   applicationIcon:
-                      Icon(HugeIconsSolid.shield01, color: colors.accent, size: 40),
+                      Icon(Icons.shield_outlined, color: colors.accent, size: 40),
                   children: const [
                     Text('The premier P2P crypto remittance engine.'),
                   ],
@@ -376,7 +376,7 @@ class SettingsScreen extends ConsumerWidget {
               // copy + icon to discourage accidental taps.
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.delete01,
+                icon: Icons.delete_outline,
                 title: 'Delete Account',
                 onTap: () => Navigator.push(
                   context,
@@ -482,7 +482,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   ),
                   trailing: isSelected
-                      ? Icon(HugeIconsSolid.checkmarkCircle01, color: colors.accent)
+                      ? Icon(Icons.check_circle_outline, color: colors.accent)
                       : null,
                 );
               }),
@@ -515,7 +515,7 @@ class SettingsScreen extends ConsumerWidget {
       confirmLabel: 'Sign Out',
       cancelLabel: 'Cancel',
       destructive: true,
-      icon: HugeIconsSolid.logout01,
+      icon: Icons.logout,
     );
 
     if (confirm == true && context.mounted) {
@@ -649,7 +649,7 @@ class _NavRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
             ],
-            Icon(HugeIconsSolid.arrowRight01,
+            Icon(Icons.arrow_forward,
                 color: colors.textTertiary, size: 13),
           ],
         ),

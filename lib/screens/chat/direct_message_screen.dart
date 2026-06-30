@@ -33,7 +33,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/models/chat_theme_model.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:azaman/widgets/sticker_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -435,7 +435,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: GestureDetector(
@@ -496,11 +496,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.call01, color: colors.glow),
+            icon: Icon(Icons.call_outlined, color: colors.glow),
             onPressed: () {},
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.paintBoard, color: colors.glow),
+            icon: Icon(Icons.palette_outlined, color: colors.glow),
             onPressed: () => _showWallpaperPicker(),
           ),
         ],
@@ -562,7 +562,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(HugeIconsSolid.bubbleChat, size: 48, color: colors.textTertiary),
+          Icon(Icons.chat_bubble_outline, size: 48, color: colors.textTertiary),
           const SizedBox(height: 12),
           Text(
             'Start a conversation',
@@ -622,7 +622,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
             ),
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.cancel01, color: colors.textTertiary, size: 16),
+            icon: Icon(Icons.cancel_outlined, color: colors.textTertiary, size: 16),
             onPressed: () => setState(() => _replyToMessage = null),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -756,7 +756,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                   borderRadius: BorderRadius.circular(16),
                   child: Image.network(msg.mediaUrl!, fit: BoxFit.cover),
                 )
-              : Icon(HugeIconsSolid.image01, color: colors.textTertiary, size: 48),
+              : Icon(Icons.image_outlined, color: colors.textTertiary, size: 48),
         ),
       ),
     );
@@ -780,7 +780,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.folder01, color: colors.accent, size: 20),
+              Icon(Icons.folder_outlined, color: colors.accent, size: 20),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -830,7 +830,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         mainAxisSize: MainAxisSize.min,
 
         children: [
-          Icon(HugeIconsSolid.informationCircle, color: colors.accentSecondary, size: 16),
+          Icon(Icons.info_outline, color: colors.accentSecondary, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -886,7 +886,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(HugeIconsSolid.transfer, color: Colors.white, size: 20),
+                        Icon(Icons.compare_arrows, color: Colors.white, size: 20),
                         const SizedBox(width: 6),
                         Text(
                           label,
@@ -1193,7 +1193,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 ],
               ),
               child: const Icon(
-                HugeIconsSolid.sent,
+                Icons.send_outlined,
                 color: Colors.black,
                 size: 20,
               ),

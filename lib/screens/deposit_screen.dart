@@ -35,7 +35,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({
@@ -105,7 +105,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
         centerTitle: true,
         leading: IconButton(
           icon: Icon(
-            HugeIconsSolid.arrowLeft01,
+            Icons.arrow_back,
             color: colors.textPrimary,
             size: 18,
           ),
@@ -294,7 +294,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
+              Icon(Icons.error_outline, size: 48, color: colors.danger),
               const SizedBox(height: 12),
               Text(
                 _error!,
@@ -304,7 +304,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _fetchDepositAddress,
-                icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
+                icon: Icon(Icons.refresh, color: colors.accent),
                 label: Text('Retry', style: TextStyle(color: colors.accent)),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
@@ -706,7 +706,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     ),
                     error: (e, _) => _NoticeCard(
                       colors: colors,
-                      icon: HugeIconsSolid.alertCircle,
+                      icon: Icons.error_outline,
                       accent: colors.danger,
                       text: e.toString(),
                     ),
@@ -1270,7 +1270,7 @@ class _CryptoAddressCard extends StatelessWidget {
               const SizedBox(width: 10),
               _IconActionButton(
                 colors: colors,
-                icon: HugeIconsSolid.share01,
+                icon: Icons.share_outlined,
                 tooltip: 'Share address',
                 onTap: onShare,
               ),
@@ -1417,7 +1417,7 @@ class _SavedAccountTile extends StatelessWidget {
                 color: pcolor.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 18),
+              child: Icon(Icons.smartphone_outlined, color: pcolor, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1439,7 +1439,7 @@ class _SavedAccountTile extends StatelessWidget {
                       if (account.isPrimary) ...[
                         const SizedBox(width: 6),
                         Icon(
-                          HugeIconsSolid.star,
+                          Icons.star_outline,
                           color: colors.warning,
                           size: 12,
                         ),
@@ -1475,8 +1475,8 @@ class _SavedAccountTile extends StatelessWidget {
               ),
               child: Icon(
                 selected
-                    ? HugeIconsSolid.checkmarkCircle01
-                    : HugeIconsSolid.circle,
+                    ? Icons.check_circle_outline
+                    : Icons.circle_outlined,
                 color: selected ? Colors.black : colors.textTertiary,
                 size: 16,
               ),

@@ -16,8 +16,8 @@
 //   • Image / gallery URL arrays are JSON arrays of Cloudinary strings.
 // =============================================================================
 
-import 'package:flutter/widgets.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:flutter/material.dart';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared parse helpers
@@ -86,7 +86,7 @@ class BusinessCategories {
   static const all = BusinessCategory(
     wire: '',
     label: 'All',
-    icon: HugeIconsStroke.grid,
+    icon: Icons.grid_view_outlined,
   );
 
   /// The 11 real backend categories, in display order.
@@ -94,41 +94,41 @@ class BusinessCategories {
     BusinessCategory(
         wire: 'FREELANCE_SERVICES',
         label: 'Freelance',
-        icon: HugeIconsStroke.briefcase01),
+        icon: Icons.work_outline),
     BusinessCategory(
-        wire: 'RETAIL', label: 'Retail', icon: HugeIconsStroke.shoppingBag01),
+        wire: 'RETAIL', label: 'Retail', icon: Icons.shopping_bag_outlined),
     BusinessCategory(
         wire: 'FOOD_BEVERAGE',
         label: 'Food & Beverage',
-        icon: HugeIconsStroke.restaurant01),
+        icon: Icons.restaurant_outlined),
     BusinessCategory(
-        wire: 'TECHNOLOGY', label: 'Technology', icon: HugeIconsStroke.cpu),
+        wire: 'TECHNOLOGY', label: 'Technology', icon: Icons.memory_outlined),
     BusinessCategory(
         wire: 'REAL_ESTATE',
         label: 'Real Estate',
-        icon: HugeIconsStroke.building06),
+        icon: Icons.widgets_outlined),
     BusinessCategory(
         wire: 'EDUCATION',
         label: 'Education',
-        icon: HugeIconsStroke.mortarboard01),
+        icon: Icons.widgets_outlined),
     BusinessCategory(
         wire: 'HEALTH_WELLNESS',
         label: 'Health',
-        icon: HugeIconsStroke.stethoscope),
+        icon: Icons.widgets_outlined),
     BusinessCategory(
         wire: 'ENTERTAINMENT',
         label: 'Entertainment',
-        icon: HugeIconsStroke.musicNote01),
+        icon: Icons.music_note_outlined),
     BusinessCategory(
         wire: 'LOGISTICS',
         label: 'Logistics',
-        icon: HugeIconsStroke.deliveryTruck01),
+        icon: Icons.widgets_outlined),
     BusinessCategory(
         wire: 'FINANCIAL_SERVICES',
         label: 'Financial',
-        icon: HugeIconsStroke.bank),
+        icon: Icons.account_balance_outlined),
     BusinessCategory(
-        wire: 'OTHER', label: 'Other', icon: HugeIconsStroke.layoutGrid),
+        wire: 'OTHER', label: 'Other', icon: Icons.widgets_outlined),
   ];
 
   /// "All" carousel order (filter chip bar / category carousel).

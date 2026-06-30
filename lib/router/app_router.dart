@@ -61,7 +61,7 @@ import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -333,7 +333,7 @@ class _DisputeScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.judge, size: 64, color: colors.danger),
+              Icon(Icons.gavel, size: 64, color: colors.danger),
               const SizedBox(height: 16),
               Text('Dispute #$disputeId',
                   style: TextStyle(

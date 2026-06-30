@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -132,8 +132,8 @@ class _ActivityRow extends StatelessWidget {
             ),
             child: Icon(
               txn.isCredit
-                  ? HugeIconsSolid.arrowDownLeft01
-                  : HugeIconsSolid.arrowUpRight01,
+                  ? Icons.south_west
+                  : Icons.north_east,
               size: 18,
               color: txn.isCredit ? colors.success : colors.textSecondary,
             ),
@@ -235,7 +235,7 @@ class _EmptyActivity extends StatelessWidget {
             color: colors.softSurface,
           ),
           child: Icon(
-            HugeIconsSolid.transactionHistory,
+            Icons.history,
             size: 19,
             color: colors.textTertiary,
           ),

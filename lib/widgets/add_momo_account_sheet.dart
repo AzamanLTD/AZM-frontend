@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AddMomoAccountSheet extends ConsumerStatefulWidget {
   const AddMomoAccountSheet({super.key});
@@ -228,7 +228,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
                 child: Row(
                   children: [
                     Icon(
-                      HugeIconsSolid.checkmarkCircle01,
+                      Icons.check_circle_outline,
                       color: colors.success,
                       size: 16,
                     ),
@@ -293,7 +293,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.lock, color: colors.warning, size: 14),
+                  Icon(Icons.lock_outline, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

@@ -13,7 +13,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 String _humanLabel(String type) {
   switch (type) {
@@ -82,7 +82,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -132,7 +132,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               decoration: InputDecoration(
                 hintText: "Search transactions...",
                 hintStyle: TextStyle(color: colors.textTertiary),
-                prefixIcon: Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 18),
+                prefixIcon: Icon(Icons.search, color: colors.textTertiary, size: 18),
                 filled: true, fillColor: colors.card,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -195,10 +195,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       children: [
                         Icon(
                           txn.type == 'OUT'
-                              ? HugeIconsSolid.arrowUp01
+                              ? Icons.arrow_upward
                               : txn.type == 'INTERNAL'
-                                  ? HugeIconsSolid.arrowRightDouble
-                                  : HugeIconsSolid.arrowDown01,
+                                  ? Icons.keyboard_double_arrow_right
+                                  : Icons.arrow_downward,
                           color: txn.type == 'OUT'
                               ? colors.danger
                               : txn.type == 'INTERNAL'

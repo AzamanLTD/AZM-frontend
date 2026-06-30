@@ -37,7 +37,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SusuDashboardScreen extends ConsumerWidget {
   final String susuId;
@@ -57,7 +57,7 @@ class SusuDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
@@ -225,7 +225,7 @@ class _Hero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank, color: color, size: 18),
+              Icon(Icons.account_balance_outlined, color: color, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Susu · ${susu.frequency.label}',
@@ -296,7 +296,7 @@ class _FrozenBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.lock, color: colors.danger, size: 16),
+          Icon(Icons.lock_outline, color: colors.danger, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -324,7 +324,7 @@ class _AcceptContractCta extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
       onPressed: () => context.push('/susu/$susuId/contract'),
-      icon: const Icon(HugeIconsSolid.judge, size: 16),
+      icon: const Icon(Icons.gavel, size: 16),
       label: const Text(
         'Read & sign Liability Contract',
         style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -382,7 +382,7 @@ class _UpcomingCycleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.checkmarkCircle01,
+            Icon(Icons.check_circle_outline,
                 color: colors.success, size: 16),
             const SizedBox(width: 8),
             Expanded(
@@ -423,7 +423,7 @@ class _UpcomingCycleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.clock01,
+              Icon(Icons.access_time,
                   color: ready ? colors.success : colors.warning, size: 16),
               const SizedBox(width: 6),
               Text(
@@ -475,7 +475,7 @@ class _UpcomingCycleCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01,
+                  Icon(Icons.check_circle_outline,
                       color: colors.success, size: 14),
                   const SizedBox(width: 6),
                   Text(
@@ -499,7 +499,7 @@ class _UpcomingCycleCard extends StatelessWidget {
                   final memo = Uri.encodeComponent('susu:${susu.id}');
                   context.push('/deposit?amount=$amount&memo=$memo');
                 },
-                icon: const Icon(HugeIconsSolid.wallet01,
+                icon: const Icon(Icons.account_balance_wallet_outlined,
                     size: 16),
                 label: Text(
                   'Fund \$${shortfall.toStringAsFixed(2)} to cover cycle',
@@ -685,7 +685,7 @@ class _MembersRoster extends StatelessWidget {
                               ],
                               if (m.role.toUpperCase() == 'ADMIN') ...[
                                 const SizedBox(width: 4),
-                                Icon(HugeIconsSolid.shield01,
+                                Icon(Icons.shield_outlined,
                                     color: colors.warning, size: 12),
                               ],
                             ],
@@ -889,7 +889,7 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              notFound ? HugeIconsSolid.lock : HugeIconsSolid.alertCircle,
+              notFound ? Icons.lock_outline : Icons.error_outline,
               size: 48,
               color: colors.textTertiary,
             ),
@@ -974,7 +974,7 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.savings, color: colors.accent, size: 16),
+              Icon(Icons.savings_outlined, color: colors.accent, size: 16),
               const SizedBox(width: 8),
               Text('Make payouts work for you',
                   style: TextStyle(
@@ -1067,7 +1067,7 @@ class _SusuPayoutTimeline extends StatelessWidget {
             border: Border.all(color: colors.accent.withOpacity(0.25)),
           ),
           child: Row(children: [
-            Icon(HugeIconsSolid.calendarCheckIn01, color: colors.accent, size: 24),
+            Icon(Icons.event_available_outlined, color: colors.accent, size: 24),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text("Next Payout — Slot ${nextPendingIndex + 1}",
@@ -1131,7 +1131,7 @@ class _SusuPayoutTimeline extends StatelessWidget {
                   if (isDone)
                     Icon(Icons.check, color: colors.success, size: 14)
                   else if (isMe)
-                    Icon(HugeIconsSolid.user, color: colors.accent, size: 12)
+                    Icon(Icons.person_outline, color: colors.accent, size: 12)
                   else
                     const SizedBox.shrink(),
                 ],

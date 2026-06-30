@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/admin/ai_operations_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AiCommandMenu extends ConsumerStatefulWidget {
   const AiCommandMenu({super.key});
@@ -72,11 +72,11 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
 
   IconData _iconFor(String name) {
     final n = name.toLowerCase();
-    if (n.contains('cfo') || n.contains('financial')) return HugeIconsSolid.bank;
-    if (n.contains('dispute')) return HugeIconsSolid.judge;
-    if (n.contains('queue')) return HugeIconsSolid.playListAdd;
-    if (n.contains('match')) return HugeIconsSolid.agreement01;
-    return HugeIconsSolid.sparkles;
+    if (n.contains('cfo') || n.contains('financial')) return Icons.account_balance_outlined;
+    if (n.contains('dispute')) return Icons.gavel;
+    if (n.contains('queue')) return Icons.playlist_add;
+    if (n.contains('match')) return Icons.handshake_outlined;
+    return Icons.auto_awesome;
   }
 
   Color _colorFor(String name, AzamanColors c) {
@@ -153,7 +153,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(HugeIconsSolid.sparkles, color: colors.accent, size: 22),
+              child: Icon(Icons.auto_awesome, color: colors.accent, size: 22),
             ),
             const SizedBox(width: 14),
             Column(
@@ -177,7 +177,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
             ),
             const Spacer(),
             IconButton(
-              icon: Icon(HugeIconsSolid.refresh01, color: colors.textTertiary, size: 18),
+              icon: Icon(Icons.refresh, color: colors.textTertiary, size: 18),
               onPressed: () {
                 setState(() {
                   _isLoading = true;
@@ -213,7 +213,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(HugeIconsSolid.cloud, color: colors.danger.withOpacity(0.5), size: 48),
+          Icon(Icons.cloud_outlined, color: colors.danger.withOpacity(0.5), size: 48),
           const SizedBox(height: 12),
           Text(
             _error!,
@@ -226,7 +226,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
               foregroundColor: Colors.black,
               elevation: 0,
             ),
-            icon: const Icon(HugeIconsSolid.refresh01, size: 16),
+            icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Retry'),
             onPressed: () {
               setState(() {
@@ -247,7 +247,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.brain, color: colors.textTertiary.withOpacity(0.3), size: 48),
+            Icon(Icons.psychology_outlined, color: colors.textTertiary.withOpacity(0.3), size: 48),
             const SizedBox(height: 12),
             Text(
               'No AI capabilities reported',

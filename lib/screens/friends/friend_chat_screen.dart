@@ -28,7 +28,7 @@ import 'package:azaman/screens/friends/transfer_modal.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class FriendChatScreen extends ConsumerStatefulWidget {
   final String friendshipId;
@@ -550,7 +550,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       appBar: AppBar(
         backgroundColor: colors.surface,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: GestureDetector(
@@ -606,7 +606,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           // is still reachable in-chat via the input bar's `+` Send funds
           // button (`_buildInputBar` below).
           IconButton(
-            icon: Icon(HugeIconsSolid.ticket01, color: colors.accent),
+            icon: Icon(Icons.confirmation_number_outlined, color: colors.accent),
             tooltip: 'Tickets',
             onPressed: _openTicketDashboard,
           ),
@@ -683,7 +683,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(HugeIconsSolid.bubbleChat,
+          Icon(Icons.chat_bubble_outline,
               size: 48, color: colors.textTertiary),
           const SizedBox(height: 12),
           Text(
@@ -769,13 +769,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     switch (type) {
       case 'TRANSFER_SENT':
         cardColor = colors.success;
-        icon = HugeIconsSolid.arrowUp01;
+        icon = Icons.arrow_upward;
         title = isMe ? 'You sent AZM $amount' : 'Received AZM $amount';
         subtitle = reference.isNotEmpty ? reference : 'Direct transfer';
         break;
       case 'TRANSFER_REQUEST':
         cardColor = colors.warning;
-        icon = HugeIconsSolid.note01;
+        icon = Icons.note_outlined;
         title = isMe
             ? 'You requested AZM $amount'
             : 'Requesting AZM $amount';
@@ -784,19 +784,19 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         break;
       case 'TRANSFER_COMPLETED':
         cardColor = colors.success;
-        icon = HugeIconsSolid.checkmarkCircle01;
+        icon = Icons.check_circle_outline;
         title = 'Transfer completed — AZM $amount';
         subtitle = 'Successfully fulfilled';
         break;
       case 'TRANSFER_DECLINED':
         cardColor = colors.textTertiary;
-        icon = HugeIconsSolid.cancel01;
+        icon = Icons.cancel_outlined;
         title = 'Transfer declined — AZM $amount';
         subtitle = 'Request was declined';
         break;
       default:
         cardColor = colors.accent;
-        icon = HugeIconsSolid.exchange01;
+        icon = Icons.swap_horiz;
         title = 'Transfer — AZM $amount';
         subtitle = reference;
     }
@@ -951,7 +951,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.ticket01,
+                  Icon(Icons.confirmation_number_outlined,
                       color: borderColor, size: 18),
                   const SizedBox(width: 8),
                   Text(
@@ -991,7 +991,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(HugeIconsSolid.arrowRight01,
+                  Icon(Icons.arrow_forward,
                       color: borderColor, size: 12),
                 ],
               ),
@@ -1014,7 +1014,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.ticket01,
+          Icon(Icons.confirmation_number_outlined,
               color: colors.accent, size: 14),
           const SizedBox(width: 8),
           Expanded(
@@ -1107,7 +1107,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         children: [
           // Transfer button
           IconButton(
-            icon: Icon(HugeIconsSolid.dollar01, color: colors.accent),
+            icon: Icon(Icons.attach_money, color: colors.accent),
             onPressed: _openTransferModal,
             tooltip: 'Send/Request funds',
           ),
@@ -1173,7 +1173,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                         ),
                       )
                     : Icon(
-                        HugeIconsSolid.sent,
+                        Icons.send_outlined,
                         color: colors.isDark ? Colors.black : Colors.white,
                         size: 20,
                       ),
@@ -1276,7 +1276,7 @@ class _ChatHeaderTitle extends ConsumerWidget {
               Tooltip(
                 message: 'Verified vendor',
                 child: Icon(
-                  HugeIconsSolid.checkmarkCircle01,
+                  Icons.check_circle_outline,
                   color: colors.accent,
                   size: 14,
                 ),
@@ -1335,7 +1335,7 @@ class _ChatHeaderTitle extends ConsumerWidget {
 
     if (metrics.rating != null) {
       children.addAll([
-        Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
+        Icon(Icons.star_outline, color: colors.warning, size: 12),
         const SizedBox(width: 2),
         Text(
           metrics.rating!.toStringAsFixed(1),

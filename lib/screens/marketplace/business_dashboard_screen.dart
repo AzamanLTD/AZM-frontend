@@ -14,7 +14,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:image_picker/image_picker.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -118,7 +118,7 @@ class _BusinessDashboardScreenState
         actions: [
           if (profile != null)
             IconButton(
-              icon: Icon(HugeIconsStroke.store01, color: colors.textSecondary),
+              icon: Icon(Icons.storefront_outlined, color: colors.textSecondary),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -163,7 +163,7 @@ class _BusinessDashboardScreenState
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.shield01, color: colors.warning, size: 22),
+          Icon(Icons.shield_outlined, color: colors.warning, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -196,13 +196,13 @@ class _BusinessDashboardScreenState
     final s = _stats;
     final cards = [
       _StatData('Total Orders', '${s?.totalOrders ?? 0}',
-          HugeIconsSolid.shoppingBag01, colors.accent),
+          Icons.shopping_bag_outlined, colors.accent),
       _StatData('Completed', '${s?.completedOrders ?? 0}',
-          HugeIconsSolid.checkmarkCircle01, colors.success),
+          Icons.check_circle_outline, colors.success),
       _StatData('Revenue', '${(s?.totalRevenue ?? 0).toStringAsFixed(2)}',
-          HugeIconsSolid.wallet01, colors.success),
+          Icons.account_balance_wallet_outlined, colors.success),
       _StatData('Avg Order', '${(s?.avgOrderValue ?? 0).toStringAsFixed(2)}',
-          HugeIconsSolid.chartLineData01, colors.warning),
+          Icons.show_chart, colors.warning),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -249,10 +249,10 @@ class _BusinessDashboardScreenState
 
   Widget _quickActions(AzamanColors colors, BusinessProfile profile) {
     final actions = [
-      ('Add Product', HugeIconsSolid.addCircle, () => _openProductEditor()),
+      ('Add Product', Icons.add_circle_outline, () => _openProductEditor()),
       (
         'View Reviews',
-        HugeIconsSolid.star,
+        Icons.star_outline,
         () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -260,10 +260,10 @@ class _BusinessDashboardScreenState
               ),
             )
       ),
-      ('Submit KYB', HugeIconsSolid.shield01, _openKybSheet),
+      ('Submit KYB', Icons.shield_outlined, _openKybSheet),
       (
         'My Products',
-        HugeIconsSolid.store01,
+        Icons.storefront_outlined,
         () => _loadDashboard(),
       ),
     ];
@@ -577,12 +577,12 @@ class _BusinessDashboardScreenState
                       ),
                     ),
                     IconButton(
-                      icon: Icon(HugeIconsStroke.pencilEdit01,
+                      icon: Icon(Icons.edit_outlined,
                           size: 18, color: colors.textSecondary),
                       onPressed: () => _openProductEditor(existing: p),
                     ),
                     IconButton(
-                      icon: Icon(HugeIconsStroke.delete02,
+                      icon: Icon(Icons.delete_forever_outlined,
                           size: 18, color: colors.danger),
                       onPressed: () => _deleteProduct(p),
                     ),
@@ -600,7 +600,7 @@ class _BusinessDashboardScreenState
       message: 'Remove "${p.name}" from your catalogue?',
       confirmLabel: 'Delete',
       destructive: true,
-      icon: HugeIconsSolid.delete02,
+      icon: Icons.delete_forever_outlined,
     );
     if (ok != true) return;
     try {
@@ -812,7 +812,7 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                       child: _uploading
                           ? const CircularProgressIndicator(strokeWidth: 2)
                           : (_imageFile == null && _imageUrl == null
-                              ? Icon(HugeIconsStroke.image01,
+                              ? Icon(Icons.image_outlined,
                                   color: colors.textTertiary, size: 26)
                               : null),
                     ),
@@ -1019,8 +1019,8 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
                       children: [
                         Icon(
                           done
-                              ? HugeIconsSolid.checkmarkCircle01
-                              : HugeIconsStroke.file01,
+                              ? Icons.check_circle_outline
+                              : Icons.insert_drive_file_outlined,
                           color: done ? colors.success : colors.textTertiary,
                           size: 18,
                         ),

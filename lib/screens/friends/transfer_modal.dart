@@ -14,7 +14,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TransferModal extends ConsumerStatefulWidget {
   final String friendshipId;
@@ -162,7 +162,7 @@ class _TransferModalState extends ConsumerState<TransferModal> {
                   color: colors.success.withOpacity(0.15),
                 ),
                 child: Icon(
-                  HugeIconsSolid.checkmarkCircle01,
+                  Icons.check_circle_outline,
                   size: 40,
                   color: colors.success,
                 ),
@@ -320,7 +320,7 @@ class _TransferModalState extends ConsumerState<TransferModal> {
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 18),
+                  Icon(Icons.error_outline, color: colors.danger, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

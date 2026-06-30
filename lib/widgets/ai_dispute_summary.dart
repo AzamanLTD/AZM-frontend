@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AiDisputeSummary extends ConsumerStatefulWidget {
   final String similarType;
@@ -119,7 +119,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
-            HugeIconsSolid.sparkles,
+            Icons.auto_awesome,
             color: colors.accent,
             size: 18,
           ),
@@ -172,7 +172,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
-              HugeIconsSolid.informationCircle,
+              Icons.info_outline,
               size: 14,
               color: colors.accent,
             ),
@@ -192,7 +192,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.analytics01, size: 14, color: colors.accent),
+          Icon(Icons.analytics_outlined, size: 14, color: colors.accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -222,7 +222,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, size: 12, color: colors.success),
+          Icon(Icons.check_circle_outline, size: 12, color: colors.success),
           const SizedBox(width: 6),
           Text(
             'Recommended: $action',
@@ -244,7 +244,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
       children: [
         Row(
           children: [
-            Icon(HugeIconsSolid.transactionHistory, size: 12, color: colors.textTertiary),
+            Icon(Icons.history, size: 12, color: colors.textTertiary),
             const SizedBox(width: 6),
             Text(
               'HISTORICAL RESOLUTIONS',

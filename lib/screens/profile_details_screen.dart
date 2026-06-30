@@ -17,7 +17,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/kyc_verification_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class ProfileDetailsScreen extends ConsumerStatefulWidget {
   const ProfileDetailsScreen({super.key});
@@ -81,7 +81,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
         centerTitle: true,
         iconTheme: IconThemeData(color: colors.textPrimary),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -93,7 +93,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
             CircleAvatar(
               radius: 40,
               backgroundColor: colors.card,
-              child: Icon(HugeIconsSolid.user, size: 50, color: colors.textTertiary),
+              child: Icon(Icons.person_outline, size: 50, color: colors.textTertiary),
             ),
             const SizedBox(height: 12),
             Text(
@@ -121,7 +121,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
               label: "Email",
               value: userEmail,
               trailing: IconButton(
-                icon: Icon(HugeIconsSolid.copy01, color: colors.accent, size: 18),
+                icon: Icon(Icons.copy_outlined, color: colors.accent, size: 18),
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   Clipboard.setData(ClipboardData(text: userEmail));
@@ -147,7 +147,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
               colors,
               label: "Twitter (X)",
               value: "@AzamanOfficial",
-              trailing: Icon(HugeIconsSolid.link01, color: colors.accentSecondary, size: 20),
+              trailing: Icon(Icons.link, color: colors.accentSecondary, size: 20),
               onTap: () {
                 // Future logic to open Twitter URL
               },
@@ -160,7 +160,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
               label: "Security Level",
               value: _kycStatus == "VERIFIED" ? "High" : "Standard",
               trailing: Icon(
-                HugeIconsSolid.shield01,
+                Icons.shield_outlined,
                 color: _kycStatus == "VERIFIED" ? colors.success : colors.accent,
                 size: 20,
               ),
@@ -193,7 +193,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
       case "VERIFIED":
         cardColor = colors.success;
         iconColor = colors.success;
-        icon = HugeIconsSolid.checkmarkCircle01;
+        icon = Icons.check_circle_outline;
         title = "Identity Verified";
         subtitle = "Full access to Azaman features";
         isClickable = false;
@@ -202,7 +202,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
       case "PENDING":
         cardColor = colors.warning;
         iconColor = colors.warning;
-        icon = HugeIconsSolid.hourglass;
+        icon = Icons.hourglass_empty;
         title = "Verification Pending";
         subtitle = "Documents under review by Admin";
         isClickable = false;
@@ -211,7 +211,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
       case "REJECTED":
         cardColor = colors.danger;
         iconColor = colors.danger;
-        icon = HugeIconsSolid.alertCircle;
+        icon = Icons.error_outline;
         title = "Verification Rejected";
         subtitle = "Tap here to re-submit your documents";
         isClickable = true;
@@ -221,7 +221,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
       default:
         cardColor = colors.accent;
         iconColor = colors.accent;
-        icon = HugeIconsSolid.alertCircle;
+        icon = Icons.error_outline;
         title = "Action Required";
         subtitle = "Tap here to verify your identity";
         isClickable = true;
@@ -287,7 +287,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
             ),
             if (isClickable)
               Icon(
-                HugeIconsSolid.arrowRight01,
+                Icons.arrow_forward,
                 color: iconColor.withOpacity(0.7),
                 size: 14,
               ),

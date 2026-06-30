@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/rate_alert_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/rate_alert_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // AZAMAN — RATE ALERT SHEET (Phase Q12-FE)
@@ -132,7 +132,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                 // Title
                 Row(
                   children: [
-                    Icon(HugeIconsSolid.notification01,
+                    Icon(Icons.notifications_outlined,
                         color: colors.accent, size: 22),
                     const SizedBox(width: 10),
                     Text(
@@ -205,7 +205,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         decoration: InputDecoration(
                           hintText: 'Target rate (e.g. 15.50)',
                           hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(HugeIconsSolid.exchange01,
+                          prefixIcon: Icon(Icons.swap_horiz,
                               color: colors.accent, size: 20),
                           filled: true,
                           fillColor: colors.background,
@@ -224,7 +224,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         children: [
                           _DirectionChip(
                             label: 'ABOVE',
-                            icon: HugeIconsSolid.analytics01,
+                            icon: Icons.analytics_outlined,
                             isSelected: _direction == 'ABOVE',
                             colors: colors,
                             onTap: () =>
@@ -233,7 +233,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                           const SizedBox(width: 10),
                           _DirectionChip(
                             label: 'BELOW',
-                            icon: HugeIconsSolid.analytics01,
+                            icon: Icons.analytics_outlined,
                             isSelected: _direction == 'BELOW',
                             colors: colors,
                             onTap: () =>
@@ -251,7 +251,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         decoration: InputDecoration(
                           hintText: 'Label (optional)',
                           hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(HugeIconsSolid.label,
+                          prefixIcon: Icon(Icons.label_outline,
                               color: colors.textTertiary, size: 18),
                           filled: true,
                           fillColor: colors.background,
@@ -340,7 +340,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          Icon(HugeIconsSolid.notification01,
+                          Icon(Icons.notifications_outlined,
                               size: 36, color: colors.textTertiary),
                           const SizedBox(height: 8),
                           Text(
@@ -475,8 +475,8 @@ class _AlertTile extends StatelessWidget {
             ),
             child: Icon(
               alert.direction == 'ABOVE'
-                  ? HugeIconsSolid.analytics01
-                  : HugeIconsSolid.analytics01,
+                  ? Icons.analytics_outlined
+                  : Icons.analytics_outlined,
               size: 16,
               color: isTriggered
                   ? colors.textTertiary
@@ -544,7 +544,7 @@ class _AlertTile extends StatelessWidget {
           // Delete button (only for active)
           if (!isTriggered)
             IconButton(
-              icon: Icon(HugeIconsSolid.cancel01,
+              icon: Icon(Icons.cancel_outlined,
                   size: 18, color: colors.textTertiary),
               onPressed: onDelete,
               splashRadius: 18,

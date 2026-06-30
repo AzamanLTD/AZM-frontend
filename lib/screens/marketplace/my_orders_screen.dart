@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -99,7 +99,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
           ? const Center(child: CircularProgressIndicator())
           : orders.isEmpty
               ? AzamanEmptyState(
-                  icon: HugeIconsSolid.shoppingBag01,
+                  icon: Icons.shopping_bag_outlined,
                   title: 'No orders here',
                   subtitle: 'Your marketplace orders will appear here.',
                 )

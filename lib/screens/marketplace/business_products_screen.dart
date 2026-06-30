@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -136,7 +136,7 @@ class _BusinessProductsScreenState
           ? _shimmerGrid(colors)
           : _products.isEmpty
               ? AzamanEmptyState(
-                  icon: HugeIconsSolid.shoppingBag01,
+                  icon: Icons.shopping_bag_outlined,
                   title: 'No products yet',
                   subtitle: 'This business hasn\'t listed any products.',
                 )

@@ -16,7 +16,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -210,7 +210,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(HugeIconsStroke.arrowLeft01, color: colors.textPrimary, size: 22),
+            icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 22),
             onPressed: () => Navigator.maybePop(context),
           ),
           Expanded(
@@ -227,14 +227,14 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search businesses, services, products…',
                   hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-                  prefixIcon: Icon(HugeIconsStroke.search01, size: 18, color: colors.textTertiary),
+                  prefixIcon: Icon(Icons.search, size: 18, color: colors.textTertiary),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? GestureDetector(
                           onTap: () {
                             _searchCtrl.clear();
                             setState(() => _hasSearched = false);
                           },
-                          child: Icon(HugeIconsSolid.cancelCircle, size: 18, color: colors.textTertiary),
+                          child: Icon(Icons.cancel_outlined, size: 18, color: colors.textTertiary),
                         )
                       : null,
                   filled: true,
@@ -316,7 +316,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    HugeIconsSolid.checkmarkCircle01,
+                    Icons.check_circle_outline,
                     size: 13,
                     color: _verifiedOnly
                         ? (colors.isDark ? Colors.black : Colors.white)
@@ -353,7 +353,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.filterHorizontal,
+                  Icon(Icons.filter_list,
                       size: 13,
                       color: !_filters.isEmpty ? colors.accent : colors.textTertiary),
                   const SizedBox(width: 5),
@@ -398,7 +398,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(HugeIconsStroke.clock01, size: 13, color: colors.textTertiary),
+                      Icon(Icons.access_time, size: 13, color: colors.textTertiary),
                       const SizedBox(width: 6),
                       Text(q,
                           style: TextStyle(
@@ -500,7 +500,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
     final sorted = _sorted(state.results);
     if (sorted.isEmpty && !state.isLoading) {
       return const AzamanEmptyState(
-        icon: HugeIconsSolid.store01,
+        icon: Icons.storefront_outlined,
         title: 'No businesses found',
         subtitle: 'Try adjusting your search or filters.',
       );

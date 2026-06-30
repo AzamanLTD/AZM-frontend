@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -174,7 +174,7 @@ class _BusinessNotificationsScreenState
         actions: [
           IconButton(
             tooltip: 'Mark all read',
-            icon: Icon(HugeIconsSolid.tickDouble01, color: colors.accent),
+            icon: Icon(Icons.done_all, color: colors.accent),
             onPressed: _markAllRead,
           ),
         ],
@@ -183,7 +183,7 @@ class _BusinessNotificationsScreenState
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? AzamanEmptyState(
-                  icon: HugeIconsSolid.notification01,
+                  icon: Icons.notifications_outlined,
                   title: 'No notifications yet',
                   subtitle: 'Order and payment alerts will appear here.',
                 )

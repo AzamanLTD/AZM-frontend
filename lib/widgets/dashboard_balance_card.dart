@@ -41,7 +41,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // ── Public constants ────────────────────────────────────────────────────────
 
@@ -433,8 +433,8 @@ class _BalanceDisplay extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Icon(
                   isVisible
-                      ? HugeIconsSolid.view
-                      : HugeIconsSolid.viewOff,
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: Colors.white.withOpacity(0.50),
                   size: 13,
                 ),
@@ -599,7 +599,7 @@ class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
           ),
           const SizedBox(width: 8),
           Icon(
-            HugeIconsSolid.refresh01,
+            Icons.refresh,
             size: 10,
             color: Colors.white.withOpacity(0.55),
           ),

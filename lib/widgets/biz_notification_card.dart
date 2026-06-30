@@ -7,7 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -110,23 +110,23 @@ class BizNotificationCard extends ConsumerWidget {
   (IconData, Color) _iconFor(String type, AzamanColors colors) {
     switch (type.toUpperCase()) {
       case 'NEW_ORDER':
-        return (HugeIconsSolid.shoppingBag01, colors.accent);
+        return (Icons.shopping_bag_outlined, colors.accent);
       case 'ORDER_FUNDED':
-        return (HugeIconsSolid.wallet01, colors.success);
+        return (Icons.account_balance_wallet_outlined, colors.success);
       case 'ORDER_SATISFIED':
       case 'ORDER_SETTLED':
-        return (HugeIconsSolid.checkmarkCircle01, colors.success);
+        return (Icons.check_circle_outline, colors.success);
       case 'ORDER_DISPUTED':
-        return (HugeIconsSolid.alertCircle, colors.danger);
+        return (Icons.error_outline, colors.danger);
       case 'ORDER_CANCELLED':
       case 'ORDER_REFUNDED':
-        return (HugeIconsSolid.cancelCircle, colors.textTertiary);
+        return (Icons.cancel_outlined, colors.textTertiary);
       case 'KYB_STATUS_CHANGED':
-        return (HugeIconsSolid.shield01, colors.warning);
+        return (Icons.shield_outlined, colors.warning);
       case 'INVOICE_PAID':
-        return (HugeIconsSolid.invoice01, colors.success);
+        return (Icons.receipt_outlined, colors.success);
       default:
-        return (HugeIconsSolid.notification01, colors.accent);
+        return (Icons.notifications_outlined, colors.accent);
     }
   }
 

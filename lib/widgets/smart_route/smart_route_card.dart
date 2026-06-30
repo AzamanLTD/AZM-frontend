@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SmartRouteCard extends StatelessWidget {
   final SmartRoute route;
@@ -23,11 +23,11 @@ class SmartRouteCard extends StatelessWidget {
   const SmartRouteCard({super.key, required this.route, required this.colors});
 
   IconData get _icon => switch (route.action) {
-        'WITHDRAW_MOMO' => HugeIconsSolid.smartPhone01,
-        'INTERNAL_TRANSFER' => HugeIconsSolid.exchange01,
-        'SAVINGS_DEPOSIT' => HugeIconsSolid.savings,
-        'VAULT_DEPOSIT' => HugeIconsSolid.lock,
-        _ => HugeIconsSolid.directionLeft01,
+        'WITHDRAW_MOMO' => Icons.smartphone_outlined,
+        'INTERNAL_TRANSFER' => Icons.swap_horiz,
+        'SAVINGS_DEPOSIT' => Icons.savings_outlined,
+        'VAULT_DEPOSIT' => Icons.lock_outline,
+        _ => Icons.turn_left,
       };
 
   Color _accent() => switch (route.action) {

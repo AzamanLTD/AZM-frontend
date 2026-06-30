@@ -25,7 +25,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/trade_account_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/trade_account_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TradeAccountsScreen extends ConsumerStatefulWidget {
   const TradeAccountsScreen({super.key});
@@ -57,7 +57,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -97,7 +97,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: colors.accent,
         foregroundColor: Colors.black,
-        icon: const Icon(HugeIconsSolid.add01),
+        icon: const Icon(Icons.add),
         label: const Text(
           'Add Account',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -202,7 +202,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
           ),
           // Delete button
           IconButton(
-            icon: Icon(HugeIconsSolid.delete01, color: colors.danger, size: 20),
+            icon: Icon(Icons.delete_outline, color: colors.danger, size: 20),
             onPressed: () => _confirmDelete(account, colors),
           ),
         ],
@@ -217,7 +217,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 120),
-        Icon(HugeIconsSolid.wallet01,
+        Icon(Icons.account_balance_wallet_outlined,
             size: 56, color: colors.textTertiary),
         const SizedBox(height: 16),
         Center(
@@ -249,7 +249,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
             ),
             child: Column(
               children: [
-                Icon(HugeIconsSolid.informationCircle, color: colors.accent, size: 20),
+                Icon(Icons.info_outline, color: colors.accent, size: 20),
                 const SizedBox(height: 8),
                 Text(
                   'Accounts require admin approval before\nthey can be linked to your P2P ads.',
@@ -353,29 +353,29 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
   IconData _iconForMethod(String type) {
     switch (type.toUpperCase()) {
       case 'ZELLE':
-        return HugeIconsSolid.flash;
+        return Icons.bolt_outlined;
       case 'CASHAPP':
-        return HugeIconsSolid.dollar01;
+        return Icons.attach_money;
       case 'VENMO':
-        return HugeIconsSolid.creditCard;
+        return Icons.credit_card_outlined;
       case 'PAYPAL':
-        return HugeIconsSolid.paypal;
+        return Icons.payment_outlined;
       case 'APPLE_PAY':
-        return HugeIconsSolid.apple;
+        return Icons.apple;
       case 'GOOGLE_PAY':
-        return HugeIconsSolid.google;
+        return Icons.g_mobiledata;
       case 'WISE':
-        return HugeIconsSolid.internet;
+        return Icons.language;
       case 'REVOLUT':
-        return HugeIconsSolid.exchange01;
+        return Icons.swap_horiz;
       case 'GIFT_CARD':
-        return HugeIconsSolid.gift;
+        return Icons.card_giftcard_outlined;
       case 'WESTERN_UNION':
-        return HugeIconsSolid.sent;
+        return Icons.send_outlined;
       case 'WIRE_TRANSFER':
-        return HugeIconsSolid.bank;
+        return Icons.account_balance_outlined;
       default:
-        return HugeIconsSolid.wallet01;
+        return Icons.account_balance_wallet_outlined;
     }
   }
 }
@@ -736,7 +736,7 @@ class _AddTradeAccountSheetState
               }),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.arrowLeft01, size: 14, color: c.accent),
+                  Icon(Icons.arrow_back, size: 14, color: c.accent),
                   const SizedBox(width: 4),
                   Text(
                     'Change method',
@@ -813,7 +813,7 @@ class _AddTradeAccountSheetState
                         ),
                         child: Row(
                           children: [
-                            Icon(HugeIconsSolid.informationCircle,
+                            Icon(Icons.info_outline,
                                 size: 16, color: c.accent),
                             const SizedBox(width: 10),
                             Expanded(
@@ -879,7 +879,7 @@ class _AddTradeAccountSheetState
                                         fit: BoxFit.cover,
                                       )
                                     : Icon(
-                                        HugeIconsSolid.image01,
+                                        Icons.image_outlined,
                                         color: c.accent,
                                         size: 24,
                                       ),
@@ -916,8 +916,8 @@ class _AddTradeAccountSheetState
                               ),
                               Icon(
                                 _screenshot != null
-                                    ? HugeIconsSolid.checkmarkCircle01
-                                    : HugeIconsSolid.upload01,
+                                    ? Icons.check_circle_outline
+                                    : Icons.upload_outlined,
                                 color: _screenshot != null
                                     ? c.success
                                     : c.accent,
@@ -989,29 +989,29 @@ class _AddTradeAccountSheetState
   static IconData _iconForMethodStatic(String type) {
     switch (type.toUpperCase()) {
       case 'ZELLE':
-        return HugeIconsSolid.flash;
+        return Icons.bolt_outlined;
       case 'CASHAPP':
-        return HugeIconsSolid.dollar01;
+        return Icons.attach_money;
       case 'VENMO':
-        return HugeIconsSolid.creditCard;
+        return Icons.credit_card_outlined;
       case 'PAYPAL':
-        return HugeIconsSolid.paypal;
+        return Icons.payment_outlined;
       case 'APPLE_PAY':
-        return HugeIconsSolid.apple;
+        return Icons.apple;
       case 'GOOGLE_PAY':
-        return HugeIconsSolid.google;
+        return Icons.g_mobiledata;
       case 'WISE':
-        return HugeIconsSolid.internet;
+        return Icons.language;
       case 'REVOLUT':
-        return HugeIconsSolid.exchange01;
+        return Icons.swap_horiz;
       case 'GIFT_CARD':
-        return HugeIconsSolid.gift;
+        return Icons.card_giftcard_outlined;
       case 'WESTERN_UNION':
-        return HugeIconsSolid.sent;
+        return Icons.send_outlined;
       case 'WIRE_TRANSFER':
-        return HugeIconsSolid.bank;
+        return Icons.account_balance_outlined;
       default:
-        return HugeIconsSolid.wallet01;
+        return Icons.account_balance_wallet_outlined;
     }
   }
 }
