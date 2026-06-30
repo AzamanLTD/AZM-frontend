@@ -166,10 +166,10 @@ Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase before anything else
-  // await Firebase.initializeApp();
+  await Firebase.initializeApp();
 
   // Register background message handler
-  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Initialize push notification service (permissions, foreground handling)
   // await PushNotificationService.instance.init();
