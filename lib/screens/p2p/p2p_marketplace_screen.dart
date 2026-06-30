@@ -14,6 +14,7 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
+import 'package:azaman/providers/trade_provider.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 
@@ -68,6 +69,12 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _FeatureGrid(colors: colors),
                 ),
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: _ActiveTradesPill(),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -532,6 +539,70 @@ class _ImageBox extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
+      ),
+    );
+  }
+}
+
+class _ActiveTradesPill extends ConsumerWidget {
+  const _ActiveTradesPill();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    final count = ref.watch(activeTradeCountProvider).value ?? 0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const P2PMarketListScreen()));
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: count > 0
+              ? Border.all(
+                  color: colors.accent.withOpacity(0.45), width: 1.2)
+              : null,
+        ),
+        child: Row(children: [
+          Icon(HugeIconsSolid.creditCard,
+              size: 20,
+              color: count > 0 ? colors.accent : colors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              count > 0
+                  ? 'Active trades  —  $count need attention'
+                  : 'Browse P2P market',
+              style: TextStyle(
+                  color:
+                      count > 0 ? colors.accent : colors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+          if (count > 0)
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                  color: colors.accent, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Text('$count',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800)),
+            ),
+          const SizedBox(width: 8),
+          Icon(HugeIconsSolid.arrowRight01,
+              size: 16, color: colors.textTertiary),
+        ]),
       ),
     );
   }

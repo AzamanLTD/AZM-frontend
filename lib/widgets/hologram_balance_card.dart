@@ -93,9 +93,16 @@ class HologramBalanceCard extends ConsumerWidget {
               final ghsVal = totalUsdc * rate;
               final currency = ref.watch(currencyProvider);
               final ghsFirst = currency == DisplayCurrency.ghs;
-              String fmtGhs(double v) => v >= 1000
-                  ? "${(v / 1000).toStringAsFixed(1)}K"
-                  : v.toStringAsFixed(2);
+              String fmtGhs(double v) {
+                final parts = v.toStringAsFixed(2).split('.');
+                final intPart = parts[0];
+                final buf = StringBuffer();
+                for (int i = 0; i < intPart.length; i++) {
+                  if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
+                  buf.write(intPart[i]);
+                }
+                return '$buf.${parts[1]}';
+              }
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(
                   ghsFirst

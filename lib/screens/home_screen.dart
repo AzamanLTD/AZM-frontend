@@ -20,6 +20,7 @@ import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
+import 'package:azaman/screens/transaction_history_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
@@ -289,19 +290,15 @@ class _ActionPills extends ConsumerWidget {
       _PillData(label: "Add Money", icon: Icons.add,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)))),
-      _PillData(label: "Send", icon: Icons.swap_horiz,
+      _PillData(label: "Send", icon: Icons.send_outlined,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const FriendsHubScreen()))),
       _PillData(label: "Withdraw", icon: Icons.account_balance_outlined,
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => const WithdrawalScreen()))),
-      _PillData(label: "Savings", icon: Icons.savings_outlined,
+      _PillData(label: "History", icon: Icons.history,
         onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const RoutedTabSurface(
-            title: 'Savings', body: SavingsScreen())))),
-      _PillData(label: "Market", icon: Icons.storefront_outlined,
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const MarketplaceHomeScreen()))),
+          builder: (_) => const TransactionHistoryScreen()))),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

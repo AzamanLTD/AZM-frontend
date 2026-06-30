@@ -20,6 +20,7 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
@@ -209,12 +210,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     final msgsAsync = ref.watch(groupMessagesProvider(widget.groupId));
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: groupAsync.when(

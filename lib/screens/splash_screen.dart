@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/version_gate_service.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
@@ -220,7 +221,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ],
                   ),
                   child: const Icon(
-                    Icons.swap_horiz,
+                    HugeIconsSolid.exchange01,
                     size: 80,
                     color: Color(0xFFD4AF37),
                   ),

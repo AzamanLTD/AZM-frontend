@@ -9,6 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
+import 'package:azaman/widgets/notification_bell.dart';
 
 
 class SavingsScreen extends ConsumerStatefulWidget {
@@ -105,38 +106,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
         ),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => HapticFeedback.selectionClick(),
-          child: SizedBox(
-            width: 30,
-            height: 30,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_outlined,
-                  color: colors.textPrimary,
-                  size: 24,
-                ),
-                Positioned(
-                  top: 3,
-                  right: 4,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: colors.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.background, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        const NotificationBell(),
       ],
     );
   }

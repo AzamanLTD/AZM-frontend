@@ -26,6 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _influencerController = TextEditingController();
+  bool _passwordVisible = false;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -293,11 +294,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         TextField(
           controller: _passwordController,
           style: TextStyle(color: colors.textPrimary),
-          obscureText: true,
+          obscureText: !_passwordVisible,
           decoration: InputDecoration(
             labelText: 'Password',
             labelStyle: TextStyle(color: colors.textTertiary),
             prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: colors.textTertiary,
+                size: 20,
+              ),
+              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+            ),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
