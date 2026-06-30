@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -509,7 +510,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];
@@ -686,7 +687,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: [
               if (groups.isNotEmpty) ...[
                 Padding(
@@ -731,7 +732,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
       itemCount: friends.length,
       itemBuilder: (context, index) => _buildFriendTile(friends[index], colors),
     );
@@ -757,6 +758,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     final unread = (friend['unreadCount'] ?? 0) is int
         ? friend['unreadCount'] as int
         : int.tryParse('${friend['unreadCount']}') ?? 0;
+    final currentUsername = ref.watch(authProvider).user?.username ?? '';
+    final bool isMentioned = currentUsername.isNotEmpty &&
+        lastMessage.contains('@$currentUsername');
     final friendshipId = friend['friendshipId']?.toString() ??
         friend['id']?.toString() ??
         '';
@@ -906,20 +910,35 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       if (hasUnread) ...[
                         const SizedBox(width: 8),
                         Container(
-                          width: 20,
-                          height: 20,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: colors.accent,
+                            color: isMentioned ? colors.warning : colors.accent,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: TextStyle(
-                              color: colors.isDark ? Colors.black : Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isMentioned) ...[
+                                Text(
+                                  '@',
+                                  style: TextStyle(
+                                    color: colors.isDark ? Colors.black : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                              ],
+                              Text(
+                                unread > 99 ? '99+' : '$unread',
+                                style: TextStyle(
+                                  color: colors.isDark ? Colors.black : Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

@@ -1,6 +1,7 @@
 // =============================================================================
 // SEND MONEY SCREEN — Internal transfer by AZM ID or BIZ ID
 // =============================================================================
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +50,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       final api = ApiClient();
       final res = await api.get('/users/lookup?identifier=$id');
       if (res.statusCode == 200) {
-        setState(() => _recipient = res.data as Map<String, dynamic>?);
+        setState(() => _recipient = jsonDecode(res.body) as Map<String, dynamic>?);
       } else {
         setState(() => _error = 'User not found. Check the AZM ID or BIZ ID.');
       }
@@ -84,8 +85,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         _amountController.clear();
         _noteController.clear();
       } else {
-        final msg = (res.data as Map?)?.containsKey('message') == true
-            ? (res.data as Map)['message'].toString()
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final msg = data?.containsKey('message') == true
+            ? data!['message'].toString()
             : 'Transfer failed. Please try again.';
         setState(() => _error = msg);
       }
@@ -99,7 +101,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final balance = ref.watch(authProvider).user?.balanceUsdc ?? 0.0;
+    final balance = ref.watch(authProvider).user?.availableBalance ?? 0.0;
 
     return Scaffold(
       backgroundColor: colors.background,

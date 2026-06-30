@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
@@ -235,7 +236,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.swap_horiz, size: 72, color: colors.accent),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFD4AF37).withOpacity(0.20),
+                  blurRadius: 36,
+                  spreadRadius: 6,
+                ),
+              ],
+            ),
+            child: const Icon(
+              HugeIconsSolid.exchange01,
+              size: 72,
+              color: Color(0xFFD4AF37),
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         Text(
           'Welcome to Azaman',

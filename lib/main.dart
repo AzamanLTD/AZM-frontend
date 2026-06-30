@@ -284,9 +284,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     _pages = [
       const AzamanHomePage(),
       const FriendsHubScreen(),
-      const TradesTabScreen(),
-      const SafeArea(bottom: false, child: SavingsScreen()),
-      const MarketplaceHomeScreen(), // V3: 5th tab — Premium Marketplace
+      const P2PMarketplaceScreen(),
     ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -422,6 +420,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     return Scaffold(
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
+      extendBody: true,
 
 
       bottomNavigationBar: PremiumBottomNav(
@@ -437,8 +436,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
               _pages[0],
               _pages[1],
               _pages[2],
-              _pages[3],
-              _pages[4],
             ],
           ),
           // Vendor Pull Tab — only visible on the P2P tab AND only when

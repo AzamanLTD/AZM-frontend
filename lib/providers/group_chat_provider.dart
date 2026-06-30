@@ -28,13 +28,15 @@ class GroupMember {
   });
 
   factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
-        id: j['id'],
-        userId: (j['userId'] as num).toInt(),
-        username: j['user']?['username'],
-        profilePictureUrl: j['user']?['profilePictureUrl'],
-        role: j['role'],
-        joinedAt: DateTime.parse(j['joinedAt']),
-        removedAt: j['removedAt'] != null ? DateTime.tryParse(j['removedAt']) : null,
+        id: j['id']?.toString() ?? '',
+        userId: j['userId'] != null ? (j['userId'] as num).toInt() : 0,
+        username: j['user']?['username']?.toString(),
+        profilePictureUrl: j['user']?['profilePictureUrl']?.toString(),
+        role: j['role']?.toString() ?? 'MEMBER',
+        joinedAt: j['joinedAt'] != null
+            ? DateTime.tryParse(j['joinedAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+        removedAt: j['removedAt'] != null ? DateTime.tryParse(j['removedAt'].toString()) : null,
       );
 }
 
@@ -68,12 +70,12 @@ class GroupSummary {
   bool get isSusuActive => susuStatus == 'ACTIVE';
 
   factory GroupSummary.fromJson(Map<String, dynamic> j) => GroupSummary(
-        id: j['id'],
-        name: j['name'],
-        description: j['description'],
-        avatarUrl: j['avatarUrl'],
-        status: j['status'],
-        susuGroupId: j['susuGroupId'],
+        id: j['id']?.toString() ?? '',
+        name: j['name']?.toString() ?? 'Group',
+        description: j['description']?.toString(),
+        avatarUrl: j['avatarUrl']?.toString(),
+        status: j['status']?.toString() ?? 'ACTIVE',
+        susuGroupId: j['susuGroupId']?.toString(),
         susuStatus: j['susuGroup']?['status']?.toString(),
         initiationDeadline: j['susuGroup']?['initiationDeadline'] != null
             ? DateTime.tryParse(j['susuGroup']['initiationDeadline'].toString())
@@ -81,7 +83,9 @@ class GroupSummary {
         members: (j['members'] as List<dynamic>? ?? const [])
             .map((m) => GroupMember.fromJson(m))
             .toList(),
-        updatedAt: DateTime.parse(j['updatedAt']),
+        updatedAt: j['updatedAt'] != null
+            ? DateTime.tryParse(j['updatedAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
       );
 }
 
@@ -109,15 +113,17 @@ class GroupMessage {
   });
 
   factory GroupMessage.fromJson(Map<String, dynamic> j) => GroupMessage(
-        id: j['id'],
+        id: j['id']?.toString() ?? '',
         senderId: j['senderId'] != null ? (j['senderId'] as num).toInt() : null,
-        senderUsername: j['sender']?['username'],
-        type: j['type'],
-        content: j['content'],
+        senderUsername: j['sender']?['username']?.toString(),
+        type: j['type']?.toString() ?? 'TEXT',
+        content: j['content']?.toString(),
         metadata: j['metadata'] as Map<String, dynamic>?,
-        mediaUrl: j['mediaUrl'],
-        mediaType: j['mediaType'],
-        createdAt: DateTime.parse(j['createdAt']),
+        mediaUrl: j['mediaUrl']?.toString(),
+        mediaType: j['mediaType']?.toString(),
+        createdAt: j['createdAt'] != null
+            ? DateTime.tryParse(j['createdAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
       );
 }
 
@@ -199,10 +205,18 @@ class GroupActions {
   final Ref ref;
   GroupActions(this.ref);
 
-  Future<void> sendMessage(String groupId, {required String content, String type = 'TEXT'}) async {
+  Future<void> sendMessage(
+    String groupId, {
+    required String content,
+    String type = 'TEXT',
+    String? media,
+    Map<String, dynamic>? metadata,
+  }) async {
     final res = await apiClient.post('/group-chats/$groupId/messages', {
       'type': type,
       'content': content,
+      if (media != null) 'media': media,
+      if (metadata != null) 'metadata': metadata,
     });
     if (res.statusCode != 201) throw Exception('Send failed');
     ref.invalidate(groupMessagesProvider(groupId));

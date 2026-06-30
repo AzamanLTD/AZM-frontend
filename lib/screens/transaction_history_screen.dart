@@ -78,12 +78,12 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
     final state = ref.watch(transactionHistoryProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -200,7 +200,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               onTap: () { setState(() { _expandedId = isExpanded ? null : txn.id; }); },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: colors.card,
@@ -210,20 +210,32 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          txn.type == 'OUT'
-                              ? Icons.arrow_upward
-                              : txn.type == 'INTERNAL'
-                                  ? Icons.keyboard_double_arrow_right
-                                  : Icons.arrow_downward,
-                          color: txn.type == 'OUT'
-                              ? colors.danger
-                              : txn.type == 'INTERNAL'
-                                  ? colors.accent
-                                  : colors.success,
-                          size: 18,
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: txn.type == 'OUT'
+                                ? colors.danger.withOpacity(0.1)
+                                : txn.type == 'INTERNAL'
+                                    ? colors.accent.withOpacity(0.1)
+                                    : colors.success.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            txn.type == 'OUT'
+                                ? HugeIconsSolid.arrowUp01
+                                : txn.type == 'INTERNAL'
+                                    ? HugeIconsSolid.arrowDataTransferHorizontal
+                                    : HugeIconsSolid.arrowDown01,
+                            color: txn.type == 'OUT'
+                                ? colors.danger
+                                : txn.type == 'INTERNAL'
+                                    ? colors.accent
+                                    : colors.success,
+                            size: 16,
+                          ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,27 +244,51 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                                 _humanLabel(txn.type),
                                 style: TextStyle(
                                   color: colors.textPrimary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${txn.provider.isNotEmpty ? txn.provider : 'Azaman'}  ·  GH₵ ${txn.amountGhs.toStringAsFixed(2)}',
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                              ),
+                              const SizedBox(height: 2),
                               Text(
                                 _relativeDate(txn.createdAt),
-                                style: TextStyle(
-                                  color: colors.textSecondary,
-                                  fontSize: 10,
-                                ),
+                                style: TextStyle(color: colors.textTertiary, fontSize: 10),
                               ),
                             ],
                           ),
                         ),
-                        Text(
-                          '${txn.type == 'OUT' ? '-' : '+'}\$${txn.amountUsdc.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: txn.type == 'OUT' ? colors.danger : colors.success,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${txn.type == "OUT" ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
+                              style: TextStyle(
+                                color: txn.type == 'OUT' ? colors.danger : colors.success,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: colors.success.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                txn.status,
+                                style: TextStyle(
+                                  color: colors.success,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

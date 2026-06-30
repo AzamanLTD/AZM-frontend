@@ -73,7 +73,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
             physics: AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: EdgeInsets.only(bottom: 40),
+            padding: EdgeInsets.only(bottom: 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -218,7 +218,7 @@ class _GreetingHeader extends ConsumerWidget {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Icon(
-                  isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  isVisible ? HugeIconsStroke.viewOff : HugeIconsStroke.view,
                   key: ValueKey(isVisible),
                   size: 18,
                   color: colors.textSecondary,

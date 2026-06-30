@@ -106,7 +106,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
         ),
-        const NotificationBell(),
       ],
     );
   }

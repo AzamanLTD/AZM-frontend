@@ -77,16 +77,19 @@ class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> 
     if (state.isLoading || !state.hasMore) return;
     state = state.copyWith(isLoading: true);
     await Future.delayed(const Duration(milliseconds: 500));
+    final currentFilter = state.filter;
     final mockItems = List.generate(15, (i) {
-      final types = ['IN', 'OUT', 'INTERNAL'];
       final idx = state.items.length + i;
+      final type = currentFilter == 'ALL'
+          ? ['IN', 'OUT', 'INTERNAL'][idx % 3]
+          : currentFilter;
       return TransactionRecord(
         id: 'txn_${idx}_${DateTime.now().millisecondsSinceEpoch}',
-        type: types[idx % 3],
+        type: type,
         amountUsdc: (idx + 1) * 10.0,
         feeUsdc: 0.5,
         status: 'completed',
-        createdAt: DateTime.now().subtract(Duration(hours: idx)),
+        createdAt: DateTime.now().subtract(Duration(hours: idx * 2)),
         metadata: {
           'provider': 'vodafone',
           'amountGhs': (idx + 1) * 10.0 * 12.5,
@@ -104,7 +107,7 @@ class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> 
 
   void setFilter(String filter) {
     if (filter == state.filter) return;
-    state = const TransactionHistoryState();
+    state = TransactionHistoryState(filter: filter);
     loadMore();
   }
 }

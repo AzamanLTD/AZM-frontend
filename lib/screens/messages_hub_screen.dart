@@ -15,7 +15,7 @@ class PersonalChat {
   String contactName;
   final String? lastMessage;
   final DateTime? lastMessageTime;
-  final int unreadCount;
+  int unreadCount;
 
   PersonalChat({
     required this.id,
@@ -489,94 +489,144 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
 
   Widget _buildChatItem(PersonalChat chat, AzamanColors colors) {
     final bool hasUnread = chat.unreadCount > 0;
+    final currentUsername = ref.watch(authProvider).user?.username ?? '';
+    final bool isMentioned = currentUsername.isNotEmpty &&
+        chat.lastMessage != null &&
+        chat.lastMessage!.contains('@$currentUsername');
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => PersonalChatInterface(
-            chatId: chat.id,
-            contactId: chat.contactId,
-            contactAzamanId: chat.contactAzamanId,
-            contactName: chat.contactName,
-          ),
-        )).then((_) => _fetchChats());
+    return Dismissible(
+      key: ValueKey('chat_${chat.id}_${chat.unreadCount}'),
+      direction: DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        HapticFeedback.mediumImpact();
+        if (direction == DismissDirection.startToEnd) {
+          // Swipe right: mark read
+          setState(() {
+            chat.unreadCount = 0;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Marked ${chat.contactName} as read'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        } else {
+          // Swipe left: toggle unread status
+          setState(() {
+            chat.unreadCount = chat.unreadCount == 0 ? 1 : 0;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Marked ${chat.contactName} as ${chat.unreadCount > 0 ? "unread" : "read"}'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+        return false; // Prevent removing tile from list
       },
-      child: Container(
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
         margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: hasUnread
-              ? colors.accent.withValues(alpha: 0.06)
-              : Colors.transparent,
+          color: Colors.green.withOpacity(0.85),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: colors.softSurface,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                chat.contactName.isNotEmpty
-                    ? chat.contactName[0].toUpperCase()
-                    : '?',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
+        child: const Icon(Icons.mark_chat_read, color: Colors.white, size: 20),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: colors.accent.withOpacity(0.85),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Icons.mark_chat_unread, color: Colors.white, size: 20),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => PersonalChatInterface(
+              chatId: chat.id,
+              contactId: chat.contactId,
+              contactAzamanId: chat.contactAzamanId,
+              contactName: chat.contactName,
+            ),
+          )).then((_) => _fetchChats());
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: hasUnread
+                ? (isMentioned ? colors.warning.withOpacity(0.08) : colors.accent.withOpacity(0.06))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  chat.contactName.isNotEmpty ? chat.contactName[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            ),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.contactName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
-                            fontSize: 15,
-                            letterSpacing: -0.2,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat.contactName,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15.5,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      Text(
-                        _formatTime(chat.lastMessageTime),
-                        style: TextStyle(
-                          color: hasUnread ? colors.accent : colors.textTertiary,
-                          fontSize: 12,
-                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (chat.lastMessage != null) ...[
+                        if (chat.lastMessageTime != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatTime(chat.lastMessageTime!),
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 3),
                     Row(
                       children: [
                         Expanded(
                           child: Text(
-                            chat.lastMessage!,
+                            chat.lastMessage ?? 'No messages yet',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: hasUnread
-                                  ? colors.textSecondary
-                                  : colors.textTertiary,
+                              color: hasUnread ? colors.textSecondary : colors.textTertiary,
                               fontSize: 13,
                               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
                             ),
@@ -585,30 +635,45 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                         if (hasUnread) ...[
                           const SizedBox(width: 8),
                           Container(
-                            width: 20,
-                            height: 20,
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: colors.accent,
+                              color: isMentioned ? colors.warning : colors.accent,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              chat.unreadCount > 9 ? '9+' : '${chat.unreadCount}',
-                              style: TextStyle(
-                                color: colors.isDark ? Colors.black : Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isMentioned) ...[
+                                  Text(
+                                    '@',
+                                    style: TextStyle(
+                                      color: colors.isDark ? Colors.black : Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                ],
+                                Text(
+                                  chat.unreadCount > 9 ? '9+' : '${chat.unreadCount}',
+                                  style: TextStyle(
+                                    color: colors.isDark ? Colors.black : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ],
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

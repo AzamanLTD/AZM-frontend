@@ -16,6 +16,9 @@ import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/providers/azm_reward_provider.dart';
+import 'package:azaman/services/azm_reward_service.dart';
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 
 
 class P2PMarketplaceScreen extends ConsumerStatefulWidget {
@@ -27,6 +30,14 @@ class P2PMarketplaceScreen extends ConsumerStatefulWidget {
 }
 
 class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(azmRewardProvider.notifier).primeIfNeeded();
+    });
+  }
+
   Future<void> _onRefresh() async {
     HapticFeedback.mediumImpact();
     final auth = ref.read(authProvider);
@@ -53,7 +64,7 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: const EdgeInsets.only(bottom: 36),
+            padding: const EdgeInsets.only(bottom: 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -65,14 +76,11 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
                   child: _CashBalanceCard(),
                 ),
                 const SizedBox(height: 24),
+                const _AzmProgressBar(),
+                const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _FeatureGrid(colors: colors),
-                ),
-                const SizedBox(height: 24),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _ActiveTradesPill(),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -367,6 +375,111 @@ class _BalancePillState extends State<_BalancePill> {
   }
 }
 
+class _AzmProgressBar extends ConsumerWidget {
+  const _AzmProgressBar();
+
+  static const List<({double threshold, String label})> _milestones = [
+    (threshold: 50,    label: 'Trader I'),
+    (threshold: 100,   label: 'Trader II'),
+    (threshold: 250,   label: 'Verified Trader'),
+    (threshold: 500,   label: 'Power Trader'),
+    (threshold: 1000,  label: 'Elite Trader'),
+    (threshold: 2500,  label: 'Diamond Trader'),
+    (threshold: 5000,  label: 'AZM Legend'),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors   = ref.watch(themeProvider).colors;
+    final azmBal   = ref.watch(azmBalanceProvider);
+    final stateVal = ref.watch(azmRewardProvider);
+    final summary  = stateVal.summary;
+    final total    = summary?.totalEarned ?? azmBal;
+
+    final next = _milestones.firstWhere(
+      (m) => m.threshold > total,
+      orElse: () => (threshold: _milestones.last.threshold, label: 'AZM Legend'),
+    );
+    final prevIdx = _milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
+    final prevThreshold = prevIdx >= 0 ? _milestones[prevIdx].threshold : 0.0;
+    final band    = next.threshold - prevThreshold;
+    final earned  = (total - prevThreshold).clamp(0.0, band);
+    final progress = band > 0 ? earned / band : 1.0;
+    final remaining = (next.threshold - total).clamp(0.0, double.infinity);
+    final isMaxed = total >= _milestones.last.threshold;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const AzmRewardsScreen()));
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colors.accent.withOpacity(0.14),
+              const Color(0xFFD4AF37).withOpacity(0.08),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.accent.withOpacity(0.25)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFD4AF37).withOpacity(0.15),
+              ),
+              child: const Center(child: Text('⚡', style: TextStyle(fontSize: 16))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                isMaxed ? 'AZM Legend — Max Tier!' : 'Next: ${next.label}',
+                style: TextStyle(color: colors.textPrimary,
+                  fontSize: 13, fontWeight: FontWeight.w800)),
+              Text(
+                isMaxed
+                  ? '${total.toStringAsFixed(0)} AZM earned'
+                  : '${remaining.toStringAsFixed(0)} AZM to go  ·  ${total.toStringAsFixed(0)} earned',
+                style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+            ])),
+            Icon(HugeIconsSolid.arrowRight01, size: 15, color: colors.textTertiary),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              backgroundColor: colors.divider.withOpacity(0.4),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+              minHeight: 7,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${prevThreshold.toStringAsFixed(0)} AZM',
+                style: TextStyle(color: colors.textTertiary, fontSize: 9)),
+              Text('${next.threshold.toStringAsFixed(0)} AZM',
+                style: TextStyle(color: colors.textTertiary, fontSize: 9)),
+            ],
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2×2 feature grid — title + chevron, then an image-ready box.
 // Drop a gradient image into each card by setting `imageAsset`.
@@ -419,7 +532,8 @@ class _FeatureGrid extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const P2PMarketListScreen()),
+                    builder: (_) => const P2PMarketListScreen(),
+                  ),
                 ),
               ),
             ),
@@ -435,18 +549,22 @@ class _FeatureGrid extends StatelessWidget {
                 imageAsset: 'assets/images/3.webp',
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const SusuHubScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const SusuHubScreen(),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _FeatureCard(
-                title: 'Rewards',
-                imageAsset: 'assets/images/4.webp',
+                title: 'Marketplace',
+                imageAsset: 'assets/images/5.webp',
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AzmRewardsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const MarketplaceHomeScreen(),
+                  ),
                 ),
               ),
             ),
@@ -544,66 +662,3 @@ class _ImageBox extends StatelessWidget {
   }
 }
 
-class _ActiveTradesPill extends ConsumerWidget {
-  const _ActiveTradesPill();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    final count = ref.watch(activeTradeCountProvider).value ?? 0;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        HapticFeedback.selectionClick();
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const P2PMarketListScreen()));
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: colors.softSurface,
-          borderRadius: BorderRadius.circular(18),
-          border: count > 0
-              ? Border.all(
-                  color: colors.accent.withOpacity(0.45), width: 1.2)
-              : null,
-        ),
-        child: Row(children: [
-          Icon(HugeIconsSolid.creditCard,
-              size: 20,
-              color: count > 0 ? colors.accent : colors.textSecondary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              count > 0
-                  ? 'Active trades  —  $count need attention'
-                  : 'Browse P2P market',
-              style: TextStyle(
-                  color:
-                      count > 0 ? colors.accent : colors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700),
-            ),
-          ),
-          if (count > 0)
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                  color: colors.accent, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Text('$count',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800)),
-            ),
-          const SizedBox(width: 8),
-          Icon(HugeIconsSolid.arrowRight01,
-              size: 16, color: colors.textTertiary),
-        ]),
-      ),
-    );
-  }
-}

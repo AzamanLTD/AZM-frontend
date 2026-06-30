@@ -25,13 +25,15 @@ class HologramBalanceCard extends ConsumerWidget {
         : uid;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 158),
       decoration: BoxDecoration(
         color: colors.softSurface,
         borderRadius: BorderRadius.circular(22),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -64,7 +66,7 @@ class HologramBalanceCard extends ConsumerWidget {
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           if (truncatedId.isNotEmpty) ...[
             Row(
               children: [
@@ -85,10 +87,11 @@ class HologramBalanceCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
           ],
           Consumer(
             builder: (context, ref, _) {
+              final isVisible = ref.watch(balanceVisibleProvider);
               final rate = ref.watch(oracleRateProvider);
               final ghsVal = totalUsdc * rate;
               final currency = ref.watch(currencyProvider);
@@ -105,9 +108,9 @@ class HologramBalanceCard extends ConsumerWidget {
               }
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(
-                  ghsFirst
-                      ? "GH₵ ${fmtGhs(ghsVal)}"
-                      : "${totalUsdc.toStringAsFixed(2)} USDC",
+                  isVisible
+                      ? (ghsFirst ? 'GH₵ ${fmtGhs(ghsVal)}' : '${totalUsdc.toStringAsFixed(2)} USDC')
+                      : '••••••',
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 28,
@@ -116,16 +119,15 @@ class HologramBalanceCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  ghsFirst
-                      ? "${totalUsdc.toStringAsFixed(2)} USDC"
-                      : "GH₵ ${fmtGhs(ghsVal)}",
-                  style: TextStyle(
-                    color: colors.textSecondary.withOpacity(0.75),
-                    fontSize: 13,
+                if (isVisible)
+                  Text(
+                    ghsFirst ? '${totalUsdc.toStringAsFixed(2)} USDC' : 'GH₵ ${fmtGhs(ghsVal)}',
+                    style: TextStyle(
+                      color: colors.textSecondary.withOpacity(0.75),
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(children: [
                   Container(width: 6, height: 6,
                     decoration: BoxDecoration(color: colors.success, shape: BoxShape.circle)),

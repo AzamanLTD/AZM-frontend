@@ -197,6 +197,10 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     state = state.where((n) => n.id != id).toList();
   }
 
+  void deleteNotification(String id) {
+    removeNotification(id);
+  }
+
   /// Refresh notifications from the backend (pull-to-refresh).
   Future<void> refresh() async {
     await fetchNotifications();
