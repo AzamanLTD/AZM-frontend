@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -157,6 +158,22 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
       final id = t.id.toLowerCase();
       return label.contains(_searchQuery) || amt.contains(_searchQuery) || id.contains(_searchQuery);
     }).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(HugeIconsStroke.transactionHistory, size: 48, color: colors.textTertiary),
+            const SizedBox(height: 12),
+            Text(
+              _searchQuery.isEmpty ? 'No transactions yet' : 'No matching transactions',
+              style: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
 
     final Map<String, List<TransactionRecord>> grouped = {};
     for (final t in filtered) {

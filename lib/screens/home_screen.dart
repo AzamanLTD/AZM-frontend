@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -179,7 +180,7 @@ class _GreetingHeader extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.card_giftcard_outlined, size: 14, color: colors.success),
+                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
                   const SizedBox(width: 5),
                   Text(
                     (user?.azmBalance ?? 0) > 0

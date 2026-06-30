@@ -285,7 +285,7 @@ class _MarketplaceHomeScreenState
             ),
             _searchHeader(colors),
             const SizedBox(height: 14),
-            _categoryGrid(colors),
+            _categoryCarousel(colors),
             const SizedBox(height: 10),
             _controlBar(colors),
             const SizedBox(height: 6),
@@ -435,107 +435,67 @@ class _MarketplaceHomeScreenState
   }
 
   // ── Category grid ───────────────────────────────────────────────────────────
-  Widget _categoryGrid(AzamanColors colors) {
-    final cats = BusinessCategories.values; // 11 real categories
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Browse by Category',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.65,
-            ),
-            itemCount: cats.length,
-            itemBuilder: (context, i) {
-              final cat = cats[i];
-              final isSelected = _categoryIndex == i + 1;
-              return _categoryTile(cat, i + 1, isSelected, colors);
+  // ── Category carousel (horizontal scroll, icon + label chips) ─────────────
+  Widget _categoryCarousel(AzamanColors colors) {
+    final cats = BusinessCategories.withAll;
+    return SizedBox(
+      height: 78,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        itemCount: cats.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final cat = cats[i];
+          final selected = i == _categoryIndex;
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              // Second tap on already-selected non-All chip: drill into subcategories
+              if (i == _categoryIndex && i > 0) {
+                AzamanHaptics.nav();
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => CategoryDrilldownScreen(
+                        parentWire: cat.wire, label: cat.label)));
+                return;
+              }
+              AzamanHaptics.toggle();
+              setState(() => _categoryIndex = i);
+              _fireSearch();
             },
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _categoryTile(BusinessCategory cat, int index, bool isSelected,
-      AzamanColors colors) {
-    final accent = colors.accent;
-    final surface = colors.accentSurface;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (index == _categoryIndex) {
-          // Tap the same category: drill down
-          AzamanHaptics.nav();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  CategoryDrilldownScreen(parentWire: cat.wire, label: cat.label),
-            ),
-          );
-          return;
-        }
-        AzamanHaptics.toggle();
-        setState(() => _categoryIndex = index);
-        _fireSearch();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? surface : colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? accent : colors.divider,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(cat.icon,
-                size: 20,
-                color: isSelected ? accent : colors.textSecondary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                cat.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color:
-                      isSelected ? accent : colors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+            child: Container(
+              width: 80,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: selected ? colors.accentSurface : colors.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: selected ? colors.accent : colors.divider),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(cat.icon, size: 22,
+                      color: selected ? colors.accent : colors.textSecondary),
+                  const SizedBox(height: 6),
+                  Text(cat.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: selected ? colors.accent : colors.textTertiary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700)),
+                ],
               ),
             ),
-            Icon(Icons.arrow_forward,
-                size: 14, color: isSelected ? accent : colors.textTertiary),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ── Control bar (view toggle + sort only) ───────────────────────────────────
+  // ── Control bar (view toggle + sort + verified toggle + filter) ─────────────
   Widget _controlBar(AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -544,7 +504,66 @@ class _MarketplaceHomeScreenState
           _viewToggle(colors),
           const SizedBox(width: 10),
           Expanded(child: _sortButton(colors)),
+          const SizedBox(width: 8),
+          _verifiedToggle(colors),
+          const SizedBox(width: 8),
+          _filterButton(colors),
         ],
+      ),
+    );
+  }
+
+  Widget _verifiedToggle(AzamanColors colors) {
+    return GestureDetector(
+      onTap: () {
+        AzamanHaptics.toggle();
+        setState(() => _verifiedOnly = !_verifiedOnly);
+        _fireSearch();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: _verifiedOnly ? colors.accentSurface : colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: _verifiedOnly ? colors.accent : colors.divider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.verified_outlined,
+                size: 15,
+                color: _verifiedOnly ? colors.accent : colors.textSecondary),
+            const SizedBox(width: 4),
+            Text('Verified',
+                style: TextStyle(
+                    color: _verifiedOnly ? colors.accent : colors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterButton(AzamanColors colors) {
+    final active = _filters != const MarketplaceFilters();
+    return GestureDetector(
+      onTap: _openFilters,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: active ? colors.accentSurface : colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border:
+              Border.all(color: active ? colors.accent : colors.divider),
+        ),
+        child: Icon(Icons.tune,
+            size: 18,
+            color: active ? colors.accent : colors.textSecondary),
       ),
     );
   }

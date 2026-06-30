@@ -14,6 +14,7 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 
 class P2PMarketplaceScreen extends ConsumerStatefulWidget {
@@ -202,7 +203,7 @@ class _CashBalanceCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 2),
-                    Icon(Icons.arrow_forward,
+                    Icon(HugeIconsSolid.arrowRight01,
                         size: 15, color: colors.textTertiary),
                   ],
                 ),
@@ -494,7 +495,7 @@ class _FeatureCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward,
+                Icon(HugeIconsSolid.arrowRight01,
                     size: 16, color: colors.textTertiary),
               ],
             ),

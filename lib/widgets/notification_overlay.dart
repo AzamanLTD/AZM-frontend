@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
@@ -25,7 +26,8 @@ class NotificationOverlay extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<NotificationOverlay> createState() => _NotificationOverlayState();
+  ConsumerState<NotificationOverlay> createState() =>
+      _NotificationOverlayState();
 }
 
 class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
@@ -64,11 +66,19 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
 
   bool _matchesTab(AppNotification n, int tab) {
     switch (tab) {
-      case 0: return true; // ALL
+      case 0:
+        return true; // ALL
       case 1: // MONEY
         if (n.category == NotificationCategory.general) {
           final t = n.title.toLowerCase();
-          if (t.contains('deposit') || t.contains('withdraw') || t.contains('transfer') || t.contains('payment')) return true;
+          if (t.contains('deposit') ||
+              t.contains('withdraw') ||
+              t.contains('transfer') ||
+              t.contains('payment') ||
+              t.contains('vault') ||
+              t.contains('susu') ||
+              t.contains('route') ||
+              t.contains('auction')) return true;
         }
         return false;
       case 2: // SOCIAL
@@ -76,10 +86,70 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
       case 3: // SECURITY
         return n.category == NotificationCategory.securityAccount;
       case 4: // SYSTEM
-        return n.category == NotificationCategory.adminSystem || n.category == NotificationCategory.vendorPriority;
+        return n.category == NotificationCategory.adminSystem ||
+            n.category == NotificationCategory.vendorPriority;
       default:
         return false;
     }
+  }
+
+  Widget _categoryRow(int index, IconData icon, String label, int count,
+      AzamanColors colors) {
+    final selected = _selectedTab == index;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          color: selected ? colors.accentSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 18,
+                color: selected ? colors.accent : colors.textSecondary),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? colors.accent : colors.textPrimary,
+                fontSize: 14,
+                fontWeight:
+                    selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: selected ? colors.accent : colors.divider,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: selected
+                        ? Colors.white
+                        : colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right,
+                size: 16,
+                color:
+                    selected ? colors.accent : colors.textTertiary),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -91,10 +161,25 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
 
     final allNotifications = [...all, ...security, ...vendor]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final unread = allNotifications.where((n) => !n.isRead).toList();
+
     final filtered = _selectedTab == 0
         ? allNotifications
-        : allNotifications.where((n) => _matchesTab(n, _selectedTab)).toList();
+        : allNotifications
+            .where((n) => _matchesTab(n, _selectedTab))
+            .toList();
+
+    // Count per category for badges
+    final allCount = allNotifications.length;
+    final moneyCount = allNotifications
+        .where((n) => _matchesTab(n, 1))
+        .length;
+    final socialCount = allNotifications
+        .where((n) => _matchesTab(n, 2))
+        .length;
+    final secCount = security.length;
+    final sysCount = allNotifications
+        .where((n) => _matchesTab(n, 4))
+        .length;
 
     final screenHeight = MediaQuery.of(context).size.height;
     final overlayHeight = screenHeight * 0.92;
@@ -133,27 +218,32 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                       bottom: Radius.circular(24),
                     ),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                      filter:
+                          ImageFilter.blur(sigmaX: 28, sigmaY: 28),
                       child: Container(
                         decoration: BoxDecoration(
                           color: colors.isDark
-                            ? Colors.black.withOpacity(0.72)
-                            : Colors.white.withOpacity(0.68),
+                              ? Colors.black.withOpacity(0.72)
+                              : Colors.white.withOpacity(0.68),
                           borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(24)),
+                              bottom: Radius.circular(24)),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Handle
+                            // ── Drag handle ──────────────────────────
                             Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 40, height: 4,
+                                    width: 40,
+                                    height: 4,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(2),
+                                      color: Colors.white
+                                          .withOpacity(0.3),
+                                      borderRadius:
+                                          BorderRadius.circular(2),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -161,8 +251,10 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                                     'swipe up to close',
                                     style: TextStyle(
                                       color: colors.isDark
-                                        ? Colors.white.withOpacity(0.5)
-                                        : Colors.black.withOpacity(0.4),
+                                          ? Colors.white
+                                              .withOpacity(0.5)
+                                          : Colors.black
+                                              .withOpacity(0.4),
                                       fontSize: 10,
                                       letterSpacing: 0.8,
                                     ),
@@ -171,95 +263,91 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // Tab pills
+
+                            // ── Header ───────────────────────────────
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16),
                               child: Row(
                                 children: [
-                                  'ALL', 'MONEY', 'SOCIAL', 'SECURITY', 'SYSTEM',
-                                ].asMap().entries.map((e) {
-                                  final i = e.key;
-                                  final label = e.value;
-                                  final isSelected = _selectedTab == i;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: GestureDetector(
-                                      onTap: () => setState(() => _selectedTab = i),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? colors.accent
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: isSelected
-                                              ? null
-                                              : Border.all(
-                                                  color: colors.textTertiary.withOpacity(0.3),
-                                                ),
-                                        ),
-                                        child: Text(
-                                          label,
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : colors.textTertiary,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
+                                  Text(
+                                    'Notifications',
+                                    style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
                                     ),
-                                  );
-                                }).toList(),
+                                  ),
+                                ],
                               ),
                             ),
-                            // Unread strip
-                            if (unread.isNotEmpty)
-                              Container(
-                                height: 40,
-                                margin: const EdgeInsets.only(top: 8),
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  children: unread.take(10).map((n) {
-                                    return Container(
-                                      margin: const EdgeInsets.only(right: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: colors.accent.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.notifications_outlined,
-                                            size: 14,
-                                            color: colors.accent,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            n.title.length > 20
-                                                ? '${n.title.substring(0, 20)}…'
-                                                : n.title,
-                                            style: TextStyle(
-                                              color: colors.accent,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
+                            const SizedBox(height: 12),
+
+                            // ── Vertical category list ───────────────
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: colors.card,
+                                  borderRadius:
+                                      BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: colors.divider,
+                                      width: 0.8),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _categoryRow(
+                                        0,
+                                        HugeIconsSolid.notification01,
+                                        'All',
+                                        allCount,
+                                        colors),
+                                    Divider(
+                                        height: 1,
+                                        color: colors.divider),
+                                    _categoryRow(
+                                        1,
+                                        HugeIconsSolid.wallet01,
+                                        'Money',
+                                        moneyCount,
+                                        colors),
+                                    Divider(
+                                        height: 1,
+                                        color: colors.divider),
+                                    _categoryRow(
+                                        2,
+                                        HugeIconsSolid.bubbleChat,
+                                        'Social',
+                                        socialCount,
+                                        colors),
+                                    Divider(
+                                        height: 1,
+                                        color: colors.divider),
+                                    _categoryRow(
+                                        3,
+                                        HugeIconsSolid.lockKey,
+                                        'Security',
+                                        secCount,
+                                        colors),
+                                    Divider(
+                                        height: 1,
+                                        color: colors.divider),
+                                    _categoryRow(
+                                        4,
+                                        HugeIconsSolid.shield01,
+                                        'System',
+                                        sysCount,
+                                        colors),
+                                  ],
                                 ),
                               ),
-                            // Notifications list
+                            ),
+                            const SizedBox(height: 8),
+
+                            // ── Notifications list ───────────────────
                             Expanded(
                               child: filtered.isEmpty
                                   ? Center(
@@ -272,9 +360,10 @@ class _NotificationOverlayState extends ConsumerState<NotificationOverlay>
                                       ),
                                     )
                                   : ListView.builder(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8,
-                                      ),
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8),
                                       itemCount: filtered.length,
                                       itemBuilder: (_, i) {
                                         final n = filtered[i];
@@ -324,7 +413,8 @@ class _NotificationItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 6, height: 6,
+            width: 6,
+            height: 6,
             margin: const EdgeInsets.only(top: 6),
             decoration: BoxDecoration(
               color: notification.isRead
@@ -360,9 +450,9 @@ class _NotificationItem extends StatelessWidget {
             ),
           ),
           Icon(
-            Icons.arrow_forward,
+            Icons.chevron_right,
             color: colors.textTertiary,
-            size: 14,
+            size: 16,
           ),
         ],
       ),

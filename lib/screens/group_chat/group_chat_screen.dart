@@ -19,6 +19,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
@@ -37,6 +38,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final _focusNode = FocusNode();
   final ImagePicker _imagePicker = ImagePicker();
   bool _sending = false;
+  String? _myUserId;
 
   // Master Sprint v2: @-mentions overlay state. When the user types `@`
   // we show a member picker; tapping inserts `@username` at the cursor.
@@ -50,6 +52,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   void initState() {
     super.initState();
     _input.addListener(_onInputChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _myUserId = ref.read(authProvider).user?.id;
+    });
   }
 
   @override
@@ -307,6 +313,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                               colors: colors,
                               showAvatar: true,
                               showSenderName: true,
+                              myUserId: _myUserId,
                               onLongPress: () {},
                             ),
                           ],
@@ -319,6 +326,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         colors: colors,
                         showAvatar: !(sameSender && closeEnough),
                         showSenderName: !(sameSender && closeEnough),
+                        myUserId: _myUserId,
                         onLongPress: () {},
                       );
                     }
@@ -327,6 +335,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                       colors: colors,
                       showAvatar: true,
                       showSenderName: true,
+                      myUserId: _myUserId,
                       onLongPress: () {},
                     );
                   },
@@ -442,6 +451,7 @@ class _MessageBubble extends StatelessWidget {
   final bool showAvatar;
   final bool showSenderName;
   final VoidCallback? onLongPress;
+  final String? myUserId;
 
   const _MessageBubble({
     required this.msg,
@@ -449,6 +459,7 @@ class _MessageBubble extends StatelessWidget {
     this.showAvatar = true,
     this.showSenderName = true,
     this.onLongPress,
+    this.myUserId,
   });
 
   @override
@@ -468,41 +479,52 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     }
-    final isMine = msg.senderId == 'me';
+    final isMine = myUserId != null && msg.senderId == myUserId;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment:
+            isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-          if (showAvatar)
+          if (!isMine && showAvatar)
             CircleAvatar(
               radius: 14,
               backgroundColor: colors.accent.withOpacity(0.15),
-              backgroundImage: null,
               child: Text(
-                      (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
-                      style: TextStyle(
-                        color: colors.accent,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                      ),
-                    ),
+                (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
+                style: TextStyle(
+                  color: colors.accent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
             )
-          else
+          else if (!isMine)
             const SizedBox(width: 28),
-          const SizedBox(width: 8),
-          Expanded(
+          if (!isMine) const SizedBox(width: 8),
+          Flexible(
             child: GestureDetector(
               onLongPress: onLongPress,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isMine ? colors.accent.withOpacity(0.15) : colors.card,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.divider, width: 0.6),
+                  color: isMine
+                      ? colors.accent.withOpacity(0.18)
+                      : colors.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isMine
+                        ? colors.accent.withOpacity(0.3)
+                        : colors.divider,
+                    width: 0.6,
+                  ),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: isMine
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (showSenderName && !isMine)
@@ -514,8 +536,7 @@ class _MessageBubble extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    if (showSenderName && !isMine)
-                      const SizedBox(height: 2),
+                    if (showSenderName && !isMine) const SizedBox(height: 2),
                     RichText(
                       text: TextSpan(
                         style: TextStyle(
@@ -530,6 +551,7 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
+          if (isMine) const SizedBox(width: 8),
         ],
       ),
     );
