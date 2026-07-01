@@ -661,6 +661,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           PremiumChatInput(
             replyTo: _replyTo,
             onClearReply: () => setState(() => _replyTo = null),
+            onTransfer: _openTransferModal,
             onSendText: (text) {
               ref.read(premiumChatProvider(params).notifier).sendTextMessage(
                 text,

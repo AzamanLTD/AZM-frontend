@@ -28,6 +28,7 @@ class PremiumChatInput extends ConsumerStatefulWidget {
   final void Function(bool isTyping) onTypingChanged;
   final TextEditingController? controller;
   final FocusNode? focusNode;
+  final VoidCallback? onTransfer;
 
   const PremiumChatInput({
     super.key,
@@ -38,6 +39,7 @@ class PremiumChatInput extends ConsumerStatefulWidget {
     required this.onTypingChanged,
     this.controller,
     this.focusNode,
+    this.onTransfer,
   });
 
   @override
@@ -141,6 +143,7 @@ class _State extends ConsumerState<PremiumChatInput> {
         onCamera:   () { Navigator.pop(ctx); _pickImage(ImageSource.camera); },
         onGallery:  () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
         onDocument: () { Navigator.pop(ctx); _pickDocument(); },
+        onTransfer: widget.onTransfer == null ? null : () { Navigator.pop(ctx); widget.onTransfer!(); },
       ),
     );
   }
@@ -282,9 +285,14 @@ class _State extends ConsumerState<PremiumChatInput> {
 // ── ATTACH SHEET ────────────────────────────────────────────────────────────
 class _AttachSheet extends StatelessWidget {
   final AzamanColors colors;
-  final VoidCallback onCamera, onGallery, onDocument;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+  final VoidCallback onDocument;
+  final VoidCallback? onTransfer;
+
   const _AttachSheet({required this.colors, required this.onCamera,
-    required this.onGallery, required this.onDocument});
+    required this.onGallery, required this.onDocument, this.onTransfer});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -300,6 +308,9 @@ class _AttachSheet extends StatelessWidget {
             colors: colors, onTap: onGallery),
           _SheetBtn(icon: HugeIconsSolid.folder01, label: 'Document',
             colors: colors, onTap: onDocument),
+          if (onTransfer != null)
+            _SheetBtn(icon: Icons.attach_money, label: 'Transfer',
+              colors: colors, onTap: onTransfer!),
         ]),
       ]),
     );
