@@ -84,6 +84,7 @@ class User {
   final String email;
   final String token;
   final String role;
+  final String? profilePictureUrl;
 
   // ── V2 Great Account Split (the Master Soul §2) ──
   final double availableBalance;
@@ -109,6 +110,7 @@ class User {
     required this.email,
     required this.token,
     required this.role,
+    this.profilePictureUrl,
     this.availableBalance = 0.0,
     this.vendorUnallocatedBalance = 0.0,
     this.escrowLockedBalance = 0.0,
@@ -145,6 +147,7 @@ class User {
       email: json['email']?.toString() ?? '',
       token: json['token']?.toString() ?? '',
       role: role,
+      profilePictureUrl:        json['profilePictureUrl']?.toString(),
       availableBalance:         toDouble(json['availableBalance']),
       vendorUnallocatedBalance: toDouble(json['vendorUnallocatedBalance']),
       escrowLockedBalance:      toDouble(json['escrowLockedBalance']),
@@ -162,6 +165,7 @@ class User {
     String? email,
     String? token,
     String? role,
+    String? profilePictureUrl,
     double? availableBalance,
     double? vendorUnallocatedBalance,
     double? escrowLockedBalance,
@@ -177,6 +181,7 @@ class User {
       email: email ?? this.email,
       token: token ?? this.token,
       role: role ?? this.role,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
       availableBalance:         availableBalance         ?? this.availableBalance,
       vendorUnallocatedBalance: vendorUnallocatedBalance ?? this.vendorUnallocatedBalance,
       escrowLockedBalance:      escrowLockedBalance      ?? this.escrowLockedBalance,
