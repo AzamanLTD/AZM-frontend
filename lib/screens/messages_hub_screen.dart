@@ -10,8 +10,9 @@ import 'package:azaman/screens/contacts_screen.dart';
 import 'package:azaman/providers/story_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
-
-
+import 'package:azaman/screens/story_creation_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 class PersonalChat {
   final String id;
   final String contactId;
@@ -48,6 +49,26 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   void initState() {
     super.initState();
     _fetchChats();
+  }
+
+  Future<void> _loadChats() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    // TODO: fetch personal chats
+    setState(() {
+      // _chats = [];
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _pickAndCreateStory() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null && mounted) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => StoryCreationScreen(mediaFile: File(image.path), isVideo: false),
+      ));
+    }
   }
 
   Future<void> _fetchChats() async {
@@ -384,17 +405,46 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             Consumer(builder: (context, ref, _) {
               final feed = ref.watch(storyFeedProvider);
               return feed.when(
-                data: (groups) => groups.isEmpty ? const SizedBox.shrink() : SizedBox(
+                data: (groups) => SizedBox(
                   height: 96,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: groups.length,
+                    itemCount: groups.length + 1,
                     itemBuilder: (_, i) {
-                      final g = groups[i];
+                      if (i == 0) {
+                        return GestureDetector(
+                          onTap: _pickAndCreateStory,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Column(children: [
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  StoryRing(avatarUrl: null, hasUnseenStory: false, isBoosted: false),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: colors.accent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: colors.surface, width: 2),
+                                    ),
+                                    child: const Icon(Icons.add, size: 16, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(width: 64, child: Text('My Status', maxLines: 1,
+                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                            ]),
+                          ),
+                        );
+                      }
+
+                      final g = groups[i - 1];
                       return GestureDetector(
                         onTap: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => StoryViewerScreen(groups: groups, initialGroupIndex: i))),
+                          builder: (_) => StoryViewerScreen(groups: groups, initialGroupIndex: i - 1))),
                         child: Padding(
                           padding: const EdgeInsets.only(right: 14),
                           child: Column(children: [

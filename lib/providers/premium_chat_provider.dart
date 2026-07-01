@@ -634,20 +634,6 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
   }
 
-  // ── RETRY FAILED MESSAGE ─────────────────────────────────────────────────
-  void retryMessage(String localId) {
-    final msg = state.messages.firstWhere(
-      (m) => m.localId == localId,
-      orElse: () => throw StateError('not found'));
-    _updateMessage(localId, (m) {
-      m.status = MessageStatus.sending; return m;
-    });
-    _emitSendEvent(localId, msg.text, msg.kind.name.toUpperCase(),
-      mediaUrl: msg.mediaUrl, mediaType: msg.mediaType,
-      replyToId: msg.replyToId, replyToText: msg.replyToText,
-      replyToSenderName: msg.replyToSenderName,
-    );
-  }
 
   // ── INTERNAL HELPERS ─────────────────────────────────────────────────────
   void _updateMessage(String localId, ChatMessage Function(ChatMessage) fn) {

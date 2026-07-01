@@ -48,9 +48,9 @@ class ContactService {
   }
  
   Future<List<MatchedContact>> syncDeviceContacts() async {
-    final permission = await FlutterContacts.requestPermission();
-    if (!permission) return [];
-    final deviceContacts = await FlutterContacts.getContacts(withProperties: true);
+    final status = await FlutterContacts.permissions.request(PermissionType.read);
+    if (status != PermissionStatus.granted) return [];
+    final deviceContacts = await FlutterContacts.getAll(properties: {ContactProperty.phone});
     final hashes = <String>{};
     for (final c in deviceContacts) {
       for (final p in c.phones) { hashes.add(_hashPhone(p.number)); }
