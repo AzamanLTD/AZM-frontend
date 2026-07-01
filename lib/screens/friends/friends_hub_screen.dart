@@ -9,7 +9,14 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
+import 'package:azaman/screens/contacts_screen.dart';
+import 'package:azaman/providers/story_provider.dart';
+import 'package:azaman/widgets/story_ring.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
+import 'package:azaman/screens/story_creation_screen.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -49,6 +56,16 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
 
   void _onSearchChanged(String query) {
     ref.read(friendProvider).searchUsers(query);
+  }
+
+  Future<void> _pickAndCreateStory() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null && mounted) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => StoryCreationScreen(mediaFile: File(image.path), isVideo: false),
+      ));
+    }
   }
 
   Future<void> _openRequestsSheet() async {
@@ -335,6 +352,24 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     ),
                   ),
                   GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.contacts_rounded,
+                        color: colors.textPrimary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
                     onTap: _openRequestsSheet,
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -348,7 +383,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           ),
                           alignment: Alignment.center,
                           child: Icon(
-                            HugeIconsStroke.userGroup,
+                            Icons.person_add_rounded,
                             color: colors.textPrimary,
                             size: 20,
                           ),
@@ -370,7 +405,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       _toggleSearch();
@@ -386,7 +421,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        _isSearching ? HugeIconsSolid.cancel01 : HugeIconsStroke.userGroup,
+                        _isSearching ? HugeIconsSolid.cancel01 : Icons.search_rounded,
                         color: _isSearching ? colors.accent : colors.textPrimary,
                         size: 20,
                       ),
@@ -395,6 +430,90 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 ],
               ),
             ),
+
+            if (!_isSearching) ...[
+              const SizedBox(height: 12),
+              Consumer(builder: (context, ref, _) {
+                final feed = ref.watch(storyFeedProvider);
+                final auth = ref.watch(authProvider);
+                final myAvatar = auth.user?.profilePictureUrl;
+                
+                Widget buildMyStatus() {
+                  return GestureDetector(
+                    onTap: _pickAndCreateStory,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: Column(children: [
+                        Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: colors.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: colors.surface, width: 2),
+                              ),
+                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(width: 64, child: Text('My Status', maxLines: 1,
+                          overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                      ]),
+                    ),
+                  );
+                }
+
+                return feed.when(
+                  data: (groups) => SizedBox(
+                    height: 96,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: groups.length + 1,
+                      itemBuilder: (_, i) {
+                        if (i == 0) return buildMyStatus();
+
+                        final g = groups[i - 1];
+                        return GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => StoryViewerScreen(groups: groups, initialGroupIndex: i - 1))),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Column(children: [
+                              StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted),
+                              const SizedBox(height: 6),
+                              SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
+                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  loading: () => SizedBox(
+                    height: 96,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [buildMyStatus()],
+                    ),
+                  ),
+                  error: (_, __) => SizedBox(
+                    height: 96,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [buildMyStatus()],
+                    ),
+                  ),
+                );
+              }),
+            ],
 
             if (_isSearching) ...[
               const SizedBox(height: 14),
