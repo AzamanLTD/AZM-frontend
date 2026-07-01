@@ -6,6 +6,10 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/personal_chat_interface.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/screens/contacts_screen.dart';
+import 'package:azaman/providers/story_provider.dart';
+import 'package:azaman/widgets/story_ring.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
 
 
 class PersonalChat {
@@ -298,6 +302,19 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     ),
                   ),
                   GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(20)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.contacts_outlined, color: colors.textPrimary, size: 16),
+                        const SizedBox(width: 6),
+                        Text('Contacts', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+                      ]),
+                    ),
+                  ),
+                  GestureDetector(
                     onTap: _showSearchUserDialog,
                     child: Container(
                       width: 40,
@@ -363,6 +380,39 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
               ),
             ),
 
+            const SizedBox(height: 12),
+            Consumer(builder: (context, ref, _) {
+              final feed = ref.watch(storyFeedProvider);
+              return feed.when(
+                data: (groups) => groups.isEmpty ? const SizedBox.shrink() : SizedBox(
+                  height: 96,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: groups.length,
+                    itemBuilder: (_, i) {
+                      final g = groups[i];
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => StoryViewerScreen(groups: groups, initialGroupIndex: i))),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: Column(children: [
+                            StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted),
+                            const SizedBox(height: 6),
+                            SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
+                              overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                              style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                loading: () => const SizedBox(height: 96),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            }),
             const SizedBox(height: 8),
 
             Expanded(

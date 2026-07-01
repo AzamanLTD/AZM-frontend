@@ -267,19 +267,22 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
           Positioned(
             right: (_locked ? widget.size : widget.size * 1.5) + 12,
             bottom: 0,
-            child: _RecordingStrip(
-              elapsed: _elapsed,
-              cancelling: _cancelling,
-              locked: _locked,
-              dragDx: _dragDx,
-              cancelThresholdDx: _cancelThresholdDx,
-              colors: colors,
-              onCancelRecording: () {
-                setState(() => _cancelling = true);
-                _stopAndCommit();
-              },
-              size: widget.size,
-              peaks: _peaks,
+            child: Transform.translate(
+              offset: Offset(_dragDx, 0),
+              child: _RecordingStrip(
+                elapsed: _elapsed,
+                cancelling: _cancelling,
+                locked: _locked,
+                dragDx: _dragDx,
+                cancelThresholdDx: _cancelThresholdDx,
+                colors: colors,
+                onCancelRecording: () {
+                  setState(() => _cancelling = true);
+                  _stopAndCommit();
+                },
+                size: widget.size,
+                peaks: _peaks,
+              ),
             ),
           ),
           
@@ -443,15 +446,10 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
   Widget build(BuildContext context) {
     final isCancelling = widget.cancelling;
     final baseColor = isCancelling ? widget.colors.danger : widget.colors.accent;
-    final screenW = MediaQuery.of(context).size.width;
-
-    final micSize = widget.locked ? widget.size : widget.size * 1.5;
-    // Available width = screen width - attachment button (38+8) - mic button area (micSize+12) - strip padding (28)
-    final availableW = screenW - 46 - micSize - 12 - 28;
 
     return Container(
       height: widget.size,
-      width: availableW.clamp(100, screenW * 0.7),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.55),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: widget.colors.surface,
@@ -476,10 +474,12 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
           ),
           const SizedBox(width: 12),
           // Live Continuous Waveform
-          Expanded(
+          Flexible(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final maxVisiblePeaks = (constraints.maxWidth / 5.0).floor();
+                // Ensure there is some width to draw waveform
+                final availableWidth = constraints.maxWidth > 0 ? constraints.maxWidth : 100.0;
+                final maxVisiblePeaks = (availableWidth / 5.0).floor();
                 final visiblePeaks = widget.peaks.length > maxVisiblePeaks
                     ? widget.peaks.sublist(widget.peaks.length - maxVisiblePeaks)
                     : widget.peaks;
@@ -487,6 +487,7 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
                 return ClipRect(
                   child: SizedBox(
                     height: 24,
+                    width: availableWidth,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.end,

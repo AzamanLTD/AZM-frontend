@@ -68,6 +68,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   final ChatContextParams _params;
   final _uuid = const Uuid();
   Timer? _typingTimer;
+  static const _ackTimeout = Duration(seconds: 7);
+  final Map<String, Timer> _ackTimers = {};
 
   PremiumChatNotifier(this._ref, this._params)
     : super(const PremiumChatState()) {
@@ -248,13 +250,29 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
     Map<String,dynamic>? linkPreview,
   }) {
+    // Ticket chat has NO socket send handler on the backend by design --
+    // authoritative writes are REST-only. Skip straight to HTTP.
+    if (_params.context == ChatContext.ticket) {
+      _sendViaHttp(localId, content, messageType, replyToId: replyToId,
+        replyToText: replyToText, replyToSenderName: replyToSenderName,
+        mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
+        mediaSize: mediaSize, mediaDuration: mediaDuration,
+        waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+      return;
+    }
+
     final socket = SocketService.instance.rawSocket;
     if (socket == null) {
-      _markFailed(localId); return;
+      _sendViaHttp(localId, content, messageType, replyToId: replyToId,
+        replyToText: replyToText, replyToSenderName: replyToSenderName,
+        mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
+        mediaSize: mediaSize, mediaDuration: mediaDuration,
+        waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+      return;
     }
+
     final base = {
-      'localId': localId, 'senderId': _myUserId,
-      'content': content, 'messageType': messageType,
+      'localId': localId, 'senderId': _myUserId, 'content': content, 'messageType': messageType,
       if (replyToId != null) 'replyToId': replyToId,
       if (replyToText != null) 'replyToText': replyToText,
       if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
@@ -266,6 +284,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
     };
+
     switch (_params.context) {
       case ChatContext.friend:
         socket.emit('send_friend_message', {
@@ -283,11 +302,109 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         });
         break;
       case ChatContext.ticket:
-        socket.emit('send_ticket_message', {
-          ...base, 'ticketId': _params.contextId,
-        });
         break;
     }
+
+    // Safety-net watchdog. Cancelled by _cancelAckTimer() the instant any
+    // ack-style event lands for this localId (message_ack, friend_message_saved,
+    // or the room broadcast echoing our own message back to us).
+    _ackTimers[localId]?.cancel();
+    _ackTimers[localId] = Timer(_ackTimeout, () {
+      _ackTimers.remove(localId);
+      final stillPending = state.messages.any(
+        (m) => m.localId == localId && m.status == MessageStatus.sending);
+      if (stillPending) {
+        _sendViaHttp(localId, content, messageType, replyToId: replyToId,
+          replyToText: replyToText, replyToSenderName: replyToSenderName,
+          mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
+          mediaSize: mediaSize, mediaDuration: mediaDuration,
+          waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+      }
+    });
+  }
+
+  void _cancelAckTimer(String localId) {
+    _ackTimers[localId]?.cancel();
+    _ackTimers.remove(localId);
+  }
+
+  Future<void> _sendViaHttp(String localId, String content, String messageType, {
+    String? replyToId, String? replyToText, String? replyToSenderName,
+    String? mediaUrl, String? mediaType, String? mediaMimeType,
+    int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
+    Map<String,dynamic>? linkPreview,
+  }) async {
+    final endpoint = _httpSendEndpoint();
+    if (endpoint == null) { _markFailed(localId); return; }
+
+    final Map<String, dynamic> bodyMap;
+    if (_params.context == ChatContext.group) {
+      bodyMap = {
+        'type': messageType, 'content': content,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (replyToText != null) 'replyToText': replyToText,
+        if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
+        if (mediaUrl != null) 'media': {
+          'url': mediaUrl, 'type': mediaType,
+          if (mediaMimeType != null) 'mimeType': mediaMimeType,
+          if (mediaSize != null) 'size': mediaSize,
+          if (mediaDuration != null) 'duration': mediaDuration,
+          if (waveformPeaks != null) 'waveformPeaks': waveformPeaks,
+          if (linkPreview != null) 'linkPreview': linkPreview,
+        },
+      };
+    } else {
+      bodyMap = {
+        'content': content, 'messageType': messageType,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (replyToText != null) 'replyToText': replyToText,
+        if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
+        if (mediaUrl != null) 'mediaUrl': mediaUrl,
+        if (mediaType != null) 'mediaType': mediaType,
+        if (mediaMimeType != null) 'mediaMimeType': mediaMimeType,
+        if (mediaSize != null) 'mediaSize': mediaSize,
+        if (mediaDuration != null) 'mediaDuration': mediaDuration,
+        if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
+        if (linkPreview != null) 'linkPreview': linkPreview,
+      };
+    }
+
+    try {
+      final res = await apiClient.post(endpoint, bodyMap);
+      if (res.statusCode != 200 && res.statusCode != 201) { _markFailed(localId); return; }
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map<String, dynamic>) { _markFailed(localId); return; }
+      final serverMsg = decoded['message'];
+      if (serverMsg is Map<String, dynamic>) {
+        final serverId = serverMsg['id']?.toString() ?? '';
+        final rawTs = serverMsg['createdAt'];
+        final ts = rawTs != null ? (DateTime.tryParse(rawTs.toString())?.toLocal() ?? DateTime.now()) : DateTime.now();
+        if (serverId.isNotEmpty) {
+          _updateMessage(localId, (m) => m.upgradeWithAck(serverId, ts));
+        } else { _markFailed(localId); }
+      } else { _markFailed(localId); }
+    } catch (_) { _markFailed(localId); }
+  }
+
+  String? _httpSendEndpoint() {
+    switch (_params.context) {
+      case ChatContext.friend: return '/friends/chat/${_params.contextId}/messages';
+      case ChatContext.group:  return '/groups/${_params.contextId}/messages';
+      case ChatContext.ticket: return '/tickets/${_params.contextId}/messages';
+      case ChatContext.trade:  return null;
+    }
+  }
+
+  void retryMessage(String localId) {
+    final idx = state.messages.indexWhere((m) => m.localId == localId);
+    if (idx == -1) return;
+    final msg = state.messages[idx];
+    _updateMessage(localId, (m) { m.status = MessageStatus.sending; return m; });
+    _emitSendEvent(localId, msg.text, msg.kind.name.toUpperCase(),
+      mediaUrl: msg.mediaUrl, mediaType: msg.mediaType,
+      replyToId: msg.replyToId, replyToText: msg.replyToText,
+      replyToSenderName: msg.replyToSenderName,
+    );
   }
 
   // ── SOCKET SUBSCRIPTIONS ────────────────────────────────────────────────
@@ -304,6 +421,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       final serverTs = ts != null
         ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
         : DateTime.now();
+      _cancelAckTimer(localId);
       _updateMessage(localId, (m) => m.upgradeWithAck(serverId, serverTs));
     });
 
@@ -316,6 +434,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       final serverTs = ts != null
         ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
         : DateTime.now();
+      _cancelAckTimer(localId);
       _updateMessage(localId, (m) => m.upgradeWithAck(serverId, serverTs));
     });
 
@@ -365,6 +484,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         );
         // De-dupe: if we already have this localId (our own optimistic echo), skip
         final localId = incoming.localId;
+        if (localId.isNotEmpty) _cancelAckTimer(localId);
         if (localId.isNotEmpty && state.messages.any((m) => m.localId == localId)) return;
         state = state.copyWith(messages: [incoming, ...state.messages]);
         // Auto-mark as read if this is our own chat screen
