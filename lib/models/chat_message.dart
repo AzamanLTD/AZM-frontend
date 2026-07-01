@@ -128,7 +128,7 @@ class ChatMessage {
 
     return ChatMessage(
       id:               json['id']?.toString() ?? '',
-      localId:          json['localId']?.toString() ?? json['id']?.toString() ?? '',
+      localId:          json['localId']?.toString() ?? json['tempId']?.toString() ?? json['id']?.toString() ?? '',
       senderId:         rawSenderId,
       senderUsername:   json['senderUsername']?.toString()
                         ?? json['sender']?['username']?.toString(),

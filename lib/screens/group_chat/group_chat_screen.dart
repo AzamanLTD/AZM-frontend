@@ -56,15 +56,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   bool _plusMenuOpen = false;
   bool _isTyping = false;
 
-  // Telegram recording states
-  final AudioRecorder _audioRecorder = AudioRecorder();
-  bool _isRecording = false;
-  bool _recordLocked = false;
-  int _recordDuration = 0;
-  Timer? _recordTimer;
-  Timer? _waveTimer;
-  double _recordingDragY = 0.0;
-  List<double> _waveformPeaks = [];
+
 
   @override
   void initState() {
@@ -82,7 +74,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _myUserId = ref.read(authProvider).user?.id?.toString();
-      SocketService.instance.rawSocket?.emit('join_group_chat', {
+      SocketService.instance.rawSocket?.emit('join_group', {
         'groupId': widget.groupId, 'userId': _myUserId,
       });
     });
@@ -94,9 +86,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _input.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
-    _recordTimer?.cancel();
-    _waveTimer?.cancel();
-    _audioRecorder.dispose();
     super.dispose();
   }
 
@@ -172,101 +161,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     setState(() => _showMentionPicker = false);
   }
 
-  Future<void> _startRecording() async {
-    try {
-      if (await _audioRecorder.hasPermission()) {
-        final dir = await getTemporaryDirectory();
-        final filename = 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
-        final path = '${dir.path}/$filename';
-
-        HapticFeedback.mediumImpact();
-        setState(() {
-          _isRecording = true;
-          _recordDuration = 0;
-          _recordLocked = false;
-          _recordingDragY = 0.0;
-          _waveformPeaks = List.generate(30, (_) => 0.1);
-        });
-
-        await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
-        
-        _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (mounted) setState(() => _recordDuration++);
-        });
-
-        _waveTimer = Timer.periodic(const Duration(milliseconds: 70), (timer) {
-          if (mounted) {
-            setState(() {
-              _waveformPeaks.removeAt(0);
-              _waveformPeaks.add(0.1 + math.Random().nextDouble() * 0.8);
-            });
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Start recording error: $e');
-    }
-  }
-
-  Future<void> _stopRecording({required bool send}) async {
-    _recordTimer?.cancel();
-    _waveTimer?.cancel();
-    final path = await _audioRecorder.stop();
-    setState(() => _isRecording = false);
-
-    if (send && path != null) {
-      _sendMessage(type: 'audio', mediaUrl: path, text: 'Voice note (${_formatDuration(_recordDuration)})');
-    }
-  }
-
-  String _formatDuration(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
   void _triggerReply(ChatMessage msg) {
     HapticFeedback.lightImpact();
     setState(() => _replyToMessage = msg);
   }
 
-  Future<void> _send() async {
-    final txt = _input.text.trim();
-    if (txt.isEmpty) return;
-    _input.clear();
-    await _sendMessage(text: txt, type: 'TEXT');
-  }
-
-  Future<void> _sendMessage({required String text, String? mediaUrl, String type = 'TEXT'}) async {
-    if (_sending) return;
-    setState(() => _sending = true);
-    
-    final metadata = {
-      if (_replyToMessage != null) 'replyToId': _replyToMessage!.id,
-      if (_replyToMessage != null) 'replyToText': _replyToMessage!.text,
-      if (_replyToMessage != null) 'replyToSenderName': _replyToMessage!.senderUsername ?? 'Member',
-    };
-
-    try {
-      await ref.read(groupActionsProvider).sendMessage(
-        widget.groupId,
-        content: text,
-        type: type,
-        media: mediaUrl,
-        metadata: metadata,
-      );
-      setState(() => _replyToMessage = null);
-      _scrollToBottom();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send message')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
+  // Legacy _send() and _sendMessage() have been removed. Sending is handled exclusively by PremiumChatInput via premiumChatProvider.
 
   @override
   Widget build(BuildContext context) {

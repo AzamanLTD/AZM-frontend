@@ -57,7 +57,7 @@ class PremiumChatState {
 }
 
 // ── Riverpod Provider ─────────────────────────────────────────────────────
-final premiumChatProvider = StateNotifierProvider.family<
+final premiumChatProvider = StateNotifierProvider.autoDispose.family<
   PremiumChatNotifier, PremiumChatState, ChatContextParams>(
   (ref, params) => PremiumChatNotifier(ref, params),
 );
@@ -78,13 +78,67 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _ref.read(authProvider).user?.id?.toString() ?? '';
 
   void _init() {
+    _joinRoom();
     loadMessages();
     _subscribeToSocket();
+  }
+
+  void _joinRoom() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
+    switch (_params.context) {
+      case ChatContext.friend:
+        socket.emit('join_friend_chat', {
+          'friendshipId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+      case ChatContext.group:
+        socket.emit('join_group', {
+          'groupId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+      case ChatContext.trade:
+        socket.emit('join_trade', {
+          'tradeId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+      case ChatContext.ticket:
+        socket.emit('join_ticket', {
+          'ticketId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+    }
+  }
+
+  void _leaveRoom() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
+    switch (_params.context) {
+      case ChatContext.friend:
+        socket.emit('leave_friend_chat', {
+          'friendshipId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+      case ChatContext.group:
+        socket.emit('leave_group', {
+          'groupId': _params.contextId,
+          'userId': _myUserId,
+        });
+        break;
+      default:
+        break;
+    }
   }
 
   @override
   void dispose() {
     _typingTimer?.cancel();
+    _leaveRoom();
     _unsubscribeFromSocket();
     super.dispose();
   }
@@ -111,7 +165,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, hasMore: false, errorMessage: e.toString());
     }
   }
 
@@ -195,7 +249,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     Map<String,dynamic>? linkPreview,
   }) {
     final socket = SocketService.instance.rawSocket;
-    if (socket == null || !socket.connected) {
+    if (socket == null) {
       _markFailed(localId); return;
     }
     final base = {
@@ -214,8 +268,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     };
     switch (_params.context) {
       case ChatContext.friend:
-        socket.emit('send_friend_message_v2', {
-          ...base, 'friendshipId': _params.contextId,
+        socket.emit('send_friend_message', {
+          ...base, 'friendshipId': _params.contextId, 'tempId': localId,
         });
         break;
       case ChatContext.trade:
@@ -245,6 +299,18 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     socket.on('message_ack', (data) {
       if (data is! Map) return;
       final localId  = data['localId']?.toString() ?? '';
+      final serverId = data['id']?.toString() ?? '';
+      final ts       = data['createdAt'];
+      final serverTs = ts != null
+        ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
+        : DateTime.now();
+      _updateMessage(localId, (m) => m.upgradeWithAck(serverId, serverTs));
+    });
+
+    // legacy friend_message_saved
+    socket.on('friend_message_saved', (data) {
+      if (data is! Map) return;
+      final localId  = data['tempId']?.toString() ?? '';
       final serverId = data['id']?.toString() ?? '';
       final ts       = data['createdAt'];
       final serverTs = ts != null

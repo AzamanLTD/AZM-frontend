@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -137,7 +138,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     setState(() => _isLoading = true);
     try {
       final auth = ref.read(authProvider);
-      final response = await apiClient.get('/chat/personal/${widget.chatId}/messages');
+      final response = await apiClient.get('/friends/chat/${widget.chatId}/messages');
 
       if (response.statusCode == 200 && mounted) {
         final data = jsonDecode(response.body);
@@ -510,7 +511,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       if (token == null) return;
 
       final response = await apiClient.post(
-        '/chat/personal/${widget.chatId}/transfer',
+        '/friends/chat/${widget.chatId}/transfer',
         {
           'amount': amount,
           'currency': 'AZM',
@@ -594,7 +595,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     _scrollToBottom();
 
     try {
-      final response = await apiClient.post('/chat/personal/${widget.chatId}/messages', {
+      final response = await apiClient.post('/friends/chat/${widget.chatId}/messages', {
         'text': text,
         if (mediaUrl != null) 'mediaUrl': mediaUrl,
         'type': type,
@@ -950,10 +951,19 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: colors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-              child: Text('TICKET', style: TextStyle(color: colors.accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            GestureDetector(
+              onTap: _showEscrowInstructions,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: colors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                child: Row(
+                  children: [
+                    Icon(Icons.confirmation_number_outlined, color: colors.accent, size: 12),
+                    const SizedBox(width: 4),
+                    Text('TICKET', style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(width: 6),
             GestureDetector(
@@ -1310,33 +1320,46 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               ),
               const SizedBox(width: 8),
 
-              // Dynamic recording indicator
-              if (_isRecording)
-                Expanded(
-                  child: _buildAudioRecordingBar(colors),
-                )
-              else
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(22)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _chatController,
-                      focusNode: _inputFocus,
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
-                      onSubmitted: (_) => _sendTextMessage(),
-                      decoration: InputDecoration(
-                        hintText: 'Message',
-                        hintStyle: TextStyle(color: colors.textTertiary, fontSize: 15, fontWeight: FontWeight.w500),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              // Text Field & Recording Strip Stack (Telegram-style overlay)
+              Expanded(
+                child: Stack(
+                  alignment: Alignment.centerRight,
+                  children: [
+                    // Always render the text field to preserve layout height and focus
+                    Opacity(
+                      opacity: _isRecording ? 0.0 : 1.0,
+                      child: IgnorePointer(
+                        ignoring: _isRecording,
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 120),
+                          decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(22)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: TextField(
+                            controller: _chatController,
+                            focusNode: _inputFocus,
+                            maxLines: null,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+                            onSubmitted: (_) => _sendTextMessage(),
+                            decoration: InputDecoration(
+                              hintText: 'Message',
+                              hintStyle: TextStyle(color: colors.textTertiary, fontSize: 15, fontWeight: FontWeight.w500),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    
+                    // Recording Strip overlay
+                    if (_isRecording)
+                      Positioned.fill(
+                        child: _buildAudioRecordingBar(colors),
+                      ),
+                  ],
                 ),
+              ),
               const SizedBox(width: 8),
 
               // Mic / Send button (Telegram Lock Audio Recorder with floating lock layout)
@@ -1480,7 +1503,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _plusTransactionBtn(colors, 'Escrow Agreement', HugeIconsSolid.securityCheck, Colors.amber, () {
+                child: _plusTransactionBtn(colors, 'Create Ticket', Icons.confirmation_number_outlined, Colors.amber, () {
                   setState(() => _plusMenuOpen = false);
                   _showEscrowInstructions();
                 }),
@@ -1575,7 +1598,18 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => Padding(
+                        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 40),
+                        child: TicketCreateSheet(friendshipId: widget.chatId),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
                     foregroundColor: Colors.white,

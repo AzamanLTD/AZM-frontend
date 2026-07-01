@@ -29,6 +29,7 @@ class PremiumChatInput extends ConsumerStatefulWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
   final VoidCallback? onTransfer;
+  final VoidCallback? onTickets;
 
   const PremiumChatInput({
     super.key,
@@ -40,6 +41,7 @@ class PremiumChatInput extends ConsumerStatefulWidget {
     this.controller,
     this.focusNode,
     this.onTransfer,
+    this.onTickets,
   });
 
   @override
@@ -144,6 +146,7 @@ class _State extends ConsumerState<PremiumChatInput> {
         onGallery:  () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
         onDocument: () { Navigator.pop(ctx); _pickDocument(); },
         onTransfer: widget.onTransfer == null ? null : () { Navigator.pop(ctx); widget.onTransfer!(); },
+        onTickets: widget.onTickets == null ? null : () { Navigator.pop(ctx); widget.onTickets!(); },
       ),
     );
   }
@@ -194,88 +197,110 @@ class _State extends ConsumerState<PremiumChatInput> {
         Container(
           color: c.surface,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            // Attach button
-            GestureDetector(
-              onTap: () => _showAttachMenu(context, c),
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: c.softSurface, shape: BoxShape.circle),
-                child: Icon(HugeIconsSolid.attachment01, size: 20, color: c.textSecondary)),
-            ),
-            const SizedBox(width: 8),
-            // Text field
-            Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 120),
-                child: TextField(
-                  controller: _ctrl,
-                  focusNode: _focus,
-                  maxLines: null,
-                  textInputAction: TextInputAction.newline,
-                  keyboardType: TextInputType.multiline,
-                  style: TextStyle(color: c.textPrimary, fontSize: 14.5),
-                  decoration: InputDecoration(
-                    hintText: 'Message',
-                    hintStyle: TextStyle(color: c.textTertiary, fontSize: 14.5),
-                    filled: true,
-                    fillColor: c.softSurface,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide.none),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide.none),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide.none),
+          child: Stack(
+            alignment: Alignment.centerRight,
+            clipBehavior: Clip.none,
+            children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                // Attach button
+                GestureDetector(
+                  onTap: () => _showAttachMenu(context, c),
+                  child: Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: c.softSurface, shape: BoxShape.circle),
+                    child: Icon(HugeIconsSolid.attachment01, size: 20, color: c.textSecondary)),
+                ),
+                const SizedBox(width: 8),
+                // Text field
+                Expanded(
+                  child: IgnorePointer(
+                    ignoring: _isRecording,
+                    child: Opacity(
+                      opacity: _isRecording ? 0.0 : 1.0,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 120),
+                        child: TextField(
+                          controller: _ctrl,
+                          focusNode: _focus,
+                          maxLines: null,
+                          textInputAction: TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
+                          style: TextStyle(color: c.textPrimary, fontSize: 14.5),
+                          decoration: InputDecoration(
+                            hintText: 'Message',
+                            hintStyle: TextStyle(color: c.textTertiary, fontSize: 14.5),
+                            filled: true,
+                            fillColor: c.softSurface,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Dummy spacing to maintain layout bounds for the floating button
+                const SizedBox(width: 40, height: 40),
+              ]),
+              
+              // The Send/Voice floating over the right side
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
+                  child: _hasText
+                    ? GestureDetector(
+                        key: const ValueKey('send'),
+                        onTap: _handleSend,
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: c.accent, shape: BoxShape.circle),
+                          child: const Icon(HugeIconsSolid.sent,
+                            size: 20, color: Colors.white)),
+                      )
+                    : AudioRecorderButton(
+                        key: const ValueKey('mic'),
+                        onRecordingStateChanged: (rec) {
+                          if (mounted) setState(() => _isRecording = rec);
+                        },
+                        onRecorded: (File file, int duration, List<int> peaks) async {
+                          setState(() => _isUploading = true);
+                          try {
+                            final r = await ChatMediaService.instance.uploadAudio(
+                              file, durationSeconds: duration, waveformPeaks: peaks);
+                            widget.onSendMedia(
+                              mediaUrl: r.url, mediaType: 'audio',
+                              messageType: 'AUDIO', mimeType: r.mimeType,
+                              duration: r.duration ?? duration,
+                              waveformPeaks: r.waveformPeaks ?? peaks);
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Voice upload failed.')));
+                          } finally {
+                            if (mounted) setState(() => _isUploading = false);
+                          }
+                        },
+                      ),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            // Send button or voice recorder
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              transitionBuilder: (child, anim) =>
-                ScaleTransition(scale: anim, child: child),
-              child: _hasText
-                ? GestureDetector(
-                    key: const ValueKey('send'),
-                    onTap: _handleSend,
-                    child: Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        color: c.accent, shape: BoxShape.circle),
-                      child: Icon(HugeIconsSolid.sent,
-                        size: 20, color: Colors.white)),
-                  )
-                : AudioRecorderButton(
-                    key: const ValueKey('mic'),
-                    onRecorded: (File file, int duration, List<int> peaks) async {
-                      setState(() => _isUploading = true);
-                      try {
-                        final r = await ChatMediaService.instance.uploadAudio(
-                          file, durationSeconds: duration, waveformPeaks: peaks);
-                        widget.onSendMedia(
-                          mediaUrl: r.url, mediaType: 'audio',
-                          messageType: 'AUDIO', mimeType: r.mimeType,
-                          duration: r.duration ?? duration,
-                          waveformPeaks: r.waveformPeaks ?? peaks);
-                      } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Voice upload failed.')));
-                      } finally {
-                        if (mounted) setState(() => _isUploading = false);
-                      }
-                    },
-                  ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ],
     );
@@ -289,9 +314,10 @@ class _AttachSheet extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onDocument;
   final VoidCallback? onTransfer;
+  final VoidCallback? onTickets;
 
   const _AttachSheet({required this.colors, required this.onCamera,
-    required this.onGallery, required this.onDocument, this.onTransfer});
+    required this.onGallery, required this.onDocument, this.onTransfer, this.onTickets});
 
   @override
   Widget build(BuildContext context) {
@@ -301,17 +327,20 @@ class _AttachSheet extends StatelessWidget {
         color: colors.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _SheetBtn(icon: HugeIconsSolid.camera01, label: 'Camera',
-            colors: colors, onTap: onCamera),
-          _SheetBtn(icon: HugeIconsSolid.image01, label: 'Gallery',
-            colors: colors, onTap: onGallery),
-          _SheetBtn(icon: HugeIconsSolid.folder01, label: 'Document',
-            colors: colors, onTap: onDocument),
-          if (onTransfer != null)
-            _SheetBtn(icon: Icons.attach_money, label: 'Transfer',
-              colors: colors, onTap: onTransfer!),
-        ]),
+        Wrap(
+          alignment: WrapAlignment.spaceEvenly,
+          spacing: 24,
+          runSpacing: 16,
+          children: [
+            _SheetBtn(icon: HugeIconsSolid.camera01, label: 'Camera', colors: colors, onTap: onCamera),
+            _SheetBtn(icon: HugeIconsSolid.image01, label: 'Gallery', colors: colors, onTap: onGallery),
+            _SheetBtn(icon: HugeIconsSolid.folder01, label: 'Document', colors: colors, onTap: onDocument),
+            if (onTransfer != null)
+              _SheetBtn(icon: HugeIconsStroke.moneySend01, label: 'Transfer', colors: colors, onTap: onTransfer!),
+            if (onTickets != null)
+              _SheetBtn(icon: Icons.confirmation_number_outlined, label: 'Tickets', colors: colors, onTap: onTickets!),
+          ],
+        ),
       ]),
     );
   }

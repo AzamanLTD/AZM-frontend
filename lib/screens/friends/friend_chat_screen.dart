@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -21,6 +22,7 @@ import 'package:azaman/providers/chat_trust_metrics_provider.dart';
 import 'package:azaman/screens/chat_profile_screen.dart';
 import 'package:azaman/screens/tickets/ticket_dashboard_screen.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
+import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/friend_service.dart';
@@ -78,14 +80,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   String? _ticketPresenceTicketId;
   Timer? _presenceTimeout;
 
-  IO.Socket? _socket;
   Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _setupSocket();
+    _setupSocketListeners();
     _markAsRead();
 
     // Phase UI-6 (2026-05-27): prime the persistent trust-metric line
@@ -113,11 +114,10 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     _scrollController.dispose();
     _typingTimer?.cancel();
     _presenceTimeout?.cancel();
-    _socket?.emit('leave_friend_chat', {'friendshipId': widget.friendshipId});
-    _socket?.off('friend_message');
-    _socket?.off('friend_typing');
-    _socket?.off('ticket_presence_update');
-    _socket?.off('ticket_status_changed');
+    final socket = SocketService.instance.rawSocket;
+    socket?.off('friend_typing');
+    socket?.off('ticket_presence_update');
+    socket?.off('ticket_status_changed');
     super.dispose();
   }
 
@@ -125,76 +125,12 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // SOCKET SETUP
   // ===========================================================================
 
-  void _setupSocket() {
-    final token = ref.read(authProvider).user?.token;
-    if (token == null) return;
-
-    _socket = IO.io(
-      AppConfig.socketUrl,
-      IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .setAuth({'token': token})
-          .disableAutoConnect()
-          .build(),
-    );
-
-    _socket!.connect();
-
-    // Join the friend chat room
-    _socket!.emit('join_friend_chat', {'friendshipId': widget.friendshipId});
-
-    // Listen for incoming messages
-    _socket!.on('friend_message', (data) {
-      if (data is Map<String, dynamic> &&
-          data['friendshipId']?.toString() == widget.friendshipId) {
-        // Phase 4.1 (Susu Sprint, 2026-05-31): only auto-scroll to bottom
-        // when the user is already within 50 logical pixels of it. If
-        // they're scrolled up reading older history, we preserve their
-        // position so the incoming message doesn't yank them away
-        // (Req 1.3 / 1.4). The ListView is reverse:true so "bottom" is
-        // pixels == 0 from the controller's perspective.
-        final wasNearBottom = _isNearBottom();
-
-        // De-dupe: if this echo matches an optimistic placeholder we
-        // inserted in _sendMessage, swap the placeholder for the real
-        // server row rather than rendering the same content twice.
-        final clientNonce =
-            (data['clientNonce'] ?? data['metadata']?['clientNonce'])?.toString();
-        bool replaced = false;
-        if (clientNonce != null) {
-          final idx = _messages.indexWhere(
-              (m) => m['clientNonce']?.toString() == clientNonce);
-          if (idx != -1) {
-            _messages[idx] = data;
-            replaced = true;
-          }
-        }
-
-        setState(() {
-          if (!replaced) _messages.insert(0, data);
-          _friendTyping = false;
-        });
-
-        if (wasNearBottom) _scrollToBottom();
-        _markAsRead();
-
-        // Phase UI-6: a TRANSFER_COMPLETED message means a PeerTransfer
-        // was just fulfilled — bump the trust counter without waiting
-        // for the next chat open. Cheap call (the BE endpoint is two
-        // counts and one row), so we don't worry about debouncing.
-        final type = (data['type'] ?? data['messageType'] ?? '')
-            .toString()
-            .toUpperCase();
-        if (type == 'TRANSFER_COMPLETED') {
-          ref
-              .read(chatTrustMetricsProvider(widget.friendshipId).notifier)
-              .refresh();
-        }
-      }
-    });
+  void _setupSocketListeners() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
 
     // Listen for typing indicator
-    _socket!.on('friend_typing', (data) {
+    socket.on('friend_typing', (data) {
       if (data is Map<String, dynamic> &&
           data['friendshipId']?.toString() == widget.friendshipId) {
         setState(() => _friendTyping = true);
@@ -210,7 +146,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     // friendship. We only react if the event is scoped to OUR friendship
     // and the user reported is NOT us (we shouldn't see our own banner).
     final myUserId = ref.read(authProvider).user?.id;
-    _socket!.on('ticket_presence_update', (data) {
+    socket.on('ticket_presence_update', (data) {
       if (!mounted) return;
       if (data is! Map<String, dynamic>) return;
       if (data['friendshipId']?.toString() != widget.friendshipId) return;
@@ -237,7 +173,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     // a CANCELLED → REOPENED → CLOSED cycle is legal and we don't want
     // to maintain that bookkeeping client-side. One refresh per status
     // change is cheap and always correct.
-    _socket!.on('ticket_status_changed', (data) {
+    socket.on('ticket_status_changed', (data) {
       if (!mounted) return;
       if (data is! Map<String, dynamic>) return;
       if (data['friendshipId']?.toString() != widget.friendshipId) return;
@@ -411,7 +347,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _emitTyping() {
-    _socket?.emit('typing_friend', {'friendshipId': widget.friendshipId});
+    SocketService.instance.rawSocket?.emit('typing_friend', {'friendshipId': widget.friendshipId});
   }
 
   // ===========================================================================
@@ -662,6 +598,16 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
             replyTo: _replyTo,
             onClearReply: () => setState(() => _replyTo = null),
             onTransfer: _openTransferModal,
+            onTickets: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => TicketCreateSheet(
+                  friendshipId: widget.friendshipId,
+                ),
+              );
+            },
             onSendText: (text) {
               ref.read(premiumChatProvider(params).notifier).sendTextMessage(
                 text,

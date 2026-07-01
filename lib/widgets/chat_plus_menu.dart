@@ -109,8 +109,8 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     }
     if (widget.onEscrowTap != null) {
       items.add(_MenuItem(
-        icon: Icons.key_outlined,
-        label: 'Escrow',
+        icon: Icons.receipt_long_rounded,
+        label: 'Ticket (Escrow)',
         onTap: () => _handleTap(widget.onEscrowTap),
       ));
     }

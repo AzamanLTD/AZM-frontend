@@ -52,6 +52,7 @@ class SocketService {
 
   io.Socket? _socket;
   WidgetRef? _ref;
+  bool _connecting = false;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // =========================================================================
@@ -185,9 +186,10 @@ class SocketService {
     String host = AppConfig.socketUrl;
     try {
       if (!kIsWeb && Platform.isAndroid) {
-        host = host
-            .replaceFirst('localhost', '10.0.2.2')
-            .replaceFirst('127.0.0.1', '10.0.2.2');
+        // Only replace 'localhost' (emulator pattern).
+        // Keep 127.0.0.1 as-is — physical devices use adb reverse
+        // which maps 127.0.0.1 on the device to the host machine.
+        host = host.replaceFirst('localhost', '10.0.2.2');
       }
     } catch (_) {
       // Platform.isAndroid throws on web; kIsWeb guard above prevents that
@@ -212,21 +214,27 @@ class SocketService {
   // Internal connect helpers
   // -------------------------------------------------------------------------
   Future<void> _connect() async {
-    if (_socket != null && (_socket!.connected)) return;
+    // Skip if a socket already exists or connection is in progress
+    if (_socket != null || _connecting) return;
+    _connecting = true;
 
     // Get token for authenticated socket connection
     final token = await _storage.read(key: 'auth_token');
 
+    final host = _resolvedHost;
+    debugPrint('[SocketService] _connect → host=$host, hasToken=${token != null && token.isNotEmpty}');
+
     _socket = io.io(
-      _resolvedHost,
+      host,
       io.OptionBuilder()
           .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
+          .enableForceNew()
+          .enableForceNewConnection()
           .setReconnectionAttempts(double.infinity)
           .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
           .setAuth({'token': token ?? ''})
-          .setExtraHeaders({'ngrok-skip-browser-warning': 'true'})
           .build(),
     );
 
@@ -234,20 +242,26 @@ class SocketService {
   }
 
   Future<void> _connectWithRef(Ref ref) async {
-    if (_socket != null && (_socket!.connected)) return;
+    // Skip if a socket already exists or connection is in progress
+    if (_socket != null || _connecting) return;
+    _connecting = true;
 
     final token = await _storage.read(key: 'auth_token');
 
+    final host = _resolvedHost;
+    debugPrint('[SocketService] _connectWithRef → host=$host, hasToken=${token != null && token.isNotEmpty}');
+
     _socket = io.io(
-      _resolvedHost,
+      host,
       io.OptionBuilder()
           .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
+          .enableForceNew()
+          .enableForceNewConnection()
           .setReconnectionAttempts(double.infinity)
           .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
           .setAuth({'token': token ?? ''})
-          .setExtraHeaders({'ngrok-skip-browser-warning': 'true'})
           .build(),
     );
 
@@ -568,22 +582,16 @@ class SocketService {
   void _attachCoreListenersPlainRef(Ref ref) {
     _socket!
       ..onConnect((_) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connected → $_resolvedHost (ID: ${_socket?.id})');
-        }
         for (final roomId in _joinedTradeRooms) {
           _socket?.emit('join_trade', roomId);
         }
       })
       ..onDisconnect((_) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Disconnected');
-        }
       })
       ..onConnectError((err) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connect error: $err');
-        }
       })
       ..on('balance_update', (data) {
         try {
@@ -742,6 +750,7 @@ class SocketService {
     _socket?.dispose();
     _socket = null;
     _ref = null;
+    _connecting = false;
     _joinedTradeRooms.clear();
     // Clear all registered callbacks
     _onAzmReward = null;

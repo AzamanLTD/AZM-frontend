@@ -15,6 +15,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'package:azaman/config.dart';
 import 'package:azaman/services/friend_service.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/providers/auth_provider.dart';
 
 class FriendProvider with ChangeNotifier {
@@ -47,19 +48,10 @@ class FriendProvider with ChangeNotifier {
   void _initSocket() {
     if (_socketInitialized) return;
 
-    final token = _token;
-    if (token == null) return;
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
 
-    _socket = IO.io(
-      AppConfig.socketUrl,
-      IO.OptionBuilder()
-          .setTransports(['polling', 'websocket'])
-          .setAuth({'token': token})
-          .disableAutoConnect()
-          .build(),
-    );
-
-    _socket!.connect();
+    _socket = socket;
     _socketInitialized = true;
 
     // Listen for real-time friend events
@@ -162,6 +154,7 @@ class FriendProvider with ChangeNotifier {
   Future<void> fetchFriends() async {
     final token = _token;
     if (token == null) return;
+    _initSocket();
 
     try {
       friends = await _service.getFriends(token);

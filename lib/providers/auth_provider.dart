@@ -28,6 +28,7 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
+import 'package:azaman/services/socket_service.dart';
 
 /// Discrete states for the auth machine. UI guards (router, splash, etc.)
 /// switch on this rather than checking nullable user fields.
@@ -156,6 +157,11 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       _error = null;
 
+      if (ref != null) {
+        SocketService.instance.disconnect();
+        SocketService.instance.initWithRef(ref!);
+      }
+
       // Seed `balanceDataProvider` from the fresh /auth/me payload so the
       // home hologram, AZM chip, and Available/Escrow pills render the real
       // values immediately on login, instead of sitting at $0.00 until the
@@ -218,6 +224,7 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     _status = AuthStatus.unauthenticated;
     _error = null;
+    SocketService.instance.disconnect();
     _publish();
   }
 
