@@ -325,14 +325,19 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      width: 40,
+                      height: 40,
                       margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(20)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.contacts_outlined, color: colors.textPrimary, size: 16),
-                        const SizedBox(width: 6),
-                        Text('Contacts', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ]),
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.contacts_rounded,
+                        color: colors.textPrimary,
+                        size: 18,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -346,7 +351,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        Icons.edit_outlined,
+                        Icons.person_add_rounded,
                         color: colors.textPrimary,
                         size: 18,
                       ),
@@ -404,6 +409,38 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             const SizedBox(height: 12),
             Consumer(builder: (context, ref, _) {
               final feed = ref.watch(storyFeedProvider);
+              final auth = ref.watch(authProvider);
+              final myAvatar = auth.user?.profilePictureUrl;
+              
+              Widget buildMyStatus() {
+                return GestureDetector(
+                  onTap: _pickAndCreateStory,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Column(children: [
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: colors.surface, width: 2),
+                            ),
+                            child: const Icon(Icons.add, size: 16, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(width: 64, child: Text('My Status', maxLines: 1,
+                        overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                    ]),
+                  ),
+                );
+              }
+
               return feed.when(
                 data: (groups) => SizedBox(
                   height: 96,
@@ -412,34 +449,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: groups.length + 1,
                     itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return GestureDetector(
-                          onTap: _pickAndCreateStory,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: Column(children: [
-                              Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  StoryRing(avatarUrl: null, hasUnseenStory: false, isBoosted: false),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: colors.accent,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: colors.surface, width: 2),
-                                    ),
-                                    child: const Icon(Icons.add, size: 16, color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(width: 64, child: Text('My Status', maxLines: 1,
-                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 11))),
-                            ]),
-                          ),
-                        );
-                      }
+                      if (i == 0) return buildMyStatus();
 
                       final g = groups[i - 1];
                       return GestureDetector(
@@ -459,8 +469,22 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     },
                   ),
                 ),
-                loading: () => const SizedBox(height: 96),
-                error: (_, __) => const SizedBox.shrink(),
+                loading: () => SizedBox(
+                  height: 96,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [buildMyStatus()],
+                  ),
+                ),
+                error: (_, __) => SizedBox(
+                  height: 96,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [buildMyStatus()],
+                  ),
+                ),
               );
             }),
             const SizedBox(height: 8),
