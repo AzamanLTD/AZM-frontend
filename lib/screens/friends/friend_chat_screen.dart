@@ -28,6 +28,11 @@ import 'package:azaman/screens/friends/transfer_modal.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
+import 'package:azaman/providers/premium_chat_provider.dart';
+import 'package:azaman/models/chat_message.dart';
+import 'package:azaman/widgets/premium_message_bubble.dart';
+import 'package:azaman/widgets/premium_chat_input.dart';
+import 'package:azaman/widgets/typing_indicator_bubble.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -47,6 +52,7 @@ class FriendChatScreen extends ConsumerStatefulWidget {
 }
 
 class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
+  ChatMessage? _replyTo;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FriendService _service = FriendService();
@@ -94,7 +100,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     });
 
     // Listen for scroll to load more
-    _scrollController.addListener(_onScroll);
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        ref.read(premiumChatProvider(ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId)).notifier).loadMessages(loadMore: true);
+      }
+    });
   }
 
   @override
@@ -542,58 +552,38 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
-    final myUserId = ref.read(authProvider).user?.id;
+    final c = ref.watch(themeProvider).colors;
+    final params = ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId);
+    final chatState = ref.watch(premiumChatProvider(params));
+    final myUserId = int.tryParse(ref.read(authProvider).user?.id?.toString() ?? '0') ?? 0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: colors.surface,
+        backgroundColor: c.surface,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: c.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: GestureDetector(
-          // Phase UI-5 (2026-05-26): tapping the title row (avatar +
-          // name) routes to the upgraded ChatProfileScreen with the
-          // identity tier + tabbed Media / Docs & Links / Tickets /
-          // Receipts vault.
           onTap: _openChatProfile,
           behavior: HitTestBehavior.opaque,
           child: Row(
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: colors.accent.withOpacity(0.2),
+                backgroundColor: c.accent.withOpacity(0.2),
                 child: Text(
-                  widget.friendUsername.isNotEmpty
-                      ? widget.friendUsername[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                  widget.friendUsername.isNotEmpty ? widget.friendUsername[0].toUpperCase() : '?',
+                  style: TextStyle(color: c.accent, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
               ),
               const SizedBox(width: 10),
-              // Phase UI-6: stack the username, a persistent trust line
-              // (⭐ rating · N Completed Transactions), and the verified
-              // vendor checkmark when applicable. Typing indicator
-              // briefly replaces the trust line while the friend is
-              // typing — a transient overlay rather than the only
-              // subtitle the row ever shows.
-              //
-              // Phase UI-7: tap the trust line to open the breakdown
-              // sheet (P2P / Transfers / Tickets). Tapping the username
-              // (or anywhere outside the trust line) still routes to
-              // the full Chat Profile screen via the GestureDetector
-              // above this Row.
               Expanded(
                 child: _ChatHeaderTitle(
                   friendshipId: widget.friendshipId,
                   username: widget.friendUsername,
-                  isFriendTyping: _friendTyping,
+                  isFriendTyping: _friendTyping || chatState.typingUserIds.isNotEmpty,
                   onTrustTapped: _showTrustBreakdown,
                 ),
               ),
@@ -601,585 +591,123 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           ),
         ),
         actions: [
-          // Phase UI-4 (2026-05-26): the legacy `swap_horiz_rounded`
-          // "Transfer" icon was REPLACED by the Ticket button. Send-money
-          // is still reachable in-chat via the input bar's `+` Send funds
-          // button (`_buildInputBar` below).
           IconButton(
-            icon: Icon(Icons.confirmation_number_outlined, color: colors.accent),
-            tooltip: 'Tickets',
-            onPressed: _openTicketDashboard,
+            icon: Icon(Icons.more_vert, color: c.textPrimary),
+            onPressed: _openChatProfile,
           ),
         ],
       ),
       body: Column(
         children: [
-          // Messages list
-          Expanded(
-            child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(color: colors.accent))
-                : _messages.isEmpty
-                    ? _buildEmptyState(colors)
-                    : ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final msg = _messages[index];
-                          final isMe =
-                              msg['senderId']?.toString() == myUserId?.toString();
-                          final type = (msg['type'] ?? msg['messageType'] ?? 'TEXT').toString().toUpperCase();
-
-                          if (type == 'TICKET_LINK') {
-                            return _buildTicketLinkBubble(msg, isMe, colors);
-                          }
-                          if (type.contains('TRANSFER')) {
-                            return _buildTransferBubble(msg, type, isMe, colors);
-                          }
-                          // Phase UI-3 + UI-POLISH: route IMAGE / VIDEO /
-                          // DOCUMENT / AUDIO / LINK messages through the
-                          // shared `ChatMediaBubble` so they render with
-                          // inline players, OG cards, doc icons, etc.
-                          if (const {
-                            'IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'LINK'
-                          }.contains(type)) {
-                            final payload =
-                                ChatMediaPayload.fromMessageJson(msg);
-                            return Align(
-                              alignment: isMe
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 4),
-                                child: ChatMediaBubble(
-                                    payload: payload, isMe: isMe),
-                              ),
-                            );
-                          }
-                          return _buildMessageBubble(msg, isMe, colors);
-                        },
-                      ),
-          ),
-
-          // Phase UI-4: Tickets Engine presence banner. Renders when the
-          // counterparty is currently viewing any ticket workspace under
-          // this friendship.
+          // Banner for ticket presence
           if (_ticketPresenceTicketId != null)
-            _buildTicketPresenceBanner(colors),
-
-          // Input bar
-          _buildInputBar(colors),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(AzamanColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat_bubble_outline,
-              size: 48, color: colors.textTertiary),
-          const SizedBox(height: 12),
-          Text(
-            'Start a conversation',
-            style: TextStyle(color: colors.textSecondary, fontSize: 16),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Say hello to ${widget.friendUsername}!',
-            style: TextStyle(color: colors.textTertiary, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // MESSAGE BUBBLES
-  // ===========================================================================
-
-  Widget _buildMessageBubble(
-      Map<String, dynamic> msg, bool isMe, AzamanColors colors) {
-    final content = msg['content'] ?? msg['message'] ?? '';
-    final time = _formatTime(msg['createdAt']);
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? colors.accent.withOpacity(0.15) : colors.card,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
-          ),
-          border: isMe
-              ? Border.all(color: colors.accent.withOpacity(0.3))
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(
-              content,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 14,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              time,
-              style: TextStyle(color: colors.textTertiary, fontSize: 10),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransferBubble(
-      Map<String, dynamic> msg, String type, bool isMe, AzamanColors colors) {
-    Color cardColor;
-    IconData icon;
-    String title;
-    String subtitle;
-    bool showActions = false;
-
-    final amount = msg['amount'] ?? msg['metadata']?['amount'] ?? 0;
-    final reference = msg['reference'] ?? msg['metadata']?['reference'] ?? '';
-    final transferId = msg['transferId']?.toString() ??
-        msg['metadata']?['transferId']?.toString() ??
-        '';
-
-    switch (type) {
-      case 'TRANSFER_SENT':
-        cardColor = colors.success;
-        icon = Icons.arrow_upward;
-        title = isMe ? 'You sent AZM $amount' : 'Received AZM $amount';
-        subtitle = reference.isNotEmpty ? reference : 'Direct transfer';
-        break;
-      case 'TRANSFER_REQUEST':
-        cardColor = colors.warning;
-        icon = Icons.note_outlined;
-        title = isMe
-            ? 'You requested AZM $amount'
-            : 'Requesting AZM $amount';
-        subtitle = reference.isNotEmpty ? reference : 'Fund request';
-        showActions = !isMe; // Show fulfill/decline for the recipient
-        break;
-      case 'TRANSFER_COMPLETED':
-        cardColor = colors.success;
-        icon = Icons.check_circle_outline;
-        title = 'Transfer completed — AZM $amount';
-        subtitle = 'Successfully fulfilled';
-        break;
-      case 'TRANSFER_DECLINED':
-        cardColor = colors.textTertiary;
-        icon = Icons.cancel_outlined;
-        title = 'Transfer declined — AZM $amount';
-        subtitle = 'Request was declined';
-        break;
-      default:
-        cardColor = colors.accent;
-        icon = Icons.swap_horiz;
-        title = 'Transfer — AZM $amount';
-        subtitle = reference;
-    }
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cardColor.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cardColor.withOpacity(0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: cardColor, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(color: colors.textSecondary, fontSize: 12),
-              ),
-            ],
-            if (showActions && transferId.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _fulfillTransfer(transferId),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.success,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Pay', style: TextStyle(fontSize: 13)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _declineTransfer(transferId),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colors.danger,
-                        side: BorderSide(color: colors.danger.withOpacity(0.5)),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child:
-                          const Text('Decline', style: TextStyle(fontSize: 13)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Text(
-                _formatTime(msg['createdAt']),
-                style: TextStyle(color: colors.textTertiary, fontSize: 10),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // TICKET LINK + PRESENCE BANNER (Phase UI-4)
-  // ===========================================================================
-
-  Widget _buildTicketLinkBubble(
-      Map<String, dynamic> msg, bool isMe, AzamanColors colors) {
-    final metadata = msg['metadata'] is Map<String, dynamic>
-        ? msg['metadata'] as Map<String, dynamic>
-        : <String, dynamic>{};
-    final ticketId = metadata['ticketId']?.toString();
-    final ticketName = metadata['ticketName']?.toString() ?? 'Ticket';
-    final ticketType = metadata['ticketType']?.toString() ?? 'BUY';
-    final ticketStatus =
-        (metadata['ticketStatus'] ?? 'OPEN').toString().toUpperCase();
-    final eventType =
-        (metadata['eventType'] ?? 'CREATED').toString().toUpperCase();
-    final amount = metadata['targetAmount']?.toString();
-    final currency = metadata['targetCurrency']?.toString() ?? '';
-
-    Color borderColor;
-    String headline;
-    switch (eventType) {
-      case 'CLOSED':
-        borderColor = colors.success;
-        headline = 'Ticket closed';
-        break;
-      case 'CANCELLED':
-        borderColor = colors.danger;
-        headline = 'Ticket cancelled';
-        break;
-      case 'REOPENED':
-        borderColor = colors.warning;
-        headline = 'Ticket reopened';
-        break;
-      default:
-        borderColor = colors.accent;
-        headline = 'New ticket';
-    }
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: ticketId == null ? null : () => _openTicket(ticketId),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-          ),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: borderColor.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor.withOpacity(0.45)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.confirmation_number_outlined,
-                      color: borderColor, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    headline.toUpperCase(),
-                    style: TextStyle(
-                      color: borderColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                ticketName,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$ticketType · ${amount ?? ''} $currency · $ticketStatus',
-                style: TextStyle(color: colors.textSecondary, fontSize: 11),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    'Open ticket',
-                    style: TextStyle(
-                      color: borderColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward,
-                      color: borderColor, size: 12),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTicketPresenceBanner(AzamanColors colors) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.confirmation_number_outlined,
-              color: colors.accent, size: 14),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${widget.friendUsername} is currently viewing the ticket window.',
-              style: TextStyle(
-                color: colors.accent,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // VOICE NOTES (Phase UI-POLISH)
-  // ===========================================================================
-
-  /// Called by `AudioRecorderButton` when the user releases a successful
-  /// recording. Uploads the file via `ChatMediaService.uploadAudio()`
-  /// then sends an AUDIO-typed message via the existing friend-chat
-  /// REST endpoint. Errors surface as a snackbar; local optimistic
-  /// state is cleared regardless.
-  Future<void> _onAudioRecorded(
-    File file,
-    int durationSeconds,
-    List<int> waveformPeaks,
-  ) async {
-    final colors = ref.read(themeProvider).colors;
-    final token = ref.read(authProvider).user?.token;
-    if (token == null) return;
-    setState(() => _isUploadingAudio = true);
-    try {
-      final uploaded = await ChatMediaService.instance.uploadAudio(
-        file,
-        durationSeconds: durationSeconds,
-        waveformPeaks: waveformPeaks,
-      );
-      // Reuse the existing friend-chat send endpoint with media fields.
-      // The BE persists every media column for AUDIO type and broadcasts
-      // through the same `friend_message` socket channel.
-      await _service.sendMessage(
-        widget.friendshipId,
-        '',
-        token,
-        messageType: 'AUDIO',
-        mediaUrl: uploaded.url,
-        mediaType: 'audio',
-        mediaMimeType: uploaded.mimeType,
-        mediaSize: uploaded.size,
-        mediaDuration: uploaded.duration ?? durationSeconds,
-        mediaWaveformPeaks: uploaded.waveformPeaks ?? waveformPeaks,
-      );
-      _loadMessages(); // pick up the new bubble + the server-emitted echo
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Voice note failed: $e'),
-          backgroundColor: colors.danger,
-        ));
-      }
-    } finally {
-      // Local recording file is in temp dir — leave it for the OS to
-      // garbage-collect; deleting now risks racing the upload's
-      // streamed read on slower phones.
-      if (mounted) setState(() => _isUploadingAudio = false);
-    }
-  }
-
-  // ===========================================================================
-  // INPUT BAR
-  // ===========================================================================
-
-  Widget _buildInputBar(AzamanColors colors) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 8,
-        top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(top: BorderSide(color: colors.divider)),
-      ),
-      child: Row(
-        children: [
-          // Transfer button
-          IconButton(
-            icon: Icon(Icons.attach_money, color: colors.accent),
-            onPressed: _openTransferModal,
-            tooltip: 'Send/Request funds',
-          ),
-
-          // Text field
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              style: TextStyle(color: colors.textPrimary, fontSize: 14),
-              maxLines: 4,
-              minLines: 1,
-              textCapitalization: TextCapitalization.sentences,
-              onChanged: (text) {
-                _emitTyping();
-                final isEmpty = text.trim().isEmpty;
-                if (_hasInputText == !isEmpty) return;
-                setState(() => _hasInputText = !isEmpty);
-              },
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                hintStyle: TextStyle(color: colors.textTertiary),
-                filled: true,
-                fillColor: colors.card,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                isDense: true,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Phase UI-POLISH (2026-05-26): when the text field is empty we
-          // surface the hold-to-record audio button INSTEAD of the send
-          // arrow (WhatsApp / iMessage parity). When the user starts
-          // typing, the send arrow re-appears.
-          if (!_hasInputText && !_isSending)
-            AudioRecorderButton(
-              disabled: _isUploadingAudio,
-              size: 38,
-              onRecorded: _onAudioRecorded,
-            )
-          else
-            // Send button
             Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent,
-              ),
-              child: IconButton(
-                icon: _isSending
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.isDark ? Colors.black : Colors.white,
-                        ),
-                      )
-                    : Icon(
-                        Icons.send_outlined,
-                        color: colors.isDark ? Colors.black : Colors.white,
-                        size: 20,
-                      ),
-                onPressed: _isSending ? null : _sendMessage,
+              color: c.accent.withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, color: c.accent, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${widget.friendUsername} is viewing a ticket workspace',
+                      style: TextStyle(color: c.accent, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TicketWorkspaceScreen(ticketId: _ticketPresenceTicketId!, friendUsername: widget.friendUsername))),
+                    style: TextButton.styleFrom(minimumSize: Size.zero, padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: Text('Join', style: TextStyle(color: c.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
             ),
+          
+          Expanded(
+            child: chatState.isLoading && chatState.messages.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  itemCount: chatState.messages.length + (chatState.hasMore ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (i == chatState.messages.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    final msg = chatState.messages[i];
+                    return PremiumMessageBubble(
+                      key: ValueKey(msg.localId),
+                      message: msg,
+                      myUserId: myUserId,
+                      showAvatar: false,
+                      showSenderName: false,
+                      onReply: (m) => setState(() => _replyTo = m),
+                      onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
+                      onEdit: (m) => _showEditDialog(context, c, m, params),
+                      onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
+                      onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
+                    );
+                  },
+                ),
+          ),
+          
+          if (chatState.typingUserIds.isNotEmpty)
+            TypingBubble(colors: c),
+            
+          PremiumChatInput(
+            replyTo: _replyTo,
+            onClearReply: () => setState(() => _replyTo = null),
+            onSendText: (text) {
+              ref.read(premiumChatProvider(params).notifier).sendTextMessage(
+                text,
+                replyToId: _replyTo?.id,
+                replyToText: _replyTo?.text,
+                replyToSenderName: _replyTo?.senderUsername,
+              );
+              setState(() => _replyTo = null);
+            },
+            onSendMedia: ({required mediaUrl, required mediaType, required messageType, mimeType, size, duration, waveformPeaks, linkPreview, caption}) {
+              ref.read(premiumChatProvider(params).notifier).sendMediaMessage(
+                mediaUrl: mediaUrl, mediaType: mediaType, messageType: messageType, mimeType: mimeType,
+                size: size, duration: duration, waveformPeaks: waveformPeaks, linkPreview: linkPreview, caption: caption,
+              );
+            },
+            onTypingChanged: (isTyping) => ref.read(premiumChatProvider(params).notifier).sendTyping(isTyping),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext ctx, AzamanColors c, ChatMessage msg, ChatContextParams params) {
+    final editCtrl = TextEditingController(text: msg.text);
+    showDialog(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        backgroundColor: c.card,
+        title: Text('Edit Message', style: TextStyle(color: c.textPrimary, fontSize: 16)),
+        content: TextField(
+          controller: editCtrl,
+          maxLines: null,
+          style: TextStyle(color: c.textPrimary),
+          decoration: InputDecoration(hintText: 'Edit your message', hintStyle: TextStyle(color: c.textTertiary)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: c.textTertiary))),
+          TextButton(
+            onPressed: () {
+              final newText = editCtrl.text.trim();
+              if (newText.isNotEmpty) {
+                ref.read(premiumChatProvider(params).notifier).editMessage(msg.id, newText);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text('Save', style: TextStyle(color: c.accent)),
+          ),
         ],
       ),
     );
