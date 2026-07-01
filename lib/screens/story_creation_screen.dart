@@ -35,9 +35,8 @@ class _StoryCreationScreenState extends ConsumerState<StoryCreationScreen> {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('${apiClient.baseUrl}/stories'),
+        Uri.parse('${ApiClient.baseUrl}/stories'),
       );
-      request.headers.addAll(apiClient.headers);
       
       request.files.add(await http.MultipartFile.fromPath('file', widget.mediaFile.path));
       
@@ -45,14 +44,13 @@ class _StoryCreationScreenState extends ConsumerState<StoryCreationScreen> {
         request.fields['caption'] = _captionController.text;
       }
       
-      // Assume linkedBizId is fetched from user state if _linkToStore is true
       if (_linkToStore) {
          // request.fields['linkedBizId'] = userProfile.businessProfileId;
       }
       
-      final response = await request.send();
+      final response = await apiClient.multipart('/stories', request);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = await response.stream.bytesToString();
+        final responseData = response.body;
         final boostAmount = int.tryParse(_boostAmountController.text) ?? 0;
         
         if (boostAmount > 0) {
