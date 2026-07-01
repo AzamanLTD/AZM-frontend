@@ -9,8 +9,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
-import 'package:azaman/widgets/notification_bell.dart';
-
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
