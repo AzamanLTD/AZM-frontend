@@ -45,6 +45,7 @@ import 'package:azaman/widgets/featured_products_section.dart';
 import 'package:azaman/widgets/image_lightbox.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/review_card.dart';
+import 'package:azaman/widgets/stacked_gallery_cards.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -775,38 +776,7 @@ class _BusinessProfileScreenState
           ],
           if (loc.galleryUrls.isNotEmpty) ...[
             const SizedBox(height: 10),
-            SizedBox(
-              height: 80,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: loc.galleryUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => GestureDetector(
-                  onTap: () => ImageLightbox.show(
-                    context,
-                    urls: loc.galleryUrls,
-                    initialIndex: i,
-                  ),
-                  child: Hero(
-                    tag: 'lightbox_${loc.galleryUrls[i]}',
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: loc.galleryUrls[i],
-                        width: 110,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(width: 110, color: colors.softSurface),
-                        errorWidget: (_, __, ___) =>
-                            Container(width: 110, color: colors.softSurface),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            StackedGalleryCards(urls: loc.galleryUrls, width: 110, height: 80),
           ],
           const SizedBox(height: 10),
           GestureDetector(

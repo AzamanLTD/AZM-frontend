@@ -74,9 +74,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _myUserId = ref.read(authProvider).user?.id?.toString();
-      SocketService.instance.rawSocket?.emit('join_group', {
-        'groupId': widget.groupId, 'userId': _myUserId,
-      });
     });
   }
 
@@ -101,16 +98,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     });
   }
 
-  void _simulateTypingIndicator() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _isTyping = true);
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _isTyping = false);
-        });
-      }
-    });
-  }
 
   void _onInputChanged() {
     final txt = _input.text;

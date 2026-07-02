@@ -90,16 +90,10 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     if (socket == null) return;
     switch (_params.context) {
       case ChatContext.friend:
-        socket.emit('join_friend_chat', {
-          'friendshipId': _params.contextId,
-          'userId': _myUserId,
-        });
+        SocketService.instance.joinFriendRoom(_params.contextId, _myUserId);
         break;
       case ChatContext.group:
-        socket.emit('join_group', {
-          'groupId': _params.contextId,
-          'userId': _myUserId,
-        });
+        SocketService.instance.joinGroupRoom(_params.contextId, _myUserId);
         break;
       case ChatContext.trade:
         socket.emit('join_trade', {
@@ -121,16 +115,10 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     if (socket == null) return;
     switch (_params.context) {
       case ChatContext.friend:
-        socket.emit('leave_friend_chat', {
-          'friendshipId': _params.contextId,
-          'userId': _myUserId,
-        });
+        SocketService.instance.leaveFriendRoom(_params.contextId, _myUserId);
         break;
       case ChatContext.group:
-        socket.emit('leave_group', {
-          'groupId': _params.contextId,
-          'userId': _myUserId,
-        });
+        SocketService.instance.leaveGroupRoom(_params.contextId, _myUserId);
         break;
       default:
         break;
@@ -179,7 +167,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       case ChatContext.trade:
         return '/chat/messages/${_params.contextId}$b';
       case ChatContext.group:
-        return '/groups/${_params.contextId}/messages$b';
+        return '/group-chats/${_params.contextId}/messages$b';
       case ChatContext.ticket:
         return '/tickets/${_params.contextId}/messages$b';
     }
@@ -287,7 +275,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
 
     switch (_params.context) {
       case ChatContext.friend:
-        socket.emit('send_friend_message', {
+        socket.emit('send_friend_message_v2', {
           ...base, 'friendshipId': _params.contextId, 'tempId': localId,
         });
         break;
@@ -389,7 +377,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   String? _httpSendEndpoint() {
     switch (_params.context) {
       case ChatContext.friend: return '/friends/chat/${_params.contextId}/messages';
-      case ChatContext.group:  return '/groups/${_params.contextId}/messages';
+      case ChatContext.group:  return '/group-chats/${_params.contextId}/messages';
       case ChatContext.ticket: return '/tickets/${_params.contextId}/messages';
       case ChatContext.trade:  return null;
     }

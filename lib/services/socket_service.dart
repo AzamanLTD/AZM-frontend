@@ -272,8 +272,17 @@ class SocketService {
   // TRADE ROOM MANAGEMENT
   // =========================================================================
 
+  /// Stored user ID to use for reconnect logic
+  String? _currentUserId;
+
   /// Track which trade rooms we've joined to avoid duplicate joins
   final Set<String> _joinedTradeRooms = {};
+  
+  /// Track which friend chat rooms we've joined to auto-rejoin on network flap
+  final Set<String> _joinedFriendRooms = {};
+
+  /// Track which group chat rooms we've joined to auto-rejoin on network flap
+  final Set<String> _joinedGroupRooms = {};
 
   /// Join a specific trade room. Idempotent — safe to call multiple times.
   void joinTradeRoom(String tradeId) {
@@ -301,11 +310,42 @@ class SocketService {
   }
 
   // -------------------------------------------------------------------------
+  // Friend Chat Room tracking
+  // -------------------------------------------------------------------------
+
+  void joinFriendRoom(String friendshipId, String userId) {
+    if (_joinedFriendRooms.contains(friendshipId)) return;
+    _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _joinedFriendRooms.add(friendshipId);
+  }
+
+  void leaveFriendRoom(String friendshipId, String userId) {
+    _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _joinedFriendRooms.remove(friendshipId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Group Chat Room tracking
+  // -------------------------------------------------------------------------
+
+  void joinGroupRoom(String groupId, String userId) {
+    if (_joinedGroupRooms.contains(groupId)) return;
+    _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
+    _joinedGroupRooms.add(groupId);
+  }
+
+  void leaveGroupRoom(String groupId, String userId) {
+    _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
+    _joinedGroupRooms.remove(groupId);
+  }
+
+  // -------------------------------------------------------------------------
   // Room management
   // -------------------------------------------------------------------------
 
   /// Join the user's personal balance + notification rooms
   void joinUserRoom(String userId) {
+    _currentUserId = userId;
     _socket?.emit('join_user_room', {'userId': userId});
     _socket?.emit('join_balance_room', userId);
     if (AppConfig.enableNetworkLogs) {
@@ -348,6 +388,12 @@ class SocketService {
           if (AppConfig.enableNetworkLogs) {
             debugPrint('[SocketService] Re-joined trade room: trade_$roomId');
           }
+        }
+        for (final roomId in _joinedFriendRooms) {
+          _socket?.emit('join_friend_chat', {'friendshipId': roomId, 'userId': _currentUserId});
+        }
+        for (final roomId in _joinedGroupRooms) {
+          _socket?.emit('join_group', {'groupId': roomId, 'userId': _currentUserId});
         }
       })
       ..onDisconnect((_) {
