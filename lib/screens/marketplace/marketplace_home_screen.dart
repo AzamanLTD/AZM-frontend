@@ -269,26 +269,15 @@ class _MarketplaceHomeScreenState
         bottom: false,
         child: Column(
           children: [
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.success.withOpacity(0.25))),
-              child: Row(children: [
-                Icon(Icons.shield_outlined, color: colors.success, size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: Text(
-                  "Every order is escrow-protected. Funds held safely until delivery.",
-                  style: TextStyle(color: colors.success, fontSize: 11, height: 1.4))),
-              ]),
-            ),
             _searchHeader(colors),
-            const SizedBox(height: 14),
-            _categoryCarousel(colors),
+            const SizedBox(height: 12),
+            // ── Hero: Primary category cards (Transit, Restaurants, Hotels) ──
+            _primaryCategoryHero(colors),
+            const SizedBox(height: 16),
+            // ── Section: Browse by category ──────────────────────────────────
+            _sectionHeader(colors, 'Browse by Category'),
             const SizedBox(height: 10),
-            _transitStrip(colors),
+            _categoryCarousel(colors),
             const SizedBox(height: 10),
             _controlBar(colors),
             const SizedBox(height: 6),
@@ -437,8 +426,6 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  // ── Category grid ───────────────────────────────────────────────────────────
-  // ── Category carousel (horizontal scroll, icon + label chips) ─────────────
   // ── Primary category hero (Transit, Restaurants, Hotels) ─────────────────
   Widget _primaryCategoryHero(AzamanColors colors) {
     final primaries = BusinessCategories.primary;
@@ -549,6 +536,8 @@ class _MarketplaceHomeScreenState
     );
   }
 
+  // ── Category grid ───────────────────────────────────────────────────────────
+  // ── Category carousel (horizontal scroll, icon + label chips) ─────────────
   Widget _categoryCarousel(AzamanColors colors) {
     final cats = BusinessCategories.withAll;
     return SizedBox(
@@ -618,6 +607,8 @@ class _MarketplaceHomeScreenState
       ),
     );
   }
+
+
 
   // ── Control bar (view toggle + sort + verified toggle + filter) ─────────────
   Widget _controlBar(AzamanColors colors) {
@@ -914,4 +905,330 @@ class _MarketplaceHomeScreenState
     );
   }
 
+  Widget _featuredCard(BusinessProfile b, AzamanColors colors) {
+    final cat = BusinessCategories.fromWire(b.category);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openBusiness(b),
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cat.color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: avatar + verified badge + category color accent
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cat.color.withOpacity(0.12),
+                    border: Border.all(color: cat.color.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    b.businessName.isNotEmpty
+                        ? b.businessName.substring(0, 1).toUpperCase()
+                        : 'B',
+                    style: TextStyle(
+                        color: cat.color,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              b.businessName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          if (b.isVerified) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.verified,
+                                size: 14, color: colors.success),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        cat.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: cat.color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            // Footer: rating + deals
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.softSurface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.star, size: 13, color: colors.warning),
+                  const SizedBox(width: 4),
+                  Text(b.averageRating.toStringAsFixed(1),
+                      style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Text('${b.completedEscrows} deals',
+                      style: TextStyle(
+                          color: colors.textTertiary, fontSize: 10.5)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _listShimmer(AzamanColors colors) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, __) => Container(
+        height: 92,
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  // ── MAP mode (nearby list + directions) ─────────────────────────────────────
+  Widget _mapMode(AzamanColors colors) {
+    if (_resolvingLocation) {
+      return Center(child: CircularProgressIndicator(color: colors.accent));
+    }
+    if (_position == null) {
+      return _locationPrompt(colors);
+    }
+
+    final state = ref.watch(nearbySearchProvider);
+    if (state.isLoading) return _listShimmer(colors);
+
+    var locations = [...state.locations];
+    if (_sort == _SortMode.nearest) {
+      locations.sort((a, b) =>
+          (a.distanceKm ?? 1e9).compareTo(b.distanceKm ?? 1e9));
+    }
+
+    if (locations.isEmpty) {
+      return AzamanEmptyState(
+        icon: Icons.location_on_outlined,
+        title: 'Nothing nearby',
+        subtitle: 'No business locations found within range. Try a wider search.',
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: colors.accentSurface,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.location_on_outlined,
+                  size: 15, color: colors.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${locations.length} nearby — tap a place to open it in Maps',
+                  style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            controller: _scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            itemCount: locations.length + (state.hasMore ? 1 : 0),
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, i) {
+              if (i >= locations.length) {
+                ref.read(nearbySearchProvider.notifier).loadMore();
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                );
+              }
+              return _nearbyCard(locations[i], colors);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nearbyCard(BusinessLocation loc, AzamanColors colors) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        AzamanHaptics.nav();
+        final uri = Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}');
+        launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) {
+          return false;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.divider),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.location_on_outlined,
+                  size: 20, color: colors.accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    loc.label.isNotEmpty ? loc.label : 'Branch',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    loc.address,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (loc.distanceKm != null)
+                  Text('${loc.distanceKm!.toStringAsFixed(1)} km',
+                      style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Icon(Icons.widgets_outlined,
+                    size: 16, color: colors.textTertiary),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _locationPrompt(AzamanColors colors) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_on_outlined, size: 48, color: colors.accent),
+            const SizedBox(height: 14),
+            Text(
+              'Find businesses near you',
+              style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _locationError ??
+                  'Share your location to see nearby business branches with distance and directions.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _resolveLocation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.location_on_outlined, size: 18),
+              label: const Text('Use my location',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -56,6 +56,17 @@ class _BusinessRegisterScreenState
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+
+  // Type-specific controllers
+  final _vehicleTypeCtrl = TextEditingController();
+  final _vehiclePlateCtrl = TextEditingController();
+  final _routeInfoCtrl = TextEditingController();
+  final _cuisineTypeCtrl = TextEditingController();
+  final _diningStyleCtrl = TextEditingController();
+  final _openingHoursCtrl = TextEditingController();
+  final _roomTypesCtrl = TextEditingController();
+  final _amenitiesCtrl = TextEditingController();
+  final _checkInTimeCtrl = TextEditingController();
   final _websiteCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -76,6 +87,16 @@ class _BusinessRegisterScreenState
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
+    
+    _vehicleTypeCtrl.dispose();
+    _vehiclePlateCtrl.dispose();
+    _routeInfoCtrl.dispose();
+    _cuisineTypeCtrl.dispose();
+    _diningStyleCtrl.dispose();
+    _openingHoursCtrl.dispose();
+    _roomTypesCtrl.dispose();
+    _amenitiesCtrl.dispose();
+    _checkInTimeCtrl.dispose();
     super.dispose();
   }
 
