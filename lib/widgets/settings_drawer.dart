@@ -299,7 +299,7 @@ class SettingsDrawer extends ConsumerWidget {
                         context,
                         Icons.storefront_outlined,
                         'My Business',
-                        'Store',
+                        'Dashboard',
                         colors,
                         destination: const BusinessDashboardScreen(),
                       ),

@@ -439,6 +439,116 @@ class _MarketplaceHomeScreenState
 
   // ── Category grid ───────────────────────────────────────────────────────────
   // ── Category carousel (horizontal scroll, icon + label chips) ─────────────
+  // ── Primary category hero (Transit, Restaurants, Hotels) ─────────────────
+  Widget _primaryCategoryHero(AzamanColors colors) {
+    final primaries = BusinessCategories.primary;
+    return SizedBox(
+      height: 120,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        itemCount: primaries.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) {
+          final cat = primaries[i];
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              AzamanHaptics.nav();
+              final idx = BusinessCategories.withAll.indexOf(cat);
+              setState(() => _categoryIndex = idx);
+              _fireSearch();
+            },
+            child: Container(
+              width: 160,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    cat.color.withOpacity(0.15),
+                    cat.color.withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: cat.color.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: cat.color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(cat.icon, color: cat.color, size: 22),
+                  ),
+                  const Spacer(),
+                  Text(
+                    cat.label,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (cat.subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      cat.subtitle!,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 10.5,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Section header with title and optional action ──────────────────────────
+  Widget _sectionHeader(AzamanColors colors, String title, {String? action}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (action != null)
+            Text(
+              action,
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _categoryCarousel(AzamanColors colors) {
     final cats = BusinessCategories.withAll;
     return SizedBox(
@@ -455,7 +565,6 @@ class _MarketplaceHomeScreenState
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
-              // Second tap on already-selected non-All chip: drill into subcategories
               if (i == _categoryIndex && i > 0) {
                 AzamanHaptics.nav();
                 Navigator.push(context, MaterialPageRoute(
@@ -471,79 +580,41 @@ class _MarketplaceHomeScreenState
               width: 80,
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: selected ? colors.accentSurface : colors.card,
+                color: selected
+                    ? cat.color.withOpacity(0.12)
+                    : colors.card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: selected ? colors.accent : colors.divider),
+                  color: selected
+                      ? cat.color.withOpacity(0.4)
+                      : colors.divider,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(cat.icon, size: 22,
-                      color: selected ? colors.accent : colors.textSecondary),
+                  Icon(
+                    cat.icon,
+                    size: 24,
+                    color: selected ? cat.color : colors.textSecondary,
+                  ),
                   const SizedBox(height: 6),
-                  Text(cat.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: selected ? colors.accent : colors.textTertiary,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    cat.label,
+                    style: TextStyle(
+                      color: selected ? cat.color : colors.textSecondary,
+                      fontSize: 10.5,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-
-  // ── Transit quick-link strip (Marketplace Overhaul 2026-07-02) ─────────────
-  Widget _transitStrip(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          AzamanHaptics.nav();
-          context.push('/marketplace/transit');
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colors.accent.withOpacity(0.25)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.directions_bus, color: colors.accent, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Transit & Transport',
-                        style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800)),
-                    Text('Book seats on scheduled trips',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 11)),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, color: colors.accent, size: 14),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -802,14 +873,34 @@ class _MarketplaceHomeScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Featured Businesses',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Featured Businesses',
+                  style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+              Row(
+                children: [
+                  Icon(Icons.shield_outlined,
+                      size: 13, color: colors.success),
+                  const SizedBox(width: 4),
+                  Text('Escrow Protected',
+                      style: TextStyle(
+                          color: colors.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 150,
+          height: 160,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -823,302 +914,4 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  Widget _featuredCard(BusinessProfile b, AzamanColors colors) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _openBusiness(b),
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.divider),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accentSurface,
-                  ),
-                  child: Text(
-                    b.businessName.isNotEmpty
-                        ? b.businessName.substring(0, 1).toUpperCase()
-                        : 'B',
-                    style: TextStyle(
-                        color: colors.accent,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800),
-                  ),
-                ),
-                const Spacer(),
-                if (b.isVerified)
-                  Icon(Icons.check_circle_outline,
-                      size: 16, color: colors.success),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              b.businessName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              b.categoryLabel,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Icon(Icons.star_outline, size: 13, color: colors.warning),
-                const SizedBox(width: 4),
-                Text(b.averageRating.toStringAsFixed(1),
-                    style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-                const Spacer(),
-                Text('${b.completedEscrows} deals',
-                    style: TextStyle(
-                        color: colors.textTertiary, fontSize: 10.5)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _listShimmer(AzamanColors colors) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => Container(
-        height: 92,
-        decoration: BoxDecoration(
-          color: colors.softSurface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    );
-  }
-
-  // ── MAP mode (nearby list + directions) ─────────────────────────────────────
-  Widget _mapMode(AzamanColors colors) {
-    if (_resolvingLocation) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
-    }
-    if (_position == null) {
-      return _locationPrompt(colors);
-    }
-
-    final state = ref.watch(nearbySearchProvider);
-    if (state.isLoading) return _listShimmer(colors);
-
-    var locations = [...state.locations];
-    if (_sort == _SortMode.nearest) {
-      locations.sort((a, b) =>
-          (a.distanceKm ?? 1e9).compareTo(b.distanceKm ?? 1e9));
-    }
-
-    if (locations.isEmpty) {
-      return AzamanEmptyState(
-        icon: Icons.location_on_outlined,
-        title: 'Nothing nearby',
-        subtitle: 'No business locations found within range. Try a wider search.',
-      );
-    }
-
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.accentSurface,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.location_on_outlined,
-                  size: 15, color: colors.accent),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${locations.length} nearby — tap a place to open it in Maps',
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            controller: _scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-            itemCount: locations.length + (state.hasMore ? 1 : 0),
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, i) {
-              if (i >= locations.length) {
-                ref.read(nearbySearchProvider.notifier).loadMore();
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                );
-              }
-              return _nearbyCard(locations[i], colors);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _nearbyCard(BusinessLocation loc, AzamanColors colors) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        AzamanHaptics.nav();
-        final uri = Uri.parse(
-            'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}');
-        launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) {
-          return false;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.divider),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.accentSurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.location_on_outlined,
-                  size: 20, color: colors.accent),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    loc.label.isNotEmpty ? loc.label : 'Branch',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    loc.address,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (loc.distanceKm != null)
-                  Text('${loc.distanceKm!.toStringAsFixed(1)} km',
-                      style: TextStyle(
-                          color: colors.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800)),
-                const SizedBox(height: 4),
-                Icon(Icons.widgets_outlined,
-                    size: 16, color: colors.textTertiary),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _locationPrompt(AzamanColors colors) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.location_on_outlined, size: 48, color: colors.accent),
-            const SizedBox(height: 14),
-            Text(
-              'Find businesses near you',
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _locationError ??
-                  'Share your location to see nearby business branches with distance and directions.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton.icon(
-              onPressed: _resolveLocation,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              icon: const Icon(Icons.location_on_outlined, size: 18),
-              label: const Text('Use my location',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
