@@ -60,6 +60,10 @@ import 'package:azaman/screens/marketplace/my_orders_screen.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
+import 'package:azaman/screens/marketplace/checkin_qr_screen.dart';
+import 'package:azaman/screens/marketplace/business_checkin_screen.dart';
+import 'package:azaman/screens/marketplace/transit_trip_list_screen.dart';
+import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
 
@@ -244,8 +248,32 @@ final GoRouter appRouter = GoRouter(
     // literal sub-routes (search / register / notifications / :bizId/products)
     // win over it.
     GoRoute(
+      path: '/marketplace/booking/checkin-qr/:reservationId',
+      name: 'checkin-qr',
+      builder: (context, state) => CheckInQrScreen(
+        reservationId: state.pathParameters['reservationId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/marketplace/business/checkin',
+      name: 'business-checkin',
+      builder: (context, state) => const BusinessCheckInScreen(),
+    ),
+    GoRoute(
+      path: '/marketplace/transit',
+      name: 'transit-trips',
+      builder: (context, state) => const TransitTripListScreen(),
+    ),
+    GoRoute(
+      path: '/marketplace/transit/:tripId/seats',
+      name: 'transit-seat-selection',
+      builder: (context, state) => TransitSeatSelectionScreen(
+        tripId: state.pathParameters['tripId']!,
+      ),
+    ),
+    GoRoute(
       path: '/business-market',
-      name: 'business-market',
+      name: 'business-market-home',
       builder: (_, __) => const MarketplaceHomeScreen(),
     ),
     GoRoute(

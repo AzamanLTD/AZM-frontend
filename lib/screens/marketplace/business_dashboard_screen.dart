@@ -20,6 +20,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
@@ -266,10 +267,18 @@ class _BusinessDashboardScreenState
         Icons.storefront_outlined,
         () => _loadDashboard(),
       ),
+      (
+        'Check-In',
+        Icons.qr_code_scanner,
+        () => context.push('/marketplace/business/checkin'),
+      ),
     ];
-    return Row(
+    return Wrap(
+      spacing: 4,
+      runSpacing: 12,
       children: actions
-          .map((a) => Expanded(
+          .map((a) => SizedBox(
+                width: (MediaQuery.of(context).size.width - 48) / 4.5,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {

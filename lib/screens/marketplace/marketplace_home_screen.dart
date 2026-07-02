@@ -33,6 +33,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/category_drilldown_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
@@ -287,6 +288,8 @@ class _MarketplaceHomeScreenState
             const SizedBox(height: 14),
             _categoryCarousel(colors),
             const SizedBox(height: 10),
+            _transitStrip(colors),
+            const SizedBox(height: 10),
             _controlBar(colors),
             const SizedBox(height: 6),
             Expanded(
@@ -491,6 +494,56 @@ class _MarketplaceHomeScreenState
             ),
           );
         },
+      ),
+    );
+  }
+
+  // ── Transit quick-link strip (Marketplace Overhaul 2026-07-02) ─────────────
+  Widget _transitStrip(AzamanColors colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          AzamanHaptics.nav();
+          context.push('/marketplace/transit');
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: colors.accent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.accent.withOpacity(0.25)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: colors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.directions_bus, color: colors.accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Transit & Transport',
+                        style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800)),
+                    Text('Book seats on scheduled trips',
+                        style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: colors.accent, size: 14),
+            ],
+          ),
+        ),
       ),
     );
   }
