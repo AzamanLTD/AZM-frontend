@@ -178,3 +178,50 @@ final checkInActionProvider =
 );
 
 
+
+  // Load business detail with products (rooms/menu) and showcase
+  Future<void> loadBusinessDetail(String bizId) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final result = await _service.fetchBusinessDetail(bizId);
+      state = state.copyWith(
+        isLoading: false,
+        business: result.business,
+        products: result.products,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Create hotel reservation with escrow
+  Future<dynamic> createHotelReservation({
+    required String bizId,
+    required DateTime checkIn,
+    required DateTime checkOut,
+    required String productId,
+  }) async {
+    final booking = await _service.createReservation(
+      bizId: bizId,
+      checkIn: checkIn,
+      checkOut: checkOut,
+      productId: productId,
+    );
+    return booking;
+  }
+
+  // Load dine-in tab
+  Future<void> loadDineInTab(String tabId) async {
+    try {
+      final tab = await _service.fetchDineInTab(tabId);
+      // state = state.copyWith(dineInTab: tab); // Assuming dineInTab property was added to state
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  // Confirm and pay dine-in tab
+  Future<void> confirmDineInTab(String tabId) async {
+    await _service.confirmDineInTab(tabId);
+  }
+}
