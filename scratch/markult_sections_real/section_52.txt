@@ -1,0 +1,94 @@
+Section 52: GAP FIX 2 — Transit QR Generate ✅ RESOLVED (1 test verifies)
+✅ RESOLVED. generateTransitCheckInToken() has been implemented in qrCheckInService.js. Uses trip.departureAt (not scheduledAt — corrected during implementation). Token valid 1 hour before/after departure. Includes seat IDs and origin/destination in payload. Test 7.4 verifies the full flow: create vehicle → create trip → create booking → generate token → verify token contains correct data.
+
+See Section 10 for the actual implemented code.
+The existing file already contains generateCheckInToken. The reviewer flagged that the document only showed the verify function. Here is the COMPLETE generate function that already exists in the codebase, plus the transit extension needed.
+EXISTING generate function (already in codebase):
+// EXISTING — already in qrCheckInService.js
+const generateCheckInToken = async (prisma, { reservationId, customerId }) => {
+    if (!reservationId) throw new Error('reservationId is required.');
+    if (!customerId) throw new Error('customerId is required.');
+
+    const reservation = await prisma.reservation.findUnique({
+        where: { id: reservationId },
+        include: { escrow: true, businessProfile: true },
+    });
+    if (!reservation) throw new Error('Reservation not found.');
+    if (reservation.customerId !== customerId)
+        throw new Error('Not authorized — reservation does not belong to this customer.');
+    if (reservation.status !== 'CONFIRMED')
+        throw new Error(`Reservation is ${reservation.status}, must be CONFIRMED.`);
+    if (!reservation.escrow || reservation.escrow.status !== 'FUNDED')
+        throw new Error('Escrow is not funded. Cannot generate check-in token.');
+
+    const azaman = await prisma.azamanIdentity.findFirst({
+        where: { userId: customerId, status: 'ACTIVE' },
+    });
+    if (!azaman) throw new Error('No active AZM identity for customer.');
+
+    const payload = {
+        rid: reservationId,
+        cid: customerId,
+        aid: azaman.azamanId,
+        ts: Date.now(),
+    };
+    const token = _signToken(payload, TOKEN_TTL_MINUTES);
+    return {
+        token,
+        qrData: JSON.stringify({ t: token, v: 1 }),
+        expiresIn: TOKEN_TTL_MINUTES * 60,
+        businessName: reservation.businessProfile?.businessName,
+        reservationDate: reservation.startDatetime,
+    };
+};
+NEW: Add transit-specific QR generation (transit bookings also need customer-side QR):
+// ADD to qrCheckInService.js
+const generateTransitCheckInToken = async (prisma, { transitBookingId, customerId }) => {
+    if (!transitBookingId) throw new Error('transitBookingId is required.');
+    if (!customerId) throw new Error('customerId is required.');
+
+    const booking = await prisma.transitBooking.findUnique({
+        where: { id: transitBookingId },
+        include: { trip: { include: { businessProfile: true } }, escrow: true },
+    });
+    if (!booking) throw new Error('Transit booking not found.');
+    if (booking.customerId !== customerId)
+        throw new Error('Not authorized — booking does not belong to this customer.');
+    if (booking.status !== 'CONFIRMED')
+        throw new Error(`Booking is ${booking.status}, must be CONFIRMED.`);
+    if (!booking.escrow || booking.escrow.status !== 'FUNDED')
+        throw new Error('Escrow is not funded. Cannot generate boarding token.');
+
+    const azaman = await prisma.azamanIdentity.findFirst({
+        where: { userId: customerId, status: 'ACTIVE' },
+    });
+    if (!azaman) throw new Error('No active AZM identity for customer.');
+
+    const payload = {
+        rid: transitBookingId, // reuse "rid" field for booking ID
+        cid: customerId,
+        aid: azaman.azamanId,
+        ts: Date.now(),
+        type: 'TRANSIT', // distinguish from reservation
+        seats: booking.seatNumbers,
+    };
+    const token = _signToken(payload, TOKEN_TTL_MINUTES);
+    return {
+        token,
+        qrData: JSON.stringify({ t: token, v: 1 }),
+        expiresIn: TOKEN_TTL_MINUTES * 60,
+        businessName: booking.trip?.businessProfile?.businessName,
+        route: booking.trip?.routeLabel,
+        departureTime: booking.trip?.scheduledAt,
+        seatNumbers: booking.seatNumbers,
+    };
+};
+
+module.exports = {
+    generateCheckInToken,
+    generateTransitCheckInToken, // NEW export
+    verifyAndCheckIn,
+    searchByAzamanId,
+    transitCheckIn,
+};
+

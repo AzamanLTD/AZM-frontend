@@ -38,6 +38,8 @@ import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/business_card.dart';
+import 'package:azaman/widgets/category_filter_panel.dart';
+import 'package:azaman/widgets/collapsible_business_bar.dart';
 
 enum _ViewMode { list, map }
 
@@ -73,6 +75,7 @@ class _MarketplaceHomeScreenState
   Timer? _debounce;
 
   int _categoryIndex = 0; // 0 == All
+  List<String> _selectedCategories = [];
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
   bool _verifiedOnly = false;
@@ -101,11 +104,21 @@ class _MarketplaceHomeScreenState
   }
 
   // ── Query plumbing ─────────────────────────────────────────────────────────
-  String? get _activeCategory =>
-      _categoryIndex == 0 ? null : BusinessCategories.withAll[_categoryIndex].wire;
+  String? get _activeCategory {
+    if (_selectedCategories.isNotEmpty) {
+      if (_selectedCategories.length == 1) {
+        return _selectedCategories.first;
+      }
+      return null;
+    }
+    return _categoryIndex == 0 ? null : BusinessCategories.withAll[_categoryIndex].wire;
+  }
 
   bool get _isIdle =>
-      _searchCtrl.text.trim().isEmpty && _categoryIndex == 0 && !_verifiedOnly;
+      _searchCtrl.text.trim().isEmpty &&
+      _categoryIndex == 0 &&
+      _selectedCategories.isEmpty &&
+      !_verifiedOnly;
 
   void _onScroll() {
     if (_viewMode == _ViewMode.list) {
@@ -223,6 +236,9 @@ class _MarketplaceHomeScreenState
       if ((_filters.verifiedOnly || _verifiedOnly) && !b.isVerified) {
         return false;
       }
+      if (_selectedCategories.isNotEmpty && !_selectedCategories.contains(b.category)) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -294,135 +310,177 @@ class _MarketplaceHomeScreenState
 
   // ── Search header ───────────────────────────────────────────────────────────
   Widget _searchHeader(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 46,
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: _onQueryChanged,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _fireSearch(),
-                style: TextStyle(color: colors.textPrimary, fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'Search businesses, services, products…',
-                  hintStyle:
-                      TextStyle(color: colors.textTertiary, fontSize: 14),
-                  prefixIcon: Icon(Icons.search,
-                      size: 19, color: colors.textTertiary),
-                  suffixIcon: _searchCtrl.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: Icon(Icons.cancel_outlined,
-                              size: 18, color: colors.textTertiary),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            _fireSearch();
-                            setState(() {});
-                          },
-                        ),
-                  filled: true,
-                  fillColor: colors.card,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.accent),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  showGeneralDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    barrierLabel: 'Categories',
+                    barrierColor: Colors.black54,
+                    pageBuilder: (_, __, ___) => CategoryFilterPanel(
+                      selectedCategories: _selectedCategories,
+                      onApply: (cats) {
+                        setState(() => _selectedCategories = cats);
+                        _fireSearch();
+                      },
+                    ),
+                  );
+                },
+                icon: Icon(Icons.tune, color: colors.textSecondary),
+              ),
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: _onQueryChanged,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _fireSearch(),
+                    style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: _selectedCategories.isNotEmpty
+                          ? 'Search in ${_selectedCategories.length} categor${_selectedCategories.length == 1 ? "y" : "ies"}'
+                          : 'Search businesses, services...',
+                      hintStyle:
+                          TextStyle(color: colors.textTertiary, fontSize: 14),
+                      prefixIcon: Icon(Icons.search,
+                          size: 19, color: colors.textTertiary),
+                      suffixIcon: _searchCtrl.text.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: Icon(Icons.cancel_outlined,
+                                  size: 18, color: colors.textTertiary),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                _fireSearch();
+                                setState(() {});
+                              },
+                            ),
+                      filled: true,
+                      fillColor: colors.card,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.divider),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.divider),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.accent),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Filter
-          GestureDetector(
-            onTap: _openFilters,
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: !_filters.isEmpty ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: !_filters.isEmpty ? colors.accent : colors.divider,
+              const SizedBox(width: 8),
+              // Filter
+              GestureDetector(
+                onTap: _openFilters,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: !_filters.isEmpty ? colors.accentSurface : colors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: !_filters.isEmpty ? colors.accent : colors.divider,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.filter_list,
+                    size: 20,
+                    color: !_filters.isEmpty ? colors.accent : colors.textSecondary,
+                  ),
                 ),
               ),
-              child: Icon(
-                Icons.filter_list,
-                size: 20,
-                color: !_filters.isEmpty ? colors.accent : colors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () {
-              AzamanHaptics.nav();
-              _resolveLocation();
-            },
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _position != null ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _position != null ? colors.accent : colors.divider,
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  AzamanHaptics.nav();
+                  _resolveLocation();
+                },
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _position != null ? colors.accentSurface : colors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _position != null ? colors.accent : colors.divider,
+                    ),
+                  ),
+                  child: _resolvingLocation
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: colors.accent),
+                        )
+                      : Icon(Icons.location_on_outlined,
+                          size: 20,
+                          color: _position != null
+                              ? colors.accent
+                              : colors.textSecondary),
                 ),
               ),
-              child: _resolvingLocation
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: colors.accent),
-                    )
-                  : Icon(Icons.location_on_outlined,
-                      size: 20,
-                      color: _position != null
-                          ? colors.accent
-                          : colors.textSecondary),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Saved businesses (wishlist) — Marketplace Premium Upgrade.
-          GestureDetector(
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SavedBusinessesScreen()),
-              );
-            },
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: colors.divider),
+              const SizedBox(width: 10),
+              // Saved businesses (wishlist) — Marketplace Premium Upgrade.
+              GestureDetector(
+                onTap: () {
+                  AzamanHaptics.nav();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SavedBusinessesScreen()),
+                  );
+                },
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colors.divider),
+                  ),
+                  child: Icon(Icons.bookmark_outline,
+                      size: 20, color: colors.textSecondary),
+                ),
               ),
-              child: Icon(Icons.bookmark_outline,
-                  size: 20, color: colors.textSecondary),
+            ],
+          ),
+        ),
+        if (_selectedCategories.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
+            child: Wrap(
+              spacing: 6,
+              children: _selectedCategories.map((cat) => Chip(
+                label: Text(cat, style: const TextStyle(fontSize: 11)),
+                deleteIcon: const Icon(Icons.close, size: 14),
+                onDeleted: () {
+                  setState(() => _selectedCategories.remove(cat));
+                  _fireSearch();
+                },
+                backgroundColor: colors.accent.withOpacity(0.1),
+                side: BorderSide(color: colors.accent.withOpacity(0.3)),
+              )).toList(),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -869,7 +927,7 @@ class _MarketplaceHomeScreenState
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Featured Businesses',
+              Text('Featured Business',
                   style: TextStyle(
                       color: colors.textPrimary,
                       fontSize: 18,
@@ -890,16 +948,7 @@ class _MarketplaceHomeScreenState
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 160,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: featured.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => _featuredCard(featured[i], colors),
-          ),
-        ),
+        CollapsibleBusinessBar(business: featured.first),
         const SizedBox(height: 20),
       ],
     );

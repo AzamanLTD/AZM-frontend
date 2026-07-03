@@ -1,0 +1,1 @@
+Section 43: React Portal — NEW: DineIn.jsx (Restaurant Tab Management)

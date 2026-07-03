@@ -1,0 +1,39 @@
+Section 49: React Portal — App.jsx Route Registration
+File: src/App.jsx
+ADD routes for all new pages. FIND the existing route definitions and ADD these alongside them.
+// ADD these imports:
+import DineIn from './pages/DineIn';
+import Guests from './pages/Guests';
+import Marketing from './pages/Marketing';
+import Finance from './pages/Finance';
+import Showcase from './pages/Showcase';
+import SeatMapEditor from './pages/SeatMapEditor';
+
+// ADD these routes inside the <Routes> element:
+<Route path="/dinein" element={
+  <ProtectedRoute><DineIn businessId={businessId} products={products} /></ProtectedRoute>
+} />
+<Route path="/guests" element={
+  <ProtectedRoute><Guests businessId={businessId} /></ProtectedRoute>
+} />
+<Route path="/marketing" element={
+  <ProtectedRoute><Marketing businessId={businessId} /></ProtectedRoute>
+} />
+<Route path="/finance" element={
+  <ProtectedRoute><Finance businessId={businessId} /></ProtectedRoute>
+} />
+<Route path="/showcase" element={
+  <ProtectedRoute><Showcase businessId={businessId} /></ProtectedRoute>
+} />
+<Route path="/seat-editor" element={
+  <ProtectedRoute>
+    <SeatMapEditor businessId={businessId} tripId={selectedTripId} />
+  </ProtectedRoute>
+} />
+<Route path="/seat-editor/:tripId" element={
+  <ProtectedRoute>
+    <SeatMapEditor businessId={businessId} tripId={undefined} />
+  </ProtectedRoute>
+} />
+Note: The seat editor route accepts an optional :tripId path parameter for when an operator clicks "Edit Seat Map" on a specific trip.
+

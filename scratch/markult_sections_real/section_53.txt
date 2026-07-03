@@ -1,0 +1,91 @@
+Section 53: GAP FIX 3 — Hotel No-Show Worker ✅ CONFIRMED (existing, properly referenced)
+✅ CONFIRMED. workers/reservationNoShowWorker.js (175 lines) already handles both hotels (sweepNoShowReservations) AND transit (sweepNoShowTransitBookings) with a unified sweepAll() entry point. The worker follows the existing workers/ directory pattern. No changes needed — the v2.0 documentation was correct on this point.
+The reviewer flagged that only transit had a no-show worker. In fact, reservationNoShowWorker.js ALREADY EXISTS and handles BOTH hotels (reservations) AND transit. It runs via node-cron and follows the existing workers/ pattern.
+This file already contains:
+// EXISTING — workers/reservationNoShowWorker.js
+// Two sweep functions:
+
+// 1. sweepNoShowReservations — for HOTELS
+//    Finds CONFIRMED reservations where endDatetime has passed and no check-in.
+//    Calls splitReleaseFundedEscrow with the penalty percentage.
+//    Updates reservation status to NO_SHOW.
+//    Decrements customer trust score.
+
+// 2. sweepNoShowTransitBookings — for TRANSIT
+//    Finds CONFIRMED transit bookings where scheduledAt + GRACE_PERIOD_MINS
+//    has passed and no check-in.
+//    Calls splitReleaseFundedEscrow with the penalty percentage.
+//    Updates booking status to NO_SHOW.
+//    Decrements customer trust score.
+
+// Both are registered in server.js via node-cron:
+//   cron.schedule('*/15 * * * *', () => sweepAll(prisma));
+//   where sweepAll runs both sweeps sequentially.
+REQUIRED ADDITION: Pre-departure reminder for transit (the master spec requires a notification before trip departure).
+ADD this function to the existing reservationNoShowWorker.js:
+// ADD to reservationNoShowWorker.js
+
+// =============================================================================
+// sendTransitPreDepartureReminders — sends push + notification 1 hour before
+// scheduled departure for confirmed transit bookings that haven't checked in.
+// =============================================================================
+const sendTransitPreDepartureReminders = async (prisma, notificationService) => {
+    const now = new Date();
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+    const fifteenMinsFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+
+    // Find bookings departing in the next hour (between 45-75 min from now)
+    // that are confirmed and not yet reminded
+    const upcoming = await prisma.transitBooking.findMany({
+        where: {
+            status: 'CONFIRMED',
+            checkedInAt: null,
+            preDepartureReminderSent: false,
+            trip: {
+                scheduledAt: { gte: fifteenMinsFromNow, lte: oneHourFromNow },
+            },
+        },
+        include: {
+            trip: { include: { businessProfile: true } },
+            customer: { select: { id: true, username: true } },
+        },
+    });
+
+    for (const booking of upcoming) {
+        try {
+            await notificationService.sendMarketplaceNotification({
+                userId: booking.customerId,
+                type: 'TRANSIT_PRE_DEPARTURE',
+                title: 'Departing Soon',
+                body: `Your trip ${booking.trip.routeLabel} departs at ${
+                    booking.trip.scheduledAt.toLocaleTimeString()
+                }. Don't forget to check in!`,
+                deepLink: `/business-market/transit/${booking.tripId}/seats`,
+                metadata: { bookingId: booking.id, tripId: booking.tripId },
+            });
+
+            // Mark as reminded
+            await prisma.transitBooking.update({
+                where: { id: booking.id },
+                data: { preDepartureReminderSent: true },
+            });
+        } catch (e) {
+            console.error(`[preDepartureReminder] booking ${booking.id}:`, e.message);
+        }
+    }
+};
+SCHEMA ADDITION needed for the preDepartureReminderSent field:
+// ADD to TransitBooking model in schema.prisma:
+preDepartureReminderSent Boolean @default(false)
+UPDATE the sweepAll function to also call reminders:
+// EXISTING sweepAll — UPDATE to include reminders:
+const sweepAll = async (prisma) => {
+    const results = { reservations: [], transit: [], reminders: [] };
+    results.reservations = await sweepNoShowReservations(prisma);
+    results.transit = await sweepNoShowTransitBookings(prisma);
+    results.reminders = await sendTransitPreDepartureReminders(
+        prisma, notificationService
+    );
+    return results;
+};
+

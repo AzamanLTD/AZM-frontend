@@ -15,7 +15,7 @@ class MarketplaceExtensionsService {
   // ── Follow ──
   Future<bool> checkFollow(String businessProfileId) async {
     final res = await _api.get('/marketplace/follow/check/$businessProfileId');
-    return res.data['isFollowing'] ?? false;
+    return jsonDecode(res.body)['isFollowing'] ?? false;
   }
 
   Future<void> follow(String businessProfileId) async {
@@ -29,20 +29,20 @@ class MarketplaceExtensionsService {
   // ── Ads ──
   Future<List<BusinessAdPost>> getAdFeed({int limit = 20, int offset = 0}) async {
     final res = await _api.get('/marketplace/ads/feed?limit=$limit&offset=$offset');
-    final ads = (res.data['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
+    final ads = (jsonDecode(res.body)['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
     return ads;
   }
 
   Future<List<BusinessAdPost>> getActiveAds(String businessProfileId) async {
     final res = await _api.get('/marketplace/ads/active/$businessProfileId');
-    final ads = (res.data['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
+    final ads = (jsonDecode(res.body)['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
     return ads;
   }
 
   // ── Dine-In ──
   Future<DineInTab> getTab(String tabId) async {
     final res = await _api.get('/marketplace/dine-in/tabs/$tabId');
-    return DineInTab.fromJson(res.data['tab']);
+    return DineInTab.fromJson(jsonDecode(res.body)['tab']);
   }
 
   Future<void> payTab(String tabId, {double? tip}) async {
@@ -54,19 +54,19 @@ class MarketplaceExtensionsService {
   // ── Showcase ──
   Future<List<BusinessShowcase>> getShowcase(String businessProfileId) async {
     final res = await _api.get('/marketplace/showcase/$businessProfileId');
-    final items = (res.data['items'] as List?)?.map((e) => BusinessShowcase.fromJson(e)).toList() ?? [];
+    final items = (jsonDecode(res.body)['items'] as List?)?.map((e) => BusinessShowcase.fromJson(e)).toList() ?? [];
     return items;
   }
 
   // ── Trust Score ──
   Future<TrustScore> getTrustScore(String azamanId) async {
     final res = await _api.get('/marketplace/trust-score/$azamanId');
-    return TrustScore.fromJson(res.data);
+    return TrustScore.fromJson(jsonDecode(res.body));
   }
 
   // ── Transit QR ──
   Future<Map<String, dynamic>> generateTransitQR(String bookingId) async {
     final res = await _api.get('/marketplace/transit/bookings/$bookingId/checkin-qr');
-    return res.data;
+    return jsonDecode(res.body);
   }
 }

@@ -70,6 +70,14 @@ class _BusinessProfileScreenState
   List<BusinessLocation> _locations = const [];
   int _unpaidInvoices = 0;
 
+  // Marketplace v2: Follow state
+  bool _isFollowing = false;
+  bool _followLoading = false;
+  int _followerCount = 0;
+
+  // Marketplace v2: Showcase slides
+  List<Map<String, dynamic>> _showcaseSlides = const [];
+
   List<CatalogSection> _menuSections = const [];
   List<BusinessProduct> _uncategorisedProducts = const [];
   bool _menuLoading = false;
@@ -117,6 +125,8 @@ class _BusinessProfileScreenState
       });
       _loadUnpaidInvoices(business);
       _loadMenu(business.bizId);
+      _loadFollowState(business.id);
+      _loadShowcase(business.id);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -124,6 +134,31 @@ class _BusinessProfileScreenState
         _error = e.toString();
       });
     }
+  }
+
+  Future<void> _loadFollowState(String businessId) async {
+    try {
+      final res = await apiClient.get('/follows/check/$businessId');
+      final data = jsonDecode(res.body);
+      if (mounted) {
+        setState(() {
+          _isFollowing = data['isFollowing'] ?? false;
+          _followerCount = data['followerCount'] ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadShowcase(String businessId) async {
+    try {
+      final res = await apiClient.get('/showcases/$businessId');
+      final data = jsonDecode(res.body);
+      if (mounted && data is List) {
+        setState(() {
+          _showcaseSlides = data.cast<Map<String, dynamic>>();
+        });
+      }
+    } catch (_) {}
   }
 
   /// Best-effort count of the signed-in user's unpaid invoices from this
@@ -171,6 +206,38 @@ class _BusinessProfileScreenState
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOut,
     );
+  }
+
+  Future<void> _toggleFollow() async {
+    if (_followLoading) return;
+    setState(() => _followLoading = true);
+    final wasFollowing = _isFollowing;
+    setState(() {
+      _isFollowing = !_isFollowing;
+      _followerCount += _isFollowing ? 1 : -1;
+    });
+    try {
+      final client = ref.read(apiClientProvider);
+      final bizId = _business?.id ?? widget.bizId;
+      if (wasFollowing) {
+        await client.delete('/api/follows/$bizId');
+      } else {
+        await client.post('/api/follows', {'businessProfileId': bizId});
+      }
+    } catch (e) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          _isFollowing = wasFollowing;
+          _followerCount += wasFollowing ? 1 : -1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followLoading = false);
+    }
   }
 
   Future<void> _openOrderSheet({BusinessProduct? product}) async {
@@ -378,6 +445,12 @@ class _BusinessProfileScreenState
                   ),
                   const Spacer(),
                   _circleButton(
+                    _isFollowing ? Icons.favorite : Icons.favorite_border,
+                    _toggleFollow,
+                    color: _isFollowing ? const Color(0xFFEF4444) : null,
+                  ),
+                  const SizedBox(width: 8),
+                  _circleButton(
                     Icons.ios_share_outlined,
                     () => _launch(business.website ?? ''),
                   ),
@@ -444,7 +517,7 @@ class _BusinessProfileScreenState
     );
   }
 
-  Widget _circleButton(IconData icon, VoidCallback onTap) {
+  Widget _circleButton(IconData icon, VoidCallback onTap, {Color? color}) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -459,7 +532,7 @@ class _BusinessProfileScreenState
           color: Colors.black.withOpacity(0.35),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: color ?? Colors.white, size: 20),
       ),
     );
   }
@@ -996,6 +1069,10 @@ class _BusinessProfileScreenState
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
+        if (_showcaseSlides.isNotEmpty) ...[
+          _buildShowcaseCarousel(colors),
+          const SizedBox(height: 16),
+        ],
         _about(business, colors),
         const SizedBox(height: 16),
         _categoryFacts(business, colors),
@@ -1003,6 +1080,81 @@ class _BusinessProfileScreenState
         _hoursOverview(colors),
         const SizedBox(height: 16),
         _products(business, colors),
+      ],
+    );
+  }
+
+  Widget _buildShowcaseCarousel(AzamanColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Showcase',
+          style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 180,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _showcaseSlides.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final slide = _showcaseSlides[index];
+              return Container(
+                width: 240,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: colors.card,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: slide['mediaUrl'] ?? '',
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => ColoredBox(color: colors.divider),
+                      errorWidget: (_, __, ___) =>
+                          ColoredBox(color: colors.divider),
+                    ),
+                    if (slide['caption'] != null &&
+                        slide['caption'].toString().isNotEmpty)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black87],
+                            ),
+                          ),
+                          child: Text(
+                            slide['caption'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }

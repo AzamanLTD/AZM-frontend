@@ -27,7 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azaman/screens/marketplace/hotel_booking_screen.dart';
 import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
-// import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
+import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
 
 
 import 'package:azaman/screens/splash_screen.dart';
@@ -280,6 +280,28 @@ final GoRouter appRouter = GoRouter(
       name: 'business-market-home',
       builder: (_, __) => const MarketplaceHomeScreen(),
     ),
+    GoRoute(
+      path: '/business-market/:bizId/hotel-booking',
+      name: 'hotel-booking',
+      builder: (context, state) => HotelBookingScreen(
+        bizId: state.pathParameters['bizId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/dine-in/:tabId',
+      name: 'dine-in-tab',
+      builder: (context, state) => DineInTabScreen(
+        tabId: state.pathParameters['tabId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/:bizId/stories',
+      name: 'business-stories',
+      builder: (context, state) => BusinessStoriesScreen(
+        bizId: state.pathParameters['bizId']!,
+      ),
+    ),
+
     GoRoute(
       path: '/business-market/orders',
       name: 'business-market-orders',

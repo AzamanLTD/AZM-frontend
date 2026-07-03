@@ -4,6 +4,7 @@
 // =============================================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/providers/marketplace_provider.dart'; // for apiClient
 import 'package:azaman/services/api_client.dart';
@@ -15,7 +16,7 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
 
   Future<void> checkFollow(String businessProfileId) async {
     final res = await _api.get('/marketplace/follow/check/$businessProfileId');
-    state = AsyncValue.data(res.data['isFollowing'] ?? false);
+    state = AsyncValue.data(jsonDecode(res.body)['isFollowing'] ?? false);
   }
 
   Future<void> toggle(String businessProfileId) async {
@@ -47,7 +48,7 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
   Future<void> load() async {
     try {
       final res = await _api.get('/marketplace/ads/feed?limit=20');
-      final ads = (res.data['ads'] as List?)
+      final ads = (jsonDecode(res.body)['ads'] as List?)
           ?.map((e) => BusinessAdPost.fromJson(e))
           .toList() ?? [];
       state = AsyncValue.data(ads);
@@ -58,7 +59,7 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
 }
 
 final adFeedProvider = StateNotifierProvider.autoDispose
-    .AdFeedNotifier, AsyncValue<List<BusinessAdPost>>>(
+    <AdFeedNotifier, AsyncValue<List<BusinessAdPost>>>(
   (ref) => AdFeedNotifier(ref.watch(apiClientProvider))..load(),
 );
 
@@ -71,7 +72,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
     state = const AsyncValue.loading();
     try {
       final res = await _api.get('/marketplace/dine-in/tabs/$tabId');
-      state = AsyncValue.data(DineInTab.fromJson(res.data['tab']));
+      state = AsyncValue.data(DineInTab.fromJson(jsonDecode(res.body)['tab']));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -103,7 +104,7 @@ class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>>
   Future<void> load(String businessProfileId) async {
     try {
       final res = await _api.get('/marketplace/showcase/$businessProfileId');
-      final items = (res.data['items'] as List?)
+      final items = (jsonDecode(res.body)['items'] as List?)
           ?.map((e) => BusinessShowcase.fromJson(e))
           .toList() ?? [];
       state = AsyncValue.data(items);

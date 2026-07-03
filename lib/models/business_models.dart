@@ -164,6 +164,12 @@ class BusinessCategories {
         icon: Icons.account_balance_outlined,
         color: Color(0xFFEAB308)),
     BusinessCategory(
+        wire: 'HOSPITALITY',
+        label: 'Hospitality',
+        icon: Icons.holiday_village_outlined,
+        color: Color(0xFFD946EF),
+        subtitle: 'Hotels, guesthouses & lodging'),
+    BusinessCategory(
         wire: 'OTHER',
         label: 'Other',
         icon: Icons.category_outlined,

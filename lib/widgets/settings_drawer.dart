@@ -49,6 +49,9 @@ import 'package:azaman/screens/vendor_dashboard.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
+import 'package:azaman/screens/marketplace/business_register_screen.dart';
+import 'package:azaman/providers/business_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class SettingsDrawer extends ConsumerWidget {
@@ -58,6 +61,13 @@ class SettingsDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(currentUserProvider).value;
+    final bizState = ref.watch(myBusinessProvider);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!ref.read(myBusinessProvider).hasLoaded && !ref.read(myBusinessProvider).isLoading) {
+        ref.read(myBusinessProvider.notifier).load();
+      }
+    });
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.88,
@@ -292,17 +302,106 @@ class SettingsDrawer extends ConsumerWidget {
                         colors,
                         destination: const AzamanStoreScreen(),
                       ),
-                      // V3 Marketplace Sprint (2026-06-21): owner dashboard.
-                      // The screen self-redirects to registration when the
-                      // user has no business yet.
-                      _buildMenuItem(
-                        context,
-                        Icons.storefront_outlined,
-                        'My Business',
-                        'Dashboard',
-                        colors,
-                        destination: const BusinessDashboardScreen(),
-                      ),
+                      if (bizState.isLoading && !bizState.hasLoaded)
+                        const SizedBox(
+                          height: 80,
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else if (bizState.profile == null)
+                        _buildMenuItem(
+                          context,
+                          Icons.add_business,
+                          'Register Your Business',
+                          'Start',
+                          colors,
+                          destination: const BusinessRegisterScreen(),
+                        )
+                      else
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [colors.accent.withOpacity(0.08), colors.accent.withOpacity(0.02)],
+                              begin: Alignment.topLeft, end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: colors.accent.withOpacity(0.15), width: 1),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.of(context).pop();
+                              Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const BusinessDashboardScreen(),
+                              ));
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: bizState.profile!.logoUrl != null && bizState.profile!.logoUrl!.isNotEmpty
+                                        ? CachedNetworkImage(imageUrl: bizState.profile!.logoUrl!, width: 48, height: 48, fit: BoxFit.cover)
+                                        : Container(width: 48, height: 48, color: colors.accent.withOpacity(0.1),
+                                            child: Icon(Icons.store, color: colors.accent, size: 24)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(bizState.profile!.businessName, style: TextStyle(
+                                                fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary,
+                                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            ),
+                                            if (bizState.profile!.isVerified)
+                                              Icon(Icons.verified, size: 14, color: colors.accent),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: bizState.profile!.kybStatus == 'VERIFIED'
+                                                    ? Colors.green.withOpacity(0.1)
+                                                    : Colors.orange.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                bizState.profile!.kybStatus == 'VERIFIED' ? 'Verified' : 'Pending KYB',
+                                                style: TextStyle(
+                                                  fontSize: 10, fontWeight: FontWeight.w500,
+                                                  color: bizState.profile!.kybStatus == 'VERIFIED' ? Colors.green : Colors.orange,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            if (bizState.profile!.averageRating > 0) ...[
+                                              Icon(Icons.star, size: 12, color: Colors.amber),
+                                              const SizedBox(width: 2),
+                                              Text(bizState.profile!.averageRating.toStringAsFixed(1),
+                                                style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right, color: colors.textTertiary, size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 40),
                       Center(
