@@ -318,22 +318,25 @@ class _MarketplaceHomeScreenState
           child: Row(
             children: [
               IconButton(
+                icon: Icon(Icons.menu_rounded, color: colors.textPrimary),
                 onPressed: () {
-                  showGeneralDialog(
+                  showModalBottomSheet(
                     context: context,
-                    barrierDismissible: true,
-                    barrierLabel: 'Categories',
-                    barrierColor: Colors.black54,
-                    pageBuilder: (_, __, ___) => CategoryFilterPanel(
-                      selectedCategories: _selectedCategories,
-                      onApply: (cats) {
-                        setState(() => _selectedCategories = cats);
+                    backgroundColor: colors.card,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    ),
+                    builder: (ctx) => _CategoryBurgerSheet(
+                      selectedIndex: _categoryIndex,
+                      onSelected: (i) {
+                        setState(() => _categoryIndex = i);
+                        Navigator.pop(ctx);
                         _fireSearch();
                       },
+                      colors: colors,
                     ),
                   );
                 },
-                icon: Icon(Icons.tune, color: colors.textSecondary),
               ),
               Expanded(
                 child: SizedBox(
@@ -345,9 +348,9 @@ class _MarketplaceHomeScreenState
                     onSubmitted: (_) => _fireSearch(),
                     style: TextStyle(color: colors.textPrimary, fontSize: 15),
                     decoration: InputDecoration(
-                      hintText: _selectedCategories.isNotEmpty
-                          ? 'Search in ${_selectedCategories.length} categor${_selectedCategories.length == 1 ? "y" : "ies"}'
-                          : 'Search businesses, services...',
+                      hintText: _categoryIndex == 0
+                          ? 'Search all businesses...'
+                          : 'Search ${BusinessCategories.withAll[_categoryIndex].label.toLowerCase()}...',
                       hintStyle:
                           TextStyle(color: colors.textTertiary, fontSize: 14),
                       prefixIcon: Icon(Icons.search,
@@ -873,6 +876,10 @@ class _MarketplaceHomeScreenState
     final showFeatured = _isIdle && _filters.isEmpty;
     final featured = showFeatured ? _featured(state.results) : const [];
 
+    // ── PART 1.1: Deduplicate — remove featured businesses from the main list ──
+    final featuredIds = featured.map((b) => b.bizId).toSet();
+    final dedupedBusinesses = results.where((b) => !featuredIds.contains(b.bizId)).toList();
+
     return RefreshIndicator(
       color: colors.accent,
       onRefresh: () => ref.read(businessSearchProvider.notifier).search(
@@ -884,7 +891,7 @@ class _MarketplaceHomeScreenState
         controller: _scrollCtrl,
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         itemCount:
-            results.length + (showFeatured ? 1 : 0) + (state.hasMore ? 1 : 0),
+            dedupedBusinesses.length + (showFeatured ? 1 : 0) + (state.hasMore ? 1 : 0),
         separatorBuilder: (_, i) {
           // No separator directly after the featured header block.
           if (showFeatured && i == 0) return const SizedBox(height: 4);
@@ -895,7 +902,7 @@ class _MarketplaceHomeScreenState
             return _featuredHeader(featured.cast<BusinessProfile>(), colors);
           }
           final idx = i - (showFeatured ? 1 : 0);
-          if (idx >= results.length) {
+          if (idx >= dedupedBusinesses.length) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
@@ -908,8 +915,8 @@ class _MarketplaceHomeScreenState
             );
           }
           return BusinessCard(
-            business: results[idx],
-            onTap: () => _openBusiness(results[idx]),
+            business: dedupedBusinesses[idx],
+            onTap: () => _openBusiness(dedupedBusinesses[idx]),
           );
         },
       ),

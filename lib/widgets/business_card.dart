@@ -48,6 +48,11 @@ class BusinessCard extends ConsumerWidget {
     return tall ? _tallCard(context, ref, colors) : _compactCard(ref, colors);
   }
 
+  Color? get _categoryColor {
+    final cat = BusinessCategories.fromWire(business.category);
+    return cat.color;
+  }
+
   // ── Tall photo-first card ─────────────────────────────────────────────────
   Widget _tallCard(BuildContext context, WidgetRef ref, AzamanColors colors) {
     return GestureDetector(
@@ -71,6 +76,10 @@ class BusinessCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              height: 4, width: double.infinity,
+              color: _categoryColor ?? colors.accent,
+            ),
             _coverPhoto(colors),
             _infoSection(ref, colors),
           ],
