@@ -636,28 +636,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             color: colors.danger.withOpacity(0.04),
             border: Border.all(color: colors.danger.withOpacity(0.15)),
           ),
-          child: ListTile(
-            onTap: _showDeleteConfirmation,
-            leading: Icon(Icons.delete_outline, color: colors.danger),
-            title: Text(
-              'Delete Account',
-              style: TextStyle(
-                color: colors.danger,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+          child: Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              onTap: _showDeleteConfirmation,
+              leading: Icon(Icons.delete_outline, color: colors.danger),
+              title: Text(
+                'Delete Account',
+                style: TextStyle(
+                  color: colors.danger,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            subtitle: Text(
-              'Permanently remove your account and all data',
-              style: TextStyle(
-                color: colors.danger.withOpacity(0.6),
-                fontSize: 11,
+              subtitle: Text(
+                'Permanently remove your account and all data',
+                style: TextStyle(
+                  color: colors.danger.withOpacity(0.6),
+                  fontSize: 11,
+                ),
               ),
-            ),
-            trailing: Icon(
-              Icons.arrow_forward,
-              color: colors.danger.withOpacity(0.5),
-              size: 14,
+              trailing: Icon(
+                Icons.arrow_forward,
+                color: colors.danger.withOpacity(0.5),
+                size: 14,
+              ),
             ),
           ),
         ),
