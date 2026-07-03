@@ -1,0 +1,293 @@
+Full hotel booking flow: showcase slideshow, room browsing, date selection, escrow deposit, penalty policy display.
+// lib/screens/marketplace/hotel_booking_screen.dart
+// =============================================================================
+// HOTEL BOOKING SCREEN — AZAMAN Marketplace v2
+// Shows: showcase slideshow → room type cards → date picker → booking summary
+// with escrow deposit + penalty policy → confirm booking
+// =============================================================================
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:azaman/models/business_models.dart';
+import 'package:azaman/providers/marketplace_booking_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/rating_stars.dart';
+
+class HotelBookingScreen extends ConsumerStatefulWidget {
+  final String bizId;
+  const HotelBookingScreen({super.key, required this.bizId});
+  @override
+  ConsumerState<HotelBookingScreen> createState() => _HotelBookingScreenState();
+}
+
+class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
+  DateTime? _checkIn;
+  DateTime? _checkOut;
+  String? _selectedRoomId;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref
+        .read(marketplaceBookingProvider.notifier)
+        .loadBusinessDetail(widget.bizId));
+  }
+
+  Future<void> _selectDates() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+
+    );
+    if (picked != null) setState(() { _checkIn = picked.start; _checkOut = picked.end; });
+  }
+
+  Future<void> _confirmBooking() async {
+    if (_checkIn == null || _checkOut == null || _selectedRoomId == null) return;
+    setState(() => _loading = true);
+    try {
+      final booking = await ref.read(marketplaceBookingProvider.notifier)
+          .createHotelReservation(
+            bizId: widget.bizId,
+            checkIn: _checkIn!,
+            checkOut: _checkOut!,
+            productId: _selectedRoomId!,
+          );
+      if (mounted) {
+        context.pushReplacement('/marketplace/booking/checkin-qr/${booking.id}');
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booking failed: $e')),
+      );
+    }
+    setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+    final state = ref.watch(marketplaceBookingProvider);
+    final business = state.business;
+    final products = state.products ?? [];
+
+    if (state.isLoading) return Scaffold(
+      backgroundColor: colors.background,
+      body: const Center(child: CircularProgressIndicator()),
+    );
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: CustomScrollView(
+        slivers: [
+          // Showcase Slideshow
+          SliverToBoxAdapter(
+            child: _ShowcaseSlider(images: business?.showcaseUrls ?? [], colors: colors),
+          ),
+          // Business info header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(business?.businessName ?? '',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: colors.textPrimary))),
+                      if (business?.isVerified == true)
+                        Icon(Icons.verified, color: colors.accent, size: 18),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    if (business?.averageRating != null && business!.averageRating > 0) ...[
+                      RatingStars(rating: business.averageRating, size: 14),
+                      const SizedBox(width: 4),
+                      Text('${business.averageRating.toStringAsFixed(1)}',
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                    ],
+                    const SizedBox(width: 8),
+                    Text('${business?.categoryLabel ?? ""}',
+                      style: TextStyle(fontSize: 13, color: colors.textTertiary)),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          // Room type cards
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Available Rooms', style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate((context, i) {
+              final room = products[i];
+              final isSelected = _selectedRoomId == room.id;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedRoomId = room.id),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? colors.accent : colors.divider,
+                      width: isSelected ? 1.5 : 0.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (room.imageUrl != null)
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                          child: CachedNetworkImage(imageUrl: room.imageUrl!,
+                            height: 160, width: double.infinity, fit: BoxFit.cover),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Expanded(child: Text(room.name, style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary))),
+                              Text('${room.priceUsdc.toStringAsFixed(2)} USDC',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.accent)),
+                            ]),
+                            if (room.description != null) ...[
+                              const SizedBox(height: 6),
+                              Text(room.description!, style: TextStyle(
+                                fontSize: 13, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                            const SizedBox(height: 8),
+                            Wrap(spacing: 6, runSpacing: 4, children: [
+                              if (room.amenities != null) ...room.amenities!.map((a) =>
+                                Chip(label: Text(a, style: const TextStyle(fontSize: 10)),
+                                  visualDensity: VisualDensity.compact)),
+                            ]),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }, childCount: products.length),
+          ),
+          // Date picker + penalty policy + CTA
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surface, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.divider, width: 0.5),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Select Dates', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _selectDates,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colors.divider), borderRadius: BorderRadius.circular(8)),
+                    child: Row(children: [
+                      Icon(Icons.calendar_today, color: colors.textTertiary, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(
+                        _checkIn != null && _checkOut != null
+                            ? '${_checkIn!.toString().split(" ")[0]} → ${_checkOut!.toString().split(" ")[0]}'
+                            : 'Tap to select check-in and check-out',
+                        style: TextStyle(fontSize: 14, color: _checkIn != null ? colors.textPrimary : colors.textTertiary),
+                      )),
+                    ]),
+                  ),
+                ),
+                // Penalty policy
+                if (business?.penaltyPolicy != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                    child: Row(children: [
+                      Icon(Icons.info_outline, color: Colors.orange.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        'No-show penalty: ${(business!.penaltyPolicy!.penaltyPct * 100).toStringAsFixed(0)}% of deposit. '
+                        'Grace period: ${business.penaltyPolicy!.gracePeriodMins} min after check-in window.',
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade900))),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (_checkIn != null && _checkOut != null && _selectedRoomId != null && !_loading)
+                        ? _confirmBooking : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _loading
+                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text('Confirm Booking', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShowcaseSlider extends StatefulWidget {
+  final List<String> images;
+  final dynamic colors;
+  const _ShowcaseSlider({required this.images, required this.colors});
+  @override
+  State<_ShowcaseSlider> createState() => _ShowcaseSliderState();
+}
+
+class _ShowcaseSliderState extends State<_ShowcaseSlider> {
+  int _index = 0;
+  @override
+  Widget build(BuildContext context) {
+    if (widget.images.isEmpty) {
+      return Container(height: 220, color: widget.colors.accent.withValues(alpha: 0.1),
+        child: Center(child: Icon(Icons.hotel, size: 48, color: widget.colors.accent)));
+    }
+    return Stack(children: [
+      SizedBox(height: 220, child: PageView.builder(
+        itemCount: widget.images.length,
+        onPageChanged: (i) => setState(() => _index = i),
+        itemBuilder: (_, i) => CachedNetworkImage(imageUrl: widget.images[i],
+          height: 220, width: double.infinity, fit: BoxFit.cover),
+      )),
+      Positioned(bottom: 10, left: 0, right: 0, child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: widget.images.asMap().entries.map((e) =>
+          Container(width: 6, height: 6, margin: const EdgeInsets.symmetric(horizontal: 3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: e.key == _index ? Colors.white : Colors.white54,
+            ))).toList(),
+      )),
+    ]);
+  }
+}

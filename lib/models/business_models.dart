@@ -454,6 +454,16 @@ class BusinessProfile {
   final List<String> amenities;
   final List<String> cuisineTypes;
   final Map<String, dynamic>? businessMeta;
+
+  List<String> get showcaseUrls {
+    if (businessMeta == null || !businessMeta!.containsKey('showcaseUrls')) return [];
+    return List<String>.from(businessMeta!['showcaseUrls']);
+  }
+
+  PenaltyPolicyModel? get penaltyPolicy {
+    if (businessMeta == null || !businessMeta!.containsKey('penaltyPolicy')) return null;
+    return PenaltyPolicyModel.fromJson(businessMeta!['penaltyPolicy']);
+  }
   final String username;
   final String? userProfilePictureUrl;
   // Marketplace Premium Upgrade (2026-06-21): the public getBusinessByBizId /
