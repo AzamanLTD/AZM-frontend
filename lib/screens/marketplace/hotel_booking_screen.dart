@@ -1,4 +1,3 @@
-Full hotel booking flow: showcase slideshow, room browsing, date selection, escrow deposit, penalty policy display.
 // lib/screens/marketplace/hotel_booking_screen.dart
 // =============================================================================
 // HOTEL BOOKING SCREEN — AZAMAN Marketplace v2
