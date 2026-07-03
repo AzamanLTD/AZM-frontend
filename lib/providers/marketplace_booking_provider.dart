@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
+import 'package:azaman/models/business_models.dart';
 
 // ── TRIP LIST ────────────────────────────────────────────────────────────────
 
@@ -177,7 +178,43 @@ final checkInActionProvider =
   (ref) => CheckInActionNotifier(ref.watch(marketplaceBookingServiceProvider)),
 );
 
+// ── MARKETPLACE BOOKING NOTIFIER ─────────────────────────────────────────────
 
+class MarketplaceBookingState {
+  final bool isLoading;
+  final String? error;
+  final BusinessProfile? business;
+  final List<dynamic> products;
+  final dynamic dineInTab;
+
+  const MarketplaceBookingState({
+    this.isLoading = false,
+    this.error,
+    this.business,
+    this.products = const [],
+    this.dineInTab,
+  });
+
+  MarketplaceBookingState copyWith({
+    bool? isLoading,
+    String? error,
+    BusinessProfile? business,
+    List<dynamic>? products,
+    dynamic dineInTab,
+  }) {
+    return MarketplaceBookingState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+      business: business ?? this.business,
+      products: products ?? this.products,
+      dineInTab: dineInTab ?? this.dineInTab,
+    );
+  }
+}
+
+class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> {
+  final MarketplaceBookingService _service;
+  MarketplaceBookingNotifier(this._service) : super(const MarketplaceBookingState());
 
   // Load business detail with products (rooms/menu) and showcase
   Future<void> loadBusinessDetail(String bizId) async {
@@ -212,11 +249,12 @@ final checkInActionProvider =
 
   // Load dine-in tab
   Future<void> loadDineInTab(String tabId) async {
+    state = state.copyWith(isLoading: true);
     try {
       final tab = await _service.fetchDineInTab(tabId);
-      // state = state.copyWith(dineInTab: tab); // Assuming dineInTab property was added to state
+      state = state.copyWith(isLoading: false, dineInTab: tab);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -225,3 +263,7 @@ final checkInActionProvider =
     await _service.confirmDineInTab(tabId);
   }
 }
+
+final marketplaceBookingProvider = StateNotifierProvider<MarketplaceBookingNotifier, MarketplaceBookingState>(
+  (ref) => MarketplaceBookingNotifier(ref.watch(marketplaceBookingServiceProvider)),
+);
