@@ -13,6 +13,8 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class TransitTripListScreen extends ConsumerWidget {
   final String? businessProfileId;
@@ -85,102 +87,71 @@ class _TripCard extends StatelessWidget {
     final ref = ProviderScope.containerOf(context);
     final colors = ref.read(themeProvider.select((t) => t.colors));
 
-    final departureTime = TimeOfDay.fromDateTime(trip.departureAt);
-    final timeStr = '${departureTime.hour.toString().padLeft(2, '0')}:${departureTime.minute.toString().padLeft(2, '0')}';
+    final depTime = TimeOfDay.fromDateTime(trip.departureAt);
+    final depStr = '${depTime.hour.toString().padLeft(2, '0')}:${depTime.minute.toString().padLeft(2, '0')}';
+    
+    String arrStr = '--:--';
+    String durationStr = '--';
+    if (trip.arrivalAt != null) {
+      final arrTime = TimeOfDay.fromDateTime(trip.arrivalAt!);
+      arrStr = '${arrTime.hour.toString().padLeft(2, '0')}:${arrTime.minute.toString().padLeft(2, '0')}';
+      final diff = trip.arrivalAt!.difference(trip.departureAt);
+      final hours = diff.inHours;
+      final mins = diff.inMinutes % 60;
+      durationStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
+    }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: colors.surface,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: trip.availableSeats > 0
-            ? () => context.push('/marketplace/transit/${trip.id}/seats')
-            : null,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Route name
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      trip.routeLabel,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: trip.availableSeats > 0
-                          ? colors.accent.withOpacity(0.1)
-                          : colors.danger.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      trip.availableSeats > 0
-                          ? '${trip.availableSeats} seats left'
-                          : 'Full',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: trip.availableSeats > 0 ? colors.accent : colors.danger,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Departure + arrival times
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 16, color: colors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text('Departs at $timeStr',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Vehicle info
-              Row(
-                children: [
-                  Icon(Icons.directions_bus, size: 16, color: colors.textSecondary),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      trip.vehicleLabel + (trip.driverName != null ? ' \u00b7 ${trip.driverName}' : ''),
-                      style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Fare + book button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '\$${trip.fareUsdc.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.accent),
-                  ),
-                  FilledButton(
-                    onPressed: trip.availableSeats > 0
-                        ? () => context.push('/marketplace/transit/${trip.id}/seats')
-                        : null,
-                    child: const Text('Select Seats'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return GestureDetector(
+      onTap: trip.availableSeats > 0 ? () => context.push('/marketplace/transit/${trip.id}/seats') : null,
+      child: PremiumGlassContainer(
+        blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(16), margin: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(depStr, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: colors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(trip.origin, style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ])),
+              SizedBox(width: 60, child: Column(children: [
+                Icon(Icons.circle, size: 8, color: colors.accent),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: LayoutBuilder(builder: (context, constraints) => Row(
+                    children: List.generate((constraints.maxWidth / 6).floor(), (i) =>
+                      Expanded(child: Container(height: 1.5, margin: const EdgeInsets.only(right: 2), color: colors.accent.withOpacity(0.3)))),
+                  )),
+                ),
+                Icon(Icons.location_on_rounded, size: 10, color: colors.accent),
+                const SizedBox(height: 2),
+                Text(durationStr, style: TextStyle(fontSize: 9, color: colors.textTertiary, fontWeight: FontWeight.w600)),
+              ])),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(arrStr, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: colors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(trip.destination, style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right),
+              ])),
+            ]),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                Icon((trip.vehicleType ?? '').toLowerCase() == 'bus' ? Icons.directions_bus_rounded : Icons.directions_car_rounded, size: 16, color: colors.textSecondary),
+                const SizedBox(width: 6),
+                Text((trip.vehicleType ?? 'Vehicle').toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.textSecondary)),
+                const SizedBox(width: 12),
+                Icon(Icons.event_seat_rounded, size: 14, color: colors.textTertiary), const SizedBox(width: 4),
+                Text('${trip.availableSeats} seats', style: TextStyle(fontSize: 11, color: trip.availableSeats > 5 ? colors.success : colors.warning, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text('\$${trip.fareUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: colors.accent)),
+              ]),
+            ),
+          ],
         ),
       ),
-    );
+    ).animate().fadeIn(delay: 100.ms, duration: 300.ms).slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 300.ms);
   }
 }
 

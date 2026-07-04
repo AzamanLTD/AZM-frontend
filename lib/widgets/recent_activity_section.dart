@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 
 import 'package:azaman/providers/home_summary_provider.dart';
@@ -45,43 +46,35 @@ class RecentActivitySection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Transactions',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+              Container(
+                width: 4, height: 20,
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              if (txns.isNotEmpty)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AccountActivityScreen(),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    'See all',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                      decorationColor: colors.textSecondary,
-                    ),
-                  ),
-                ),
+              const SizedBox(width: 8),
+              Text('Recent Activity',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: colors.textPrimary,
+                  letterSpacing: -0.3,
+                )),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const AccountActivityScreen())),
+                child: Text('See All',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.accent,
+                  )),
+              ),
             ],
-          ),
+          ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
           const SizedBox(height: 14),
           if (isColdLoad)
             const _ActivitySkeleton()

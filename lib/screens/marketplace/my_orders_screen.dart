@@ -15,6 +15,8 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -148,86 +150,46 @@ class _OrderCard extends StatelessWidget {
 
   Color _statusColor() {
     switch (order.status) {
-      case BusinessOrderStatus.awaitingPayment:
-        return colors.warning;
+      case BusinessOrderStatus.awaitingPayment: return colors.warning;
       case BusinessOrderStatus.paid:
-      case BusinessOrderStatus.delivered:
-        return colors.accent;
-      case BusinessOrderStatus.completed:
-        return colors.success;
-      case BusinessOrderStatus.disputed:
-        return colors.danger;
+      case BusinessOrderStatus.delivered: return colors.accent;
+      case BusinessOrderStatus.completed: return colors.success;
+      case BusinessOrderStatus.disputed: return colors.danger;
       case BusinessOrderStatus.refunded:
-      case BusinessOrderStatus.cancelled:
-        return colors.textTertiary;
+      case BusinessOrderStatus.cancelled: return colors.textTertiary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tint = _statusColor();
+    final statusColor = _statusColor();
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    order.orderRef,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                _Badge(label: order.status.label, tint: tint),
-              ],
-            ),
+      child: PremiumGlassContainer(
+        blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(16), margin: const EdgeInsets.only(bottom: 10),
+        child: Row(children: [
+          AnimatedContainer(duration: 300.ms, width: 3, height: 48, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(order.orderRef, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 3),
+            Text(order.title, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
-            Text(
-              order.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '${order.amountUsdc.toStringAsFixed(2)} USDC',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  _fmtDate(order.createdAt),
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
-                ),
-              ],
-            ),
-          ],
-        ),
+            Row(children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text(order.status.label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor))),
+              const SizedBox(width: 8),
+              Text(_fmtDate(order.createdAt), style: TextStyle(fontSize: 10.5, color: colors.textTertiary)),
+            ]),
+          ])),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('\$${order.amountUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: colors.accent)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: colors.textTertiary),
+          ]),
+        ]),
       ),
-    );
+    ).animate().fadeIn(delay: 50.ms, duration: 250.ms).slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
   }
 
   String _fmtDate(DateTime d) {
@@ -236,30 +198,5 @@ class _OrderCard extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[d.month - 1]} ${d.day}';
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String label;
-  final Color tint;
-  const _Badge({required this.label, required this.tint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: tint,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
   }
 }

@@ -15,6 +15,9 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 
 class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -48,6 +51,32 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
+      bottomNavigationBar: seatsAsync.valueOrNull != null ? PremiumGlassContainer(
+        blur: 24, opacity: 0.08, borderRadius: 0,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), enableShadow: false,
+        border: Border(top: BorderSide(color: colors.divider, width: 0.5)),
+        child: SafeArea(child: Row(children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text('${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}', style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+            Text('\$${(selectedSeats.length * seatsAsync.valueOrNull!.fareUsdc).toStringAsFixed(0)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colors.accent)),
+          ]),
+          const Spacer(),
+          GestureDetector(
+            onTap: (selectedSeats.isNotEmpty && !bookingState.isLoading) ? () => _bookSeats(seatsAsync.valueOrNull!) : null,
+            child: AnimatedContainer(
+              duration: 200.ms, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              decoration: BoxDecoration(
+                color: selectedSeats.isEmpty ? colors.card : colors.accent, borderRadius: BorderRadius.circular(14),
+                boxShadow: selectedSeats.isNotEmpty ? [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))] : null,
+              ),
+              child: bookingState.isLoading
+                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.background))
+                  : Text('Book Now', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                      color: selectedSeats.isEmpty ? colors.textTertiary : colors.background)),
+            ),
+          ),
+        ])),
+      ) : null,
       body: seatsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -138,39 +167,7 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
               ),
             ],
 
-            // Bottom bar with total + book button
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                border: Border(top: BorderSide(color: colors.divider)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${selectedSeats.length} seat${selectedSeats.length == 1 ? '' : 's'}',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                      Text(
-                        '\$${(selectedSeats.length * availability.fareUsdc).toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.accent),
-                      ),
-                    ],
-                  ),
-                  FilledButton(
-                    onPressed: (selectedSeats.isNotEmpty && !bookingState.isLoading)
-                        ? () => _bookSeats(availability)
-                        : null,
-                    child: bookingState.isLoading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text('Book ${selectedSeats.length} seat${selectedSeats.length == 1 ? '' : 's'}'),
-                  ),
-                ],
-              ),
-            ),
+            // Removed bottom bar from here
 
             // Error message
             if (bookingState.error != null)
@@ -193,6 +190,7 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
 
   void _onSeatTap(String seatId, SeatStatus status) {
     if (status == SeatStatus.occupied) return;
+    AzamanHaptics.toggle();
     final current = ref.read(selectedSeatsProvider);
     final next = Set<String>.from(current);
     if (next.contains(seatId)) {
@@ -358,52 +356,22 @@ class _SeatWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOccupied = seat.status == SeatStatus.occupied;
-    Color bgColor;
-    Color borderColor;
-    Color textColor;
-
-    if (isOccupied) {
-      bgColor = Colors.grey.shade300;
-      borderColor = Colors.grey.shade400;
-      textColor = Colors.grey.shade500;
-    } else if (isSelected) {
-      bgColor = colors.accent;
-      borderColor = colors.accent;
-      textColor = Colors.white;
-    } else {
-      bgColor = Colors.green.shade50;
-      borderColor = Colors.green.shade300;
-      textColor = Colors.green.shade700;
-    }
-
+    
     return GestureDetector(
       onTap: isOccupied ? null : onTap,
-      child: Container(
-        width: 48,
-        height: 48,
+      child: AnimatedContainer(
+        duration: 250.ms, curve: Curves.easeOutCubic, width: 40, height: 40,
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: borderColor, width: 1.5),
+          color: isOccupied ? colors.divider : isSelected ? colors.accent : colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isOccupied ? Colors.transparent : isSelected ? colors.accent : colors.divider, width: isSelected ? 1.5 : 0.5),
+          boxShadow: isSelected ? [BoxShadow(color: colors.accent.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 3))] : null,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              seat.type == SeatType.window
-                  ? Icons.window
-                  : Icons.airline_seat_recline_normal,
-              size: 16,
-              color: textColor,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              seat.seatId,
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textColor),
-            ),
-          ],
-        ),
-      ),
+        child: Icon(isOccupied ? Icons.close_rounded : Icons.event_seat_rounded, size: 18,
+          color: isOccupied ? colors.textTertiary : isSelected ? colors.background : colors.textSecondary),
+      ).animate(target: isSelected ? 1 : 0)
+        .scale(begin: const Offset(1, 1), end: const Offset(1.15, 1.15), duration: 150.ms, curve: Curves.easeOutBack)
+        .then().scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 100.ms),
     );
   }
 }

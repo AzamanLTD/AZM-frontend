@@ -297,9 +297,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/business-market/:bizId/stories',
       name: 'business-stories',
-      builder: (context, state) => BusinessStoriesScreen(
-        bizId: state.pathParameters['bizId']!,
-      ),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return BusinessStoriesScreen(
+          bizId: state.pathParameters['bizId']!,
+          businessName: extra['businessName'] as String? ?? 'Business Story',
+          logoUrl: extra['logoUrl'] as String?,
+          storyUrls: extra['storyUrls'] is List
+              ? (extra['storyUrls'] as List).map((e) => e.toString()).toList()
+              : ['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800'],
+        );
+      },
     ),
 
     GoRoute(

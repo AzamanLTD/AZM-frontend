@@ -18,6 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class MarketplaceFilters {
   final double? minPrice;
@@ -124,110 +126,54 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Material(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.filter_list,
-                    color: colors.accent, size: 20),
-                const SizedBox(width: 8),
-                Text('Filters',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    )),
-                const Spacer(),
-                TextButton(
-                  onPressed: _reset,
-                  child: Text('Reset',
-                      style: TextStyle(color: colors.textTertiary)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _label(colors, 'Price range (USDC)'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _priceField(colors, _minCtrl, 'Min')),
-                const SizedBox(width: 12),
-                Expanded(child: _priceField(colors, _maxCtrl, 'Max')),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _label(colors, 'Minimum rating'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                for (int r = 1; r <= 5; r++)
-                  GestureDetector(
-                    onTap: () {
-                      AzamanHaptics.toggle();
-                      setState(() => _minRating = _minRating == r ? 0 : r);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Icon(
-                        Icons.star_outline,
-                        size: 30,
-                        color: r <= _minRating
-                            ? colors.warning
-                            : colors.divider,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _switch(colors, 'Verified only', _verifiedOnly,
-                (v) => setState(() => _verifiedOnly = v)),
-            _switch(colors, 'Delivery available', _delivery,
-                (v) => setState(() => _delivery = v)),
-            _switch(colors, 'Has physical location', _location,
-                (v) => setState(() => _location = v)),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 50,
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _apply,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Apply Filters',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ],
-        ),
+    return PremiumGlassContainer(
+      blur: 30, opacity: 0.12, borderRadius: 24,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, top: 16, left: 20, right: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)))),
+          Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: colors.textPrimary)).animate().fadeIn(duration: 200.ms),
+          const SizedBox(height: 20),
+          _label(colors, 'Price range (USDC)'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _priceField(colors, _minCtrl, 'Min')),
+              const SizedBox(width: 12),
+              Expanded(child: _priceField(colors, _maxCtrl, 'Max')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('Minimum Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colors.textSecondary)),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: Slider(value: _minRating.toDouble(), min: 0, max: 5, divisions: 5,
+              activeColor: colors.accent, inactiveColor: colors.divider, label: '${_minRating.toStringAsFixed(0)}★',
+              onChanged: (v) => setState(() => _minRating = v.toInt()))),
+            Text('${_minRating.toStringAsFixed(0)}★', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.accent)),
+          ]),
+          const SizedBox(height: 16),
+          _premiumToggleRow('Verified businesses only', Icons.verified_rounded, _verifiedOnly, (v) => setState(() => _verifiedOnly = v), colors),
+          const SizedBox(height: 12),
+          _premiumToggleRow('Delivery available', Icons.local_shipping_rounded, _delivery, (v) => setState(() => _delivery = v), colors),
+          const SizedBox(height: 12),
+          _premiumToggleRow('Has physical location', Icons.storefront_rounded, _location, (v) => setState(() => _location = v), colors),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: GestureDetector(onTap: _reset, child: Container(height: 48,
+              decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider)),
+              child: Center(child: Text('Reset', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textSecondary)))))),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: GestureDetector(onTap: _apply, child: Container(height: 48,
+              decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))]),
+              child: Center(child: Text('Apply Filters', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.background)))))),
+          ]),
+        ],
       ),
-    );
+    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOutCubic);
   }
 
   Widget _label(AzamanColors colors, String text) => Text(
@@ -262,21 +208,24 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
     );
   }
 
-  Widget _switch(
-      AzamanColors colors, String label, bool value, ValueChanged<bool> onChanged) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      value: value,
-      activeColor: colors.success,
-      onChanged: (v) {
-        AzamanHaptics.toggle();
-        onChanged(v);
-      },
-      title: Text(label,
-          style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600)),
+  Widget _premiumToggleRow(String label, IconData icon, bool value, ValueChanged<bool> onChanged, dynamic colors) {
+    return GestureDetector(
+      onTap: () { AzamanHaptics.toggle(); onChanged(!value); },
+      child: Row(children: [
+        Icon(icon, size: 18, color: colors.textSecondary), const SizedBox(width: 10),
+        Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary))),
+        AnimatedContainer(
+          duration: 200.ms, width: 44, height: 26,
+          decoration: BoxDecoration(color: value ? colors.accent : colors.softSurface, borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: value ? Colors.transparent : colors.divider)),
+          child: AnimatedAlign(
+            duration: 200.ms, curve: Curves.easeOutCubic,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(width: 20, height: 20, margin: const EdgeInsets.all(2),
+              decoration: BoxDecoration(color: value ? colors.background : colors.textTertiary, shape: BoxShape.circle)),
+          ),
+        ),
+      ]),
     );
   }
 }

@@ -26,6 +26,10 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 
 class CollapsibleBusinessBar extends ConsumerWidget {
   final BusinessProfile business;
@@ -128,122 +132,52 @@ class CollapsibleBusinessBar extends ConsumerWidget {
         onToggle();
       },
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 0.5),
-        ),
+      child: PremiumGlassContainer(
+        blur: 16, opacity: 0.05, borderRadius: 16, margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Logo / icon
-            _logo(colors, cat, size: 42),
+            _logo(colors, cat, size: 48),
             const SizedBox(width: 12),
-            // Name + meta
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          business.businessName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Flexible(
+                        child: Text(business.businessName,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                       if (business.isVerified) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.verified_rounded,
-                            size: 13, color: colors.accent),
+                        const SizedBox(width: 6),
+                        Icon(Icons.verified_rounded, size: 14, color: colors.accent),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
-                      // Vertical color dot
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: cat.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        cat.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colors.textTertiary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      // Rating
+                      AnimatedRatingStars(rating: business.averageRating, size: 11, filledColor: colors.accent, emptyColor: colors.divider),
                       if (business.averageRating > 0) ...[
-                        Container(
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 6),
-                          width: 2,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: colors.textTertiary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Icon(Icons.star_rounded,
-                            size: 11,
-                            color: const Color(0xFFF59E0B)),
-                        const SizedBox(width: 2),
-                        Text(
-                          business.averageRating.toStringAsFixed(1),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colors.textTertiary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        const SizedBox(width: 4),
+                        Text(business.averageRating.toStringAsFixed(1),
+                          style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
                       ],
-                      // Distance
-                      if (distanceKm != null) ...[
-                        Container(
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 6),
-                          width: 2,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: colors.textTertiary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Text(
-                          '${distanceKm!.toStringAsFixed(1)} km',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colors.textTertiary,
-                          ),
-                        ),
-                      ],
+                      const SizedBox(width: 8),
+                      Text(cat.label,
+                        style: TextStyle(fontSize: 11, color: colors.textTertiary)),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // Chevron
-            Icon(Icons.keyboard_arrow_down_rounded,
-                color: colors.textTertiary, size: 22),
+            AnimatedRotation(
+              turns: isExpanded ? 0.25 : 0,
+              duration: 300.ms, curve: Curves.easeOutCubic,
+              child: Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 22),
+            ),
           ],
         ),
       ),
@@ -317,6 +251,26 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                       ),
                     ),
                   ),
+
+                  // Distance chip
+                  if (distanceKm != null)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: PremiumGlassContainer(
+                        blur: 8, opacity: 0.08, borderRadius: 8,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), enableShadow: false,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on_rounded, size: 10, color: colors.textTertiary),
+                            const SizedBox(width: 3),
+                            Text('${distanceKm!.toStringAsFixed(1)} km',
+                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+                    ),
 
                   // Collapse button (top-right)
                   Positioned(
@@ -447,34 +401,42 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                   ],
 
                   const SizedBox(height: 12),
-
-                  // CTA button — full width, category color
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _openProfile(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: cat.color,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                      ),
-                      child: Text(
-                        _ctaLabel(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(child: _glassActionPill(icon: Icons.storefront_outlined, label: 'Visit', colors: colors,
+                        onTap: () => _openProfile(context))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _glassActionPill(icon: Icons.reviews_outlined, label: 'Review', colors: colors,
+                        onTap: () => LeaveReviewSheet.show(context, business: business))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _glassActionPill(
+                        icon: Icons.bookmark_border_rounded,
+                        label: 'Save', colors: colors, accent: false,
+                        onTap: () {})),
+                    ],
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _glassActionPill({required IconData icon, required String label, required AzamanColors colors, required VoidCallback onTap, bool accent = false}) {
+    return GestureDetector(
+      onTap: () { AzamanHaptics.nav(); onTap(); },
+      child: PremiumGlassContainer(
+        blur: 8, opacity: accent ? 0.12 : 0.04, borderRadius: 12,
+        padding: const EdgeInsets.symmetric(vertical: 10), enableShadow: false,
+        border: Border.all(color: accent ? colors.accent.withOpacity(0.4) : colors.divider, width: 0.5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: accent ? colors.accent : colors.textSecondary),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: accent ? colors.accent : colors.textSecondary)),
           ],
         ),
       ),

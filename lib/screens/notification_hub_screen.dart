@@ -1,11 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 
@@ -71,28 +74,35 @@ class _NotificationHubScreenState
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text('Notification Hub',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-        backgroundColor: colors.surface,
-        elevation: 0,
-        iconTheme: IconThemeData(color: colors.textPrimary),
-        actions: [
-          if (unreadCount > 0)
-            _MarkAllReadAction(
-              colors: colors,
-              busy: _markingAllRead,
-              onTap: _onMarkAllRead,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(56 + MediaQuery.of(context).padding.top + 48),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: AppBar(
+              title: Text('Notifications',
+                  style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3)),
+              backgroundColor: colors.surface.withOpacity(0.7),
+              elevation: 0,
+              iconTheme: IconThemeData(color: colors.textPrimary),
+              actions: [
+                if (unreadCount > 0)
+                  _MarkAllReadAction(
+                    colors: colors,
+                    busy: _markingAllRead,
+                    onTap: _onMarkAllRead,
+                  ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: _buildTabBar(context, colors, isVendor,
+                  generalNotifications.length, securityNotifications.length, vendorNotifications.length),
+              ),
             ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: _buildTabBar(
-            context, colors, isVendor,
-            generalNotifications.length, securityNotifications.length, vendorNotifications.length,
           ),
         ),
       ),
@@ -145,112 +155,325 @@ class _NotificationHubScreenState
   Widget _buildTabBar(BuildContext context, AzamanColors colors, bool isVendor,
       int generalCount, int securityCount, int vendorCount) {
     return Container(
-      color: colors.surface,
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: colors.accent,
-        indicatorWeight: 3,
-        labelColor: colors.accent,
-        unselectedLabelColor: colors.textTertiary,
-        labelStyle:
-            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 14),
-        onTap: (_) => AzamanHaptics.toggle(),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('General'),
-                const SizedBox(width: 6),
-                _TabBadge(label: '$generalCount', color: colors.accent),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Security & Account'),
-                const SizedBox(width: 6),
-                _TabBadge(label: '$securityCount', color: colors.accent),
-              ],
-            ),
-          ),
-          if (isVendor)
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabCount = isVendor ? 3 : 2;
+          final tabWidth = (constraints.maxWidth - 6) / tabCount;
+          return Stack(
+            children: [
+              // Animated sliding indicator
+              AnimatedPositioned(
+                duration: 300.ms,
+                curve: Curves.easeOutCubic,
+                left: 3 + (_tabController.index * tabWidth),
+                top: 0, bottom: 0,
+                width: tabWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.accent.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Tab labels
+              Row(
                 children: [
-                  Icon(HugeIconsStroke.store01, size: 16),
-                  const SizedBox(width: 6),
-                  const Text('Vendor Inbox'),
-                  const SizedBox(width: 6),
-                  _TabBadge(label: '$vendorCount', color: colors.success),
+                  _tabLabel('General', generalCount, colors, 0),
+                  _tabLabel('Security', securityCount, colors, 1),
+                  if (isVendor) _tabLabel('Vendor', vendorCount, colors, 2),
                 ],
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _tabLabel(String label, int count, AzamanColors colors, int index) {
+    final isSelected = _tabController.index == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () { AzamanHaptics.toggle(); _tabController.animateTo(index); },
+        child: SizedBox(
+          height: 38,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedDefaultTextStyle(
+                  duration: 200.ms,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: isSelected ? colors.background : colors.textSecondary,
+                  ),
+                  child: Text(label),
+                ),
+                if (count > 0) ...[
+                  const SizedBox(width: 4),
+                  AnimatedContainer(
+                    duration: 200.ms,
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected ? colors.background.withOpacity(0.2) : colors.accentSurface,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected ? colors.background : colors.accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildNotificationList(BuildContext context, AzamanColors colors,
       List<AppNotification> notifications) {
-    // Pull-to-refresh works on every tab, even when the list is empty,
-    // so users have a way to retry after a transient fetch failure.
+    if (notifications.isEmpty) {
+      return _premiumEmptyState(colors);
+    }
+
+    // Group by date
+    final groups = <String, List<AppNotification>>{};
+    for (final n in notifications) {
+      final key = _dateGroupKey(n.createdAt);
+      groups.putIfAbsent(key, () => []).add(n);
+    }
+
     return RefreshIndicator(
       color: colors.accent,
-      backgroundColor: colors.surface,
       onRefresh: () => ref.read(notificationProvider.notifier).refresh(),
-      child: notifications.isEmpty
-          ? ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(HugeIconsStroke.notification01,
-                            size: 64, color: colors.textTertiary),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No notifications',
-                          style: TextStyle(
-                              color: colors.textTertiary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        itemCount: groups.length,
+        itemBuilder: (context, groupIndex) {
+          final entry = groups.entries.elementAt(groupIndex);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date header
+              Padding(
+                padding: EdgeInsets.only(top: groupIndex > 0 ? 20.0 : 0.0, bottom: 10.0),
+                child: Text(
+                  entry.key,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textTertiary,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ],
-            )
-          : ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: notifications.length,
-              separatorBuilder: (_, __) => Divider(
-                  color: colors.divider, height: 1, indent: 72, endIndent: 16),
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _NotificationTile(
-                  notification: notification,
-                  colors: colors,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    ref
-                        .read(notificationProvider.notifier)
-                        .markAsRead(notification.id);
-                    _navigateFromNotification(context, notification);
-                  },
-                );
-              },
-            ),
+              ).animate().fadeIn(duration: 200.ms),
+              // Notification tiles
+              ...entry.value.map((n) => _premiumNotificationTile(n, colors)),
+            ],
+          );
+        },
+      ),
     );
+  }
+
+  String _dateGroupKey(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final date = DateTime(dt.year, dt.month, dt.day);
+    if (date == today) return 'TODAY';
+    if (date == yesterday) return 'YESTERDAY';
+    return '${dt.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1]}';
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  Widget _premiumEmptyState(AzamanColors colors) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Animated bell icon
+          Container(
+            width: 80, height: 80,
+            decoration: BoxDecoration(
+              color: colors.accentSurface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.notifications_none_rounded,
+                size: 36, color: colors.accent),
+          )
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .scale(
+            begin: const Offset(1, 1),
+            end: const Offset(1.05, 1.05),
+            duration: 1500.ms,
+            curve: Curves.easeInOut,
+          ),
+          const SizedBox(height: 16),
+          Text('All caught up!',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+              )),
+          const SizedBox(height: 4),
+          Text('You have no unread notifications',
+              style: TextStyle(
+                fontSize: 13,
+                color: colors.textTertiary,
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _premiumNotificationTile(AppNotification notif, AzamanColors colors) {
+    final style = _notifStyle(notif.category, colors);
+
+    return Dismissible(
+      key: ValueKey(notif.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: colors.danger.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(Icons.delete_outline_rounded, color: colors.danger, size: 22),
+      ),
+      confirmDismiss: (_) async {
+        AzamanHaptics.warn();
+        ref.read(notificationProvider.notifier).markAsRead(notif.id);
+        // Note: Full delete not in scope currently, this marks read or triggers action
+        return true;
+      },
+      child: GestureDetector(
+        onTap: () {
+          AzamanHaptics.nav();
+          ref.read(notificationProvider.notifier).markAsRead(notif.id);
+          _navigateFromNotification(context, notif);
+        },
+        child: PremiumGlassContainer(
+          blur: 8,
+          opacity: notif.isRead ? 0.03 : 0.06,
+          borderRadius: 14,
+          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 8),
+          enableShadow: false,
+          border: Border.all(
+            color: notif.isRead ? colors.divider : colors.accent.withOpacity(0.15),
+            width: notif.isRead ? 0.5 : 1,
+          ),
+          child: Row(
+            children: [
+              // Category icon with glow
+              Container(
+                width: 40, height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: style.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: notif.isRead ? null : [
+                    BoxShadow(color: style.color.withOpacity(0.1), blurRadius: 8),
+                  ],
+                ),
+                child: Icon(style.icon, color: style.color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            notif.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (!notif.isRead) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 7, height: 7,
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: colors.accent.withOpacity(0.4), blurRadius: 4),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      notif.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTimeAgo(notif.createdAt),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    )
+    .animate()
+    .fadeIn(delay: 50.ms, duration: 250.ms)
+    .slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
   }
 
   void _navigateFromNotification(
@@ -456,117 +679,4 @@ class _TabBadge extends StatelessWidget {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
-  final AppNotification notification;
-  final AzamanColors colors;
-  final VoidCallback onTap;
-
-  const _NotificationTile({
-    required this.notification,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        color: notification.isRead
-            ? Colors.transparent
-            : colors.accent.withOpacity(0.04),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildLeadingIcon(),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: notification.isRead
-                                ? FontWeight.w500
-                                : FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _timeAgo(notification.createdAt),
-                        style: TextStyle(
-                            color: colors.textTertiary, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification.body,
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 13),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeadingIcon() {
-    final style = _notifStyle(notification.category, colors);
-    return Stack(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: style.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(style.icon, color: style.color, size: 22),
-        ),
-        if (!notification.isRead)
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: colors.danger,
-                shape: BoxShape.circle,
-                border:
-                    Border.all(color: colors.background, width: 1.5),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _timeAgo(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inMinutes < 1) return 'Now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${date.day}/${date.month}';
-  }
-}
+// Removed _NotificationTile as it is replaced by _premiumNotificationTile

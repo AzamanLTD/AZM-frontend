@@ -30,6 +30,10 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/category_filter_drawer.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lottie/lottie.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 enum _ViewMode { list, map }
 
@@ -280,10 +284,7 @@ class _MarketplaceHomeScreenState
             _header(colors),
             const SizedBox(height: 10),
             _searchBar(colors),
-            if (_selectedCategory != null) ...[
-              const SizedBox(height: 6),
-              _activeCategoryChip(colors),
-            ],
+            _categoryStrip(colors),
             const SizedBox(height: 2),
             _resultsBar(colors),
             Expanded(
@@ -310,16 +311,10 @@ class _MarketplaceHomeScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Explore',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: colors.textPrimary,
-                    letterSpacing: -0.6,
-                    height: 1.1,
-                  ),
-                ),
+                ShaderMask(
+                  shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
+                  child: Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
+                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
                 Text(
                   'Find trusted businesses',
                   style: TextStyle(
@@ -473,56 +468,79 @@ class _MarketplaceHomeScreenState
 
   Widget _searchBar(AzamanColors colors) {
     final catLabel = _selectedCategory != null
-        ? BusinessCategories.labelFor(_selectedCategory)
-            .toLowerCase()
+        ? BusinessCategories.labelFor(_selectedCategory).toLowerCase()
         : null;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: TextField(
-        controller: _searchCtrl,
-        onChanged: _onQueryChanged,
-        textInputAction: TextInputAction.search,
-        onSubmitted: (_) => _fireSearch(),
-        style: TextStyle(color: colors.textPrimary, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: catLabel != null
-              ? 'Search $catLabel...'
-              : 'Search all businesses...',
-          hintStyle:
-              TextStyle(color: colors.textTertiary, fontSize: 14),
-          prefixIcon: Icon(Icons.search_rounded,
-              size: 20, color: colors.textTertiary),
-          suffixIcon: _searchCtrl.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: Icon(Icons.cancel_rounded,
-                      size: 18, color: colors.textTertiary),
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    _fireSearch();
-                    setState(() {});
-                  },
-                ),
-          filled: true,
-          fillColor: colors.card,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide:
-                BorderSide(color: colors.divider, width: 0.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide:
-                BorderSide(color: colors.divider, width: 0.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide:
-                BorderSide(color: colors.accent, width: 1.5),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: PremiumGlassContainer(
+        blur: 12, opacity: 0.06, borderRadius: 14,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        enableShadow: false,
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: _onQueryChanged,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _fireSearch(),
+          style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            hintText: catLabel != null
+                ? 'Search $catLabel...'
+                : 'Search all businesses...',
+            hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w400),
+            icon: Icon(Icons.search_rounded, size: 20, color: colors.textTertiary),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            suffixIcon: _searchCtrl.text.isNotEmpty
+              ? GestureDetector(onTap: () { _searchCtrl.clear(); _fireSearch(); setState(() {}); },
+                  child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary))
+              : null,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _categoryStrip(AzamanColors colors) {
+    final categories = [
+      ('FOOD_BEVERAGE', HugeIcons.strokeRoundedRestaurant01, 'Restaurants'),
+      ('HOSPITALITY', HugeIcons.strokeRoundedBuilding05, 'Hotels'),
+      ('LOGISTICS', HugeIcons.strokeRoundedBus01, 'Transit'),
+      ('RETAIL', HugeIcons.strokeRoundedShoppingBag01, 'Retail'),
+      ('PROFESSIONAL_SERVICES', HugeIcons.strokeRoundedWrench01, 'Services'),
+      ('BEAUTY_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
+    ];
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final catItem = categories[i];
+          final isActive = _selectedCategory == catItem.$1;
+          return GestureDetector(
+            onTap: () { AzamanHaptics.toggle(); setState(() => _selectedCategory = isActive ? null : catItem.$1); _fireSearch(); },
+            child: AnimatedContainer(
+              duration: 300.ms, curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isActive ? colors.accentSurface : colors.card.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
+                boxShadow: isActive ? [BoxShadow(color: colors.accent.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 3))] : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  HugeIcon(icon: catItem.$2, size: 22, color: isActive ? colors.accent : colors.textSecondary),
+                  const SizedBox(height: 4),
+                  Text(catItem.$3, style: TextStyle(fontSize: 10.5, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
+                ],
+              ),
+            ),
+          ).animate().fadeIn(delay: (i * 60).ms, duration: 250.ms).slideX(begin: 0.2, end: 0, delay: (i * 60).ms, duration: 250.ms, curve: Curves.easeOutCubic);
+        },
       ),
     );
   }
@@ -772,12 +790,21 @@ class _MarketplaceHomeScreenState
         child: ListView(
           children: [
             const SizedBox(height: 60),
-            AzamanEmptyState(
-              icon: Icons.storefront_outlined,
-              title: 'No businesses found',
-              subtitle: _selectedCategory != null
-                  ? 'No ${BusinessCategories.labelFor(_selectedCategory)} businesses yet. Try a different category.'
-                  : 'Try a different search or category.',
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    child: LottieBuilder.asset('assets/animations/success.json', width: 120, height: 120, repeat: false),
+                  )
+                    .animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 400.ms, curve: Curves.easeOutBack),
+                  const SizedBox(height: 12),
+                  Text('No businesses found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  const SizedBox(height: 4),
+                  Text(_searchCtrl.text.isNotEmpty ? 'Try a different search term' : 'Be the first to register here',
+                    style: TextStyle(fontSize: 13, color: colors.textTertiary)),
+                ],
+              ),
             ),
           ],
         ),
@@ -811,13 +838,13 @@ class _MarketplaceHomeScreenState
             business: b,
             isExpanded: _expandedBizId == b.bizId,
             onToggle: () {
-              AzamanHaptics.toggle();
               setState(() {
                 _expandedBizId =
                     _expandedBizId == b.bizId ? null : b.bizId;
               });
             },
-          );
+            distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,
+          ).animate().fadeIn(delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
         },
       ),
     );

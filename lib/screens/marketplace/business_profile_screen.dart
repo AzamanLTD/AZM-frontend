@@ -28,6 +28,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
+import 'package:azaman/widgets/parallax_header_delegate.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -331,24 +334,56 @@ class _BusinessProfileScreenState
               SliverOverlapAbsorber(
                 handle:
                     NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                sliver: SliverAppBar(
-                  expandedHeight: 280,
+                sliver: SliverPersistentHeader(
                   pinned: true,
-                  floating: false,
-                  backgroundColor: colors.surface,
-                  elevation: 0,
-                  iconTheme: IconThemeData(color: colors.textPrimary),
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: _hero(business, colors),
-                  ),
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(42),
-                    child: Container(
-                      color: colors.surface,
-                      child: _quickInfoBar(business, colors),
-                    ),
+                  delegate: ParallaxHeaderDelegate(
+                    imageUrl: _showcaseSlides.isNotEmpty ? _showcaseSlides.first['mediaUrl'] : _business?.logoUrl,
+                    title: _business?.businessName ?? 'Business',
+                    subtitle: _business != null
+                        ? '${BusinessCategories.labelFor(_business!.category)} · ${_business!.averageRating.toStringAsFixed(1)}★'
+                        : null,
+                    minExtent: 56 + MediaQuery.of(context).padding.top,
+                    maxExtent: 280,
+                    actions: [
+                      // Follow button
+                      Center(
+                        child: GestureDetector(
+                          onTap: _toggleFollow,
+                          child: AnimatedContainer(
+                            duration: 300.ms, curve: Curves.easeOutCubic,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _isFollowing ? colors.accentSurface : colors.accent,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _isFollowing ? colors.accent.withOpacity(0.3) : Colors.transparent),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(_isFollowing ? Icons.check_rounded : Icons.add_rounded, size: 16, color: _isFollowing ? colors.accent : colors.background)
+                                  .animate(target: _isFollowing ? 1 : 0)
+                                  .scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1), duration: 200.ms, curve: Curves.easeOutBack),
+                                const SizedBox(width: 5),
+                                AnimatedSwitcher(
+                                  duration: 250.ms,
+                                  child: Text(_isFollowing ? 'Following' : 'Follow', key: ValueKey(_isFollowing),
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _isFollowing ? colors.accent : colors.background)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.ios_share_rounded, color: Colors.white, size: 20),
+                        onPressed: () => _launch(_business?.website ?? ''),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+              SliverToBoxAdapter(
+                child: _quickInfoBar(business, colors),
               ),
               SliverPersistentHeader(
                 pinned: true,
@@ -550,98 +585,47 @@ class _BusinessProfileScreenState
   // ── Quick info bar ───────────────────────────────────────────────────────
   Widget _quickInfoBar(BusinessProfile business, AzamanColors colors) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: _scrollToReviews,
-              child: _infoChip(
-                colors,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RatingStars(
-                        rating: business.averageRating,
-                        size: 13,
-                        showNumber: true),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            _infoChip(
-              colors,
-              child: Text(
-                business.categoryLabel,
-                style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(width: 8),
-            _infoChip(
-              colors,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.widgets_outlined,
-                      size: 13, color: colors.textTertiary),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${business.completedEscrows} deals',
-                    style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-            if (business.isKybVerified) ...[
-              const SizedBox(width: 8),
-              _infoChip(
-                colors,
-                accent: true,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.shield_outlined,
-                        size: 13, color: colors.success),
-                    const SizedBox(width: 4),
-                    Text(
-                      'KYB Verified',
-                      style: TextStyle(
-                          color: colors.success,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: PremiumGlassContainer(
+        blur: 12, opacity: 0.04, borderRadius: 16,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _infoChip(icon: Icons.star_rounded, value: business.averageRating.toStringAsFixed(1), label: 'Rating', colors: colors, accent: business.averageRating >= 4.5),
+              _divider(colors),
+              _infoChip(icon: Icons.task_alt_rounded, value: '${business.completedEscrows}', label: 'Deals', colors: colors),
+              _divider(colors),
+              _infoChip(icon: Icons.people_outline_rounded, value: _followerCount.toString(), label: 'Followers', colors: colors),
+              if (business.isVerified) ...[
+                _divider(colors),
+                _infoChip(icon: Icons.verified_rounded, value: 'KYB', label: 'Verified', colors: colors, accent: true),
+              ],
             ],
-          ],
+          ),
         ),
+      ),
+    ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 400.ms, curve: Curves.easeOutCubic);
+  }
+
+  Widget _infoChip({required IconData icon, required String value, required String label, required AzamanColors colors, bool accent = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: accent ? colors.accent : colors.textSecondary),
+          const SizedBox(height: 3),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accent ? colors.accent : colors.textPrimary)),
+          Text(label, style: TextStyle(fontSize: 10, color: colors.textTertiary)),
+        ],
       ),
     );
   }
 
-  Widget _infoChip(AzamanColors colors,
-      {required Widget child, bool accent = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accent ? colors.success.withOpacity(0.12) : colors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: accent ? colors.success.withOpacity(0.4) : colors.divider,
-        ),
-      ),
-      child: child,
-    );
+  Widget _divider(AzamanColors colors) {
+    return Container(width: 0.5, height: 28, margin: const EdgeInsets.symmetric(horizontal: 4), color: colors.divider);
   }
 
   // ── About ────────────────────────────────────────────────────────────────
@@ -1441,70 +1425,49 @@ class _BusinessProfileScreenState
     }
   }
 
-Widget _actionBar(AzamanColors colors) {
-    final onAccent = colors.isDark ? Colors.black : Colors.white;
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(top: BorderSide(color: colors.divider)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _openOrderSheet,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor: onAccent,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: Icon(_ctaIcon(_business!), size: 18),
-                  label: Text(_ctaLabel(_business!),
-                      style:
-                          const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ),
-          if (_unpaidInvoices > 0) ...[
-            const SizedBox(width: 12),
-            SizedBox(
-              height: 50,
-              child: OutlinedButton(
-                onPressed: () {
-                  AzamanHaptics.nav();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MyInvoicesScreen(),
-                    ),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.accent,
-                  side: BorderSide(color: colors.accent),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                ),
-                child: Text('Pay Invoice ($_unpaidInvoices)',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w800)),
-              ),
-            ),
+  Widget _actionBar(AzamanColors colors) {
+    final bool _hasUnpaidInvoices = _unpaidInvoices > 0;
+    return SafeArea(
+      child: PremiumGlassContainer(
+        blur: 24, opacity: 0.08, borderRadius: 0,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), enableShadow: false,
+        border: Border(top: BorderSide(color: colors.divider, width: 0.5)),
+        child: Row(
+          children: [
+            if (_hasUnpaidInvoices) ...[
+              Expanded(child: _glassCTAButton(label: 'Pay Invoice', icon: Icons.receipt_long_rounded, colors: colors, isPrimary: false, onTap: () {
+                AzamanHaptics.nav();
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const MyInvoicesScreen()));
+              })),
+              const SizedBox(width: 10),
+            ],
+            Expanded(flex: _hasUnpaidInvoices ? 2 : 1,
+              child: _glassCTAButton(label: _business != null ? _ctaLabel(_business!) : 'Order Now', icon: _business != null ? _ctaIcon(_business!) : Icons.shopping_bag_rounded, colors: colors, isPrimary: true, onTap: _openOrderSheet)),
           ],
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _glassCTAButton({required String label, required IconData icon, required AzamanColors colors, required bool isPrimary, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: () { AzamanHaptics.confirm(); onTap(); },
+      child: AnimatedContainer(
+        duration: 200.ms, height: 46,
+        decoration: BoxDecoration(
+          color: isPrimary ? colors.accent : colors.card,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: isPrimary ? Colors.transparent : colors.divider),
+          boxShadow: isPrimary ? [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))] : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: isPrimary ? Colors.white : colors.textPrimary),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isPrimary ? Colors.white : colors.textPrimary)),
+          ],
+        ),
       ),
     );
   }

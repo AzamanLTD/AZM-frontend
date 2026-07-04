@@ -10,6 +10,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 
 class DineInTabScreen extends ConsumerStatefulWidget {
   final String tabId;
@@ -19,6 +22,8 @@ class DineInTabScreen extends ConsumerStatefulWidget {
 }
 
 class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
+  int _selectedTab = 0;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +45,42 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payment failed: $e')));
     }
+  }
+
+  Widget _premiumTabBar(AzamanColors colors) {
+    final tabs = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Drinks'];
+    return Container(
+      height: 44, margin: const EdgeInsets.fromLTRB(16, 8, 16, 8), padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.divider, width: 0.5)),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final tabWidth = (constraints.maxWidth - 6) / tabs.length;
+        return Stack(children: [
+          AnimatedPositioned(
+            duration: 300.ms, curve: Curves.easeOutCubic,
+            left: 3 + (_selectedTab * tabWidth), top: 0, bottom: 0, width: tabWidth,
+            child: Container(decoration: BoxDecoration(
+              color: colors.accent, borderRadius: BorderRadius.circular(10),
+              boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
+            )),
+          ),
+          Row(children: List.generate(tabs.length, (i) {
+            final isSelected = _selectedTab == i;
+            return GestureDetector(
+              onTap: () { AzamanHaptics.toggle(); setState(() => _selectedTab = i); },
+              child: SizedBox(width: tabWidth, child: Center(
+                child: AnimatedDefaultTextStyle(
+                  duration: 200.ms,
+                  style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: isSelected ? colors.background : colors.textSecondary),
+                  child: Text(tabs[i]),
+                ),
+              )),
+            );
+          })),
+        ]);
+      }),
+    );
   }
 
   @override
@@ -72,6 +113,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
                     child: Text(tab.status, style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600))),
                 ]),
               ),
+              _premiumTabBar(colors),
               // Items list
               Expanded(
                 child: ListView.builder(

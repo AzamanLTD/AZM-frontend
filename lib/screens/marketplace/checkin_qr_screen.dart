@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 
 class CheckInQrScreen extends ConsumerStatefulWidget {
   final String reservationId;
@@ -44,9 +45,9 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -142,15 +143,14 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
             // In production, use qr_flutter package for actual QR rendering
             AnimatedBuilder(
               animation: _pulseAnimation,
-              builder: (context, child) => Transform.scale(
-                scale: _pulseAnimation.value,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.accent.withOpacity(0.3), width: 2),
-                  ),
+              builder: (context, child) => Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.15 * _pulseAnimation.value), blurRadius: 30 * _pulseAnimation.value, spreadRadius: 5 * _pulseAnimation.value)],
+                ),
+                child: PremiumGlassContainer(
+                  blur: 20, opacity: 0.08, borderRadius: 20, padding: const EdgeInsets.all(16),
                   child: _buildQrPlaceholder(token.qrPayload, colors),
                 ),
               ),

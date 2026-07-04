@@ -145,6 +145,7 @@ dependencies:
   dart_emoji: ^0.2.0
   flutter_contacts: ^2.2.2
   crypto: ^3.0.7
+  hugeicons: ^1.1.7
 
 dev_dependencies:
   flutter_test:

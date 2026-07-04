@@ -16,6 +16,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BusinessCheckInScreen extends ConsumerStatefulWidget {
   const BusinessCheckInScreen({super.key});
@@ -26,7 +28,7 @@ class BusinessCheckInScreen extends ConsumerStatefulWidget {
 
 enum _CheckInMode { scanner, search }
 
-class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> {
+class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> with SingleTickerProviderStateMixin {
   _CheckInMode _mode = _CheckInMode.scanner;
   final _azamanIdController = TextEditingController();
   final _scannerController = MobileScannerController(
@@ -34,9 +36,17 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> {
     facing: CameraFacing.back,
   );
   bool _isProcessing = false;
+  late AnimationController _scanCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _scanCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
+    _scanCtrl.dispose();
     _azamanIdController.dispose();
     _scannerController.dispose();
     super.dispose();
@@ -67,36 +77,6 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> {
   Widget _buildMainView(dynamic colors, CheckInActionState checkInState) {
     return Column(
       children: [
-        // Mode toggle
-        Container(
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _ModeTab(
-                  label: 'Scan QR',
-                  icon: Icons.qr_code_scanner,
-                  isActive: _mode == _CheckInMode.scanner,
-                  onTap: () => setState(() => _mode = _CheckInMode.scanner),
-                  colors: colors,
-                ),
-              ),
-              Expanded(
-                child: _ModeTab(
-                  label: 'Search AZM-ID',
-                  icon: Icons.search,
-                  isActive: _mode == _CheckInMode.search,
-                  onTap: () => setState(() => _mode = _CheckInMode.search),
-                  colors: colors,
-                ),
-              ),
-            ],
-          ),
-        ),
 
         // Loading indicator
         if (checkInState.isLoading)
@@ -129,53 +109,85 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> {
   // ── SCANNER ─────────────────────────────────────────────────────────────────
 
   Widget _buildScanner(dynamic colors) {
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: _scannerController,
-          onDetect: _onDetect,
-        ),
-        // Overlay
-        ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.3),
-            BlendMode.srcOver,
-          ),
-          child: Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.accent, width: 3),
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.transparent,
+    return AnimatedBuilder(
+      animation: _scanCtrl,
+      builder: (context, child) {
+        final screenHeight = MediaQuery.of(context).size.height;
+        final scanLineY = (screenHeight / 2 - 120) + (_scanCtrl.value * 240);
+        return Stack(
+          children: [
+            MobileScanner(
+              controller: _scannerController,
+              onDetect: _onDetect,
+            ),
+            // Dark overlay with transparent center frame
+            ColorFiltered(
+              colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.5), BlendMode.srcOver),
+              child: Center(child: Container(width: 240, height: 240,
+                decoration: BoxDecoration(border: Border.all(color: colors.accent, width: 2), borderRadius: BorderRadius.circular(20)))),
+            ),
+            // Animated scan line
+            Positioned(
+              left: MediaQuery.of(context).size.width / 2 - 120, right: MediaQuery.of(context).size.width / 2 - 120,
+              top: scanLineY,
+              child: Container(height: 2, decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [Colors.transparent, colors.accent, Colors.transparent]),
+                boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.5), blurRadius: 8)])),
+            ),
+            // Corner brackets
+            ..._buildCornerBrackets(colors, context),
+            // Mode toggle pill at bottom
+            Positioned(bottom: 32, left: 0, right: 0, child: Center(
+              child: PremiumGlassContainer(
+                blur: 16, opacity: 0.1, borderRadius: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), enableShadow: false,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  _modeButton('Scan', _CheckInMode.scanner, colors),
+                  _modeButton('Search', _CheckInMode.search, colors),
+                ]),
               ),
-            ),
-          ),
+            )),
+          ],
+        );
+      }
+    );
+  }
+
+  List<Widget> _buildCornerBrackets(dynamic colors, BuildContext context) {
+    final s = 20.0;
+    final t = 4.0;
+    final cx = MediaQuery.of(context).size.width / 2;
+    final cy = MediaQuery.of(context).size.height / 2;
+    final w2 = 120.0;
+    
+    return [
+      Positioned(left: cx - w2, top: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
+      Positioned(left: cx - w2, top: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
+      Positioned(right: cx - w2, top: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
+      Positioned(right: cx - w2, top: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
+      Positioned(left: cx - w2, bottom: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
+      Positioned(left: cx - w2, bottom: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
+      Positioned(right: cx - w2, bottom: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
+      Positioned(right: cx - w2, bottom: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
+    ];
+  }
+
+  Widget _modeButton(String label, _CheckInMode m, dynamic colors) {
+    final active = _mode == m;
+    return GestureDetector(
+      onTap: () => setState(() => _mode = m),
+      child: AnimatedContainer(
+        duration: 200.ms,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? colors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
         ),
-        // Instructions
-        Positioned(
-          bottom: 32,
-          left: 32,
-          right: 32,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.qr_code_2, color: colors.accent, size: 32),
-                const SizedBox(height: 8),
-                Text('Point the camera at the customer\'s QR code',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 14)),
-              ],
-            ),
-          ),
-        ),
-      ],
+        child: Text(label, style: TextStyle(
+          color: active ? Colors.white : colors.textPrimary,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+        )),
+      ),
     );
   }
 

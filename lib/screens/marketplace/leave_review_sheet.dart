@@ -13,6 +13,9 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 
 import 'package:azaman/models/business_models.dart';
@@ -92,62 +95,46 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final onAccent = colors.isDark ? Colors.black : Colors.white;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+    return PremiumGlassContainer(
+      blur: 30, opacity: 0.12, borderRadius: 24,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 24, left: 24, right: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: colors.divider,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              'Rate ${widget.business.businessName}',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Rate ${widget.business.businessName}',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Share your experience with this business.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Share your experience with this business.',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
             // Star row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final star = i + 1;
-                return GestureDetector(
-                  onTap: () {
-                    AzamanHaptics.toggle();
-                    setState(() => _rating = star);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      Icons.star_outline,
-                      size: 38,
-                      color: star <= _rating ? colors.warning : colors.divider,
-                    ),
-                  ),
-                );
-              }),
+            Center(
+              child: AnimatedRatingStars.interactive(
+                initialRating: _rating.toDouble(), size: 40,
+                onRatingChanged: (r) => setState(() => _rating = r.toInt()),
+                filledColor: colors.accent,
+              ),
             ),
             if (_rating > 0) ...[
               const SizedBox(height: 6),
@@ -280,8 +267,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
             ],
           ],
         ),
-      ),
-    );
+      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOutCubic);
   }
 
   String _ratingLabel(int r) {

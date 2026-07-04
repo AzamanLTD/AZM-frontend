@@ -21,6 +21,8 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
+import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
@@ -69,41 +71,42 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
           color: colors.accent,
           backgroundColor: colors.card,
           onRefresh: _onRefresh,
-          child: const SingleChildScrollView(
-            physics: AlwaysScrollableScrollPhysics(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(bottom: 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-                _GreetingHeader(),
+                _GreetingHeader().animate().fadeIn(duration: 320.ms),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                _GreetingTitle(),
+                _GreetingTitle().animate().fadeIn(delay: 100.ms, duration: 360.ms).slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 360.ms),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                _ActionPills(),
+                _ActionPills().animate().fadeIn(delay: 200.ms, duration: 350.ms).slideY(begin: 0.15, end: 0, delay: 200.ms, duration: 350.ms),
 
-                SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-                _BalanceCardsScroll(),
+                _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
 
-                SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-                _SusuShortcutCard(),
+                _SusuShortcutCard().animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 400.ms, duration: 400.ms),
 
-                SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-                RecentActivitySection(),
+                RecentActivitySection().animate().fadeIn(delay: 500.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 500.ms, duration: 400.ms),
 
-                SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-                LiveMarketSection(),
+                LiveMarketSection().animate().fadeIn(delay: 600.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 600.ms, duration: 400.ms),
+
               ],
             ),
           ),
@@ -144,24 +147,40 @@ class _GreetingHeader extends ConsumerWidget {
               );
             },
             child: Container(
-              width: 42,
-              height: 42,
-              alignment: Alignment.center,
+              width: 46, height: 46,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.softSurface,
+                gradient: LinearGradient(
+                  colors: [colors.accent, colors.accentSecondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
+              child: Container(
+                margin: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.surface,
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ).animate().fadeIn(duration: 300.ms).scale(
+                begin: const Offset(0.8, 0.8),
+                end: const Offset(1, 1),
+                duration: 300.ms,
+                curve: Curves.easeOutBack,
+              ),
           const Spacer(),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -172,16 +191,24 @@ class _GreetingHeader extends ConsumerWidget {
                 MaterialPageRoute(builder: (_) => const AzmRewardsScreen()),
               );
             },
-            child: Container(
+            child: PremiumGlassContainer(
+              blur: 8,
+              opacity: 0.06,
+              borderRadius: 22,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: colors.success.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(22),
-              ),
+              enableShadow: false,
+              border: Border.all(color: colors.success.withValues(alpha: 0.2), width: 0.5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
+                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success)
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.1, 1.1),
+                        duration: 800.ms,
+                        curve: Curves.easeInOut,
+                      ),
                   const SizedBox(width: 5),
                   Text(
                     (user?.azmBalance ?? 0) > 0
@@ -207,21 +234,30 @@ class _GreetingHeader extends ConsumerWidget {
               AzamanHaptics.toggle();
               ref.read(balanceVisibleProvider.notifier).state = !isVisible;
             },
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.softSurface,
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  isVisible ? HugeIconsStroke.viewOff : HugeIconsStroke.view,
-                  key: ValueKey(isVisible),
-                  size: 18,
-                  color: colors.textSecondary,
+            child: PremiumGlassContainer(
+              blur: 8,
+              opacity: 0.06,
+              borderRadius: 20,
+              padding: EdgeInsets.zero,
+              enableShadow: false,
+              child: SizedBox(
+                width: 40, height: 40,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: 250.ms,
+                    transitionBuilder: (child, anim) => RotationTransition(
+                      turns: child.key == const ValueKey(true)
+                          ? Tween(begin: 0.5, end: 1.0).animate(anim)
+                          : Tween(begin: 1.0, end: 0.5).animate(anim),
+                      child: ScaleTransition(scale: anim, child: child),
+                    ),
+                    child: Icon(
+                      isVisible ? HugeIconsStroke.viewOff : HugeIconsStroke.view,
+                      key: ValueKey(isVisible),
+                      size: 18,
+                      color: colors.textSecondary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -305,10 +341,23 @@ class _ActionPills extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       physics: const BouncingScrollPhysics(),
       child: Row(
-        children: pills.map((p) => Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: _buildPill(context, colors, p),
-        )).toList(),
+        children: pills.asMap().entries.map((entry) {
+          final i = entry.key;
+          final p = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _buildPill(context, colors, p)
+                .animate()
+                .fadeIn(delay: (i * 80).ms, duration: 300.ms)
+                .slideY(
+                  begin: 0.2,
+                  end: 0,
+                  delay: (i * 80).ms,
+                  duration: 300.ms,
+                  curve: Curves.easeOutCubic,
+                ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -317,20 +366,39 @@ class _ActionPills extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () { HapticFeedback.lightImpact(); pill.onTap(); },
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.divider, width: 1),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PremiumGlassContainer(
+            blur: 10,
+            opacity: 0.05,
+            borderRadius: 16,
+            padding: EdgeInsets.zero,
+            enableShadow: false,
+            border: Border.all(color: colors.divider, width: 0.5),
+            child: SizedBox(
+              width: 52, height: 52,
+              child: Center(
+                child: Icon(pill.icon, size: 22, color: colors.accent),
+              ),
+            ),
+          )
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 2000.ms,
+            color: colors.accent.withOpacity(0.1),
           ),
-          child: Icon(pill.icon, size: 22, color: colors.accent),
-        ),
-        const SizedBox(height: 6),
-        Text(pill.label, style: TextStyle(
-          color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
-      ]),
+          const SizedBox(height: 6),
+          Text(
+            pill.label,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -358,6 +426,11 @@ class _BalanceCardsScroll extends ConsumerWidget {
           SizedBox(
             width: screenWidth * 0.38,
             child: _NewWalletCard(colors: colors),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: screenWidth * 0.38,
+            child: _MarketplaceShortcutCard(colors: colors),
           ),
         ],
       ),
@@ -407,8 +480,74 @@ class _NewWalletCard extends StatelessWidget {
               style: TextStyle(color: colors.textTertiary, fontSize: 11, height: 1.3)),
           ],
         ),
+      )
+      .animate(onPlay: (c) => c.repeat(reverse: true))
+      .shimmer(
+        duration: 3000.ms,
+        color: colors.accent.withOpacity(0.05),
       ),
     );
+  }
+}
+
+class _MarketplaceShortcutCard extends ConsumerWidget {
+  final AzamanColors colors;
+  const _MarketplaceShortcutCard({required this.colors});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const MarketplaceHomeScreen()));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colors.accent, colors.accentSecondary],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: colors.accent.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42, height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.15),
+              ),
+              child: const Icon(Icons.storefront_rounded,
+                  size: 20, color: Colors.white),
+            ),
+            const Spacer(),
+            const Text("Marketplace",
+              style: TextStyle(color: Colors.white, fontSize: 16,
+                fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text("Explore businesses",
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
+          ],
+        ),
+      ),
+    )
+    .animate()
+    .fadeIn(delay: 200.ms, duration: 400.ms)
+    .slideX(begin: 0.2, end: 0, delay: 200.ms, duration: 400.ms, curve: Curves.easeOutCubic);
   }
 }
 
@@ -425,30 +564,79 @@ class _SusuShortcutCard extends ConsumerWidget {
         final active = groups.where((g) => g.status == SusuStatus.active).toList();
         if (active.isEmpty) return const SizedBox.shrink();
         final next = active.first;
+        final currentCycle = next.nextCycle?.cycleNumber ?? 1;
+        final totalCycles = next.totalCycles > 0 ? next.totalCycles : 1;
+        final susuProgress = currentCycle / totalCycles;
+        final contributionUsdc = next.contributionUsdc;
+
         return GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
             context.push("/susu/${next.id}");
           },
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [
-                colors.accent.withOpacity(0.1),
-                colors.accentSecondary.withOpacity(0.05)]),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colors.accent.withOpacity(0.2))),
-            child: Row(children: [
-              Icon(Icons.group_outlined, color: colors.accent, size: 24),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("Susu Circle", style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800)),
-                Text(next.name, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-              ])),
-              Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
-            ]),
-          ),
+          child: PremiumGlassContainer(
+            blur: 12,
+            opacity: 0.04,
+            borderRadius: 20,
+            padding: const EdgeInsets.all(18),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                // Progress ring
+                SizedBox(
+                  width: 56, height: 56,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: susuProgress, // 0.0 - 1.0
+                        strokeWidth: 4,
+                        color: colors.accent,
+                        backgroundColor: colors.divider,
+                      ),
+                      Center(
+                        child: Text(
+                          '${(susuProgress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .animate()
+                .scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1), duration: 400.ms, curve: Curves.easeOutBack),
+                const SizedBox(width: 16),
+                // Susu info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Susu Circle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: colors.textPrimary)),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Cycle $currentCycle of $totalCycles',
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '\$${contributionUsdc.toStringAsFixed(2)} / cycle',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: colors.accent),
+                      ),
+                    ],
+                  ),
+                ),
+                // Arrow
+                Icon(Icons.chevron_right_rounded, size: 24, color: colors.textTertiary),
+              ],
+            ),
+          )
+          .animate()
+          .fadeIn(delay: 300.ms, duration: 400.ms)
+          .slideY(begin: 0.1, end: 0, delay: 300.ms, duration: 400.ms, curve: Curves.easeOutCubic),
         );
       },
     );

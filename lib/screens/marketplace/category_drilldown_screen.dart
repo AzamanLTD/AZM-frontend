@@ -11,8 +11,12 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/business_card.dart';
+import 'package:azaman/widgets/premium_shimmer.dart';
+import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Subcategory provider — fetches subcategories for a given parent category wire
@@ -80,67 +84,94 @@ class _CategoryDrilldownScreenState
 
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        elevation: 0,
-        iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text(
-          _showBusinessList ? _selectedSubcategory ?? widget.label : widget.label,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
-          onPressed: () {
-            if (_showBusinessList) {
-              setState(() {
-                _showBusinessList = false;
-                _selectedSubcategory = null;
-              });
-            } else {
-              Navigator.maybePop(context);
-            }
-          },
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Text(
-                    'Marketplace',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Text(' › ', style: TextStyle(color: colors.textTertiary, fontSize: 10)),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+      body: RefreshIndicator(
+        color: colors.accent,
+        onRefresh: () async {
+          if (_showBusinessList) {
+            ref.read(businessSearchProvider.notifier).search(
+                  '',
+                  category: widget.parentWire,
+                  subcategory: _selectedSubcategory,
+                );
+          } else {
+            ref.invalidate(subcategoryProvider(widget.parentWire));
+          }
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true, expandedHeight: 120,
+              backgroundColor: colors.surface, foregroundColor: colors.textPrimary,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back, color: colors.textPrimary),
+                onPressed: () {
+                  if (_showBusinessList) {
+                    setState(() {
+                      _showBusinessList = false;
+                      _selectedSubcategory = null;
+                    });
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(_showBusinessList ? _selectedSubcategory ?? widget.label : widget.label, 
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: colors.textPrimary)),
+                background: _categoryGradient(widget.parentWire, colors),
+              ),
             ),
-          ),
-          Expanded(
-            child: _showBusinessList ? _businessList(colors) : _subcategoryGrid(colors),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text(
+                        'Marketplace',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(' › ', style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: _showBusinessList ? _businessList(colors) : _subcategoryGrid(colors),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _categoryGradient(String category, AzamanColors colors) {
+    final gradients = {
+      'FOOD_BEVERAGE': [const Color(0xFFFF6B6B), const Color(0xFFEE5A24)],
+      'HOSPITALITY': [const Color(0xFF4834DF), const Color(0xFF6C5CE7)],
+      'LOGISTICS': [const Color(0xFF00B894), const Color(0xFF00CEC9)],
+      'RETAIL': [const Color(0xFFD4AF37), const Color(0xFFF0B90B)],
+      'SERVICE': [const Color(0xFF0984E3), const Color(0xFF74B9FF)],
+    };
+    final c = gradients[category] ?? [colors.accent, colors.accentSecondary];
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: c)),
+      child: Center(child: Icon(Icons.storefront_outlined, size: 32, color: Colors.white.withOpacity(0.3))),
     );
   }
 
@@ -175,6 +206,7 @@ class _CategoryDrilldownScreenState
           );
         }
         return GridView.builder(
+          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
@@ -269,6 +301,7 @@ class _CategoryDrilldownScreenState
 
   Widget _gridShimmer(AzamanColors colors) {
     return GridView.builder(
+      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -291,68 +324,96 @@ class _CategoryDrilldownScreenState
     final state = ref.watch(businessSearchProvider);
 
     if (state.isLoading) {
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, __) => Container(
-          height: 92,
-          decoration: BoxDecoration(
-            color: colors.softSurface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
+      return GridView.builder(
+        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.82),
+        itemCount: 6,
+        itemBuilder: (_, __) => PremiumShimmerBox(width: double.infinity, height: double.infinity, radius: 16),
       );
     }
 
     final results = state.results;
     if (results.isEmpty) {
-      return AzamanEmptyState(
-        icon: Icons.storefront_outlined,
-        title: 'No businesses found',
-        subtitle: 'No businesses listed in this subcategory yet.',
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.storefront_outlined, size: 48, color: colors.textTertiary),
+              const SizedBox(height: 12),
+              Text('No businesses found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              const SizedBox(height: 8),
+              Text('No businesses listed in this subcategory yet.', textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary)),
+            ],
+          ),
+        ),
       );
     }
 
-    return RefreshIndicator(
-      color: colors.accent,
-      onRefresh: () => ref.read(businessSearchProvider.notifier).search(
-            '',
-            category: widget.parentWire,
-            subcategory: _selectedSubcategory,
-          ),
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        itemCount: results.length + (state.hasMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) {
-          if (i >= results.length) {
-            ref.read(businessSearchProvider.notifier).loadMore();
-            return const Center(
+    return GridView.builder(
+      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.82),
+      itemCount: results.length + (state.hasMore ? 1 : 0),
+      itemBuilder: (context, i) {
+        if (i >= results.length) {
+          ref.read(businessSearchProvider.notifier).loadMore();
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        final b = results[i];
+        return _premiumBusinessTile(b, colors)
+          .animate().fadeIn(delay: (i * 60).ms, duration: 300.ms)
+          .slideY(begin: 0.15, end: 0, delay: (i * 60).ms, duration: 300.ms, curve: Curves.easeOutCubic);
+      },
+    );
+  }
+
+  Widget _premiumBusinessTile(BusinessProfile b, AzamanColors colors) {
+    return GestureDetector(
+      onTap: () => context.push('/business/${b.bizId}'),
+      child: Container(
+        decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.divider, width: 0.5),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: b.logoUrl != null
+                  ? CachedNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity,
+                      placeholder: (_, __) => PremiumShimmerBox(width: double.infinity, height: 100, radius: 0))
+                  : _categoryGradient(b.category, colors),
+              ),
+            ),
+            Expanded(flex: 2,
               child: Padding(
-                padding: EdgeInsets.all(16),
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(child: Text(b.businessName, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      if (b.isVerified) ...[const SizedBox(width: 4), Icon(Icons.verified_rounded, size: 12, color: colors.accent)],
+                    ]),
+                    const SizedBox(height: 4),
+                    AnimatedRatingStars(rating: b.averageRating, size: 11),
+                  ],
                 ),
               ),
-            );
-          }
-          return BusinessCard(
-            business: results[i],
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      BusinessProfileScreen(bizId: results[i].bizId),
-                ),
-              );
-            },
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
