@@ -76,10 +76,6 @@ class BusinessCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              height: 4, width: double.infinity,
-              color: _categoryColor ?? colors.accent,
-            ),
             _coverPhoto(colors),
             _infoSection(ref, colors),
           ],
@@ -91,7 +87,7 @@ class BusinessCard extends ConsumerWidget {
   Widget _coverPhoto(AzamanColors colors) {
     final coverUrl = _resolveCoverUrl();
     return SizedBox(
-      height: 160,
+      height: 130,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
@@ -164,7 +160,7 @@ class BusinessCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${business.categoryLabel}  ·  ${business.bizId}',
+            business.categoryLabel,
             style: TextStyle(color: colors.textTertiary, fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -183,10 +179,10 @@ class BusinessCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(Icons.widgets_outlined, size: 12, color: colors.textTertiary),
+              Icon(Icons.shopping_bag_outlined, size: 12, color: colors.textTertiary),
               const SizedBox(width: 3),
               Text(
-                '${business.completedEscrows} deals',
+                '${business.completedEscrows} orders',
                 style: TextStyle(color: colors.textTertiary, fontSize: 12),
               ),
             ],
@@ -448,3 +444,4 @@ class _BookmarkButton extends ConsumerWidget {
     );
   }
 }
+

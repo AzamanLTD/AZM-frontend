@@ -406,16 +406,24 @@ class _BusinessProfileScreenState
 
   // ── Hero header ────────────────────────────────────────────────────────────
   Widget _hero(BusinessProfile business, AzamanColors colors) {
-    final logo = business.logoUrl;
+    // Prefer showcase slide → logo → gradient fallback
+    final showcaseUrl = _showcaseSlides.isNotEmpty
+        ? (_showcaseSlides.first['mediaUrl'] as String?)
+        : null;
+    final heroUrl = showcaseUrl ??
+        (business.logoUrl != null && business.logoUrl!.isNotEmpty
+            ? business.logoUrl
+            : null);
+
     return SizedBox(
       height: 280,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (logo != null && logo.isNotEmpty)
+          if (heroUrl != null)
             CachedNetworkImage(
-              imageUrl: logo,
+              imageUrl: heroUrl,
               fit: BoxFit.cover,
               placeholder: (_, __) => _heroGradient(colors),
               errorWidget: (_, __, ___) => _heroGradient(colors),
@@ -445,9 +453,11 @@ class _BusinessProfileScreenState
                   ),
                   const Spacer(),
                   _circleButton(
-                    _isFollowing ? Icons.favorite : Icons.favorite_border,
+                    _isFollowing
+                        ? Icons.how_to_reg_outlined
+                        : Icons.person_add_outlined,
                     _toggleFollow,
-                    color: _isFollowing ? const Color(0xFFEF4444) : null,
+                    color: _isFollowing ? colors.success : null,
                   ),
                   const SizedBox(width: 8),
                   _circleButton(
@@ -1400,7 +1410,38 @@ class _BusinessProfileScreenState
   }
 
   // ── Sticky action bar ────────────────────────────────────────────────────
-  Widget _actionBar(AzamanColors colors) {
+  
+  /// Primary CTA label for the action bar, adapted to the business vertical.
+  String _ctaLabel(BusinessProfile business) {
+    switch (business.category) {
+      case 'FOOD_BEVERAGE':
+        return 'Order Now';
+      case 'REAL_ESTATE':
+      case 'HOSPITALITY':
+        return 'Book a Room';
+      case 'LOGISTICS':
+        return 'Book a Seat';
+      default:
+        return 'Order Now';
+    }
+  }
+
+  /// Icon for the primary CTA button, adapted to the business vertical.
+  IconData _ctaIcon(BusinessProfile business) {
+    switch (business.category) {
+      case 'FOOD_BEVERAGE':
+        return Icons.restaurant_outlined;
+      case 'REAL_ESTATE':
+      case 'HOSPITALITY':
+        return Icons.hotel_outlined;
+      case 'LOGISTICS':
+        return Icons.directions_bus_outlined;
+      default:
+        return Icons.local_mall_outlined;
+    }
+  }
+
+Widget _actionBar(AzamanColors colors) {
     final onAccent = colors.isDark ? Colors.black : Colors.white;
     return Container(
       padding: EdgeInsets.only(
@@ -1428,10 +1469,10 @@ class _BusinessProfileScreenState
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                icon: const Icon(Icons.local_mall_outlined, size: 18),
-                label: const Text('Order Now',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                icon: Icon(_ctaIcon(_business!), size: 18),
+                  label: Text(_ctaLabel(_business!),
+                      style:
+                          const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
               ),
             ),
           ),
@@ -1493,3 +1534,4 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _StickyTabBarDelegate oldDelegate) => true;
 }
+
