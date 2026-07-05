@@ -83,10 +83,8 @@ class _State extends ConsumerState<NotificationOverlay>
   bool _matchesTab(AppNotification n, int tab) {
     switch (tab) {
       case 0: return !n.isRead;
-      case 1: return _isMoney(n);
-      case 2: return _isSocial(n);
-      case 3: return _isSecurity(n);
-      case 4: return _isSystem(n);
+      case 1: return _isSystem(n);
+      case 2: return !_isSystem(n);
       default: return false;
     }
   }
@@ -137,10 +135,8 @@ class _State extends ConsumerState<NotificationOverlay>
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
     final unread  = allN.where((n) => !n.isRead).length;
-    final money   = allN.where(_isMoney).length;
-    final social  = allN.where(_isSocial).length;
-    final secCnt  = allN.where(_isSecurity).length;
     final sysCnt  = allN.where(_isSystem).length;
+    final other   = allN.where((n) => !_isSystem(n)).length;
 
     return Stack(children: [
       GestureDetector(onTap: _dismiss, child: Container(color: Colors.transparent)),
@@ -224,13 +220,9 @@ class _State extends ConsumerState<NotificationOverlay>
                                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                                   _categoryRow(0, HugeIconsSolid.notification01, 'All Unread', unread, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(1, HugeIconsSolid.wallet01, 'Money', money, colors),
+                                  _categoryRow(1, HugeIconsSolid.shield01, 'System', sysCnt, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(2, HugeIconsSolid.bubbleChat, 'Social', social, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(3, HugeIconsSolid.lockKey, 'Security', secCnt, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(4, HugeIconsSolid.shield01, 'System', sysCnt, colors),
+                                  _categoryRow(2, HugeIconsSolid.menuSquare, 'Other', other, colors),
                                 ]),
                               ),
                             ),
