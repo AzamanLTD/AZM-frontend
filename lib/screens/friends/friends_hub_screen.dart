@@ -17,6 +17,11 @@ import 'package:azaman/providers/story_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
+import 'package:azaman/widgets/chat_unread_badge.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -334,7 +339,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -346,87 +351,67 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       style: TextStyle(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w800,
-                        fontSize: 27,
+                        fontSize: 28,
                         letterSpacing: -0.5,
                       ),
-                    ),
+                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         color: colors.softSurface,
                         shape: BoxShape.circle,
+                        border: Border.all(color: colors.textTertiary.withOpacity(0.08), width: 0.5),
                       ),
                       alignment: Alignment.center,
-                      child: Icon(
-                        Icons.contacts_rounded,
-                        color: colors.textPrimary,
-                        size: 18,
-                      ),
+                      child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 60.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                   GestureDetector(
                     onTap: _openRequestsSheet,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: 42,
+                          height: 42,
                           decoration: BoxDecoration(
                             color: colors.softSurface,
                             shape: BoxShape.circle,
+                            border: Border.all(color: colors.textTertiary.withOpacity(0.08), width: 0.5),
                           ),
                           alignment: Alignment.center,
-                          child: Icon(
-                            Icons.person_add_rounded,
-                            color: colors.textPrimary,
-                            size: 20,
-                          ),
+                          child: Icon(Icons.person_add_rounded, color: colors.textPrimary, size: 20),
                         ),
                         if (provider.pendingRequests.isNotEmpty)
-                          Positioned(
-                            top: -1,
-                            right: -1,
-                            child: Container(
-                              width: 11,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: colors.danger,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: colors.background, width: 1.5),
-                              ),
-                            ),
-                          ),
+                          Positioned(top: -2, right: -2, child: ChatUnreadBadge(count: provider.pendingRequests.length, fontSize: 10)),
                       ],
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 120.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () {
-                      _toggleSearch();
-                    },
+                    onTap: _toggleSearch,
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
-                        color: _isSearching
-                            ? colors.accent.withValues(alpha: 0.12)
-                            : colors.softSurface,
+                        color: _isSearching ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _isSearching ? colors.accent.withOpacity(0.2) : colors.textTertiary.withOpacity(0.08),
+                          width: 0.5),
                       ),
                       alignment: Alignment.center,
                       child: Icon(
                         _isSearching ? HugeIconsSolid.cancel01 : Icons.search_rounded,
                         color: _isSearching ? colors.accent : colors.textPrimary,
-                        size: 20,
-                      ),
+                        size: 20),
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 180.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                 ],
               ),
             ),
@@ -469,14 +454,15 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
 
                 return feed.when(
                   data: (groups) => SizedBox(
-                    height: 96,
+                    height: 100,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: groups.length + 1,
                       itemBuilder: (_, i) {
-                        if (i == 0) return buildMyStatus();
-
+                        if (i == 0) {
+                          return buildMyStatus().animate().fadeIn(duration: 250.ms).slideX(begin: -0.15, end: 0);
+                        }
                         final g = groups[i - 1];
                         return GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -488,10 +474,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                               const SizedBox(height: 6),
                               SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
                                 overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500))),
                             ]),
                           ),
-                        );
+                        ).animate().fadeIn(delay: Duration(milliseconds: 80 * i), duration: 300.ms).slideX(begin: -0.1, end: 0, delay: Duration(milliseconds: 80 * i));
                       },
                     ),
                   ),
@@ -759,31 +745,33 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                HugeIconsStroke.userGroup,
-                color: colors.textPrimary,
-                size: 116,
-              ),
+              PremiumGlassContainer(
+                blur: 20,
+                opacity: 0.05,
+                borderRadius: 60,
+                padding: const EdgeInsets.all(28),
+                child: Icon(HugeIconsStroke.userGroup, color: colors.accent, size: 56),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 2000.ms, curve: Curves.easeInOut),
               const SizedBox(height: 28),
-              Text(
-                'Your inbox is empty',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  letterSpacing: -0.4,
-                ),
-              ),
+              Text('Your inbox is empty',
+                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.4))
+                .animate().fadeIn(delay: 200.ms, duration: 400.ms),
               const SizedBox(height: 10),
-              Text(
-                'Conversations will show up here.',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Text('Add friends by their Azaman ID to start chatting.',
+                style: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center)
+                .animate().fadeIn(delay: 300.ms, duration: 400.ms),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(24)),
+                  child: Text('Find Friends',
+                    style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
             ],
           ),
         ),
@@ -811,30 +799,22 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
               if (groups.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'GROUPS',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
+                  child: Row(children: [
+                    Container(width: 3, height: 12, decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 6),
+                    Text('GROUPS', style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                  ]),
                 ),
                 for (final g in groups)
                   _GroupChatTile(group: g, colors: colors),
                 const SizedBox(height: 12),
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Text(
-                    'FRIENDS',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
+                  child: Row(children: [
+                    Container(width: 3, height: 12, decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 6),
+                    Text('FRIENDS', style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                  ]),
                 ),
               ],
               for (final f in provider.friends)
@@ -926,22 +906,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: colors.softSurface,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                username.isNotEmpty ? username[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
+            ChatAvatar(
+              imageUrl: friendObj['profilePictureUrl']?.toString(),
+              name: username,
+              size: 50,
+              showOnlineDot: true,
+              isOnline: friendObj['isOnline'] == true,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1070,20 +1040,27 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  lastTime,
-                  style: TextStyle(
-                    color: hasUnread ? colors.accent : colors.textTertiary,
-                    fontSize: 12,
-                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                if (hasUnread)
+                  ChatUnreadBadge(count: unread)
+                else if (lastTime.isNotEmpty)
+                  Text(lastTime, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+                if (isMentioned && hasUnread) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: colors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text('@You', style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
-                ),
+                ],
               ],
             ),
           ],
         ),
       ),
-    );
+    )
+    .animate()
+    .fadeIn(duration: 250.ms)
+    .slideX(begin: 0.05, end: 0);
   }
 
   Widget _buildRequestsSheetBody(AzamanColors colors, FriendProvider provider) {
@@ -1303,84 +1280,48 @@ class _GroupChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final timeStr = _formatTime(group.updatedAt);
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GroupChatScreen(groupId: group.id),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => GroupChatScreen(groupId: group.id)));
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            _GroupBubbleAvatar(group: group, colors: colors),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          group.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      if (group.isSusuEnabled) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colors.warning.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'SUSU',
-                            style: TextStyle(
-                              color: colors.warning,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${group.members.length} members',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
-          ],
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+        child: Row(children: [
+          _GroupBubbleAvatar(group: group, colors: colors),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Expanded(child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
+              if (timeStr.isNotEmpty) Text(timeStr, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+              if (group.isSusuEnabled) ...[
+                const SizedBox(width: 6),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                  child: Text('SUSU', style: TextStyle(color: colors.warning, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Text('${group.members.length} members', style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+          ])),
+          Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
+        ]),
       ),
-    );
+    ).animate().fadeIn(duration: 250.ms).slideX(begin: 0.05, end: 0);
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.day}/${dt.month}';
   }
 }
 
@@ -1391,62 +1332,70 @@ class _GroupBubbleAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (group.avatarUrl != null && group.avatarUrl!.isNotEmpty) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: group.avatarUrl!,
+          fit: BoxFit.cover,
+          width: 50, height: 50,
+          placeholder: (_, __) => _gradientBubble(group.name, 50),
+          errorWidget: (_, __, ___) => _gradientBubble(group.name, 50),
+        ),
+      );
+    }
     final members = group.members;
-    final firstChar = group.name.isEmpty ? '?' : group.name[0].toUpperCase();
-    final secondChar = members.isNotEmpty
-        ? (members.first.username ?? '?').substring(0, 1).toUpperCase()
-        : '?';
-    final thirdChar = members.length > 1
-        ? (members[1].username ?? '?').substring(0, 1).toUpperCase()
-        : '+';
     return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 8,
-            child: _bubble(char: firstChar, size: 28, color: colors.accent, fontSize: 11),
-          ),
-          Positioned(
-            bottom: 2,
-            left: 0,
-            child: _bubble(char: secondChar, size: 24, color: colors.accentSecondary, fontSize: 10),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 2,
-            child: _bubble(char: thirdChar, size: 24, color: colors.success, fontSize: 10),
-          ),
-        ],
-      ),
+      width: 50, height: 50,
+      child: Stack(children: [
+        Positioned(top: 0, left: 8, child: _gradientBubble(group.name, 30)),
+        if (members.isNotEmpty)
+          Positioned(bottom: 2, left: 0, child: _memberBubble(members.first.profilePictureUrl, members.first.username ?? '?', 24, colors.accentSecondary)),
+        if (members.length > 1)
+          Positioned(bottom: 0, right: 2, child: _memberBubble(members[1].profilePictureUrl, members[1].username ?? '+', 24, colors.success))
+        else if (members.length == 1)
+          Positioned(bottom: 0, right: 2, child: _countBubble('+', 24, colors.success)),
+      ]),
     );
   }
 
-  Widget _bubble({
-    required String char,
-    required double size,
-    required Color color,
-    required double fontSize,
-  }) {
+  Widget _gradientBubble(String name, double size) {
+    int hash = 0;
+    for (int i = 0; i < name.length; i++) hash = (hash * 31 + name.codeUnitAt(i)) & 0x7FFFFFFF;
+    final hue1 = (hash % 360).toDouble();
+    final hue2 = ((hash ~/ 360) % 360).toDouble();
     return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
+      width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.15),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [
+          HSLColor.fromAHSL(1.0, hue1, 0.55, 0.45).toColor(),
+          HSLColor.fromAHSL(1.0, hue2, 0.50, 0.35).toColor(),
+        ]),
         border: Border.all(color: colors.background, width: 1.5),
       ),
-      child: Text(
-        char,
-        style: TextStyle(
-          color: color,
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: TextStyle(color: Colors.white, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  Widget _memberBubble(String? photoUrl, String name, double size, Color fallbackColor) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: colors.background, width: 1.5)),
+        child: ClipOval(child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
+          placeholder: (_, __) => _countBubble(name, size, fallbackColor),
+          errorWidget: (_, __, ___) => _countBubble(name, size, fallbackColor))),
+      );
+    }
+    return _countBubble(name, size, fallbackColor);
+  }
+
+  Widget _countBubble(String char, double size, Color color) {
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15), border: Border.all(color: colors.background, width: 1.5)),
+      child: Text(char.isNotEmpty ? char[0].toUpperCase() : '?', style: TextStyle(color: color, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
     );
   }
 }

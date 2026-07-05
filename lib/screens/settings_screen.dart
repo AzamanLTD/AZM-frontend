@@ -89,6 +89,14 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         physics: const BouncingScrollPhysics(),
         children: [
+              _SettingsLogoHeader(colors: colors),
+              Center(
+                child: Text(
+                  'Azaman Protocol v3.1',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 20),
           // ── ACCOUNT ─────────────────────────────────────────────────
           // Phase M (2026-05-25): wires three orphan screens that had
           // product value but no inbound import — Edit Profile (orphan
@@ -362,8 +370,12 @@ class SettingsScreen extends ConsumerWidget {
                   context: context,
                   applicationName: 'Azaman Protocol',
                   applicationVersion: 'v3.1 (Phase F)',
-                  applicationIcon:
-                      Icon(Icons.shield_outlined, color: colors.accent, size: 40),
+                  applicationIcon: Image.asset(
+                    'assets/images/azaman_logo.png',
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                  ),
                   children: const [
                     Text('The premier P2P crypto remittance engine.'),
                   ],
@@ -720,4 +732,103 @@ class _ToggleRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SettingsLogoHeader extends ConsumerStatefulWidget {
+  final AzamanColors colors;
+  const _SettingsLogoHeader({required this.colors});
+
+  @override
+  ConsumerState<_SettingsLogoHeader> createState() => _SettingsLogoHeaderState();
+}
+
+class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ringCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ringCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ringCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 90,
+              height: 90,
+              child: AnimatedBuilder(
+                animation: _ringCtrl,
+                builder: (_, __) => Transform.rotate(
+                  angle: _ringCtrl.value * 2 * 3.14159,
+                  child: CustomPaint(
+                    painter: _GradientRingPainter(),
+                    size: const Size(90, 90),
+                  ),
+                ),
+              ),
+            ),
+            Image.asset(
+              'assets/images/azaman_logo.png',
+              width: 56,
+              height: 56,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientRingPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 3;
+
+    // Gold gradient sweep
+    final sweepGradient = SweepGradient(
+      startAngle: 0.0,
+      endAngle: 2 * 3.14159 * 0.75, // 3/4 circle
+      colors: [
+        const Color(0xFFD4AF37).withOpacity(0.0),
+        const Color(0xFFD4AF37).withOpacity(0.3),
+        const Color(0xFFD4AF37).withOpacity(0.8),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    );
+
+    final paint = Paint()
+      ..shader = sweepGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      0, // start angle
+      2 * 3.14159 * 0.75, // sweep 3/4
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

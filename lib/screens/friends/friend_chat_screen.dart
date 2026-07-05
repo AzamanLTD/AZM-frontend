@@ -35,6 +35,8 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/widgets/premium_message_bubble.dart';
 import 'package:azaman/widgets/premium_chat_input.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
+import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:azaman/widgets/chat_date_header.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -63,6 +65,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   bool _friendTyping = false;
+  String? _friendProfilePic;
+  bool _isFriendOnline = false;
   // Phase UI-POLISH (2026-05-26): tracks whether the text field is empty
   // so we can swap between the audio recorder mic and the text-send arrow.
   bool _hasInputText = false;
@@ -205,6 +209,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       );
 
       final msgs = List<Map<String, dynamic>>.from(result['messages'] ?? []);
+      final friendData = result['friend'] as Map<String, dynamic>?;
+      if (friendData != null && mounted) {
+        setState(() {
+          _friendProfilePic = friendData['profilePictureUrl']?.toString();
+          _isFriendOnline = friendData['isOnline'] == true;
+        });
+      }
 
       setState(() {
         if (loadMore) {
@@ -506,13 +517,12 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           behavior: HitTestBehavior.opaque,
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: c.accent.withOpacity(0.2),
-                child: Text(
-                  widget.friendUsername.isNotEmpty ? widget.friendUsername[0].toUpperCase() : '?',
-                  style: TextStyle(color: c.accent, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
+              ChatAvatar(
+                imageUrl: _friendProfilePic,
+                name: widget.friendUsername,
+                size: 38,
+                showOnlineDot: true,
+                isOnline: _isFriendOnline,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -575,18 +585,27 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                       );
                     }
                     final msg = chatState.messages[i];
-                    return PremiumMessageBubble(
-                      key: ValueKey(msg.localId),
-                      message: msg,
-                      myUserId: myUserId,
-                      showAvatar: false,
-                      showSenderName: false,
-                      onReply: (m) => setState(() => _replyTo = m),
-                      onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
-                      onEdit: (m) => _showEditDialog(context, c, m, params),
-                      onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
-                      onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
-                    );
+                    final msgDate = msg.createdAt;
+                    final prevMsg = i < chatState.messages.length - 1 ? chatState.messages[i + 1] : null;
+                    final showDateHeader = prevMsg == null ||
+                        msgDate.day != prevMsg.createdAt.day ||
+                        msgDate.month != prevMsg.createdAt.month;
+
+                    return Column(children: [
+                      if (showDateHeader) ChatDateHeader(date: msgDate),
+                      PremiumMessageBubble(
+                        key: ValueKey(msg.localId),
+                        message: msg,
+                        myUserId: myUserId,
+                        showAvatar: false,
+                        showSenderName: false,
+                        onReply: (m) => setState(() => _replyTo = m),
+                        onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
+                        onEdit: (m) => _showEditDialog(context, c, m, params),
+                        onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
+                        onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
+                      )
+                    ]);
                   },
                 ),
           ),

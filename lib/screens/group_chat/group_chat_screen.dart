@@ -25,6 +25,7 @@ import 'package:azaman/providers/premium_chat_provider.dart';
 import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
+import 'package:azaman/widgets/chat_date_header.dart';
 
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -244,18 +245,27 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                     if (msg.kind == MessageKind.susuEvent) {
                       return _SusuEventCard(message: msg, colors: colors);
                     }
-                    return PremiumMessageBubble(
-                      key: ValueKey(msg.localId),
-                      message: msg,
-                      myUserId: int.tryParse(_myUserId ?? '0') ?? 0,
-                      showAvatar: true,
-                      showSenderName: true,
-                      onReply: (m) => setState(() => _replyToMessage = m),
-                      onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
-                      onEdit: (m) => _showEditDialog(context, colors, m, params),
-                      onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
-                      onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
-                    );
+                    final msgDate = msg.createdAt;
+                    final prevMsg = i < chatState.messages.length - 1 ? chatState.messages[i + 1] : null;
+                    final showDateHeader = prevMsg == null ||
+                        msgDate.day != prevMsg.createdAt.day ||
+                        msgDate.month != prevMsg.createdAt.month;
+
+                    return Column(children: [
+                      if (showDateHeader) ChatDateHeader(date: msgDate),
+                      PremiumMessageBubble(
+                        key: ValueKey(msg.localId),
+                        message: msg,
+                        myUserId: int.tryParse(_myUserId ?? '0') ?? 0,
+                        showAvatar: true,
+                        showSenderName: true,
+                        onReply: (m) => setState(() => _replyToMessage = m),
+                        onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
+                        onEdit: (m) => _showEditDialog(context, colors, m, params),
+                        onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
+                        onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
+                      )
+                    ]);
                   },
                 );
               }

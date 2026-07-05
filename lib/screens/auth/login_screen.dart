@@ -13,6 +13,7 @@ import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
 import 'package:azaman/widgets/google_logo.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -236,23 +237,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Logo with Hero morph from splash — sits at the TOP of the login
         Center(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFD4AF37).withOpacity(0.20),
-                  blurRadius: 36,
-                  spreadRadius: 6,
-                ),
-              ],
-            ),
-            child: const Icon(
-              HugeIconsSolid.exchange01,
-              size: 72,
-              color: Color(0xFFD4AF37),
+          child: Hero(
+            tag: 'azaman_logo',
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 100.0, end: 80.0),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (context, size, _) {
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFD4AF37).withOpacity(0.15),
+                        blurRadius: 30,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Image.asset(
+                    'assets/images/azaman_logo.png',
+                    width: size,
+                    height: size,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -265,13 +278,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             fontWeight: FontWeight.bold,
             color: colors.textPrimary,
           ),
-        ),
+        ).animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.05, end: 0),
         const SizedBox(height: 6),
         Text(
           'Sign in to continue',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 15, color: colors.textSecondary),
-        ),
+        ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
         const SizedBox(height: 40),
 
         if (_errorMessage != null)

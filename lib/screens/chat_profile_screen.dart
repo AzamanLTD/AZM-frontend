@@ -38,6 +38,9 @@ import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
@@ -332,37 +335,31 @@ class _IdentityTier extends StatelessWidget {
         profile.friend.username.isNotEmpty ? profile.friend.username : fallbackUsername;
     final nickname = profile.myNicknameForFriend;
 
-    return Container(
+    return PremiumGlassContainer(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.divider),
+      padding: const EdgeInsets.all(20),
+      borderRadius: 24,
+      blur: 30,
+      opacity: 0.15,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colors.accent.withOpacity(0.2),
+          colors.card.withOpacity(0.05),
+          colors.accent.withOpacity(0.05),
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent.withOpacity(0.15),
-                  border:
-                      Border.all(color: colors.accent.withOpacity(0.4), width: 1),
-                ),
-                child: Center(
-                  child: Text(
-                    username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
+              ChatAvatar(
+                imageUrl: profile.friend.profilePictureUrl,
+                name: username,
+                size: 64,
+                showOnlineDot: true,
+                isOnline: profile.friend.isOnline ?? false,
               ),
               const SizedBox(width: 14),
               Expanded(

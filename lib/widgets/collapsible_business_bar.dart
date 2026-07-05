@@ -1,21 +1,9 @@
 // lib/widgets/collapsible_business_bar.dart
 // =============================================================================
-// AZAMAN — COLLAPSIBLE BUSINESS BAR (Marketplace Redesign, 2026-07-04)
-//
-// Three-level interaction pattern (Bolt Food model):
-//   Collapsed → Expanded → Full profile page
-//
-// The parent controls isExpanded to enforce accordion behavior (only one
-// bar expanded at a time). Usage pattern:
-//
-//   CollapsibleBusinessBar(
-//     key: ValueKey(b.bizId),
-//     business: b,
-//     isExpanded: _expandedBizId == b.bizId,
-//     onToggle: () => setState(() {
-//       _expandedBizId = _expandedBizId == b.bizId ? null : b.bizId;
-//     }),
-//   )
+// BOLT FOOD COLLAPSIBLE BUSINESS BAR — three-level interaction
+// collapsed: thin bar with logo + name + distance + expand arrow
+// expanded: full card with cover image, rating, category, CTA buttons
+// full page: navigate to business_profile_screen
 // =============================================================================
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -25,394 +13,184 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
-import 'package:azaman/widgets/animated_rating_stars.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
+import 'package:azaman/widgets/rating_stars.dart';
 
-class CollapsibleBusinessBar extends ConsumerWidget {
+class CollapsibleBusinessBar extends ConsumerStatefulWidget {
   final BusinessProfile business;
-  final bool isExpanded;
-  final VoidCallback onToggle;
   final double? distanceKm;
 
   const CollapsibleBusinessBar({
     super.key,
     required this.business,
-    required this.isExpanded,
-    required this.onToggle,
     this.distanceKm,
   });
 
-  // ── Navigation ──────────────────────────────────────────────────────────────
+  @override
+  ConsumerState<CollapsibleBusinessBar> createState() => _CollapsibleBusinessBarState();
+}
 
-  void _openProfile(BuildContext context) {
-    AzamanHaptics.nav();
-    context.push('/business/${business.bizId}');
+class _CollapsibleBusinessBarState extends ConsumerState<CollapsibleBusinessBar>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
-  /// Returns the first usable image URL for the cover (logo → first product image).
-  String? _coverUrl() {
-    if (business.logoUrl != null && business.logoUrl!.isNotEmpty) {
-      return business.logoUrl;
-    }
-    for (final prod in business.products) {
-      if (prod.imageUrls.isNotEmpty) return prod.imageUrls.first;
-    }
-    return null;
+  void _openProfile() {
+    context.push('/business-market/${widget.business.bizId}');
   }
-
-  /// CTA button label tailored to the business vertical.
-  String _ctaLabel() {
-    switch (business.category) {
-      case 'FOOD_BEVERAGE':
-        return 'View Menu';
-      case 'REAL_ESTATE':
-      case 'HOSPITALITY':
-        return 'See Rooms';
-      case 'LOGISTICS':
-        return 'Book a Seat';
-      default:
-        return 'View Business';
-    }
-  }
-
-  /// One-line vertical-specific stat shown in the expanded preview.
-  /// Returns null when no useful data is available at the list level.
-  String? _verticalStat() {
-    final products = business.products;
-    switch (business.category) {
-      case 'FOOD_BEVERAGE':
-        if (products.isNotEmpty) {
-          return '${products.length} item${products.length == 1 ? '' : 's'} on the menu';
-        }
-        return 'Tap to browse the menu';
-      case 'REAL_ESTATE':
-      case 'HOSPITALITY':
-        return 'Tap to see available rooms & pricing';
-      case 'LOGISTICS':
-        return 'Tap to view scheduled trips & seats';
-      default:
-        if (products.isNotEmpty) {
-          return '${products.length} product${products.length == 1 ? '' : 's'} available';
-        }
-        return null;
-    }
-  }
-
-  // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final cat = BusinessCategories.fromWire(business.category);
+    final b = widget.business;
 
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeInOut,
-      child: isExpanded
-          ? _expandedCard(context, colors, cat)
-          : _collapsedBar(context, colors, cat),
-    );
-  }
-
-  // ── Collapsed bar ────────────────────────────────────────────────────────────
-  //
-  // Layout: [Logo 42px] | [Name / category dot + label + rating + distance] | [↓]
-  // Height: ~68px — slim, scannable, no buttons.
-
-  Widget _collapsedBar(
-      BuildContext context, AzamanColors colors, BusinessCategory cat) {
-    return GestureDetector(
-      onTap: () {
-        AzamanHaptics.toggle();
-        onToggle();
-      },
-      behavior: HitTestBehavior.opaque,
-      child: PremiumGlassContainer(
-        blur: 16, opacity: 0.05, borderRadius: 16, margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            _logo(colors, cat, size: 48),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(business.businessName,
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+    if (!_expanded) {
+      // COLLAPSED — thin bar
+      return GestureDetector(
+        onTap: _toggle,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.border, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: b.logoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: b.logoUrl!,
+                        width: 36, height: 36, fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(width: 36, height: 36, color: colors.accent.withValues(alpha: 0.1)),
+                      )
+                    : Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: colors.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.store, size: 18, color: colors.accent),
                       ),
-                      if (business.isVerified) ...[
-                        const SizedBox(width: 6),
-                        Icon(Icons.verified_rounded, size: 14, color: colors.accent),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      AnimatedRatingStars(rating: business.averageRating, size: 11, filledColor: colors.accent, emptyColor: colors.divider),
-                      if (business.averageRating > 0) ...[
-                        const SizedBox(width: 4),
-                        Text(business.averageRating.toStringAsFixed(1),
-                          style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
-                      ],
-                      const SizedBox(width: 8),
-                      Text(cat.label,
-                        style: TextStyle(fontSize: 11, color: colors.textTertiary)),
-                    ],
-                  ),
-                ],
               ),
-            ),
-            AnimatedRotation(
-              turns: isExpanded ? 0.25 : 0,
-              duration: 300.ms, curve: Curves.easeOutCubic,
-              child: Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 22),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(b.businessName, style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Row(
+                      children: [
+                        if (b.averageRating > 0) ...[
+                          RatingStars(rating: b.averageRating, size: 12),
+                          const SizedBox(width: 4),
+                        ],
+                        if (widget.distanceKm != null)
+                          Text('${widget.distanceKm!.toStringAsFixed(1)} km',
+                            style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(_expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: colors.textTertiary, size: 20),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  // ── Expanded card ────────────────────────────────────────────────────────────
-  //
-  // Layout (top→bottom):
-  //   Cover photo 150px (with collapse button + name overlay at bottom)
-  //   Category dot · label · ★ rating · n reviews
-  //   Vertical-specific stat line
-  //   [Full-width CTA button in category color]
-
-  Widget _expandedCard(
-      BuildContext context, AzamanColors colors, BusinessCategory cat) {
-    final cover = _coverUrl();
-    final stat = _verticalStat();
-
+    // EXPANDED — full card
     return GestureDetector(
-      // Tapping the card body (not the button) does nothing — prevents
-      // accidental navigation. Navigation only via the CTA button.
-      onTap: () {},
+      onTap: _openProfile,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.divider, width: 0.5),
+          border: Border.all(color: colors.border, width: 0.5),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black
-                  .withOpacity(colors.isDark ? 0.28 : 0.07),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
+            BoxShadow(color: colors.shadow.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Cover photo ──────────────────────────────────────────────
-            SizedBox(
-              height: 155,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Photo or placeholder
-                  if (cover != null)
-                    CachedNetworkImage(
-                      imageUrl: cover,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          _coverPlaceholder(colors, cat),
-                      errorWidget: (_, __, ___) =>
-                          _coverPlaceholder(colors, cat),
-                    )
-                  else
-                    _coverPlaceholder(colors, cat),
-
-                  // Bottom gradient scrim
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black54],
-                        stops: [0.45, 1.0],
-                      ),
-                    ),
-                  ),
-
-                  // Distance chip
-                  if (distanceKm != null)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: PremiumGlassContainer(
-                        blur: 8, opacity: 0.08, borderRadius: 8,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), enableShadow: false,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.location_on_rounded, size: 10, color: colors.textTertiary),
-                            const SizedBox(width: 3),
-                            Text('${distanceKm!.toStringAsFixed(1)} km',
-                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
-                    ),
-
-                  // Collapse button (top-right)
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: () {
-                        AzamanHaptics.toggle();
-                        onToggle();
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.keyboard_arrow_up_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Business name + verified overlay (bottom-left)
-                  Positioned(
-                    left: 14,
-                    right: 52,
-                    bottom: 12,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            business.businessName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                              shadows: [
-                                Shadow(
-                                    color: Colors.black54,
-                                    blurRadius: 8)
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (business.isVerified) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.verified_rounded,
-                              size: 16, color: Colors.white),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+            // Cover image
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: CachedNetworkImage(
+                imageUrl: b.logoUrl ?? b.coverUrl ?? '',
+                height: 120, width: double.infinity, fit: BoxFit.cover,
+                placeholder: (_, __) => Container(height: 120, color: colors.accent.withValues(alpha: 0.1)),
+                errorWidget: (_, __, ___) => Container(
+                  height: 120, color: colors.accent.withValues(alpha: 0.1),
+                  child: Center(child: Icon(Icons.store, size: 32, color: colors.accent)),
+                ),
               ),
             ),
-
-            // ── Details section ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Category + rating row
                   Row(
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: cat.color,
-                          shape: BoxShape.circle,
-                        ),
+                      Expanded(
+                        child: Text(b.businessName, style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary,
+                        )),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        cat.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (business.averageRating > 0) ...[
-                        const SizedBox(width: 10),
-                        Icon(Icons.star_rounded,
-                            size: 13,
-                            color: const Color(0xFFF59E0B)),
-                        const SizedBox(width: 3),
-                        Text(
-                          business.averageRating.toStringAsFixed(1),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colors.textSecondary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (business.completedEscrows > 0)
-                          Text(
-                            '  ·  ${business.completedEscrows} reviews',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                            ),
-                          ),
-                      ],
+                      if (b.isVerified)
+                        Icon(Icons.verified, size: 16, color: colors.accent),
                     ],
                   ),
-
-                  // Vertical-specific stat line
-                  if (stat != null) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      stat,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colors.textTertiary,
-                      ),
-                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (b.averageRating > 0) ...[
+                        RatingStars(rating: b.averageRating, size: 14),
+                        const SizedBox(width: 4),
+                        Text('${b.averageRating.toStringAsFixed(1)}',
+                          style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(b.categoryLabel, style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+                    ],
+                  ),
+                  if (widget.distanceKm != null) ...[
+                    const SizedBox(height: 4),
+                    Text('${widget.distanceKm!.toStringAsFixed(1)} km away',
+                      style: TextStyle(fontSize: 12, color: colors.textTertiary)),
                   ],
-
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _glassActionPill(icon: Icons.storefront_outlined, label: 'Visit', colors: colors,
-                        onTap: () => _openProfile(context))),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _openProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(b.category == 'FOOD_BEVERAGE' ? 'Order Now' : 'View Details',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: _glassActionPill(icon: Icons.reviews_outlined, label: 'Review', colors: colors,
-                        onTap: () => LeaveReviewSheet.show(context, business: business))),
-                      const SizedBox(width: 8),
-                      Expanded(child: _glassActionPill(
-                        icon: Icons.bookmark_border_rounded,
-                        label: 'Save', colors: colors, accent: false,
-                        onTap: () {})),
+                      IconButton(
+                        onPressed: _toggle,
+                        icon: Icon(Icons.keyboard_arrow_up, color: colors.textTertiary),
+                      ),
                     ],
                   ),
                 ],
@@ -420,71 +198,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _glassActionPill({required IconData icon, required String label, required AzamanColors colors, required VoidCallback onTap, bool accent = false}) {
-    return GestureDetector(
-      onTap: () { AzamanHaptics.nav(); onTap(); },
-      child: PremiumGlassContainer(
-        blur: 8, opacity: accent ? 0.12 : 0.04, borderRadius: 12,
-        padding: const EdgeInsets.symmetric(vertical: 10), enableShadow: false,
-        border: Border.all(color: accent ? colors.accent.withOpacity(0.4) : colors.divider, width: 0.5),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: accent ? colors.accent : colors.textSecondary),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: accent ? colors.accent : colors.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Shared helpers ───────────────────────────────────────────────────────────
-
-  Widget _logo(AzamanColors colors, BusinessCategory cat,
-      {required double size}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.24),
-      child: business.logoUrl != null && business.logoUrl!.isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: business.logoUrl!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              placeholder: (_, __) =>
-                  _logoPlaceholder(colors, cat, size: size),
-              errorWidget: (_, __, ___) =>
-                  _logoPlaceholder(colors, cat, size: size),
-            )
-          : _logoPlaceholder(colors, cat, size: size),
-    );
-  }
-
-  Widget _logoPlaceholder(AzamanColors colors, BusinessCategory cat,
-      {required double size}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: cat.color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(size * 0.24),
-      ),
-      child: Icon(cat.icon, size: size * 0.46, color: cat.color),
-    );
-  }
-
-  Widget _coverPlaceholder(AzamanColors colors, BusinessCategory cat) {
-    return Container(
-      color: cat.color.withOpacity(0.07),
-      child: Center(
-        child: Icon(cat.icon,
-            size: 52, color: cat.color.withOpacity(0.25)),
       ),
     );
   }
 }
-
