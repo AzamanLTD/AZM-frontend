@@ -585,11 +585,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                       );
                     }
                     final msg = chatState.messages[i];
-                    final msgDate = msg.createdAt;
+                    final msgDate = msg.timestamp;
                     final prevMsg = i < chatState.messages.length - 1 ? chatState.messages[i + 1] : null;
                     final showDateHeader = prevMsg == null ||
-                        msgDate.day != prevMsg.createdAt.day ||
-                        msgDate.month != prevMsg.createdAt.month;
+                        msgDate.day != prevMsg.timestamp.day ||
+                        msgDate.month != prevMsg.timestamp.month;
 
                     return Column(children: [
                       if (showDateHeader) ChatDateHeader(date: msgDate),

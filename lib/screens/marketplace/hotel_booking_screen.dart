@@ -41,7 +41,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
       context: context,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: DateTime.now(), end: DateTime.now().add(const Duration(days: 1))),
     );
     if (picked != null) setState(() { _checkIn = picked.start; _checkOut = picked.end; });
   }
@@ -139,7 +139,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected ? colors.accent : colors.border,
+                      color: isSelected ? colors.accent : colors.divider,
                       width: isSelected ? 1.5 : 0.5,
                     ),
                   ),
@@ -190,7 +190,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colors.surface, borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: colors.border, width: 0.5),
+                border: Border.all(color: colors.divider, width: 0.5),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Select Dates', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
@@ -200,7 +200,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                     decoration: BoxDecoration(
-                      border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(8)),
+                      border: Border.all(color: colors.divider), borderRadius: BorderRadius.circular(8)),
                     child: Row(children: [
                       Icon(Icons.calendar_today, color: colors.textTertiary, size: 18),
                       const SizedBox(width: 10),

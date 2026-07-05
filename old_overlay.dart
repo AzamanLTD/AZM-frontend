@@ -137,10 +137,10 @@ class _State extends ConsumerState<NotificationOverlay>
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
     final unread  = allN.where((n) => !n.isRead).length;
-    final sysCnt  = allN.where(_isSystem).length;
     final money   = allN.where(_isMoney).length;
     final social  = allN.where(_isSocial).length;
     final secCnt  = allN.where(_isSecurity).length;
+    final sysCnt  = allN.where(_isSystem).length;
 
     return Stack(children: [
       GestureDetector(onTap: _dismiss, child: Container(color: Colors.transparent)),
@@ -222,15 +222,15 @@ class _State extends ConsumerState<NotificationOverlay>
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(color: colors.divider, width: 0.8)),
                                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                  _categoryRow(0, Icons.notifications, 'All Unread', unread, colors),
+                                  _categoryRow(0, HugeIconsSolid.notification01, 'All Unread', unread, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(1, Icons.account_balance_wallet, 'Money', money, colors),
+                                  _categoryRow(1, HugeIconsSolid.wallet01, 'Money', money, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(2, Icons.chat_bubble, 'Social', social, colors),
+                                  _categoryRow(2, HugeIconsSolid.bubbleChat, 'Social', social, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(3, Icons.lock, 'Security', secCnt, colors),
+                                  _categoryRow(3, HugeIconsSolid.lockKey, 'Security', secCnt, colors),
                                   Divider(height: 1, color: colors.divider),
-                                  _categoryRow(4, Icons.security, 'System', sysCnt, colors),
+                                  _categoryRow(4, HugeIconsSolid.shield01, 'System', sysCnt, colors),
                                 ]),
                               ),
                             ),

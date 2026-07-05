@@ -246,24 +246,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
               builder: (context, size, _) {
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFD4AF37).withOpacity(0.15),
-                        blurRadius: 30,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Image.asset(
-                    'assets/images/azaman_logo.png',
-                    width: size,
-                    height: size,
-                    fit: BoxFit.contain,
-                  ),
+                return Image.asset(
+                  'assets/images/azaman_logo.png',
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
                 );
               },
             ),

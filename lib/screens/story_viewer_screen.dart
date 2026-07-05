@@ -90,78 +90,139 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
               ),
           const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
             begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Colors.black54, Colors.transparent, Colors.transparent, Colors.black60],
+            colors: [Colors.black54, Colors.transparent, Colors.transparent, Colors.black54],
             stops: [0.0, 0.2, 0.7, 1.0]))),
           if (_isPaused)
             Center(child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(16)),
               child: const Icon(Icons.pause, color: Colors.white, size: 36))).animate().fadeIn(duration: 150.ms),
-          SafeArea(child: Column(children: [
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              child: Row(children: List.generate(_group.stories.length, (i) => Expanded(
-                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: ClipRRect(borderRadius: BorderRadius.circular(3),
-                    child: AnimatedBuilder(animation: _progress, builder: (_, __) => LinearProgressIndicator(
-                      value: i < _storyIndex ? 1 : (i == _storyIndex ? _progress.value : 0),
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      valueColor: AlwaysStoppedAnimation(_story.boosted ? Colors.amberAccent : Colors.white),
-                      minHeight: 3))))))))),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(children: [
-                StoryRing(avatarUrl: _group.authorAvatarUrl, hasUnseenStory: false, isBoosted: false, size: 36),
-                const SizedBox(width: 10),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(_group.authorUsername, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                  Text('${_storyIndex + 1} of ${_group.stories.length}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
-                ]),
-                if (_story.boosted) ...[
-                  const SizedBox(width: 8),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.amberAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.bolt, color: Colors.amberAccent, size: 12), SizedBox(width: 2),
-                      Text('BOOSTED', style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.w800)),
-                    ])),
-                ],
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 22), onPressed: () => Navigator.of(context).pop()),
-              ])),
-          ])),
-          Positioned(left: 0, right: 0, bottom: 0,
-            child: SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(children: [
-                if (_story.linkedBizId != null)
-                  Padding(padding: const EdgeInsets.only(bottom: 12),
-                    child: GestureDetector(
-                      onTap: () { /* Navigator.of(context).push(MaterialPageRoute(builder: (_) => VendorPage(bizId: _story.linkedBizId!))); */ },
-                      child: Container(padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-                        alignment: Alignment.center,
-                        child: const Text('Visit Store', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black))))),
-                Row(children: [
-                  Expanded(child: Container(padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)),
-                    child: Row(children: [
-                      Icon(Icons.camera_alt_outlined, color: Colors.white.withOpacity(0.6), size: 20),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  child: Row(
+                    children: List.generate(
+                      _group.stories.length, 
+                      (i) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: AnimatedBuilder(
+                              animation: _progress, 
+                              builder: (_, __) => LinearProgressIndicator(
+                                value: i < _storyIndex ? 1 : (i == _storyIndex ? _progress.value : 0),
+                                backgroundColor: Colors.white.withOpacity(0.2),
+                                valueColor: AlwaysStoppedAnimation(_story.boosted ? Colors.amberAccent : Colors.white),
+                                minHeight: 3
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    children: [
+                      StoryRing(avatarUrl: _group.authorAvatarUrl, hasUnseenStory: false, isBoosted: false, size: 36),
                       const SizedBox(width: 10),
-                      Expanded(child: TextField(
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: InputDecoration(hintText: 'Reply to story...',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
-                          border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12)),
-                        onSubmitted: (_) => HapticFeedback.lightImpact())),
-                      Icon(Icons.emoji_emotions_outlined, color: Colors.white.withOpacity(0.6), size: 20),
-                    ]))),
-                  const SizedBox(width: 8),
-                  GestureDetector(onTap: () => HapticFeedback.lightImpact(),
-                    child: Container(width: 42, height: 42,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)),
-                      alignment: Alignment.center,
-                      child: Icon(Icons.favorite_border, color: Colors.white.withOpacity(0.7), size: 20))),
-                ]),
-              ])))),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(_group.authorUsername, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                        Text('${_storyIndex + 1} of ${_group.stories.length}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
+                      ]),
+                      if (_story.boosted) ...[
+                        const SizedBox(width: 8),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.amberAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.bolt, color: Colors.amberAccent, size: 12), SizedBox(width: 2),
+                            Text('BOOSTED', style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.w800)),
+                          ])),
+                      ],
+                      const Spacer(),
+                      IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 22), onPressed: () => Navigator.of(context).pop()),
+                    ]
+                  )
+                ),
+              ]
+            )
+          ),
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: SafeArea(
+              top: false, 
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  children: [
+                    if (_story.linkedBizId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GestureDetector(
+                          onTap: () { /* Navigator.of(context).push(MaterialPageRoute(builder: (_) => VendorPage(bizId: _story.linkedBizId!))); */ },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                            alignment: Alignment.center,
+                            child: const Text('Visit Store', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black))
+                          )
+                        )
+                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1), 
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.camera_alt_outlined, color: Colors.white.withOpacity(0.6), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Reply to story...',
+                                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
+                                      border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 12)
+                                    ),
+                                    onSubmitted: (_) => HapticFeedback.lightImpact()
+                                  )
+                                ),
+                                Icon(Icons.emoji_emotions_outlined, color: Colors.white.withOpacity(0.6), size: 20),
+                              ]
+                            )
+                          )
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => HapticFeedback.lightImpact(),
+                          child: Container(
+                            width: 42, height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1), 
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.favorite_border, color: Colors.white.withOpacity(0.7), size: 20)
+                          )
+                        ),
+                      ]
+                    ),
+                  ]
+                )
+              )
+            )
+          ),
         ]),
       ),
     );

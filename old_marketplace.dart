@@ -839,7 +839,8 @@ class _MarketplaceHomeScreenState
             isExpanded: _expandedBizId == b.bizId,
             onToggle: () {
               setState(() {
-                _expandedBizId = _expandedBizId == b.bizId ? null : b.bizId;
+                _expandedBizId =
+                    _expandedBizId == b.bizId ? null : b.bizId;
               });
             },
             distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,

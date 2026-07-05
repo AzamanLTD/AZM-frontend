@@ -161,29 +161,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 AnimatedBuilder(
                   animation: _glowController,
                   builder: (_, __) {
-                    final glowScale = 1.0 + (_glowController.value * 0.15);
-                    final glowOpacity = 0.08 + (_glowController.value * 0.07);
                     return Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Glow circle behind logo
-                        Transform.scale(
-                          scale: glowScale,
-                          child: Container(
-                            width: 140,
-                            height: 140,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFD4AF37).withOpacity(glowOpacity),
-                                  blurRadius: 50,
-                                  spreadRadius: 12,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                         // Logo — Hero tagged for morph to login screen
                         Hero(
                           tag: 'azaman_logo',
@@ -203,8 +183,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ShaderMask(
                   shaderCallback: (bounds) {
                     return LinearGradient(
-                      begin: Alignment.left,
-                      end: Alignment.right,
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                       colors: [
                         Colors.white.withOpacity(0.3),
                         Colors.white,

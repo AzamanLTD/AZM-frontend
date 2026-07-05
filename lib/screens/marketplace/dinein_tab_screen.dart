@@ -97,7 +97,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: colors.surface,
-                  border: Border(top: BorderSide(color: colors.border, width: 0.5))),
+                  border: Border(top: BorderSide(color: colors.divider, width: 0.5))),
                 child: SafeArea(child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),

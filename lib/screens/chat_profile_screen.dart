@@ -358,8 +358,7 @@ class _IdentityTier extends StatelessWidget {
                 imageUrl: profile.friend.profilePictureUrl,
                 name: username,
                 size: 64,
-                showOnlineDot: true,
-                isOnline: profile.friend.isOnline ?? false,
+                showOnlineDot: false,
               ),
               const SizedBox(width: 14),
               Expanded(
