@@ -149,8 +149,13 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       final loaded = rawList.map((j) =>
         ChatMessage.fromJson(j as Map<String,dynamic>, myUserId: _myUserId,
           initialStatus: MessageStatus.read)).toList();
+      // Always sort newest-first so the reverse:true ListView shows messages
+      // in the correct order regardless of the order returned by the server.
+      // (friend-chat endpoint returns chronological; group-chat returns DESC.)
+      final merged = loadMore ? [...state.messages, ...loaded] : loaded;
+      merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       state = state.copyWith(
-        messages: loadMore ? [...state.messages, ...loaded] : loaded,
+        messages: merged,
         hasMore: body['hasMore'] == true,
         isLoading: false,
       );
