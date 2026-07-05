@@ -232,7 +232,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   controller: _scrollController,
                   reverse: true,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  padding: const EdgeInsets.only(top: 12, bottom: 20),
                   itemCount: chatState.messages.length + (chatState.hasMore ? 1 : 0),
                   itemBuilder: (context, i) {
                     if (i == chatState.messages.length) {
