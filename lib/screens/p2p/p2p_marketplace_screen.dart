@@ -45,6 +45,13 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
       // ignore: discarded_futures
       auth.fetchUserDetails();
     }
+    // FIX (2026-07-06): pull-to-refresh on the P2P page never actually
+    // refreshed the AZM rewards bar's data -- AzmRewardNotifier.refresh()
+    // existed for exactly this but nothing here called it, so the bar could
+    // go stale even though the pull-to-refresh spinner ran. Also feeds the
+    // progress-bar fill-up animation via ref.listen in _AzmProgressBar.
+    // ignore: discarded_futures
+    ref.read(azmRewardProvider.notifier).refresh();
     await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
@@ -170,18 +177,28 @@ class _MoneyHeader extends ConsumerWidget {
 class _CashBalanceCard extends ConsumerWidget {
   const _CashBalanceCard();
 
+  // FIX (2026-07-06): this card must look identical no matter which app
+  // theme (Light / Dark / Midnight) is active — it's a "physical bank
+  // card" metaphor, like the plastic card in your wallet doesn't change
+  // color when your phone switches to dark mode. Previously it read
+  // colors.accent + colors.isDark from the live theme, which meant the
+  // Midnight theme's violet accent (0xFFBB86FC) bled into what's supposed
+  // to be a fixed gold-on-carbon card, and the Light theme softened the
+  // sheen/gradient. Fixed by hardcoding a permanent brand palette here
+  // instead of reading from ref.watch(themeProvider) for anything visual.
+  static const Color _cardAccent = Color(0xFFD4AF37); // permanent card gold — not the theme accent
+  static const Color _gradTopBase = Color(0xFF0E1116);
+  static const Color _gradBottom = Color(0xFF05070A);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
     final balance = ref.watch(hologramBalanceProvider);
     final visible = ref.watch(balanceVisibleProvider);
 
-    // Premium "bank card" treatment — deep carbon-to-black gradient (the
-    // app's own accent used as the metallic sheen rather than a foreign
-    // palette), a faint chip glyph, a brand wordmark, and a slow diagonal
-    // glass sheen so it reads as a real card in the wallet. "Account
-    // details" removed — it didn't route anywhere distinct from the rest
-    // of the app.
+    // Premium "bank card" treatment — deep carbon-to-black gradient with a
+    // fixed gold sheen (never the app's switchable theme accent), a faint
+    // chip glyph, a brand wordmark, and a slow diagonal glass sheen so it
+    // reads as a real card in the wallet, unaffected by theme switching.
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: Stack(
@@ -193,15 +210,14 @@ class _CashBalanceCard extends ConsumerWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.alphaBlend(colors.accent.withOpacity(0.16),
-                      colors.isDark ? const Color(0xFF0E1116) : const Color(0xFF1B1F27)),
-                  colors.isDark ? const Color(0xFF05070A) : const Color(0xFF11141B),
+                  Color.alphaBlend(_cardAccent.withOpacity(0.16), _gradTopBase),
+                  _gradBottom,
                 ],
               ),
-              border: Border.all(color: colors.accent.withOpacity(0.22), width: 1),
+              border: Border.all(color: _cardAccent.withOpacity(0.22), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: colors.accent.withOpacity(0.14),
+                  color: _cardAccent.withOpacity(0.14),
                   blurRadius: 28,
                   spreadRadius: -6,
                   offset: const Offset(0, 14),
@@ -219,15 +235,17 @@ class _CashBalanceCard extends ConsumerWidget {
                 height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: colors.accent.withOpacity(0.10), width: 22),
+                  border: Border.all(color: _cardAccent.withOpacity(0.10), width: 22),
                 ),
               ),
             ),
           ),
           // Slow diagonal glass sheen sweep — the one "subtle animation" cue.
+          // Fixed opacity — the card is permanently dark, so this no longer
+          // needs to soften for the Light theme.
           Positioned.fill(
             child: IgnorePointer(
-              child: _CardSheen(color: Colors.white.withOpacity(colors.isDark ? 0.05 : 0.08)),
+              child: _CardSheen(color: Colors.white.withOpacity(0.05)),
             ),
           ),
           Padding(
@@ -246,8 +264,8 @@ class _CashBalanceCard extends ConsumerWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            colors.accent.withOpacity(0.85),
-                            colors.accent.withOpacity(0.45),
+                            _cardAccent.withOpacity(0.85),
+                            _cardAccent.withOpacity(0.45),
                           ],
                         ),
                       ),
@@ -266,7 +284,7 @@ class _CashBalanceCard extends ConsumerWidget {
                     Text(
                       'AZAMAN',
                       style: TextStyle(
-                        color: colors.accent.withOpacity(0.85),
+                        color: _cardAccent.withOpacity(0.85),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 2.2,
@@ -314,7 +332,7 @@ class _CashBalanceCard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: _BalancePill(
-                        colors: colors,
+                        colors: ref.watch(themeProvider).colors,
                         label: 'Add money',
                         onDarkCard: true,
                         onTap: () {
@@ -329,7 +347,7 @@ class _CashBalanceCard extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _BalancePill(
-                        colors: colors,
+                        colors: ref.watch(themeProvider).colors,
                         label: 'Withdraw',
                         onDarkCard: true,
                         onTap: () {
@@ -512,7 +530,7 @@ class _CardSheenState extends State<_CardSheen> with SingleTickerProviderStateMi
   }
 }
 
-class _AzmProgressBar extends ConsumerWidget {
+class _AzmProgressBar extends ConsumerStatefulWidget {
   const _AzmProgressBar();
 
   static const List<({double threshold, String label})> _milestones = [
@@ -526,24 +544,88 @@ class _AzmProgressBar extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AzmProgressBar> createState() => _AzmProgressBarState();
+}
+
+class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
+    with SingleTickerProviderStateMixin {
+  // FIX (2026-07-06): the fill bar used to jump straight to its value with
+  // no animation at all. Now it always animates FROM its current on-screen
+  // value TO the freshly computed target -- 0 -> X the first time the P2P
+  // page mounts, and old -> new every time pull-to-refresh (or a realtime
+  // AZM credit) changes the underlying total, so progress genuinely reads
+  // as "gaining ground" rather than a static bar.
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  late Animation<double> _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+  double _lastTarget = 0.0;
+  bool _primed = false;
+
+  ({double threshold, String label}) _nextMilestone(double total) {
+    return _AzmProgressBar._milestones.firstWhere(
+      (m) => m.threshold > total,
+      orElse: () => (threshold: _AzmProgressBar._milestones.last.threshold, label: 'AZM Legend'),
+    );
+  }
+
+  double _computeProgress(double total) {
+    final next = _nextMilestone(total);
+    final prevIdx = _AzmProgressBar._milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
+    final prevThreshold = prevIdx >= 0 ? _AzmProgressBar._milestones[prevIdx].threshold : 0.0;
+    final band = next.threshold - prevThreshold;
+    final earned = (total - prevThreshold).clamp(0.0, band);
+    return band > 0 ? earned / band : 1.0;
+  }
+
+  void _animateTo(double target) {
+    if ((target - _lastTarget).abs() < 0.0001) return;
+    _lastTarget = target;
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl
+      ..value = _primed ? _ctrl.value : 0.0
+      ..animateTo(target.clamp(0.0, 1.0), curve: Curves.easeOutCubic);
+    _primed = true;
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors   = ref.watch(themeProvider).colors;
     final azmBal   = ref.watch(azmBalanceProvider);
+
+    // Re-run the fill-up animation whenever the reward summary changes --
+    // covers both the initial page-open load and every pull-to-refresh.
+    ref.listen(azmRewardProvider, (prev, next) {
+      final total = next.summary?.totalEarned ?? azmBal;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _animateTo(_computeProgress(total));
+      });
+    });
+
     final stateVal = ref.watch(azmRewardProvider);
     final summary  = stateVal.summary;
     final total    = summary?.totalEarned ?? azmBal;
 
-    final next = _milestones.firstWhere(
-      (m) => m.threshold > total,
-      orElse: () => (threshold: _milestones.last.threshold, label: 'AZM Legend'),
-    );
-    final prevIdx = _milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
-    final prevThreshold = prevIdx >= 0 ? _milestones[prevIdx].threshold : 0.0;
-    final band    = next.threshold - prevThreshold;
-    final earned  = (total - prevThreshold).clamp(0.0, band);
-    final progress = band > 0 ? earned / band : 1.0;
+    final next = _nextMilestone(total);
+    final prevIdx = _AzmProgressBar._milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
+    final prevThreshold = prevIdx >= 0 ? _AzmProgressBar._milestones[prevIdx].threshold : 0.0;
     final remaining = (next.threshold - total).clamp(0.0, double.infinity);
-    final isMaxed = total >= _milestones.last.threshold;
+    final isMaxed = total >= _AzmProgressBar._milestones.last.threshold;
+
+    final targetProgress = _computeProgress(total);
+    if (!_primed) {
+      // First frame: kick off the 0 -> target fill on page open.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _animateTo(targetProgress);
+      });
+    }
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -554,61 +636,67 @@ class _AzmProgressBar extends ConsumerWidget {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        // Slimmer, more restrained padding than before.
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              colors.accent.withOpacity(0.14),
-              const Color(0xFFD4AF37).withOpacity(0.08),
+              colors.accent.withOpacity(0.13),
+              const Color(0xFFD4AF37).withOpacity(0.07),
             ],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.accent.withOpacity(0.25)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.accent.withOpacity(0.22)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Container(
-              width: 32, height: 32,
+              width: 26, height: 26,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD4AF37).withOpacity(0.15),
+                color: const Color(0xFFD4AF37).withOpacity(0.16),
               ),
-              child: const Center(child: Text('⚡', style: TextStyle(fontSize: 16))),
+              child: const Center(
+                child: Icon(HugeIconsSolid.flash, size: 13, color: Color(0xFFD4AF37)),
+              ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 9),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
                 isMaxed ? 'AZM Legend — Max Tier!' : 'Next: ${next.label}',
                 style: TextStyle(color: colors.textPrimary,
-                  fontSize: 13, fontWeight: FontWeight.w800)),
+                  fontSize: 12.5, fontWeight: FontWeight.w800)),
               Text(
                 isMaxed
                   ? '${total.toStringAsFixed(0)} AZM earned'
                   : '${remaining.toStringAsFixed(0)} AZM to go  ·  ${total.toStringAsFixed(0)} earned',
-                style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+                style: TextStyle(color: colors.textSecondary, fontSize: 10.5)),
             ])),
-            Icon(HugeIconsSolid.arrowRight01, size: 15, color: colors.textTertiary),
+            Icon(HugeIconsSolid.arrowRight01, size: 14, color: colors.textTertiary),
           ]),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
-              backgroundColor: colors.divider.withOpacity(0.4),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
-              minHeight: 7,
+          const SizedBox(height: 10),
+          AnimatedBuilder(
+            animation: _anim,
+            builder: (context, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: _anim.value.clamp(0.0, 1.0),
+                backgroundColor: colors.divider.withOpacity(0.4),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                minHeight: 5,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('${prevThreshold.toStringAsFixed(0)} AZM',
-                style: TextStyle(color: colors.textTertiary, fontSize: 9)),
+                style: TextStyle(color: colors.textTertiary, fontSize: 8.5)),
               Text('${next.threshold.toStringAsFixed(0)} AZM',
-                style: TextStyle(color: colors.textTertiary, fontSize: 9)),
+                style: TextStyle(color: colors.textTertiary, fontSize: 8.5)),
             ],
           ),
         ]),
