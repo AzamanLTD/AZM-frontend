@@ -142,7 +142,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
         // repeated block — derived deterministically from the category
         // color + business id so it never flickers/reshuffles on rebuild.
         opacity: _collapsedTintOpacity(),
-        tintColor: cat.color,
+        tintColor: business.adAccentColorValue ?? cat.color,
         borderRadius: 16,
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: EdgeInsets.zero,
@@ -221,6 +221,11 @@ class CollapsibleBusinessBar extends ConsumerWidget {
   // collapsed feed shows gentle variation between cards instead of every
   // row reading as the exact same flat glass tone. Same business always
   // gets the same tint (stable across rebuilds/scroll).
+  //
+  // Businesses can override WHICH color is tinted via adAccentColor (set
+  // from the business portal, 2026-07-06) — this only controls the
+  // strength/opacity, which stays category-derived either way so a
+  // custom-colored card doesn't suddenly look garish.
   double _collapsedTintOpacity() {
     final hash = business.bizId.codeUnits.fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7FFFFFFF);
     return 0.035 + (hash % 100) / 100 * 0.04;

@@ -6,6 +6,9 @@
 //   POST /api/azm/spend/fee-discount  — Apply fee discount (tierId)
 //   POST /api/azm/spend/ad-boost      — Boost an ad (adId + boostId)
 //   GET  /api/azm/spend/history       — Paginated spend history
+//   GET  /api/azm/spend/card-skins        — Card skin catalog (2026-07-06)
+//   POST /api/azm/spend/card-skin/purchase — Purchase a card skin (skinId)
+//   POST /api/azm/spend/card-skin/equip    — Equip an owned card skin (skinId)
 // =============================================================================
 
 import 'dart:convert';
@@ -252,6 +255,108 @@ class AzmSpendService {
       spends: spendsList,
       nextCursor: pagination['nextCursor'] as String?,
       hasMore: pagination['hasMore'] as bool? ?? false,
+    );
+  }
+
+  // ── Card skins (2026-07-06) ─────────────────────────────────────────────
+
+  /// Fetch the card skin catalog with per-user ownership/equipped/affordability.
+  Future<CardSkinCatalog> getCardSkinCatalog() async {
+    final response = await apiClient.get('/azm/spend/card-skins');
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return CardSkinCatalog.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Purchase a card skin with AZM. Idempotent server-side — re-purchasing
+  /// an already-owned skin is a no-op, not a double charge.
+  /// Throws ApiException (code INSUFFICIENT_AZM) if the balance is too low.
+  Future<CardSkinActionResult> purchaseCardSkin(String skinId) async {
+    final response = await apiClient.post('/azm/spend/card-skin/purchase', {
+      'skinId': skinId,
+    });
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return CardSkinActionResult.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Equip an owned card skin (or 'classic', always allowed). Free.
+  /// Throws ApiException if the skin isn't owned yet.
+  Future<String> equipCardSkin(String skinId) async {
+    final response = await apiClient.post('/azm/spend/card-skin/equip', {
+      'skinId': skinId,
+    });
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    return data['equippedCardSkin'] as String? ?? skinId;
+  }
+}
+
+// ── Card skins (2026-07-06) ──────────────────────────────────────────────────
+
+class CardSkinOption {
+  final String id;
+  final String label;
+  final double cost;
+  final bool owned;
+  final bool affordable;
+
+  const CardSkinOption({
+    required this.id,
+    required this.label,
+    required this.cost,
+    required this.owned,
+    required this.affordable,
+  });
+
+  factory CardSkinOption.fromJson(Map<String, dynamic> json) {
+    return CardSkinOption(
+      id: json['id'] as String,
+      label: json['label'] as String,
+      cost: (json['cost'] as num?)?.toDouble() ?? 0.0,
+      owned: json['owned'] as bool? ?? false,
+      // Free skins (cost 0, e.g. classic) are always affordable.
+      affordable: (json['affordable'] as bool?) ?? ((json['cost'] as num?)?.toDouble() ?? 0.0) == 0.0,
+    );
+  }
+}
+
+class CardSkinCatalog {
+  final List<CardSkinOption> skins;
+  final String equippedCardSkin;
+  final double azmBalance;
+
+  const CardSkinCatalog({
+    required this.skins,
+    required this.equippedCardSkin,
+    required this.azmBalance,
+  });
+
+  factory CardSkinCatalog.fromJson(Map<String, dynamic> json) {
+    return CardSkinCatalog(
+      skins: (json['skins'] as List? ?? [])
+          .map((e) => CardSkinOption.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      equippedCardSkin: json['equippedCardSkin'] as String? ?? 'classic',
+      azmBalance: (json['azmBalance'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+class CardSkinActionResult {
+  final bool purchased;
+  final List<String> ownedCardSkins;
+  final double newBalance;
+
+  const CardSkinActionResult({
+    required this.purchased,
+    required this.ownedCardSkins,
+    required this.newBalance,
+  });
+
+  factory CardSkinActionResult.fromJson(Map<String, dynamic> json) {
+    return CardSkinActionResult(
+      purchased: json['purchased'] as bool? ?? false,
+      ownedCardSkins: (json['ownedCardSkins'] as List? ?? []).map((e) => e.toString()).toList(),
+      newBalance: (json['newBalance'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

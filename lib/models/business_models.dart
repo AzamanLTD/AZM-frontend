@@ -460,6 +460,10 @@ class BusinessProfile {
   final List<String> amenities;
   final List<String> cuisineTypes;
   final Map<String, dynamic>? businessMeta;
+  // Ad appearance customization (2026-07-06): set from the business portal.
+  // Hex string like "#FFAA00"; null falls back to the category-default tint
+  // used in collapsible_business_bar.dart.
+  final String? adAccentColor;
 
   List<String> get showcaseUrls {
     if (businessMeta == null || !businessMeta!.containsKey('showcaseUrls')) return [];
@@ -469,6 +473,16 @@ class BusinessProfile {
   PenaltyPolicyModel? get penaltyPolicy {
     if (businessMeta == null || !businessMeta!.containsKey('penaltyPolicy')) return null;
     return PenaltyPolicyModel.fromJson(businessMeta!['penaltyPolicy']);
+  }
+
+  /// Parsed adAccentColor, or null if unset/malformed (caller falls back to
+  /// the category-default tint in that case).
+  Color? get adAccentColorValue {
+    final hex = adAccentColor;
+    if (hex == null || hex.length != 7 || !hex.startsWith('#')) return null;
+    final value = int.tryParse(hex.substring(1), radix: 16);
+    if (value == null) return null;
+    return Color(0xFF000000 | value);
   }
   final String username;
   final String? userProfilePictureUrl;
@@ -497,6 +511,7 @@ class BusinessProfile {
     this.amenities = const [],
     this.cuisineTypes = const [],
     this.businessMeta,
+    this.adAccentColor,
     required this.username,
     this.description,
     this.website,
@@ -550,6 +565,7 @@ class BusinessProfile {
       amenities: _toStringList(json['amenities']),
       cuisineTypes: _toStringList(json['cuisineTypes']),
       businessMeta: json['businessMeta'] as Map<String, dynamic>?,
+      adAccentColor: json['adAccentColor'] as String?,
       username: (user['username'] ?? '').toString(),
       userProfilePictureUrl: user['profilePictureUrl']?.toString(),
       products: products,
