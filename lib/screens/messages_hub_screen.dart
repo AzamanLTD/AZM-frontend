@@ -45,10 +45,45 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   bool _isLoading = false;
   String _searchQuery = '';
 
+  // Telegram-style collapsing status bar (2026-07-06) — the stories row
+  // shrinks away smoothly as the chat list scrolls down, and returns as you
+  // scroll back up. Driven directly by scroll offset (not a fixed-duration
+  // animation) so it tracks the finger 1:1, same feel as a collapsing
+  // sliver app bar. A subtle haptic tick fires once at each full
+  // collapse/expand transition, not on every frame.
+  static const double _kStatusCollapseDistance = 96.0;
+  final ScrollController _chatListScrollCtrl = ScrollController();
+  double _statusCollapse = 0.0;
+  bool _statusFullyCollapsed = false;
+
+  void _onChatListScroll() {
+    if (!_chatListScrollCtrl.hasClients) return;
+    final offset = _chatListScrollCtrl.offset.clamp(0.0, _kStatusCollapseDistance);
+    final t = offset / _kStatusCollapseDistance;
+    if ((t - _statusCollapse).abs() < 0.01) return;
+    setState(() => _statusCollapse = t);
+
+    if (t >= 1.0 && !_statusFullyCollapsed) {
+      _statusFullyCollapsed = true;
+      HapticFeedback.selectionClick();
+    } else if (t <= 0.0 && _statusFullyCollapsed) {
+      _statusFullyCollapsed = false;
+      HapticFeedback.selectionClick();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _fetchChats();
+    _chatListScrollCtrl.addListener(_onChatListScroll);
+  }
+
+  @override
+  void dispose() {
+    _chatListScrollCtrl.removeListener(_onChatListScroll);
+    _chatListScrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadChats() async {
@@ -407,7 +442,13 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             ),
 
             const SizedBox(height: 12),
-            Consumer(builder: (context, ref, _) {
+            ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: (1 - _statusCollapse).clamp(0.0, 1.0),
+                child: Opacity(
+                  opacity: (1 - _statusCollapse * 1.4).clamp(0.0, 1.0),
+                  child: Consumer(builder: (context, ref, _) {
               final feed = ref.watch(storyFeedProvider);
               final auth = ref.watch(authProvider);
               final myAvatar = auth.user?.profilePictureUrl;
@@ -487,6 +528,9 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                 ),
               );
             }),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
 
             Expanded(
@@ -504,6 +548,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                           backgroundColor: colors.card,
                           onRefresh: _fetchChats,
                           child: ListView.builder(
+                            controller: _chatListScrollCtrl,
                             physics: const AlwaysScrollableScrollPhysics(
                               parent: BouncingScrollPhysics(),
                             ),
