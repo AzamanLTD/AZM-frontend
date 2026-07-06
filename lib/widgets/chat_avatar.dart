@@ -22,6 +22,11 @@ class ChatAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     final gradient = _nameGradient(name);
+    // Squircle curvature — matches StoryRing's proportions (2026-07-06) so
+    // avatars read consistently across the status bar and chat surfaces
+    // instead of stories being squircles and chat rows being plain circles.
+    final radius = size * 0.34;
+    final shape = ContinuousRectangleBorder(borderRadius: BorderRadius.circular(radius));
 
     return SizedBox(
       width: size,
@@ -32,15 +37,18 @@ class ChatAvatar extends StatelessWidget {
           Container(
             width: size,
             height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
+            decoration: ShapeDecoration(
+              shape: shape,
               gradient: hasImage ? null : gradient,
             ),
-            child: ClipOval(
+            child: ClipPath(
+              clipper: ShapeBorderClipper(shape: shape),
               child: hasImage
                   ? CachedNetworkImage(
                       imageUrl: imageUrl!,
                       fit: BoxFit.cover,
+                      width: size,
+                      height: size,
                       placeholder: (_, __) => _initialsWidget(name, size),
                       errorWidget: (_, __, ___) => _initialsWidget(name, size),
                     )
@@ -49,8 +57,8 @@ class ChatAvatar extends StatelessWidget {
           ),
           if (showOnlineDot)
             Positioned(
-              bottom: size * 0.05,
-              right: size * 0.05,
+              bottom: size * 0.02,
+              right: size * 0.02,
               child: _OnlineDot(size: size * 0.28, isOnline: isOnline),
             ),
         ],
