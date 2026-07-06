@@ -51,7 +51,7 @@ class TapHintOverlay extends StatefulWidget {
 }
 
 class _TapHintOverlayState extends State<TapHintOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _fadeCtrl;
   late final AnimationController _tapCtrl;
   bool _showHint = false;
