@@ -18,6 +18,8 @@
 //   )
 // =============================================================================
 
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
@@ -261,25 +264,34 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                     ),
                   ),
 
-                  // Distance chip
-                  if (distanceKm != null)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: PremiumGlassContainer(
-                        blur: 8, opacity: 0.08, borderRadius: 8,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), enableShadow: false,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.location_on_rounded, size: 10, color: colors.textTertiary),
-                            const SizedBox(width: 3),
-                            Text('${distanceKm!.toStringAsFixed(1)} km',
-                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+                  // Top-left stack: follow button, plus distance chip below
+                  // it when we have a location fix.
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _FollowButton(bizId: business.bizId),
+                        if (distanceKm != null) ...[
+                          const SizedBox(height: 6),
+                          PremiumGlassContainer(
+                            blur: 8, opacity: 0.08, borderRadius: 8,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), enableShadow: false,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.location_on_rounded, size: 10, color: colors.textTertiary),
+                                const SizedBox(width: 3),
+                                Text('${distanceKm!.toStringAsFixed(1)} km',
+                                  style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+                        ],
+                      ],
                     ),
+                  ),
 
                   // Collapse button (top-right)
                   Positioned(
@@ -520,6 +532,116 @@ class _BookmarkToggle extends ConsumerWidget {
         color: saved ? colors.accent : colors.textTertiary,
       ),
     );
+  }
+}
+
+// =============================================================================
+// Follow button — top-left of the expanded card's cover photo. Lets a user
+// follow a business straight from the marketplace list. Uses the same
+// /follows/* backend contract as the full business profile screen (GET
+// /follows/check/:id, POST /follows, DELETE /follows/:id) via the shared
+// apiClientProvider.
+// =============================================================================
+class _FollowButton extends ConsumerStatefulWidget {
+  final String bizId;
+  const _FollowButton({required this.bizId});
+
+  @override
+  ConsumerState<_FollowButton> createState() => _FollowButtonState();
+}
+
+class _FollowButtonState extends ConsumerState<_FollowButton> {
+  bool _isFollowing = false;
+  bool _loaded = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFollow();
+  }
+
+  Future<void> _checkFollow() async {
+    try {
+      final client = ref.read(apiClientProvider);
+      final res = await client.get('/follows/check/${widget.bizId}');
+      if (!mounted) return;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      setState(() {
+        _isFollowing = data['isFollowing'] ?? false;
+        _loaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    AzamanHaptics.toggle();
+    final was = _isFollowing;
+    setState(() {
+      _isFollowing = !was;
+      _busy = true;
+    });
+    try {
+      final client = ref.read(apiClientProvider);
+      if (was) {
+        await client.delete('/follows/${widget.bizId}');
+      } else {
+        await client.post('/follows', {'businessProfileId': widget.bizId});
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isFollowing = was);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: _toggle,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _isFollowing
+              ? Colors.black.withOpacity(0.45)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: _isFollowing
+              ? Border.all(color: Colors.white54, width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _isFollowing ? Icons.check_rounded : Icons.add_rounded,
+              size: 13,
+              color: _isFollowing ? Colors.white : Colors.black87,
+            ),
+            const SizedBox(width: 4),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: Text(
+                _isFollowing ? 'Following' : 'Follow',
+                key: ValueKey(_isFollowing),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _isFollowing ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 150.ms, duration: 250.ms);
   }
 }
 

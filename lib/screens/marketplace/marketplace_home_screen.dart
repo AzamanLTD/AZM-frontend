@@ -3,13 +3,15 @@
 // AZAMAN — MARKETPLACE HOME SCREEN (Redesign, 2026-07-04)
 //
 // Structure (top → bottom):
-//   _header()              — title + bookmark + filter icon (opens endDrawer)
-//   _searchBar()           — full-width search bar, context-aware placeholder
+//   _header()              — title + view toggle, morphs into an expandable
+//                             search field (tap the search icon; tap the
+//                             back arrow or elsewhere on the page to retract)
 //   _activeCategoryChip()  — shown only when a category is active (clearable)
 //   _resultsBar()          — slim row: count · Sort ▼ · Verified pill · Filter
 //   Expanded(_listMode() or _mapMode())
 //
-// endDrawer = CategoryFilterDrawer (slides in from right on filter tap).
+// Category selection now lives entirely in the horizontal _categoryStrip()
+// (the old side endDrawer was removed as redundant, 2026-07-06).
 // All list items are CollapsibleBusinessBar — no BusinessCard in the main feed.
 // Accordion: only one bar expanded at a time via _expandedBizId.
 // =============================================================================
@@ -28,7 +30,6 @@ import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:azaman/widgets/category_filter_drawer.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -74,6 +75,10 @@ class _MarketplaceHomeScreenState
   // Accordion — which bar is currently expanded
   String? _expandedBizId;
 
+  // Header search — collapsed icon <-> expanded inline search field
+  bool _searchExpanded = false;
+  final _searchFocusNode = FocusNode();
+
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
@@ -101,6 +106,7 @@ class _MarketplaceHomeScreenState
     _debounce?.cancel();
     _searchCtrl.dispose();
     _scrollCtrl.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -265,17 +271,6 @@ class _MarketplaceHomeScreenState
 
     return Scaffold(
       backgroundColor: colors.background,
-      endDrawer: CategoryFilterDrawer(
-        selectedCategory: _selectedCategory,
-        onSelected: (cat) {
-          setState(() {
-            _selectedCategory = cat;
-            // Collapse any expanded bar when category changes
-            _expandedBizId = null;
-          });
-          _fireSearch();
-        },
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -283,14 +278,29 @@ class _MarketplaceHomeScreenState
           children: [
             _header(colors),
             const SizedBox(height: 10),
-            _searchBar(colors),
-            _categoryStrip(colors),
-            const SizedBox(height: 2),
-            _resultsBar(colors),
+            // Tapping anywhere below the header (category strip, results bar,
+            // or the list/map itself) retracts the search field if it's open —
+            // "clicking somewhere else" collapses it back to the icon.
             Expanded(
-              child: _viewMode == _ViewMode.list
-                  ? _listMode(colors)
-                  : _mapMode(colors),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  if (_searchExpanded) _closeSearch();
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _categoryStrip(colors),
+                    const SizedBox(height: 2),
+                    _resultsBar(colors),
+                    Expanded(
+                      child: _viewMode == _ViewMode.list
+                          ? _listMode(colors)
+                          : _mapMode(colors),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -301,114 +311,140 @@ class _MarketplaceHomeScreenState
   // ── Header (title + actions) ────────────────────────────────────────────────
 
   Widget _header(AzamanColors colors) {
+    final catLabel = _selectedCategory != null
+        ? BusinessCategories.labelFor(_selectedCategory).toLowerCase()
+        : null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Stack(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
-                  child: Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
-                Text(
-                  'Find trusted businesses',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textTertiary,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // View mode toggle (list / map)
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: colors.divider, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                _viewSeg(
-                    Icons.view_agenda_outlined, _ViewMode.list, colors),
-                _viewSeg(Icons.location_on_outlined, _ViewMode.map,
-                    colors),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Saved businesses
-          _iconAction(
-            icon: Icons.bookmark_outline_rounded,
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SavedBusinessesScreen()),
-              );
-            },
-            colors: colors,
-          ),
-          const SizedBox(width: 8),
-
-          // Filter / categories (opens endDrawer)
-          Builder(
-            builder: (ctx) => GestureDetector(
-              onTap: () {
-                AzamanHaptics.toggle();
-                Scaffold.of(ctx).openEndDrawer();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _selectedCategory != null
-                      ? colors.accentSurface
-                      : colors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _selectedCategory != null
-                        ? colors.accent
-                        : colors.divider,
-                    width: _selectedCategory != null ? 1.5 : 0.5,
-                  ),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
+          // ── Collapsed state: title + view toggle + search icon ──────────
+          AnimatedSlide(
+            offset: _searchExpanded ? const Offset(-0.2, 0) : Offset.zero,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: _searchExpanded ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: IgnorePointer(
+                ignoring: _searchExpanded,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.tune_rounded,
-                      size: 20,
-                      color: _selectedCategory != null
-                          ? colors.accent
-                          : colors.textSecondary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ShaderMask(
+                            shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
+                            child: Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
+                          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
+                          Text(
+                            'Find trusted businesses',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.textTertiary,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    if (_selectedCategory != null)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: colors.accent,
-                            shape: BoxShape.circle,
+
+                    // Search — directly after "Explore", in line with the view toggle.
+                    // Tapping it morphs this whole row into an inline search field.
+                    _iconAction(
+                      icon: Icons.search_rounded,
+                      onTap: _openSearch,
+                      colors: colors,
+                    ),
+                    const SizedBox(width: 8),
+
+                    // View mode toggle (list / map)
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: colors.card,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: colors.divider, width: 0.5),
+                      ),
+                      child: Row(
+                        children: [
+                          _viewSeg(
+                              Icons.view_agenda_outlined, _ViewMode.list, colors),
+                          _viewSeg(Icons.location_on_outlined, _ViewMode.map,
+                              colors),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Expanded state: back arrow + inline search field ─────────────
+          // Slides in from the right as the collapsed row slides/fades out —
+          // reads as the search "pushing" the other buttons off-screen.
+          AnimatedSlide(
+            offset: _searchExpanded ? Offset.zero : const Offset(0.2, 0),
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: _searchExpanded ? 1 : 0,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              child: IgnorePointer(
+                ignoring: !_searchExpanded,
+                child: SizedBox(
+                  height: 44,
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: _closeSearch,
+                        behavior: HitTestBehavior.opaque,
+                        child: SizedBox(
+                          width: 34,
+                          height: 44,
+                          child: Icon(Icons.arrow_back_rounded,
+                              size: 20, color: colors.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: PremiumGlassContainer(
+                          blur: 12, opacity: 0.06, borderRadius: 14,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          enableShadow: false,
+                          child: TextField(
+                            controller: _searchCtrl,
+                            focusNode: _searchFocusNode,
+                            onChanged: _onQueryChanged,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => _fireSearch(),
+                            style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+                            decoration: InputDecoration(
+                              hintText: catLabel != null
+                                  ? 'Search $catLabel...'
+                                  : 'Search all businesses...',
+                              hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w400),
+                              icon: Icon(Icons.search_rounded, size: 20, color: colors.textTertiary),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              suffixIcon: _searchCtrl.text.isNotEmpty
+                                ? GestureDetector(onTap: () { _searchCtrl.clear(); _fireSearch(); setState(() {}); },
+                                    child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary))
+                                : null,
+                            ),
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -416,6 +452,21 @@ class _MarketplaceHomeScreenState
         ],
       ),
     );
+  }
+
+  void _openSearch() {
+    AzamanHaptics.nav();
+    setState(() => _searchExpanded = true);
+    Future.delayed(const Duration(milliseconds: 90), () {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    if (!_searchExpanded) return;
+    AzamanHaptics.toggle();
+    _searchFocusNode.unfocus();
+    setState(() => _searchExpanded = false);
   }
 
   Widget _viewSeg(
@@ -460,42 +511,6 @@ class _MarketplaceHomeScreenState
         child: Icon(icon,
             size: 20,
             color: activeColor ?? colors.textSecondary),
-      ),
-    );
-  }
-
-  // ── Search bar ──────────────────────────────────────────────────────────────
-
-  Widget _searchBar(AzamanColors colors) {
-    final catLabel = _selectedCategory != null
-        ? BusinessCategories.labelFor(_selectedCategory).toLowerCase()
-        : null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: PremiumGlassContainer(
-        blur: 12, opacity: 0.06, borderRadius: 14,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        enableShadow: false,
-        child: TextField(
-          controller: _searchCtrl,
-          onChanged: _onQueryChanged,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _fireSearch(),
-          style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: catLabel != null
-                ? 'Search $catLabel...'
-                : 'Search all businesses...',
-            hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w400),
-            icon: Icon(Icons.search_rounded, size: 20, color: colors.textTertiary),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            suffixIcon: _searchCtrl.text.isNotEmpty
-              ? GestureDetector(onTap: () { _searchCtrl.clear(); _fireSearch(); setState(() {}); },
-                  child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary))
-              : null,
-          ),
-        ),
       ),
     );
   }

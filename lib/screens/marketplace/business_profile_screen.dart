@@ -223,9 +223,9 @@ class _BusinessProfileScreenState
       final client = ref.read(apiClientProvider);
       final bizId = _business?.id ?? widget.bizId;
       if (wasFollowing) {
-        await client.delete('/api/follows/$bizId');
+        await client.delete('/follows/$bizId');
       } else {
-        await client.post('/api/follows', {'businessProfileId': bizId});
+        await client.post('/follows', {'businessProfileId': bizId});
       }
     } catch (e) {
       // Revert on failure
