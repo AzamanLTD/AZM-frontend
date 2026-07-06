@@ -34,6 +34,7 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
+import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/router/app_router.dart';
@@ -274,6 +275,7 @@ class MainWrapper extends ConsumerStatefulWidget {
 
 class _MainWrapperState extends ConsumerState<MainWrapper> {
   int _selectedIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget> _pages;
 
@@ -418,6 +420,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     // again, watch `tradeProvider.select((t) => t.currentRole)`.
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
       extendBody: true,
@@ -445,6 +448,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
           if (_selectedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
+
+          // First-load hint: nudges the user that the settings drawer
+          // exists (previously only reachable via an undiscoverable
+          // edge-swipe gesture). Shows once, ever.
+          DrawerPeekHint(
+            onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
         ],
       ),
     );
