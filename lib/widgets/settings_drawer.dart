@@ -31,6 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/admin/admin_dashboard.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';

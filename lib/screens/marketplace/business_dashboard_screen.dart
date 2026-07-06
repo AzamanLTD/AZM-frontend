@@ -174,7 +174,7 @@ class _BusinessDashboardScreenState
                 '\${dash.ewaAvailable.toStringAsFixed(0)}', Icons.bolt)),
               const SizedBox(width: 8),
               Expanded(child: _miniStat(colors, 'Next',
-                dash.nextShift != null ? '\${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
+                dash!.nextShift != null ? '\${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
             ],
           );
         },

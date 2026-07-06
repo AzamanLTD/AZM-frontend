@@ -225,7 +225,7 @@ class _ActiveShiftCard extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => AzamanHaptics.light(),
+            onPressed: () => AzamanHaptics.toggle(),
             child: Text('Clock Out', style: TextStyle(color: colors.success, fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
@@ -270,7 +270,7 @@ class _EwaCard extends StatelessWidget {
           if (dash.ewaAvailable > 0)
             TextButton(
               onPressed: () {
-                AzamanHaptics.light();
+                AzamanHaptics.toggle();
                 context.push('/worker/ewa');
               },
               child: Text('Withdraw', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
@@ -307,7 +307,7 @@ class _QuickActionsGrid extends StatelessWidget {
         final (label, icon, route) = actions[i];
         return GestureDetector(
           onTap: () {
-            AzamanHaptics.light();
+            AzamanHaptics.toggle();
             context.push(route);
           },
           child: Container(

@@ -4,7 +4,8 @@
 			"path": "."
 		},
 		{
-			"path": "../AZM-backend-main"
+			"name": "AZM-backend",
+			"path": "../AZM-backend"
 		},
 		{
 			"path": "../AZM-businessPortal"

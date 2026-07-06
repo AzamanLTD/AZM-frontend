@@ -232,6 +232,8 @@ class ThemeProvider with ChangeNotifier {
           textSecondary: const Color(0xFF374151),
           textTertiary: const Color(0xFF6B7280),
           glow: const Color(0xFFB8860B),
+          scaffoldBackground: const Color(0xFFFAFAFB),
+          border: const Color(0xFFE6E6E9),
         );
 
       case AzamanTheme.dark:
@@ -254,6 +256,8 @@ class ThemeProvider with ChangeNotifier {
           textSecondary: Colors.white70,
           textTertiary: Colors.white38,
           glow: const Color(0xFFD4AF37),
+          scaffoldBackground: const Color(0xFF0B0E11),
+          border: Colors.white.withOpacity(0.06),
         );
 
       case AzamanTheme.midnight:
@@ -278,6 +282,8 @@ class ThemeProvider with ChangeNotifier {
           textSecondary: const Color(0xFFCE93D8),
           textTertiary: const Color(0xFF9C27B0).withOpacity(0.55),
           glow: const Color(0xFFBB86FC),
+          scaffoldBackground: const Color(0xFF000000),
+          border: const Color(0xFFBB86FC).withOpacity(0.08),
         );
     }
   }
@@ -312,6 +318,9 @@ class AzamanColors {
   final Color textTertiary;
 
   final Color glow;
+  
+  final Color scaffoldBackground;
+  final Color border;
 
   const AzamanColors({
     required this.isDark,
@@ -332,6 +341,8 @@ class AzamanColors {
     required this.textSecondary,
     required this.textTertiary,
     required this.glow,
+    required this.scaffoldBackground,
+    required this.border,
   });
 }
 
