@@ -177,7 +177,12 @@ class SettingsDrawer extends ConsumerWidget {
                             const SizedBox(height: 8),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.025),
+                                // Same theme-independence fix as the profile
+                                // card above: a fixed white tint is invisible
+                                // against the near-white light background.
+                                color: colors.isDark
+                                    ? Colors.white.withOpacity(0.025)
+                                    : colors.softSurface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: colors.divider),
                               ),
@@ -343,26 +348,38 @@ class SettingsDrawer extends ConsumerWidget {
         : (user != null ? 'AZM-—' : 'AZM-—');
     final badge = _kycBadgeFor(user?.kycStatus, colors);
 
+    // Theme-aware glass sheen. On dark themes, `colors.background` is
+    // near-black, so a low-opacity WHITE gradient reads as a subtle glossy
+    // highlight. On the light theme, `colors.background` is near-white --
+    // the exact same white gradient becomes invisible (white-on-white),
+    // which left this card with no visible fill or border in light mode
+    // and made it look like an unstyled blur with only text floating on
+    // it. Fixed by giving the card a real solid base (`colors.card`) plus
+    // a sheen tint that flips direction with the theme, matching the
+    // pattern already used in premium_glass_container.dart / theme_picker.
+    final sheenColor = colors.isDark ? Colors.white : Colors.black;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        color: colors.card,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withOpacity(0.06),
-            Colors.white.withOpacity(0.015),
+            Color.alphaBlend(sheenColor.withOpacity(colors.isDark ? 0.06 : 0.03), colors.card),
+            Color.alphaBlend(sheenColor.withOpacity(colors.isDark ? 0.015 : 0.0), colors.card),
           ],
         ),
         border: Border.all(
-          color: Colors.white.withOpacity(0.08),
+          color: colors.isDark ? Colors.white.withOpacity(0.08) : colors.border,
           width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withOpacity(colors.isDark ? 0.35 : 0.08),
             blurRadius: 18,
             spreadRadius: -4,
             offset: const Offset(0, 8),
