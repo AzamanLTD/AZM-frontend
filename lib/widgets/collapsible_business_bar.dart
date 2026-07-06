@@ -137,63 +137,93 @@ class CollapsibleBusinessBar extends ConsumerWidget {
       },
       behavior: HitTestBehavior.opaque,
       child: PremiumGlassContainer(
-        blur: 16, opacity: 0.05, borderRadius: 16, margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Bezel-less business profile picture — no card/border chrome,
-            // just the raw photo, bigger now that the small category icon
-            // moved down into the rating row. Tap to expand full-size.
-            _ExpandableProfilePic(business: business, cat: cat, size: 54),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        blur: 16,
+        // Subtle per-business tint so the feed doesn't read as one flat
+        // repeated block — derived deterministically from the category
+        // color + business id so it never flickers/reshuffles on rebuild.
+        opacity: _collapsedTintOpacity(),
+        tintColor: cat.color,
+        borderRadius: 16,
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: EdgeInsets.zero,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Business photo — flush to the card's left/top/bottom edges
+              // (no bezel, no circle). PremiumGlassContainer already clips
+              // its child to `borderRadius`, so this automatically picks up
+              // rounded top-left/bottom-left corners and a clean square-cut
+              // right edge where it meets the text content.
+              _ExpandableProfilePic(business: business, cat: cat, width: 76),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
                     children: [
-                      Flexible(
-                        child: Text(business.businessName,
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(business.businessName,
+                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
+                                const SizedBox(width: 6),
+                                _BookmarkToggle(bizId: business.bizId, colors: colors),
+                                if (business.isVerified) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.verified_rounded, size: 14, color: colors.accent),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                AnimatedRatingStars(rating: business.averageRating, size: 11, filledColor: colors.accent, emptyColor: colors.divider),
+                                if (business.averageRating > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Text(business.averageRating.toStringAsFixed(1),
+                                    style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
+                                ],
+                                const SizedBox(width: 8),
+                                // Store/category icon now sits between rating and type label.
+                                Icon(cat.icon, size: 12, color: cat.color),
+                                const SizedBox(width: 3),
+                                Text(cat.label,
+                                  style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 6),
-                      _BookmarkToggle(bizId: business.bizId, colors: colors),
-                      if (business.isVerified) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.verified_rounded, size: 14, color: colors.accent),
-                      ],
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0,
+                        duration: 300.ms, curve: Curves.easeOutCubic,
+                        child: Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 22),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      AnimatedRatingStars(rating: business.averageRating, size: 11, filledColor: colors.accent, emptyColor: colors.divider),
-                      if (business.averageRating > 0) ...[
-                        const SizedBox(width: 4),
-                        Text(business.averageRating.toStringAsFixed(1),
-                          style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
-                      ],
-                      const SizedBox(width: 8),
-                      // Store/category icon now sits between rating and type label.
-                      Icon(cat.icon, size: 12, color: cat.color),
-                      const SizedBox(width: 3),
-                      Text(cat.label,
-                        style: TextStyle(fontSize: 11, color: colors.textTertiary)),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-            AnimatedRotation(
-              turns: isExpanded ? 0.25 : 0,
-              duration: 300.ms, curve: Curves.easeOutCubic,
-              child: Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 22),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  // Deterministic subtle tint strength (0.035–0.075) per business, so the
+  // collapsed feed shows gentle variation between cards instead of every
+  // row reading as the exact same flat glass tone. Same business always
+  // gets the same tint (stable across rebuilds/scroll).
+  double _collapsedTintOpacity() {
+    final hash = business.bizId.codeUnits.fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7FFFFFFF);
+    return 0.035 + (hash % 100) / 100 * 0.04;
   }
 
   // ── Expanded card ────────────────────────────────────────────────────────────
@@ -653,12 +683,12 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
 class _ExpandableProfilePic extends StatelessWidget {
   final BusinessProfile business;
   final BusinessCategory cat;
-  final double size;
+  final double width;
 
   const _ExpandableProfilePic({
     required this.business,
     required this.cat,
-    required this.size,
+    required this.width,
   });
 
   void _openLightbox(BuildContext context) {
@@ -696,23 +726,27 @@ class _ExpandableProfilePic extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPic = business.logoUrl != null && business.logoUrl!.isNotEmpty;
+    // No bezel, no circle — a clean flush rectangle that fills the full
+    // height of the collapsed row (via the parent's IntrinsicHeight +
+    // CrossAxisAlignment.stretch). The outer PremiumGlassContainer clips
+    // this to its own rounded corners, so only the left edge is rounded.
     return GestureDetector(
       onTap: hasPic ? () => _openLightbox(context) : null,
       child: Hero(
         tag: 'biz-pic-${business.bizId}',
-        child: ClipOval(
+        child: SizedBox(
+          width: width,
+          height: double.infinity,
           child: hasPic
               ? CachedNetworkImage(
                   imageUrl: business.logoUrl!,
-                  width: size,
-                  height: size,
+                  width: width,
+                  height: double.infinity,
                   fit: BoxFit.cover,
                 )
               : Container(
-                  width: size,
-                  height: size,
                   color: cat.color.withOpacity(0.10),
-                  child: Icon(cat.icon, size: size * 0.46, color: cat.color),
+                  child: Icon(cat.icon, size: width * 0.4, color: cat.color),
                 ),
         ),
       ),
