@@ -501,7 +501,10 @@ class _MarketplaceHomeScreenState
   }
 
   Widget _categoryStrip(AzamanColors colors) {
-    final categories = [
+    // "All" is a real first entry now (null wire value) — biggest chip in
+    // the strip, everything else shrinks slightly to make room for it.
+    final categories = <(String?, dynamic, String)>[
+      (null, Icons.apps_rounded, 'All'),
       ('FOOD_BEVERAGE', HugeIcons.strokeRoundedRestaurant01, 'Restaurants'),
       ('HOSPITALITY', HugeIcons.strokeRoundedBuilding05, 'Hotels'),
       ('LOGISTICS', HugeIcons.strokeRoundedBus01, 'Transit'),
@@ -510,7 +513,7 @@ class _MarketplaceHomeScreenState
       ('BEAUTY_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
     ];
     return SizedBox(
-      height: 72,
+      height: 76,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -518,24 +521,35 @@ class _MarketplaceHomeScreenState
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final catItem = categories[i];
+          final isAll = catItem.$1 == null;
           final isActive = _selectedCategory == catItem.$1;
+          final iconSize = isAll ? 26.0 : 19.0;
+          final fontSize = isAll ? 11.5 : 10.0;
+          final hPad = isAll ? 18.0 : 12.0;
+          final vPad = isAll ? 12.0 : 9.0;
           return GestureDetector(
-            onTap: () { AzamanHaptics.toggle(); setState(() => _selectedCategory = isActive ? null : catItem.$1); _fireSearch(); },
+            onTap: () {
+              AzamanHaptics.toggle();
+              setState(() => _selectedCategory = isAll ? null : (isActive ? null : catItem.$1));
+              _fireSearch();
+            },
             child: AnimatedContainer(
               duration: 300.ms, curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               decoration: BoxDecoration(
                 color: isActive ? colors.accentSurface : colors.card.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(isAll ? 16 : 14),
                 border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
                 boxShadow: isActive ? [BoxShadow(color: colors.accent.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 3))] : null,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  HugeIcon(icon: catItem.$2, size: 22, color: isActive ? colors.accent : colors.textSecondary),
-                  const SizedBox(height: 4),
-                  Text(catItem.$3, style: TextStyle(fontSize: 10.5, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
+                  isAll
+                      ? Icon(catItem.$2 as IconData, size: iconSize, color: isActive ? colors.accent : colors.textSecondary)
+                      : HugeIcon(icon: catItem.$2, size: iconSize, color: isActive ? colors.accent : colors.textSecondary),
+                  SizedBox(height: isAll ? 5 : 4),
+                  Text(catItem.$3, style: TextStyle(fontSize: fontSize, fontWeight: isActive || isAll ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
                 ],
               ),
             ),
