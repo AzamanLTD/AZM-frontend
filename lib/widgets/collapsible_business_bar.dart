@@ -25,6 +25,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
@@ -137,8 +138,11 @@ class CollapsibleBusinessBar extends ConsumerWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            _logo(colors, cat, size: 48),
-            const SizedBox(width: 12),
+            // Bezel-less business profile picture — no card/border chrome,
+            // just the raw photo, bigger now that the small category icon
+            // moved down into the rating row. Tap to expand full-size.
+            _ExpandableProfilePic(business: business, cat: cat, size: 54),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,8 +154,10 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
+                      const SizedBox(width: 6),
+                      _BookmarkToggle(bizId: business.bizId, colors: colors),
                       if (business.isVerified) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Icon(Icons.verified_rounded, size: 14, color: colors.accent),
                       ],
                     ],
@@ -166,6 +172,9 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                           style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
                       ],
                       const SizedBox(width: 8),
+                      // Store/category icon now sits between rating and type label.
+                      Icon(cat.icon, size: 12, color: cat.color),
+                      const SizedBox(width: 3),
                       Text(cat.label,
                         style: TextStyle(fontSize: 11, color: colors.textTertiary)),
                     ],
@@ -408,11 +417,6 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(child: _glassActionPill(icon: Icons.reviews_outlined, label: 'Review', colors: colors,
                         onTap: () => LeaveReviewSheet.show(context, business: business))),
-                      const SizedBox(width: 8),
-                      Expanded(child: _glassActionPill(
-                        icon: Icons.bookmark_border_rounded,
-                        label: 'Save', colors: colors, accent: false,
-                        onTap: () {})),
                     ],
                   ),
                 ],
@@ -488,3 +492,108 @@ class CollapsibleBusinessBar extends ConsumerWidget {
   }
 }
 
+
+// =============================================================================
+// Bookmark toggle — small icon shown right after the business name, before
+// the verified badge. Backed by the real savedBusinessesProvider (persisted
+// wishlist), replacing the old non-functional "Save" pill in the expanded
+// card.
+// =============================================================================
+class _BookmarkToggle extends ConsumerWidget {
+  final String bizId;
+  final AzamanColors colors;
+
+  const _BookmarkToggle({required this.bizId, required this.colors});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final saved = ref.watch(savedBusinessesProvider).contains(bizId);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        AzamanHaptics.toggle();
+        ref.read(savedBusinessesProvider.notifier).toggle(bizId);
+      },
+      child: Icon(
+        saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+        size: 16,
+        color: saved ? colors.accent : colors.textTertiary,
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Expandable profile picture — bezel-less (no border/card chrome around the
+// image itself, just the raw photo clipped to a circle). Tapping it opens a
+// full-size lightbox view via a Hero transition.
+// =============================================================================
+class _ExpandableProfilePic extends StatelessWidget {
+  final BusinessProfile business;
+  final BusinessCategory cat;
+  final double size;
+
+  const _ExpandableProfilePic({
+    required this.business,
+    required this.cat,
+    required this.size,
+  });
+
+  void _openLightbox(BuildContext context) {
+    if (business.logoUrl == null || business.logoUrl!.isEmpty) return;
+    AzamanHaptics.toggle();
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (_, animation, __) {
+        return FadeTransition(
+          opacity: animation,
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: Hero(
+                  tag: 'biz-pic-${business.bizId}',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: CachedNetworkImage(
+                      imageUrl: business.logoUrl!,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPic = business.logoUrl != null && business.logoUrl!.isNotEmpty;
+    return GestureDetector(
+      onTap: hasPic ? () => _openLightbox(context) : null,
+      child: Hero(
+        tag: 'biz-pic-${business.bizId}',
+        child: ClipOval(
+          child: hasPic
+              ? CachedNetworkImage(
+                  imageUrl: business.logoUrl!,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                )
+              : Container(
+                  width: size,
+                  height: size,
+                  color: cat.color.withOpacity(0.10),
+                  child: Icon(cat.icon, size: size * 0.46, color: cat.color),
+                ),
+        ),
+      ),
+    );
+  }
+}
