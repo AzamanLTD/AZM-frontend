@@ -6,7 +6,9 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
+import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:azaman/widgets/peer_transfer_card.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 /// Callback typedef for swipe-to-reply gesture.
@@ -164,6 +166,83 @@ class _State extends ConsumerState<PremiumMessageBubble>
     );
   }
 
+  // ── TRANSFER REQUEST — accept / decline sheet ──────────────────────────
+  // Only shown to the payer (the person who received the request, i.e.
+  // !isMe on a TRANSFER_REQUEST message). Calls the same endpoints the
+  // rest of the app already uses for this (friend_service.dart).
+  void _respondToTransferRequest(BuildContext ctx, AzamanColors c, ChatMessage msg) {
+    final meta = msg.metadata ?? const {};
+    final transferId = meta['transferId']?.toString();
+    if (transferId == null || _isMe) return; // only the payer can respond
+
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('${msg.senderUsername ?? 'They'} requested ${(msg.amount ?? 0).toStringAsFixed(2)} ${msg.currency ?? 'USDC'}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: c.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: c.accent, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                Navigator.of(sheetCtx).pop();
+                await _fulfillOrDecline(ctx, transferId, fulfill: true);
+              },
+              child: const Text('Pay', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: c.textSecondary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                Navigator.of(sheetCtx).pop();
+                await _fulfillOrDecline(ctx, transferId, fulfill: false);
+              },
+              child: const Text('Decline'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fulfillOrDecline(BuildContext ctx, String transferId, {required bool fulfill}) async {
+    final token = ref.read(authProvider).user?.token;
+    if (token == null) return;
+    try {
+      if (fulfill) {
+        await FriendService().fulfillTransfer(transferId, token);
+      } else {
+        await FriendService().declineTransfer(transferId, token);
+      }
+      // The socket layer (friend_transfer_* events, already wired backend-
+      // side) pushes the resulting TRANSFER_COMPLETED / TRANSFER_DECLINED
+      // message into the chat stream — no local state mutation needed here.
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text(fulfill ? 'Could not complete payment' : 'Could not decline request')),
+        );
+      }
+    }
+  }
+
   // ── LONG PRESS CONTEXT MENU ────────────────────────────────────────────
   void _showContextMenu(BuildContext ctx, AzamanColors c) {
     HapticFeedback.mediumImpact();
@@ -209,6 +288,30 @@ class _State extends ConsumerState<PremiumMessageBubble>
                   style: TextStyle(color: c.textTertiary,
                     fontSize: 12, fontStyle: FontStyle.italic)),
               ]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Peer-to-peer money transfer — rendered as an animated card instead of
+    // the normal text bubble chrome (2026-07-06).
+    if (msg.kind == MessageKind.peerTransfer || msg.kind == MessageKind.transferRequest) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        child: Row(
+          mainAxisAlignment: _isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            if (!_isMe && widget.showAvatar) ...[
+              _AvatarChip(username: msg.senderUsername ?? '?', avatarUrl: msg.senderAvatar, colors: c),
+              const SizedBox(width: 6),
+            ],
+            PeerTransferCard(
+              message: msg,
+              isMe: _isMe,
+              onTapRequest: msg.kind == MessageKind.transferRequest
+                  ? () => _respondToTransferRequest(context, c, msg)
+                  : null,
             ),
           ],
         ),

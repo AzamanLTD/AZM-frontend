@@ -10,6 +10,9 @@ enum MessageKind {
   text, image, video, audio, document, link,
   sticker, system, transaction, timeRequest, timeApproved,
   timeRejected, ticketLink, susuEvent, adminIntervention,
+  // Peer-to-peer money transfers (friend-to-friend chat) — rendered as an
+  // animated money card instead of a plain text bubble (2026-07-06).
+  peerTransfer, transferRequest,
 }
 
 class ChatReaction {
@@ -152,8 +155,11 @@ class ChatMessage {
       isDeleted:        json['deletedAt'] != null,
       isEdited:         json['editedAt'] != null,
       reactions:        parsedReactions,
-      amount:           (json['amount'] as num?)?.toDouble(),
-      currency:         json['currency']?.toString(),
+      // Peer-transfer amount/currency live under metadata, not top-level —
+      // fall back there so the transfer card always has a number to show.
+      amount:           (json['amount'] as num?)?.toDouble()
+                        ?? (meta?['amount'] as num?)?.toDouble(),
+      currency:         json['currency']?.toString() ?? meta?['currency']?.toString(),
       metadata:         meta,
     );
   }
@@ -168,6 +174,9 @@ class ChatMessage {
       case 'STICKER': return MessageKind.sticker;
       case 'SYSTEM': case 'SYSTEM_URGENCY': return MessageKind.system;
       case 'PAYMENT_TRANSFER': return MessageKind.transaction;
+      case 'TRANSFER_SENT': case 'TRANSFER_COMPLETED': case 'TRANSFER_DECLINED':
+        return MessageKind.peerTransfer;
+      case 'TRANSFER_REQUEST': return MessageKind.transferRequest;
       case 'TICKET_LINK': return MessageKind.ticketLink;
       case 'SUSU_EVENT': return MessageKind.susuEvent;
       case 'ADMIN_INTERVENTION': return MessageKind.adminIntervention;
