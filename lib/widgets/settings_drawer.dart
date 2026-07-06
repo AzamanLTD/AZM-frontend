@@ -115,7 +115,7 @@ class SettingsDrawer extends ConsumerWidget {
                   },
                   child: _animatedWrapper(
                     delay: 1,
-                    child: _buildPremiumProfileCard(colors, user),
+                    child: _buildPremiumProfileCard(context, colors, user),
                   ),
                 ),
 
@@ -334,7 +334,7 @@ class SettingsDrawer extends ConsumerWidget {
   // ──────────────────────────────────────────────────────────────────────────
   // PROFILE CARD — fully wired to Riverpod auth state
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildPremiumProfileCard(AzamanColors colors, User? user) {
+  Widget _buildPremiumProfileCard(BuildContext context, AzamanColors colors, User? user) {
     final username = (user?.username.isNotEmpty ?? false)
         ? user!.username
         : 'Guest';
