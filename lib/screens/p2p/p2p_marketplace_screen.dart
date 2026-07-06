@@ -176,122 +176,176 @@ class _CashBalanceCard extends ConsumerWidget {
     final balance = ref.watch(hologramBalanceProvider);
     final visible = ref.watch(balanceVisibleProvider);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.softSurface,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    // Premium "bank card" treatment — deep carbon-to-black gradient (the
+    // app's own accent used as the metallic sheen rather than a foreign
+    // palette), a faint chip glyph, a brand wordmark, and a slow diagonal
+    // glass sheen so it reads as a real card in the wallet. "Account
+    // details" removed — it didn't route anywhere distinct from the rest
+    // of the app.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Text(
-                'Cash Balance',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.alphaBlend(colors.accent.withOpacity(0.16),
+                      colors.isDark ? const Color(0xFF0E1116) : const Color(0xFF1B1F27)),
+                  colors.isDark ? const Color(0xFF05070A) : const Color(0xFF11141B),
+                ],
+              ),
+              border: Border.all(color: colors.accent.withOpacity(0.22), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withOpacity(0.14),
+                  blurRadius: 28,
+                  spreadRadius: -6,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+          ),
+          // Faint decorative card texture — soft ring, top-right.
+          Positioned(
+            right: -40,
+            top: -50,
+            child: IgnorePointer(
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.accent.withOpacity(0.10), width: 22),
                 ),
               ),
-              const Spacer(),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  );
-                },
-                child: Row(
+            ),
+          ),
+          // Slow diagonal glass sheen sweep — the one "subtle animation" cue.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _CardSheen(color: Colors.white.withOpacity(colors.isDark ? 0.05 : 0.08)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
+                    Container(
+                      width: 30,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            colors.accent.withOpacity(0.85),
+                            colors.accent.withOpacity(0.45),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     Text(
-                      'Account details',
+                      'Cash Balance',
                       style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.92),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.1,
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    Icon(HugeIconsSolid.arrowRight01,
-                        size: 15, color: colors.textTertiary),
+                    const Spacer(),
+                    Text(
+                      'AZAMAN',
+                      style: TextStyle(
+                        color: colors.accent.withOpacity(0.85),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.2,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  'GH₵',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.bottomLeft,
-                  child: Text(
-                    visible ? _fmt(balance) : '••••••',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 42,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.4,
-                      height: 1.0,
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        'GH₵',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.bottomLeft,
+                        child: Text(
+                          visible ? _fmt(balance) : '••••••',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.4,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _BalancePill(
-                  colors: colors,
-                  label: 'Add money',
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DepositScreen()),
-                    );
-                  },
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _BalancePill(
+                        colors: colors,
+                        label: 'Add money',
+                        onDarkCard: true,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const DepositScreen()),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _BalancePill(
+                        colors: colors,
+                        label: 'Withdraw',
+                        onDarkCard: true,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const WithdrawalScreen()),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _BalancePill(
-                  colors: colors,
-                  label: 'Withdraw',
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const WithdrawalScreen()),
-                    );
-                  },
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -322,11 +376,16 @@ class _BalancePill extends StatefulWidget {
   final AzamanColors colors;
   final String label;
   final VoidCallback onTap;
+  // True when this pill sits on the dark _CashBalanceCard gradient — needs
+  // a light/translucent treatment instead of the theme's default surface
+  // color so it stays legible in both light and dark app themes.
+  final bool onDarkCard;
 
   const _BalancePill({
     required this.colors,
     required this.label,
     required this.onTap,
+    this.onDarkCard = false,
   });
 
   @override
@@ -343,6 +402,9 @@ class _BalancePillState extends State<_BalancePill> {
   @override
   Widget build(BuildContext context) {
     final c = widget.colors;
+    final bgColor = widget.onDarkCard ? Colors.white.withOpacity(0.14) : c.surface;
+    final textColor = widget.onDarkCard ? Colors.white : c.textPrimary;
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _setPressed(true),
@@ -357,13 +419,16 @@ class _BalancePillState extends State<_BalancePill> {
           height: 50,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: c.surface,
+            color: bgColor,
             borderRadius: BorderRadius.circular(26),
+            border: widget.onDarkCard
+                ? Border.all(color: Colors.white.withOpacity(0.16))
+                : null,
           ),
           child: Text(
             widget.label,
             style: TextStyle(
-              color: c.textPrimary,
+              color: textColor,
               fontSize: 15,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.2,
@@ -371,6 +436,78 @@ class _BalancePillState extends State<_BalancePill> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Card sheen — a slow diagonal glass highlight band that sweeps across the
+// balance card on a loop, giving it the subtle "premium card" shimmer.
+// ─────────────────────────────────────────────────────────────────────────────
+class _CardSheen extends StatefulWidget {
+  final Color color;
+  const _CardSheen({required this.color});
+
+  @override
+  State<_CardSheen> createState() => _CardSheenState();
+}
+
+class _CardSheenState extends State<_CardSheen> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        if (w <= 0 || !w.isFinite) return const SizedBox.shrink();
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, _) {
+              // Slow diagonal band sweeps left-to-right and loops.
+              final t = Curves.easeInOutSine.transform(_ctrl.value);
+              final dx = -w * 0.7 + t * w * 1.9;
+              return Transform.translate(
+                offset: Offset(dx, 0),
+                child: Transform.rotate(
+                  angle: -0.4,
+                  child: Container(
+                    width: w * 0.30,
+                    height: w * 2.4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.transparent,
+                          widget.color,
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
