@@ -25,6 +25,7 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
@@ -420,7 +421,10 @@ class _BalanceCardsScroll extends ConsumerWidget {
         children: [
           SizedBox(
             width: screenWidth * 0.76,
-            child: const FlippableBalanceCard(),
+            child: const TapHintOverlay(
+              hintKey: 'has_seen_flippable_card_hint',
+              child: FlippableBalanceCard(),
+            ),
           ),
           const SizedBox(width: 12),
           SizedBox(
