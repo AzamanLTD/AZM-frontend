@@ -69,6 +69,14 @@ import 'package:azaman/screens/marketplace/business_checkin_screen.dart';
 import 'package:azaman/screens/marketplace/transit_trip_list_screen.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/worker/worker_hub_screen.dart';
+import 'package:azaman/screens/worker/worker_shifts_screen.dart';
+import 'package:azaman/screens/worker/worker_payroll_screen.dart';
+import 'package:azaman/screens/worker/worker_team_screen.dart';
+import 'package:azaman/screens/worker/worker_time_off_screen.dart';
+import 'package:azaman/screens/worker/worker_feedback_screen.dart';
+import 'package:azaman/screens/worker/worker_ewa_screen.dart';
+import 'package:azaman/screens/worker/worker_swaps_screen.dart';
 
 
 /// Global navigator key — set on the GoRouter so notification handlers
@@ -369,6 +377,48 @@ final GoRouter appRouter = GoRouter(
       builder: (_, state) => BusinessProfileScreen(
         bizId: state.pathParameters['bizId']!,
       ),
+    ),
+
+    // ── Worker Sub-Portal (Business OS, 2026-07-06) ────────────────────────
+    GoRoute(
+      path: '/worker',
+      name: 'worker-hub',
+      builder: (_, __) => const WorkerHubScreen(),
+    ),
+    GoRoute(
+      path: '/worker/shifts',
+      name: 'worker-shifts',
+      builder: (_, __) => const WorkerShiftsScreen(),
+    ),
+    GoRoute(
+      path: '/worker/payroll',
+      name: 'worker-payroll',
+      builder: (_, __) => const WorkerPayrollScreen(),
+    ),
+    GoRoute(
+      path: '/worker/team',
+      name: 'worker-team',
+      builder: (_, __) => const WorkerTeamScreen(),
+    ),
+    GoRoute(
+      path: '/worker/time-off',
+      name: 'worker-time-off',
+      builder: (_, __) => const WorkerTimeOffScreen(),
+    ),
+    GoRoute(
+      path: '/worker/feedback',
+      name: 'worker-feedback',
+      builder: (_, __) => const WorkerFeedbackScreen(),
+    ),
+    GoRoute(
+      path: '/worker/ewa',
+      name: 'worker-ewa',
+      builder: (_, __) => const WorkerEwaScreen(),
+    ),
+    GoRoute(
+      path: '/worker/swaps',
+      name: 'worker-swaps',
+      builder: (_, __) => const WorkerSwapsScreen(),
     ),
   ],
 );

@@ -20,6 +20,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/worker_provider.dart';
+import 'package:azaman/models/employee_models.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
@@ -141,6 +143,8 @@ class _BusinessDashboardScreenState
                   if (_stats != null) const SizedBox(height: 20),
                   _statsGrid(colors),
                   const SizedBox(height: 20),
+                  _workerTiles(colors),
+                  const SizedBox(height: 20),
                   _quickActions(colors, profile),
                   const SizedBox(height: 20),
                   _recentOrders(colors),
@@ -150,6 +154,50 @@ class _BusinessDashboardScreenState
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _workerTiles(AzamanColors colors) {
+    return Consumer(builder: (context, ref, _) {
+      final dashAsync = ref.watch(workerDashboardProvider);
+      return dashAsync.when(
+        loading: () => const SizedBox.shrink(),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (dash) {
+          if (dash?.employee == null) return const SizedBox.shrink();
+          return Row(
+            children: [
+              Expanded(child: _miniStat(colors, 'Accrued',
+                '\${dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0"}', Icons.savings)),
+              const SizedBox(width: 8),
+              Expanded(child: _miniStat(colors, 'EWA',
+                '\${dash.ewaAvailable.toStringAsFixed(0)}', Icons.bolt)),
+              const SizedBox(width: 8),
+              Expanded(child: _miniStat(colors, 'Next',
+                dash.nextShift != null ? '\${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
+            ],
+          );
+        },
+      );
+    });
+  }
+
+  Widget _miniStat(AzamanColors colors, String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surface, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colors.accent, size: 16),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+        ],
+      ),
     );
   }
 

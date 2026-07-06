@@ -25,6 +25,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/user_model.dart';
@@ -402,6 +403,9 @@ class SettingsDrawer extends ConsumerWidget {
                             ),
                           ),
                         ),
+
+                      // ── Worker Sub-Portal Card ────────────────────────────
+                      _WorkerCard(colors: colors),
 
                       const SizedBox(height: 40),
                       Center(
@@ -1224,6 +1228,77 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
               color: colors.accent.withOpacity(0.18),
             ),
       ),
+    );
+  }
+}
+
+
+// =============================================================================
+// WORKER SUB-PORTAL CARD — Shows in settings drawer when user is an employee
+// =============================================================================
+class _WorkerCard extends ConsumerWidget {
+  final dynamic colors;
+  const _WorkerCard({required this.colors});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final empAsync = ref.watch(myEmployeeProvider);
+
+    return empAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (employee) {
+        if (employee == null) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [colors.accentSecondary.withOpacity(0.08), colors.accentSecondary.withOpacity(0.02)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.accentSecondary.withOpacity(0.15), width: 1),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).pop();
+              context.push('/worker');
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: colors.accentSecondary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.badge, color: colors.accentSecondary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Workplace', style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        Text('${employee.title ?? employee.role.name} @ ${employee.businessName ?? "Business"}',
+                            style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: colors.textTertiary, size: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
