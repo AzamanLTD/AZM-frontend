@@ -163,10 +163,16 @@ class _CategoryDrilldownScreenState
   Widget _categoryGradient(String category, AzamanColors colors) {
     final gradients = {
       'FOOD_BEVERAGE': [const Color(0xFFFF6B6B), const Color(0xFFEE5A24)],
+      // Real wire value is REAL_ESTATE (hotels/guesthouses/resorts/short-stay
+      // — see BusinessCategory enum). Kept the old 'HOSPITALITY' key too in
+      // case any stale deep-link still passes it, but it's unreachable now.
+      'REAL_ESTATE': [const Color(0xFF4834DF), const Color(0xFF6C5CE7)],
       'HOSPITALITY': [const Color(0xFF4834DF), const Color(0xFF6C5CE7)],
       'LOGISTICS': [const Color(0xFF00B894), const Color(0xFF00CEC9)],
       'RETAIL': [const Color(0xFFD4AF37), const Color(0xFFF0B90B)],
+      'FREELANCE_SERVICES': [const Color(0xFF0984E3), const Color(0xFF74B9FF)],
       'SERVICE': [const Color(0xFF0984E3), const Color(0xFF74B9FF)],
+      'HEALTH_WELLNESS': [const Color(0xFFFD79A8), const Color(0xFFE84393)],
     };
     final c = gradients[category] ?? [colors.accent, colors.accentSecondary];
     return DecoratedBox(

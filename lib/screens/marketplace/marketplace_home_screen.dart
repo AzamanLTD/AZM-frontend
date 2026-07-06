@@ -28,6 +28,8 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
+import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
+import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
@@ -98,6 +100,14 @@ class _MarketplaceHomeScreenState
     _scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessSearchProvider.notifier).search('');
+      // Prefetch the signed-in user's own business profile so the
+      // Register/Your-Business FAB shows the correct state immediately
+      // instead of waiting on whatever triggered it before (opening the
+      // settings drawer, which the user may never do on this screen).
+      final biz = ref.read(myBusinessProvider);
+      if (!biz.hasLoaded && !biz.isLoading) {
+        ref.read(myBusinessProvider.notifier).load();
+      }
     });
   }
 
@@ -271,6 +281,7 @@ class _MarketplaceHomeScreenState
 
     return Scaffold(
       backgroundColor: colors.background,
+      floatingActionButton: _businessFab(colors),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -305,6 +316,41 @@ class _MarketplaceHomeScreenState
           ],
         ),
       ),
+    );
+  }
+
+  // ── Business registration / dashboard entry point ───────────────────────────
+  // Moved here from the settings drawer (2026-07-06) — lives where businesses
+  // are actually browsed. Shows "Register Business" if the signed-in user has
+  // no business profile yet, or "Your Business" (deep-links to their
+  // dashboard) once they're registered.
+  Widget _businessFab(AzamanColors colors) {
+    final bizState = ref.watch(myBusinessProvider);
+
+    // Avoid a flash of the wrong state while the initial fetch is in flight.
+    if (bizState.isLoading && !bizState.hasLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    final isRegistered = bizState.profile != null;
+
+    return FloatingActionButton.extended(
+      heroTag: 'marketplace_business_fab',
+      backgroundColor: colors.accent,
+      foregroundColor: Colors.white,
+      icon: Icon(isRegistered ? Icons.storefront_rounded : Icons.add_business_rounded, size: 20),
+      label: Text(
+        isRegistered ? 'Your Business' : 'Register Business',
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+      ),
+      onPressed: () {
+        AzamanHaptics.nav();
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => isRegistered
+              ? const BusinessDashboardScreen()
+              : const BusinessRegisterScreen(),
+        ));
+      },
     );
   }
 
@@ -521,11 +567,20 @@ class _MarketplaceHomeScreenState
     final categories = <(String?, dynamic, String)>[
       (null, Icons.apps_rounded, 'All'),
       ('FOOD_BEVERAGE', HugeIcons.strokeRoundedRestaurant01, 'Restaurants'),
-      ('HOSPITALITY', HugeIcons.strokeRoundedBuilding05, 'Hotels'),
+      // Wire value fixed 2026-07-06: hotels are registered under REAL_ESTATE
+      // (see BusinessCategory enum + business portal Onboarding.jsx) — the
+      // old 'HOSPITALITY' value here was never assigned to any business, so
+      // this chip silently returned zero results. Label kept broad ("Hotels
+      // & Stay") since REAL_ESTATE also covers guesthouses/resorts/short-stay.
+      ('REAL_ESTATE', HugeIcons.strokeRoundedBuilding05, 'Hotels & Stay'),
       ('LOGISTICS', HugeIcons.strokeRoundedBus01, 'Transit'),
       ('RETAIL', HugeIcons.strokeRoundedShoppingBag01, 'Retail'),
-      ('PROFESSIONAL_SERVICES', HugeIcons.strokeRoundedWrench01, 'Services'),
-      ('BEAUTY_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
+      // Same bug, same fix: these two wire values didn't exist in the
+      // backend BusinessCategory enum at all (real values are
+      // FREELANCE_SERVICES / HEALTH_WELLNESS) — both chips returned zero
+      // results no matter what was registered.
+      ('FREELANCE_SERVICES', HugeIcons.strokeRoundedWrench01, 'Services'),
+      ('HEALTH_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
     ];
     return SizedBox(
       height: 76,
