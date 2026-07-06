@@ -15,7 +15,13 @@ class StoryRing extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final radius = size * 0.34; // squircle curvature scales with size
+    // FIX (2026-07-06): 0.34 read as "a square with rounded corners" --
+    // not a true squircle. ContinuousRectangleBorder uses a superellipse
+    // curve (not simple corner arcs), so pushing the radius factor much
+    // closer to half the size is what actually makes the SIDES bulge
+    // outward continuously (the iOS app-icon look the user wants),
+    // rather than just rounding the corners of an otherwise-square edge.
+    final radius = size * 0.5; // squircle curvature scales with size
  
     final shape = ContinuousRectangleBorder(
       borderRadius: BorderRadius.circular(radius),

@@ -25,7 +25,9 @@ class ChatAvatar extends StatelessWidget {
     // Squircle curvature — matches StoryRing's proportions (2026-07-06) so
     // avatars read consistently across the status bar and chat surfaces
     // instead of stories being squircles and chat rows being plain circles.
-    final radius = size * 0.34;
+    // Bumped 0.34 -> 0.5: at 0.34 the continuous-rectangle curve read as a
+    // rounded square rather than a true squircle with bulging sides.
+    final radius = size * 0.5;
     final shape = ContinuousRectangleBorder(borderRadius: BorderRadius.circular(radius));
 
     return SizedBox(

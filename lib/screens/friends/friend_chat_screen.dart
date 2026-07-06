@@ -26,6 +26,7 @@ import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/friend_service.dart';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/friends/transfer_modal.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
@@ -259,11 +260,30 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   Future<void> _markAsRead() async {
-    final token = ref.read(authProvider).user?.token;
-    if (token == null) return;
-    await _service.markAsRead(widget.friendshipId, token);
-    // Refresh unread count in provider
-    ref.read(friendProvider).fetchUnreadCount();
+    // FIX (2026-07-06): this is fired-and-forgotten from initState (not
+    // awaited by any caller), so any exception here -- most commonly a
+    // 401 because the session's access token expired mid-use -- surfaced
+    // as an unhandled exception with nowhere to catch it. It's a
+    // best-effort background call: a failure here should never crash or
+    // disrupt the chat screen the user is actively looking at.
+    try {
+      final token = ref.read(authProvider).user?.token;
+      if (token == null) return;
+      await _service.markAsRead(widget.friendshipId, token);
+      // Refresh unread count in provider
+      ref.read(friendProvider).fetchUnreadCount();
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        // Session expired -- the app's normal auth-refresh/redirect-to-login
+        // flow (triggered elsewhere on the next real user action) will
+        // handle re-authentication. Nothing to do here but avoid crashing.
+        debugPrint('[FriendChat] markAsRead skipped: session expired.');
+      } else {
+        debugPrint('[FriendChat] markAsRead failed: ${e.message} (${e.statusCode})');
+      }
+    } catch (e) {
+      debugPrint('[FriendChat] markAsRead failed: $e');
+    }
   }
 
   // ===========================================================================
