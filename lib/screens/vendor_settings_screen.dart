@@ -803,7 +803,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    const Color gold = Color(0xFFD4AF37);
+    final Color gold = colors.accent;
     const Color green = Color(0xFF02C076);
 
     return Scaffold(

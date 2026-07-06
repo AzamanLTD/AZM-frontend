@@ -237,27 +237,49 @@ class ThemeProvider with ChangeNotifier {
         );
 
       case AzamanTheme.dark:
+        // Backlog item 11 -- full intentional dark mode redesign
+        // (2026-07-06). The previous palette had three real, measurable
+        // defects that made "dark mode" feel like a flat filter instead
+        // of a designed theme:
+        //   1. `card` was byte-for-byte identical to `surface` -- so
+        //      elevated cards never actually read as elevated above the
+        //      screens they sat on. Now there's a real 3-step ramp:
+        //      background (deepest) -> surface -> card (most elevated).
+        //   2. `warning` was byte-for-byte identical to `accentSecondary`
+        //      -- a warning chip and a plain secondary-accent button were
+        //      visually the same color, losing all semantic meaning.
+        //      Warning is now its own distinct amber-orange.
+        //   3. `glow` was byte-for-byte identical to `accent` -- every
+        //      "glow" halo/border effect (used 40+ places across the app)
+        //      was just the flat accent color re-used, so nothing ever
+        //      actually *glowed*. `glow` is now a lighter, luminous gold
+        //      that reads as a genuine radiant highlight at low opacity.
+        // The accent itself is warmed and brightened slightly so it pops
+        // harder against the deeper background -- since every screen
+        // pulls from these same tokens, this single palette change
+        // carries the redesign across buttons, badges, borders and
+        // accents app-wide for free.
         return AzamanColors(
           isDark: true,
           name: "Dark",
           icon: Icons.dark_mode_outlined,
-          background: const Color(0xFF0B0E11),
-          surface: const Color(0xFF1E2329),
-          card: const Color(0xFF1E2329),
-          softSurface: const Color(0xFF181D23),
-          divider: Colors.white.withOpacity(0.06),
-          accent: const Color(0xFFD4AF37),
-          accentSecondary: const Color(0xFFF0B90B),
-          accentSurface: const Color(0xFFD4AF37).withOpacity(0.08),
-          success: const Color(0xFF02C076),
-          danger: const Color(0xFFF6465D),
-          warning: const Color(0xFFF0B90B),
+          background: const Color(0xFF0A0D11),
+          surface: const Color(0xFF151A20),
+          card: const Color(0xFF1D232B),
+          softSurface: const Color(0xFF11151B),
+          divider: Colors.white.withOpacity(0.07),
+          accent: const Color(0xFFE3BE58),
+          accentSecondary: const Color(0xFFF4B93D),
+          accentSurface: const Color(0xFFE3BE58).withOpacity(0.10),
+          success: const Color(0xFF1CDB94),
+          danger: const Color(0xFFFF5C72),
+          warning: const Color(0xFFFFA726),
           textPrimary: Colors.white,
           textSecondary: Colors.white70,
           textTertiary: Colors.white38,
-          glow: const Color(0xFFD4AF37),
-          scaffoldBackground: const Color(0xFF0B0E11),
-          border: Colors.white.withOpacity(0.06),
+          glow: const Color(0xFFF5D580),
+          scaffoldBackground: const Color(0xFF0A0D11),
+          border: Colors.white.withOpacity(0.08),
         );
 
       case AzamanTheme.midnight:

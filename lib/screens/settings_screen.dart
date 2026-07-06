@@ -761,6 +761,7 @@ class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
 
   @override
   Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Center(
@@ -775,7 +776,7 @@ class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
                 builder: (_, __) => Transform.rotate(
                   angle: _ringCtrl.value * 2 * 3.14159,
                   child: CustomPaint(
-                    painter: _GradientRingPainter(),
+                    painter: _GradientRingPainter(color: colors.accent),
                     size: const Size(90, 90),
                   ),
                 ),
@@ -795,19 +796,24 @@ class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
 }
 
 class _GradientRingPainter extends CustomPainter {
+  // Backlog item 11: was hardcoded to the old stale gold hex regardless
+  // of the active theme's accent -- now takes the live accent color so
+  // this ring stays in sync whenever the theme palette changes.
+  final Color color;
+  const _GradientRingPainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 3;
 
-    // Gold gradient sweep
     final sweepGradient = SweepGradient(
       startAngle: 0.0,
       endAngle: 2 * 3.14159 * 0.75, // 3/4 circle
       colors: [
-        const Color(0xFFD4AF37).withOpacity(0.0),
-        const Color(0xFFD4AF37).withOpacity(0.3),
-        const Color(0xFFD4AF37).withOpacity(0.8),
+        color.withOpacity(0.0),
+        color.withOpacity(0.3),
+        color.withOpacity(0.8),
       ],
       stops: const [0.0, 0.5, 1.0],
     );

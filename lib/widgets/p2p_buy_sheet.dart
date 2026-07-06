@@ -56,13 +56,19 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Backlog item 11: this sheet hardcoded the *old* stale gold hex
+    // (0xFFF0B90B) instead of the theme accent, so it went visually
+    // out of sync the moment the Dark theme's accent was refreshed.
+    // Reading the live token here keeps it in lockstep with whatever
+    // the current theme's accent actually is.
+    final colors = ref.watch(themeProvider).colors;
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
         left: 20, right: 20, top: 20
       ),
       decoration: BoxDecoration(
-        color: ref.read(themeProvider).colors.card,
+        color: colors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -79,7 +85,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
             children: [
               const Text("Price", style: TextStyle(color: Colors.white54)),
               Text("\$${widget.vendor['price']}", 
-                style: const TextStyle(color: Color(0xFFF0B90B), fontWeight: FontWeight.bold)),
+                style: TextStyle(color: colors.accentSecondary, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 20),
@@ -94,7 +100,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
               hintText: "Enter Amount",
               hintStyle: const TextStyle(color: Colors.white24),
               suffixText: "USD",
-              suffixStyle: const TextStyle(color: Color(0xFFF0B90B)),
+              suffixStyle: TextStyle(color: colors.accentSecondary),
               enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
             ),
           ),
@@ -146,13 +152,13 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
                     padding: const EdgeInsets.only(right: 10),
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFF0B90B)),
+                        side: BorderSide(color: colors.accentSecondary),
                         minimumSize: const Size(0, 50),
                       ),
                       onPressed: () {
                         // Logic to send "Request Limit Increase" via Socket/API
                       },
-                      child: const Text("REQUEST LIMIT", style: TextStyle(color: Color(0xFFF0B90B))),
+                      child: Text("REQUEST LIMIT", style: TextStyle(color: colors.accentSecondary)),
                     ),
                   ),
                 ),
@@ -160,7 +166,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
                 flex: 2,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF0B90B),
+                    backgroundColor: colors.accentSecondary,
                     disabledBackgroundColor: Colors.white10,
                     minimumSize: const Size(0, 50),
                   ),
