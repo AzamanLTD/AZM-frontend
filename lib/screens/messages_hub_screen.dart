@@ -552,7 +552,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                             physics: const AlwaysScrollableScrollPhysics(
                               parent: BouncingScrollPhysics(),
                             ),
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                             itemCount: filtered.length,
                             itemBuilder: (context, i) =>
                                 _buildChatItem(filtered[i], colors),
@@ -733,6 +733,11 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                 ? (isMentioned ? colors.warning.withOpacity(0.08) : colors.accent.withOpacity(0.06))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
+            // FIX (2026-07-06): group chat rows already draw a subtle
+            // divider border between rows (see _GroupTile) -- personal
+            // chat rows had none at all and relied only on a 4px margin
+            // gap, so the list read as a single un-separated block.
+            border: Border.all(color: colors.divider.withOpacity(0.6), width: 0.7),
           ),
           child: Row(
             children: [
