@@ -33,6 +33,7 @@ import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
@@ -301,6 +302,14 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    MarketplaceStatusRail(
+                      onOpenBusiness: (bizId) {
+                        setState(() => _expandedBizId = bizId);
+                      },
+                      onBrowsePressed: () {
+                        setState(() => _selectedCategory = null);
+                      },
+                    ),
                     _categoryStrip(colors),
                     const SizedBox(height: 2),
                     _resultsBar(colors),

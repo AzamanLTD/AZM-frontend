@@ -1,8 +1,21 @@
 // lib/providers/marketplace_extensions_provider.dart
 // =============================================================================
 // AZAMAN — MARKETPLACE EXTENSIONS PROVIDER (v2, 2026-07-03)
+//
+// FIX (2026-07-06): this whole file failed to compile (41 analyzer errors)
+// and was never actually used anywhere real in the app (only by the dead
+// BusinessAdFeedWidget stub, itself unreferenced anywhere):
+//   1. `adFeedProvider` had a typo -- `.autoDispose\n    .AdFeedNotifier, ...`
+//      instead of `.autoDispose<AdFeedNotifier, ...>` -- a single wrong
+//      character (`.` instead of `<`) that made the parser lose its place
+//      for the rest of the file, cascading into 40+ spurious errors.
+//   2. Every `res.data[...]` read is a Dio-ism. This app's ApiClient wraps
+//      `package:http` and returns `http.Response`, which has no `.data`
+//      getter -- fixed to `jsonDecode(res.body)` to match every other
+//      working provider/service in this codebase.
 // =============================================================================
 
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/providers/marketplace_provider.dart'; // for apiClient
@@ -14,8 +27,9 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   FollowNotifier(this._api) : super(const AsyncValue.data(false));
 
   Future<void> checkFollow(String businessProfileId) async {
-    final res = await _api.get('/marketplace/follow/check/$businessProfileId');
-    state = AsyncValue.data(res.data['isFollowing'] ?? false);
+    final res = await _api.get('/follows/check/$businessProfileId');
+    final body = jsonDecode(res.body);
+    state = AsyncValue.data(body['isFollowing'] ?? false);
   }
 
   Future<void> toggle(String businessProfileId) async {
@@ -23,9 +37,9 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
     state = const AsyncValue.loading();
     try {
       if (current) {
-        await _api.delete('/marketplace/follow/$businessProfileId');
+        await _api.delete('/follows/$businessProfileId');
       } else {
-        await _api.post('/marketplace/follow', {'businessProfileId': businessProfileId});
+        await _api.post('/follows', {'businessProfileId': businessProfileId});
       }
       state = AsyncValue.data(!current);
     } catch (e, st) {
@@ -46,8 +60,9 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
 
   Future<void> load() async {
     try {
-      final res = await _api.get('/marketplace/ads/feed?limit=20');
-      final ads = (res.data['ads'] as List?)
+      final res = await _api.get('/ad-posts/feed?limit=20');
+      final body = jsonDecode(res.body);
+      final ads = (body['ads'] as List?)
           ?.map((e) => BusinessAdPost.fromJson(e))
           .toList() ?? [];
       state = AsyncValue.data(ads);
@@ -57,9 +72,30 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
   }
 }
 
-final adFeedProvider = StateNotifierProvider.autoDispose
-    .AdFeedNotifier, AsyncValue<List<BusinessAdPost>>>(
+final adFeedProvider = StateNotifierProvider.autoDispose<AdFeedNotifier, AsyncValue<List<BusinessAdPost>>>(
   (ref) => AdFeedNotifier(ref.watch(apiClientProvider))..load(),
+);
+
+// ── Following list (drives the marketplace status rail / empty state) ──────
+class FollowingListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+  final ApiClient _api;
+  FollowingListNotifier(this._api) : super(const AsyncValue.loading());
+
+  Future<void> load() async {
+    state = const AsyncValue.loading();
+    try {
+      final res = await _api.get('/follows/following?limit=50');
+      final body = jsonDecode(res.body);
+      final following = (body['following'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      state = AsyncValue.data(following);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final followingListProvider = StateNotifierProvider.autoDispose<FollowingListNotifier, AsyncValue<List<Map<String, dynamic>>>>(
+  (ref) => FollowingListNotifier(ref.watch(apiClientProvider))..load(),
 );
 
 // ── Dine-In Tab ─────────────────────────────────────────────────────────────
@@ -70,8 +106,9 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   Future<void> loadTab(String tabId) async {
     state = const AsyncValue.loading();
     try {
-      final res = await _api.get('/marketplace/dine-in/tabs/$tabId');
-      state = AsyncValue.data(DineInTab.fromJson(res.data['tab']));
+      final res = await _api.get('/dine-in/tabs/$tabId');
+      final body = jsonDecode(res.body);
+      state = AsyncValue.data(DineInTab.fromJson(body['tab']));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -80,7 +117,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   Future<void> payTab(String tabId, {double? tip}) async {
     state = const AsyncValue.loading();
     try {
-      await _api.post('/marketplace/dine-in/tabs/$tabId/pay', {
+      await _api.post('/dine-in/tabs/$tabId/pay', {
         if (tip != null) 'tipUsdc': tip,
       });
       await loadTab(tabId);
@@ -102,8 +139,9 @@ class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>>
 
   Future<void> load(String businessProfileId) async {
     try {
-      final res = await _api.get('/marketplace/showcase/$businessProfileId');
-      final items = (res.data['items'] as List?)
+      final res = await _api.get('/showcases/$businessProfileId');
+      final body = jsonDecode(res.body);
+      final items = (body['items'] as List?)
           ?.map((e) => BusinessShowcase.fromJson(e))
           .toList() ?? [];
       state = AsyncValue.data(items);
