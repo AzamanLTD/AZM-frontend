@@ -23,6 +23,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 
 class AzmRewardsScreen extends ConsumerStatefulWidget {
@@ -131,6 +132,12 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
                     child: _buildSummaryCard(colors, azmBalance, state.summary),
                   ),
 
+                  // 1b. Friends leaderboard (2026-07-06)
+                  if (state.leaderboard.entries.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildFriendsLeaderboardCard(colors, state.leaderboard),
+                    ),
+
                   // 2. How to earn (collapsible)
                   SliverToBoxAdapter(
                     child: _buildEarnRatesCard(colors, state.rates),
@@ -199,10 +206,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
       child: Column(
         children: [
           // Big balance display
-          Text(
-            '💎',
-            style: const TextStyle(fontSize: 32),
-          ),
+          Icon(HugeIconsSolid.diamond, color: colors.accent, size: 32),
           const SizedBox(height: 8),
           Text(
             '${azmBalance.toStringAsFixed(1)} AZM',
@@ -221,6 +225,37 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
               fontSize: 13,
             ),
           ),
+
+          // Login streak (2026-07-06) — the backend has tracked this
+          // correctly since the /auth/refresh recording fix, but nothing on
+          // this page ever showed it. Only rendered once we have a summary
+          // with an actual streak so a fresh/never-set account doesn't show
+          // a hollow "0 day streak" chip.
+          if (summary != null && summary.loginStreak > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(HugeIconsSolid.fire, color: colors.accent, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${summary.loginStreak}-day login streak',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           if (summary != null) ...[
             const SizedBox(height: 16),
@@ -241,6 +276,109 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // ─── Friends Leaderboard Card (2026-07-06) ─────────────────────────────────
+
+  Widget _buildFriendsLeaderboardCard(AzamanColors colors, AzmFriendsLeaderboard board) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(HugeIconsSolid.crown, color: colors.accent, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Friends Leaderboard',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                if (board.myRank != null)
+                  Text(
+                    'Your rank: #${board.myRank}',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...board.entries.map((entry) => _leaderboardRow(colors, entry)),
+        ],
+      ),
+    );
+  }
+
+  Widget _leaderboardRow(AzamanColors colors, AzmLeaderboardEntry entry) {
+    final isTop3 = entry.rank <= 3;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: entry.isMe ? colors.accent.withOpacity(0.08) : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: isTop3
+                ? Icon(
+                    HugeIconsSolid.medalFirstPlace,
+                    size: 16,
+                    color: entry.rank == 1
+                        ? const Color(0xFFD4AF37)
+                        : entry.rank == 2
+                            ? colors.textSecondary
+                            : const Color(0xFFB87333),
+                  )
+                : Text(
+                    '${entry.rank}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              entry.isMe ? '${entry.username} (You)' : entry.username,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: entry.isMe ? FontWeight.w700 : FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '${entry.totalEarned.toStringAsFixed(0)} AZM',
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

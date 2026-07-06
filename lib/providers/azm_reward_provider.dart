@@ -26,9 +26,14 @@ class AzmRewardState {
   final bool loading;
   final bool loadingMore;
   final String? error;
-  
+
   /// Most recent real-time reward (from socket) — used for toast/celebration
   final AzmRewardEntry? lastRealtimeReward;
+
+  /// Friends leaderboard (2026-07-06) — loaded alongside summary/rates on
+  /// refresh. Kept separate from `summary` since it's a distinct concept
+  /// (social ranking vs. personal totals) with its own loading semantics.
+  final AzmFriendsLeaderboard leaderboard;
 
   const AzmRewardState({
     this.rewards = const [],
@@ -40,6 +45,7 @@ class AzmRewardState {
     this.loadingMore = false,
     this.error,
     this.lastRealtimeReward,
+    this.leaderboard = AzmFriendsLeaderboard.empty,
   });
 
   AzmRewardState copyWith({
@@ -52,6 +58,7 @@ class AzmRewardState {
     bool? loadingMore,
     String? error,
     AzmRewardEntry? lastRealtimeReward,
+    AzmFriendsLeaderboard? leaderboard,
   }) {
     return AzmRewardState(
       rewards: rewards ?? this.rewards,
@@ -63,6 +70,7 @@ class AzmRewardState {
       loadingMore: loadingMore ?? this.loadingMore,
       error: error,
       lastRealtimeReward: lastRealtimeReward ?? this.lastRealtimeReward,
+      leaderboard: leaderboard ?? this.leaderboard,
     );
   }
 }
@@ -90,11 +98,13 @@ class AzmRewardNotifier extends StateNotifier<AzmRewardState> {
         azmRewardService.getHistory(limit: 20),
         azmRewardService.getSummary(),
         azmRewardService.getRates(),
+        azmRewardService.getFriendsLeaderboard(limit: 10),
       ]);
 
       final historyResult = results[0] as ({List<AzmRewardEntry> rewards, String? nextCursor, bool hasMore});
       final summary = results[1] as AzmSummary;
       final rates = results[2] as AzmRates;
+      final leaderboard = results[3] as AzmFriendsLeaderboard;
 
       state = AzmRewardState(
         rewards: historyResult.rewards,
@@ -103,6 +113,7 @@ class AzmRewardNotifier extends StateNotifier<AzmRewardState> {
         nextCursor: historyResult.nextCursor,
         hasMore: historyResult.hasMore,
         loading: false,
+        leaderboard: leaderboard,
       );
     } catch (e) {
       debugPrint('[AzmRewardNotifier] refresh error: $e');
@@ -156,6 +167,12 @@ class AzmRewardNotifier extends StateNotifier<AzmRewardState> {
             totalEarned: state.summary!.totalEarned + awarded,
             currentBalance: azmBalance,
             bySource: state.summary!.bySource,
+            // FIX (2026-07-06): rebuilding AzmSummary here previously
+            // dropped loginStreak/lastLoginAt back to their defaults on
+            // every single real-time reward event -- the streak display
+            // would flicker to 0 any time a reward socket event landed.
+            loginStreak: state.summary!.loginStreak,
+            lastLoginAt: state.summary!.lastLoginAt,
           )
         : null;
 
