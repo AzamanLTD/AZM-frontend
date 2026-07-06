@@ -15,7 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:azaman/providers/hologram_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -46,6 +48,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   double _rating = 0.0;
   int _loginStreak = 0;
   String? _avatarUrl;
+  String _azamanId = '';
+  bool _isUploadingAvatar = false;
+  final ImagePicker _picker = ImagePicker();
 
 
   @override
@@ -72,6 +77,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _username = user['username'] ?? '';
         _email = user['email'] ?? '';
         _uid = user['id']?.toString() ?? '';
+        _azamanId = user['azamanId']?.toString() ?? '';
         _bio = user['bio'] ?? '';
         _phone = user['phoneNumber'] ?? user['phone'] ?? '';
         _kycStatus = user['kycStatus'] ?? 'UNVERIFIED';
@@ -79,7 +85,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _tradesCompleted = user['tradesCompleted'] ?? 0;
         _rating = (user['rating'] ?? 0.0).toDouble();
         _loginStreak = user['loginStreak'] ?? 0;
-        _avatarUrl = user['avatarUrl'];
+        // NOTE: backend field is `profilePictureUrl`, not `avatarUrl` — the
+        // old key here never matched a real response, which is why photos
+        // never rendered on this screen.
+        _avatarUrl = user['profilePictureUrl'] ?? user['avatarUrl'];
         _isLoading = false;
       });
     } catch (e) {
@@ -115,6 +124,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Network error. Try again.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    final colors = ref.read(themeProvider).colors;
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1024,
+      );
+      if (picked == null) return;
+
+      HapticFeedback.lightImpact();
+      setState(() => _isUploadingAvatar = true);
+
+      final uri = Uri.parse('${ApiClient.baseUrl}/users/profile/avatar');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(await http.MultipartFile.fromPath('avatar', picked.path));
+      final response = await apiClient.multipart('/users/profile/avatar', request);
+
+      final data = jsonDecode(response.body);
+      final newUrl = (data is Map
+              ? (data['data']?['profilePictureUrl'] ?? data['profilePictureUrl'])
+              : null)
+          ?.toString();
+
+      if (!mounted) return;
+      setState(() {
+        if (newUrl != null && newUrl.isNotEmpty) _avatarUrl = newUrl;
+        _isUploadingAvatar = false;
+      });
+
+      // Propagate everywhere else the avatar shows (home header, drawer).
+      if (newUrl != null && newUrl.isNotEmpty) {
+        ref.read(authProvider).updateProfilePicture(newUrl);
+      }
+
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture updated')),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not update photo. Try again.'),
+            backgroundColor: colors.danger,
+          ),
         );
       }
     }
@@ -280,13 +341,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(height: 24),
                         _buildKycBadge(colors),
                         const SizedBox(height: 24),
-                        _buildBalanceSummary(colors),
-                        const SizedBox(height: 8),
                         _buildSection(colors, 'Account Info', [
                           _buildInfoRow(colors, 'Display Name', _displayName),
-                          _buildInfoRow(colors, 'Username', '@$_username'),
+                          _buildInfoRow(colors, 'Username', _username),
                           _buildInfoRow(colors, 'Email', _email),
-                          _buildInfoRow(colors, 'UID', _uid),
+                          _buildInfoRow(colors, 'AZM ID', _azamanId),
                         ]),
                         _buildSection(colors, 'Stats & Reputation', [
                           _buildInfoRow(colors, 'Trades Completed', '$_tradesCompleted'),
@@ -298,7 +357,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildInfoRow(colors, 'KYC Status', _kycStatus),
                           _buildInfoRow(colors, 'Two-Factor Auth', 'Enabled'),
                         ]),
-                        _buildDangerZone(colors),
+                        // Danger Zone / Delete Account lives at the bottom of
+                        // the main Settings screen now (next to Sign Out) —
+                        // one canonical place for it instead of two.
                       ],
                     ),
                   ),
@@ -381,26 +442,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildAvatarSection(AzamanColors colors) {
-    final initial = _displayName.isNotEmpty
-        ? _displayName[0].toUpperCase()
-        : (_username.isNotEmpty ? _username[0].toUpperCase() : '?');
-
     return Column(
       children: [
-        CircleAvatar(
-          radius: 44,
-          backgroundColor: colors.card,
-          child: ClipOval(
-            child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: _avatarUrl!,
-                  width: 88, height: 88,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => CircularProgressIndicator(
-                    strokeWidth: 2, color: colors.accent),
-                  errorWidget: (_, __, ___) => _initialsAvatar(colors),
+        GestureDetector(
+          onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 44,
+                backgroundColor: colors.card,
+                child: ClipOval(
+                  child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: _avatarUrl!,
+                        width: 88, height: 88,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => CircularProgressIndicator(
+                          strokeWidth: 2, color: colors.accent),
+                        errorWidget: (_, __, ___) => _initialsAvatar(colors),
+                      )
+                    : _initialsAvatar(colors),
+                ),
+              ),
+              if (_isUploadingAvatar)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withOpacity(0.45),
+                    ),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22, height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                        ),
+                      ),
+                    ),
+                  ),
                 )
-              : _initialsAvatar(colors),
+              else
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accent,
+                    border: Border.all(color: colors.surface, width: 2.5),
+                  ),
+                  child: Icon(
+                    Icons.camera_alt,
+                    size: 14,
+                    color: colors.isDark ? Colors.black : Colors.white,
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -476,81 +574,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildBalanceSummary(AzamanColors colors) {
-    final balanceData = ref.watch(balanceDataProvider);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: colors.card,
-        border: Border.all(color: colors.divider),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildBalanceStat(
-              colors,
-              'Available',
-              '\$${balanceData.availableBalance.toStringAsFixed(2)}',
-              colors.success,
-            ),
-          ),
-          Container(width: 1, height: 36, color: colors.divider),
-          Expanded(
-            child: _buildBalanceStat(
-              colors,
-              'Escrow',
-              '\$${balanceData.escrowLockedBalance.toStringAsFixed(2)}',
-              colors.warning,
-            ),
-          ),
-          Container(width: 1, height: 36, color: colors.divider),
-          Expanded(
-            child: _buildBalanceStat(
-              colors,
-              'AZM',
-              balanceData.azmBalance.toStringAsFixed(1),
-              colors.accentSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBalanceStat(
-    AzamanColors colors,
-    String label,
-    String value,
-    Color valueColor,
-  ) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
-
-
   Widget _buildSection(AzamanColors colors, String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -606,104 +629,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDangerZone(AzamanColors colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 28, 16, 10),
-          child: Text(
-            'DANGER ZONE',
-            style: TextStyle(
-              color: colors.danger,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: colors.danger.withOpacity(0.04),
-            border: Border.all(color: colors.danger.withOpacity(0.15)),
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: ListTile(
-              onTap: _showDeleteConfirmation,
-              leading: Icon(Icons.delete_outline, color: colors.danger),
-              title: Text(
-                'Delete Account',
-                style: TextStyle(
-                  color: colors.danger,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                'Permanently remove your account and all data',
-                style: TextStyle(
-                  color: colors.danger.withOpacity(0.6),
-                  fontSize: 11,
-                ),
-              ),
-              trailing: Icon(
-                Icons.arrow_forward,
-                color: colors.danger.withOpacity(0.5),
-                size: 14,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-
-  void _showDeleteConfirmation() {
-    final colors = ref.read(themeProvider).colors;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Delete Account?',
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800),
-        ),
-        content: Text(
-          'This action is irreversible. All your data, balances, and trade history will be permanently deleted.',
-          style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // TODO: Implement account deletion API call
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Account deletion requested. Check your email.'),
-                  backgroundColor: colors.danger,
-                ),
-              );
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: colors.danger, fontWeight: FontWeight.w700),
             ),
           ),
         ],

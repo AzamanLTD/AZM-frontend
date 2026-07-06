@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -163,16 +164,36 @@ class _GreetingHeader extends ConsumerWidget {
                   shape: BoxShape.circle,
                   color: colors.surface,
                 ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
+                child: ClipOval(
+                  child: (user?.profilePictureUrl != null &&
+                          user!.profilePictureUrl!.isNotEmpty)
+                      ? CachedNetworkImage(
+                          imageUrl: user.profilePictureUrl!,
+                          width: 42, height: 42,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Center(
+                            child: Text(
+                              initials,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ),

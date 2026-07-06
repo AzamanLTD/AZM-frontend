@@ -256,6 +256,15 @@ class AuthProvider with ChangeNotifier {
     _publish();
   }
 
+  /// Push a freshly-uploaded avatar URL into the live user snapshot so every
+  /// surface reading `currentUserProvider` / `authProvider` (home header,
+  /// settings drawer, etc.) reflects it immediately without a full refetch.
+  void updateProfilePicture(String url) {
+    if (_user == null) return;
+    _user = _user!.copyWith(profilePictureUrl: url);
+    _publish();
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // PUSH NOTIFICATIONS
   // ──────────────────────────────────────────────────────────────────────────

@@ -134,32 +134,28 @@ class SettingsDrawer extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                     children: [
-                      // SYSTEM STATUS
-                      _animatedWrapper(
-                        delay: 2,
-                        child: _buildSystemStatusCard(colors),
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      // ROOT ACCESS
-                      _animatedWrapper(
-                        delay: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionHeader(
-                              'ROOT ACCESS',
-                              colors: colors,
-                              headerColor: colors.danger,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildGodModeTile(context, colors),
-                          ],
+                      // ROOT ACCESS — restricted to the platform admin account only.
+                      // The backend already hard-gates every /api/admin route behind
+                      // `adminOnly` middleware; this UI gate just keeps the entry point
+                      // from cluttering the drawer for every other user.
+                      if ((user?.email ?? '').toLowerCase() == 'admin@azaman.test') ...[
+                        _animatedWrapper(
+                          delay: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionHeader(
+                                'ROOT ACCESS',
+                                colors: colors,
+                                headerColor: colors.danger,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildGodModeTile(context, colors),
+                            ],
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 25),
+                        const SizedBox(height: 25),
+                      ],
 
                       // PAYMENT ADDRESSES (Phase UI-2, 2026-05-26)
                       // Both deposit destinations (where users send funds
@@ -439,7 +435,9 @@ class SettingsDrawer extends ConsumerWidget {
     final username = (user?.username.isNotEmpty ?? false)
         ? user!.username
         : 'Guest';
-    final uidLine = user != null ? '@UID-${user.id}' : '@UID-—';
+    final uidLine = (user?.azamanId != null && user!.azamanId!.isNotEmpty)
+        ? user.azamanId!
+        : (user != null ? 'AZM-—' : 'AZM-—');
     final badge = _kycBadgeFor(user?.kycStatus, colors);
 
     return Container(
@@ -493,15 +491,33 @@ class SettingsDrawer extends ConsumerWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  _initial(username),
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                child: (user?.profilePictureUrl != null &&
+                        user!.profilePictureUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: user.profilePictureUrl!,
+                          width: 64, height: 64,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Text(
+                            _initial(username),
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        _initial(username),
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
               ),
               // Verification ring overlay only when fully verified.
               if (user?.kycStatus == KycStatus.verified)
@@ -791,42 +807,6 @@ class SettingsDrawer extends ConsumerWidget {
   // section tiles use the new `_buildSlenderTile` helper above. The chunky
   // portal pattern is preserved in git history if a future surface (e.g.
   // a hero "Vendor Portal" entry) wants to opt back into it.
-
-  Widget _buildSystemStatusCard(AzamanColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.success.withOpacity(0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: colors.success,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: colors.success, blurRadius: 4)],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'TRADE ENGINE: ONLINE',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-          const Spacer(),
-          Icon(Icons.bolt_outlined, color: colors.textTertiary, size: 16),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTopActionBar(BuildContext context, AzamanColors colors) {
     return Padding(
