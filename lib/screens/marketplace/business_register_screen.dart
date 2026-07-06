@@ -16,7 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'package:azaman/config.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -242,6 +244,8 @@ class _BusinessRegisterScreenState
             _field(colors, _addressCtrl, 'Address (optional)'),
             const SizedBox(height: 12),
             _countryDropdown(colors),
+            const SizedBox(height: 20),
+            _webDashboardLinkOut(colors),
             const SizedBox(height: 24),
             SizedBox(
               height: 52,
@@ -268,6 +272,57 @@ class _BusinessRegisterScreenState
               ),
             ),
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Backlog: "open web dashboard" link-out. The portal is reference-only --
+  /// we never embed it, just point to it for users who'd rather manage KYB
+  /// docs, invoices, and catalog bulk-edits from a full computer screen.
+  /// Hides itself entirely if no portal URL has been configured at build
+  /// time (see AppConfig.businessPortalUrl) rather than linking to a guess.
+  Widget _webDashboardLinkOut(AzamanColors colors) {
+    if (!AppConfig.hasBusinessPortalUrl) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () => launchUrl(
+        Uri.parse(AppConfig.businessPortalUrl),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.desktop_windows_outlined, size: 17, color: colors.accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Prefer a bigger screen?',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text('Manage KYB docs, invoices & catalog from the web dashboard',
+                      style: TextStyle(fontSize: 11.5, color: colors.textTertiary)),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new, size: 18, color: colors.textTertiary),
           ],
         ),
       ),

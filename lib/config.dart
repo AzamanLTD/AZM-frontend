@@ -106,4 +106,25 @@ class AppConfig {
 
   /// Whether Sentry should be active this run.
   static bool get sentryEnabled => sentryDsn.isNotEmpty;
+
+  /// URL for the Azaman Business Portal (web dashboard for vendor-side
+  /// operations -- KYB, product catalog, invoices, etc). The app treats the
+  /// portal as a reference-only surface: we link OUT to it, we never embed
+  /// it or duplicate its functionality in-app.
+  ///
+  /// NOTE: no production URL for the deployed portal exists anywhere in
+  /// either repo yet (checked AZM-businessPortal's README/render config --
+  /// nothing committed). Override at build time once it's deployed:
+  ///   flutter run --dart-define=BUSINESS_PORTAL_URL=https://your-real-url
+  /// Until then this intentionally resolves to an empty string, and any UI
+  /// offering the link-out hides itself rather than pointing at a guessed,
+  /// possibly-dead domain.
+  static const String _portalUrlOverride = String.fromEnvironment(
+    'BUSINESS_PORTAL_URL',
+    defaultValue: '',
+  );
+
+  static String get businessPortalUrl => _portalUrlOverride;
+
+  static bool get hasBusinessPortalUrl => businessPortalUrl.isNotEmpty;
 }
