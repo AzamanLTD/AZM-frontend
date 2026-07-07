@@ -48,6 +48,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
 import 'package:azaman/widgets/image_lightbox.dart';
 import 'package:azaman/widgets/rating_stars.dart';
+import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 import 'package:azaman/widgets/review_card.dart';
 import 'package:azaman/widgets/stacked_gallery_cards.dart';
 
@@ -266,6 +267,27 @@ class _BusinessProfileScreenState
           ),
         ),
       );
+    }
+  }
+
+  /// Routes the primary CTA to the right flow for the business's vertical:
+  /// FOOD_BEVERAGE opens the order sheet inline; HOSPITALITY/REAL_ESTATE and
+  /// LOGISTICS push to their dedicated booking screens instead of falling
+  /// back to the generic order sheet.
+  void _primaryCtaAction() {
+    final business = _business;
+    if (business == null) return;
+    switch (business.category) {
+      case 'HOSPITALITY':
+      case 'REAL_ESTATE':
+        context.push('/business-market/${business.id}/hotel-booking');
+        return;
+      case 'LOGISTICS':
+        context.push('/business-market/${business.id}/transit');
+        return;
+      case 'FOOD_BEVERAGE':
+      default:
+        _openOrderSheet();
     }
   }
 
@@ -1247,6 +1269,19 @@ class _BusinessProfileScreenState
         ),
       );
     }
+
+    // Restaurants get the real page-turning flip-book menu experience.
+    if (business.category == 'FOOD_BEVERAGE') {
+      return RestaurantMenuFlipBook(
+        businessName: business.businessName,
+        logoUrl: business.logoUrl,
+        sections: _menuSections,
+        uncategorisedProducts: _uncategorisedProducts,
+        colors: colors,
+        onOrder: (p) => _openOrderSheet(product: p),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
@@ -1367,25 +1402,115 @@ class _BusinessProfileScreenState
 
   // ── Tab: Book (placeholder) ────────────────────────────────────────────────
   Widget _bookTab(AzamanColors colors) {
+    final business = _business;
+    if (business == null) {
+      return Center(child: CircularProgressIndicator(color: colors.accent));
+    }
+
+    switch (business.category) {
+      case 'HOSPITALITY':
+      case 'REAL_ESTATE':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.hotel_outlined,
+          title: 'Book a Room',
+          subtitle: 'Browse room types, pick your dates, and reserve with an escrow-backed deposit.',
+          buttonLabel: 'Browse Rooms',
+          onTap: () => context.push('/business-market/${business.id}/hotel-booking'),
+        );
+      case 'LOGISTICS':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.directions_bus_filled_outlined,
+          title: 'Book a Seat',
+          subtitle: 'See upcoming trips, pick your seat on the live seat map, and reserve instantly.',
+          buttonLabel: 'View Trips',
+          onTap: () => context.push('/business-market/${business.id}/transit'),
+        );
+      case 'FOOD_BEVERAGE':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.table_restaurant_outlined,
+          title: 'Reserve a Table',
+          subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.',
+          buttonLabel: 'Request Reservation',
+          onTap: () => _openOrderSheet(),
+        );
+      default:
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.widgets_outlined,
+                    size: 48, color: colors.textTertiary),
+                const SizedBox(height: 14),
+                Text('Bookings Coming Soon',
+                    style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Text(
+                  'Reserve tables, appointments, and services directly through the app.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _bookCtaCard({
+    required AzamanColors colors,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String buttonLabel,
+    required VoidCallback onTap,
+  }) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.widgets_outlined,
-                size: 48, color: colors.textTertiary),
-            const SizedBox(height: 14),
-            Text('Bookings Coming Soon',
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: colors.accent),
+            ),
+            const SizedBox(height: 18),
+            Text(title,
                 style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(
-              'Reserve tables, appointments, and services directly through the app.',
+              subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              ),
+              onPressed: onTap,
+              child: Text(buttonLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
           ],
         ),
@@ -1442,7 +1567,7 @@ class _BusinessProfileScreenState
               const SizedBox(width: 10),
             ],
             Expanded(flex: _hasUnpaidInvoices ? 2 : 1,
-              child: _glassCTAButton(label: _business != null ? _ctaLabel(_business!) : 'Order Now', icon: _business != null ? _ctaIcon(_business!) : Icons.shopping_bag_rounded, colors: colors, isPrimary: true, onTap: _openOrderSheet)),
+              child: _glassCTAButton(label: _business != null ? _ctaLabel(_business!) : 'Order Now', icon: _business != null ? _ctaIcon(_business!) : Icons.shopping_bag_rounded, colors: colors, isPrimary: true, onTap: _primaryCtaAction)),
           ],
         ),
       ),

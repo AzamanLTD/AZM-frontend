@@ -32,6 +32,9 @@ dependencies:
   # For proof of payment uploads
   image_picker: ^1.2.1
 
+  # Restaurant flip-book menu (pinned — proprietary license, approved-PR-only upstream)
+  turnable_page: 1.0.1
+
   # --- SURGICALLY ADDED FOR TRADE EFFICIENCY ---
   # Fixes canLaunchUrl & LaunchMode errors
   url_launcher: ^6.3.0  

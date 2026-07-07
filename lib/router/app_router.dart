@@ -277,6 +277,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TransitTripListScreen(),
     ),
     GoRoute(
+      path: '/business-market/:bizId/transit',
+      name: 'business-transit-trips',
+      builder: (context, state) => TransitTripListScreen(
+        businessProfileId: state.pathParameters['bizId'],
+      ),
+    ),
+    GoRoute(
       path: '/marketplace/transit/:tripId/seats',
       name: 'transit-seat-selection',
       builder: (context, state) => TransitSeatSelectionScreen(
