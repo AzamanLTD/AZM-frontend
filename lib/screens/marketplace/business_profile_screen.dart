@@ -272,8 +272,10 @@ class _BusinessProfileScreenState
 
   /// Routes the primary CTA to the right flow for the business's vertical:
   /// FOOD_BEVERAGE opens the order sheet inline; HOSPITALITY/REAL_ESTATE and
-  /// LOGISTICS push to their dedicated booking screens instead of falling
-  /// back to the generic order sheet.
+  /// LOGISTICS push to their dedicated booking screens; every other vertical
+  /// opens the order sheet against that business's own product/service
+  /// catalog (there's no dedicated backend flow for generic appointments
+  /// yet, but ordering a listed service/package already works end-to-end).
   void _primaryCtaAction() {
     final business = _business;
     if (business == null) return;
@@ -288,6 +290,58 @@ class _BusinessProfileScreenState
       case 'FOOD_BEVERAGE':
       default:
         _openOrderSheet();
+    }
+  }
+
+  /// Label for the catalog tab (was hardcoded 'Menu' for every vertical).
+  static String _catalogTabLabel(String? category) {
+    switch (category) {
+      case 'FOOD_BEVERAGE':
+        return 'Menu';
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return 'Products';
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+      case 'FINANCIAL_SERVICES':
+        return 'Services';
+      case 'EDUCATION':
+        return 'Courses';
+      case 'ENTERTAINMENT':
+        return 'Experiences';
+      case 'HOSPITALITY':
+      case 'REAL_ESTATE':
+        return 'Amenities';
+      case 'LOGISTICS':
+        return 'Add-ons';
+      default:
+        return 'Catalog';
+    }
+  }
+
+  /// Empty-state icon + copy for the catalog tab, per vertical.
+  static ({IconData icon, String text}) _catalogEmptyState(String? category) {
+    switch (category) {
+      case 'FOOD_BEVERAGE':
+        return (icon: Icons.restaurant_outlined, text: 'Menu not yet available');
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return (icon: Icons.shopping_bag_outlined, text: 'No products listed yet');
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+      case 'FINANCIAL_SERVICES':
+        return (icon: Icons.design_services_outlined, text: 'No services listed yet');
+      case 'EDUCATION':
+        return (icon: Icons.school_outlined, text: 'No courses listed yet');
+      case 'ENTERTAINMENT':
+        return (icon: Icons.confirmation_number_outlined, text: 'No experiences listed yet');
+      case 'HOSPITALITY':
+      case 'REAL_ESTATE':
+        return (icon: Icons.holiday_village_outlined, text: 'No amenities listed yet');
+      case 'LOGISTICS':
+        return (icon: Icons.directions_bus_outlined, text: 'No add-ons listed yet');
+      default:
+        return (icon: Icons.storefront_outlined, text: 'Nothing listed yet');
     }
   }
 
@@ -426,12 +480,12 @@ class _BusinessProfileScreenState
                         fontWeight: FontWeight.w600,
                       ),
                       indicatorSize: TabBarIndicatorSize.label,
-                      tabs: const [
-                        Tab(text: 'Overview'),
-                        Tab(text: 'Menu'),
-                        Tab(text: 'Locations'),
-                        Tab(text: 'Reviews'),
-                        Tab(text: 'Book'),
+                      tabs: [
+                        const Tab(text: 'Overview'),
+                        Tab(text: _catalogTabLabel(business.category)),
+                        const Tab(text: 'Locations'),
+                        const Tab(text: 'Reviews'),
+                        const Tab(text: 'Book'),
                       ],
                     ),
                   ),
@@ -1253,16 +1307,16 @@ class _BusinessProfileScreenState
     final hasSections = _menuSections.isNotEmpty;
     final hasUncat = _uncategorisedProducts.isNotEmpty;
     if (!hasSections && !hasUncat) {
+      final empty = _catalogEmptyState(business.category);
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.restaurant_outlined,
-                  size: 40, color: colors.textTertiary),
+              Icon(empty.icon, size: 40, color: colors.textTertiary),
               const SizedBox(height: 10),
-              Text('Menu not yet available',
+              Text(empty.text,
                   style: TextStyle(color: colors.textSecondary, fontSize: 14)),
             ],
           ),
@@ -1436,30 +1490,61 @@ class _BusinessProfileScreenState
           buttonLabel: 'Request Reservation',
           onTap: () => _openOrderSheet(),
         );
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.shopping_bag_outlined,
+          title: 'Shop the Catalog',
+          subtitle: 'Browse everything this business sells and check out with escrow-backed payment protection.',
+          buttonLabel: 'Shop Now',
+          onTap: () => _tabController.animateTo(1),
+        );
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.design_services_outlined,
+          title: 'Book a Service',
+          subtitle: 'Pick a listed service or package and request it — the business confirms your booking directly.',
+          buttonLabel: 'View Services',
+          onTap: () => _openOrderSheet(),
+        );
+      case 'EDUCATION':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.school_outlined,
+          title: 'Enroll in a Course',
+          subtitle: 'Browse available courses and enroll — your payment is held in escrow until access is confirmed.',
+          buttonLabel: 'View Courses',
+          onTap: () => _openOrderSheet(),
+        );
+      case 'ENTERTAINMENT':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.confirmation_number_outlined,
+          title: 'Get Tickets',
+          subtitle: 'Browse tickets and experiences from this business and secure yours with escrow protection.',
+          buttonLabel: 'View Tickets',
+          onTap: () => _openOrderSheet(),
+        );
+      case 'FINANCIAL_SERVICES':
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.account_balance_outlined,
+          title: 'View Plans',
+          subtitle: "Browse this business's financial products and services and request the one you need.",
+          buttonLabel: 'View Plans',
+          onTap: () => _openOrderSheet(),
+        );
       default:
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.widgets_outlined,
-                    size: 48, color: colors.textTertiary),
-                const SizedBox(height: 14),
-                Text('Bookings Coming Soon',
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
-                Text(
-                  'Reserve tables, appointments, and services directly through the app.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
+        return _bookCtaCard(
+          colors: colors,
+          icon: Icons.storefront_outlined,
+          title: 'Browse Offerings',
+          subtitle: 'See what this business offers and request it directly — payments are escrow-protected.',
+          buttonLabel: 'View Offerings',
+          onTap: () => _openOrderSheet(),
         );
     }
   }
@@ -1530,6 +1615,18 @@ class _BusinessProfileScreenState
         return 'Book a Room';
       case 'LOGISTICS':
         return 'Book a Seat';
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return 'Shop Now';
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+        return 'Book Service';
+      case 'EDUCATION':
+        return 'Enroll Now';
+      case 'ENTERTAINMENT':
+        return 'Get Tickets';
+      case 'FINANCIAL_SERVICES':
+        return 'View Plans';
       default:
         return 'Order Now';
     }
@@ -1545,6 +1642,18 @@ class _BusinessProfileScreenState
         return Icons.hotel_outlined;
       case 'LOGISTICS':
         return Icons.directions_bus_outlined;
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return Icons.shopping_bag_outlined;
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+        return Icons.design_services_outlined;
+      case 'EDUCATION':
+        return Icons.school_outlined;
+      case 'ENTERTAINMENT':
+        return Icons.confirmation_number_outlined;
+      case 'FINANCIAL_SERVICES':
+        return Icons.account_balance_outlined;
       default:
         return Icons.local_mall_outlined;
     }
