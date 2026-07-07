@@ -120,8 +120,9 @@ class TransitTrip {
 
 // ── TRANSIT SEAT ─────────────────────────────────────────────────────────────
 
-enum SeatStatus { available, occupied }
+enum SeatStatus { available, occupied, blocked }
 enum SeatType { window, aisle, extra }
+enum SeatTier { economy, standard, vip }
 
 class TransitSeat {
   final String seatId;
@@ -129,6 +130,8 @@ class TransitSeat {
   final int col;
   final SeatType type;
   final SeatStatus status;
+  final SeatTier tier;
+  final double fare;
 
   const TransitSeat({
     required this.seatId,
@@ -136,6 +139,8 @@ class TransitSeat {
     required this.col,
     required this.type,
     required this.status,
+    this.tier = SeatTier.economy,
+    this.fare = 0,
   });
 
   static SeatType _parseType(String? s) {
@@ -146,13 +151,31 @@ class TransitSeat {
     }
   }
 
+  static SeatTier _parseTier(String? s) {
+    switch (s?.toUpperCase()) {
+      case 'VIP': return SeatTier.vip;
+      case 'STANDARD': return SeatTier.standard;
+      default: return SeatTier.economy;
+    }
+  }
+
+  static SeatStatus _parseStatus(String? s) {
+    switch (s?.toUpperCase()) {
+      case 'OCCUPIED': return SeatStatus.occupied;
+      case 'BLOCKED': return SeatStatus.blocked;
+      default: return SeatStatus.available;
+    }
+  }
+
   factory TransitSeat.fromJson(Map<String, dynamic> json) {
     return TransitSeat(
       seatId: json['seatId'] as String? ?? '',
       row: _toInt(json['row']),
       col: _toInt(json['col']),
       type: _parseType(json['type']?.toString()),
-      status: (json['status'] == 'OCCUPIED') ? SeatStatus.occupied : SeatStatus.available,
+      status: _parseStatus(json['status']?.toString()),
+      tier: _parseTier(json['tier']?.toString()),
+      fare: _toDouble(json['fare']),
     );
   }
 }
@@ -166,6 +189,7 @@ class SeatAvailability {
   final int totalSeats;
   final String tripStatus;
   final double fareUsdc;
+  final Map<String, double> tierFares;
 
   const SeatAvailability({
     required this.tripId,
@@ -174,10 +198,12 @@ class SeatAvailability {
     required this.totalSeats,
     required this.tripStatus,
     required this.fareUsdc,
+    this.tierFares = const {},
   });
 
   factory SeatAvailability.fromJson(Map<String, dynamic> json) {
     final seatsList = json['seats'] as List? ?? [];
+    final tierFaresJson = json['tierFares'] as Map? ?? {};
     return SeatAvailability(
       tripId: json['tripId'] as String? ?? '',
       seats: seatsList.map((s) => TransitSeat.fromJson(s as Map<String, dynamic>)).toList(),
@@ -185,6 +211,7 @@ class SeatAvailability {
       totalSeats: _toInt(json['totalSeats']),
       tripStatus: json['tripStatus'] as String? ?? 'SCHEDULED',
       fareUsdc: _toDouble(json['fareUsdc']),
+      tierFares: tierFaresJson.map((k, v) => MapEntry(k.toString(), _toDouble(v))),
     );
   }
 }
