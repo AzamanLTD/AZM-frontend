@@ -790,40 +790,49 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         loading: () => _buildFriendsList(provider.friends, colors),
         error: (_, __) => _buildFriendsList(provider.friends, colors),
         data: (groups) {
-          return ListView(
+          // 2026-07-08: groups and friends used to render as two separate
+          // labelled sections (GROUPS header, then FRIENDS header) — mixed
+          // now into a single list sorted by most-recent activity, with a
+          // faint hairline between rows instead of category chrome.
+          final entries = <_ChatListEntry>[
+            for (final g in groups)
+              _ChatListEntry(sortTime: g.updatedAt, builder: () => _GroupChatTile(group: g, colors: colors)),
+            for (final f in provider.friends)
+              _ChatListEntry(sortTime: _friendSortTime(f), builder: () => _buildFriendTile(f, colors)),
+          ]..sort((a, b) {
+              if (a.sortTime == null && b.sortTime == null) return 0;
+              if (a.sortTime == null) return 1;
+              if (b.sortTime == null) return -1;
+              return b.sortTime!.compareTo(a.sortTime!);
+            });
+
+          return ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
-            children: [
-              if (groups.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Row(children: [
-                    Container(width: 3, height: 12, decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(width: 6),
-                    Text('GROUPS', style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                  ]),
-                ),
-                for (final g in groups)
-                  _GroupChatTile(group: g, colors: colors),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Row(children: [
-                    Container(width: 3, height: 12, decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(width: 6),
-                    Text('FRIENDS', style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                  ]),
-                ),
-              ],
-              for (final f in provider.friends)
-                _buildFriendTile(f, colors),
-            ],
+            itemCount: entries.length,
+            separatorBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Divider(height: 1, thickness: 1, color: colors.divider.withOpacity(0.4)),
+            ),
+            itemBuilder: (context, i) => entries[i].builder(),
           );
         },
       ),
     );
+  }
+
+  /// Best-effort last-activity timestamp for a friend row, so it can be
+  /// interleaved with group rows in one recency-sorted list.
+  DateTime? _friendSortTime(Map<String, dynamic> friend) {
+    final latestMessage = friend['latestMessage'] is Map<String, dynamic>
+        ? friend['latestMessage'] as Map<String, dynamic>
+        : null;
+    final raw = latestMessage?['createdAt'] ?? friend['lastMessageTime'];
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    return DateTime.tryParse(raw.toString());
   }
 
   Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
@@ -1271,6 +1280,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       return '';
     }
   }
+}
+
+class _ChatListEntry {
+  final DateTime? sortTime;
+  final Widget Function() builder;
+  const _ChatListEntry({required this.sortTime, required this.builder});
 }
 
 class _GroupChatTile extends StatelessWidget {
