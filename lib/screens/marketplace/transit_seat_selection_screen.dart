@@ -156,7 +156,7 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
                 padding: const EdgeInsets.all(8),
                 child: InteractiveViewer(
                   transformationController: _transformController,
-                  minScale: 0.6,
+                  minScale: 0.8,
                   maxScale: 3.0,
                   boundaryMargin: const EdgeInsets.all(80),
                   child: Center(
@@ -449,7 +449,12 @@ class _SeatWidget extends StatelessWidget {
             ? colors.danger
             : _tierColor(seat.tier);
 
-    return GestureDetector(
+    // Tactile "physical button" treatment: every seat gets a soft resting
+    // shadow (so the map reads as a grid of raised chips, not flat boxes),
+    // selected seats lift further with a stronger tier-tinted glow, and
+    // booked/blocked seats are visibly flattened (no shadow, dimmed via
+    // Opacity) so they read as inert at a glance.
+    final content = GestureDetector(
       onTap: isDisabled ? null : onTap,
       child: Tooltip(
         message: isOccupied
@@ -460,13 +465,17 @@ class _SeatWidget extends StatelessWidget {
         child: AnimatedContainer(
           duration: 250.ms, curve: Curves.easeOutCubic, width: 40, height: 40,
           decoration: BoxDecoration(
-            color: isDisabled ? colors.divider : isSelected ? colors.accent : baseColor.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(10),
+            color: isDisabled ? colors.divider : isSelected ? colors.accent : colors.card,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isDisabled ? Colors.transparent : isSelected ? colors.accent : baseColor.withOpacity(0.6),
+              color: isDisabled ? Colors.transparent : isSelected ? colors.accent : baseColor.withOpacity(0.55),
               width: isSelected ? 1.5 : 1,
             ),
-            boxShadow: isSelected ? [BoxShadow(color: colors.accent.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 3))] : null,
+            boxShadow: isDisabled
+                ? null
+                : isSelected
+                    ? [BoxShadow(color: colors.accent.withOpacity(0.35), blurRadius: 16, spreadRadius: 1, offset: const Offset(0, 5))]
+                    : [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 2))],
           ),
           child: Icon(
             isOccupied ? Icons.close_rounded : isBlocked ? Icons.block_rounded : Icons.event_seat_rounded,
@@ -478,5 +487,7 @@ class _SeatWidget extends StatelessWidget {
           .then().scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 100.ms),
       ),
     );
+
+    return isDisabled ? Opacity(opacity: 0.45, child: content) : content;
   }
 }
