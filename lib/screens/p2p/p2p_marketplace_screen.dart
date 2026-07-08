@@ -203,26 +203,48 @@ class _CashBalanceCard extends ConsumerWidget {
       borderRadius: BorderRadius.circular(22),
       child: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.alphaBlend(_cardAccent.withOpacity(0.16), _gradTopBase),
-                  _gradBottom,
+          // FIX (2026-07-08): this was a bare non-positioned Container with
+          // no width/height/child. This Stack sits inside a
+          // SingleChildScrollView -> Column, which gives it UNBOUNDED
+          // height -- and a childless Container with no explicit size
+          // collapses to ~zero size under unbounded constraints (it only
+          // "expands to fill" when the incoming constraints are bounded).
+          // So this background gradient/border/shadow layer was never
+          // actually painting across the card's real area at all -- the
+          // visible card size came entirely from the content Padding below
+          // (which has real intrinsic height), while this decorative layer
+          // rendered as a sliver nobody could see. It happened to be masked
+          // in Dark/Midnight themes because the Scaffold surface behind it
+          // is already near-black, coincidentally similar to the intended
+          // card gradient -- but in Light theme the Scaffold surface is
+          // cream/white, so the card looked washed-out/blank with only the
+          // gold accents (chip, AZAMAN wordmark, ring) still visible and
+          // the white balance text unreadable against the light backdrop.
+          // Wrapping in Positioned.fill (matching the ring/sheen layers
+          // below, which were already correctly positioned) makes this
+          // layer explicitly stretch to the Stack's real resolved size.
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color.alphaBlend(_cardAccent.withOpacity(0.16), _gradTopBase),
+                    _gradBottom,
+                  ],
+                ),
+                border: Border.all(color: _cardAccent.withOpacity(0.22), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: _cardAccent.withOpacity(0.14),
+                    blurRadius: 28,
+                    spreadRadius: -6,
+                    offset: const Offset(0, 14),
+                  ),
                 ],
               ),
-              border: Border.all(color: _cardAccent.withOpacity(0.22), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: _cardAccent.withOpacity(0.14),
-                  blurRadius: 28,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 14),
-                ),
-              ],
             ),
           ),
           // Faint decorative card texture — soft ring, top-right.
