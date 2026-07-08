@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -27,6 +28,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
+import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
@@ -35,9 +37,11 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:shimmer/shimmer.dart';
 
 enum _ViewMode { list, map }
 
@@ -80,6 +84,7 @@ class _MarketplaceHomeScreenState
 
   // Header search — collapsed icon <-> expanded inline search field
   bool _searchExpanded = false;
+  bool _searchFocused = false;
   final _searchFocusNode = FocusNode();
 
   // View / sort / filter state
@@ -99,6 +104,9 @@ class _MarketplaceHomeScreenState
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    _searchFocusNode.addListener(() {
+      if (mounted) setState(() => _searchFocused = _searchFocusNode.hasFocus);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessSearchProvider.notifier).search('');
       // Prefetch the signed-in user's own business profile so the
@@ -311,6 +319,8 @@ class _MarketplaceHomeScreenState
                       },
                     ),
                     _categoryStrip(colors),
+                    if (_selectedCategory == null && _searchCtrl.text.isEmpty)
+                      _featuredCarousel(colors),
                     const SizedBox(height: 2),
                     _resultsBar(colors),
                     Expanded(
@@ -472,11 +482,24 @@ class _MarketplaceHomeScreenState
                       ),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: PremiumGlassContainer(
-                          blur: 12, opacity: 0.06, borderRadius: 14,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          enableShadow: false,
-                          child: TextField(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _searchFocused ? colors.accent : Colors.transparent,
+                              width: 1.4,
+                            ),
+                            boxShadow: _searchFocused
+                                ? [BoxShadow(color: colors.accent.withOpacity(0.18), blurRadius: 14, offset: const Offset(0, 3))]
+                                : null,
+                          ),
+                          child: PremiumGlassContainer(
+                            blur: 12, opacity: 0.06, borderRadius: 14,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            enableShadow: false,
+                            child: TextField(
                             controller: _searchCtrl,
                             focusNode: _searchFocusNode,
                             onChanged: _onQueryChanged,
@@ -497,6 +520,7 @@ class _MarketplaceHomeScreenState
                                     child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary))
                                 : null,
                             ),
+                          ),
                           ),
                         ),
                       ),
@@ -593,21 +617,25 @@ class _MarketplaceHomeScreenState
       ('FREELANCE_SERVICES', HugeIcons.strokeRoundedWrench01, 'Services'),
       ('HEALTH_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
     ];
+    // Shrunk 2026-07-08 (Stan: "a bit too big for my liking") — trimmed
+    // height/padding/icon+font sizes across the board, and every chip (not
+    // just the active one) now carries a subtle resting shadow so the strip
+    // reads as a row of small floating cards instead of flat pills.
     return SizedBox(
-      height: 76,
+      height: 62,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final catItem = categories[i];
           final isAll = catItem.$1 == null;
           final isActive = _selectedCategory == catItem.$1;
-          final iconSize = isAll ? 26.0 : 19.0;
-          final fontSize = isAll ? 11.5 : 10.0;
-          final hPad = isAll ? 18.0 : 12.0;
-          final vPad = isAll ? 12.0 : 9.0;
+          final iconSize = isAll ? 21.0 : 16.0;
+          final fontSize = isAll ? 10.0 : 9.0;
+          final hPad = isAll ? 14.0 : 9.0;
+          final vPad = isAll ? 9.0 : 7.0;
           return GestureDetector(
             onTap: () {
               AzamanHaptics.toggle();
@@ -618,10 +646,16 @@ class _MarketplaceHomeScreenState
               duration: 300.ms, curve: Curves.easeOutCubic,
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               decoration: BoxDecoration(
-                color: isActive ? colors.accentSurface : colors.card.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(isAll ? 16 : 14),
+                color: isActive ? colors.accentSurface : colors.card,
+                borderRadius: BorderRadius.circular(isAll ? 14 : 12),
                 border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
-                boxShadow: isActive ? [BoxShadow(color: colors.accent.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 3))] : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: isActive ? colors.accent.withOpacity(0.18) : Colors.black.withOpacity(0.06),
+                    blurRadius: isActive ? 12 : 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -629,13 +663,105 @@ class _MarketplaceHomeScreenState
                   isAll
                       ? Icon(catItem.$2 as IconData, size: iconSize, color: isActive ? colors.accent : colors.textSecondary)
                       : HugeIcon(icon: catItem.$2, size: iconSize, color: isActive ? colors.accent : colors.textSecondary),
-                  SizedBox(height: isAll ? 5 : 4),
+                  SizedBox(height: isAll ? 4 : 3),
                   Text(catItem.$3, style: TextStyle(fontSize: fontSize, fontWeight: isActive || isAll ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
                 ],
               ),
             ),
           ).animate().fadeIn(delay: (i * 60).ms, duration: 250.ms).slideX(begin: 0.2, end: 0, delay: (i * 60).ms, duration: 250.ms, curve: Curves.easeOutCubic);
         },
+      ),
+    );
+  }
+
+  // ── "Featured Near You" carousel ────────────────────────────────────────────
+  // Only shown on the unfiltered/un-searched home feed (2026-07-08) — once a
+  // category is selected or a search is active, this makes way for the
+  // regular results list so it doesn't compete for attention.
+
+  List<BusinessProfile> _topRated(List<BusinessProfile> all) {
+    final rated = all.where((b) => b.averageRating > 0).toList()
+      ..sort((a, b) => b.averageRating.compareTo(a.averageRating));
+    return rated.take(10).toList();
+  }
+
+  Widget _featuredCarousel(AzamanColors colors) {
+    final state = ref.watch(businessSearchProvider);
+
+    if (state.isLoading) return _featuredShimmer(colors);
+
+    final featured = _topRated(state.results);
+    if (featured.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Featured Near You',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary)),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 196,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: featured.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) {
+                final b = featured[i];
+                return _FeaturedBusinessCard(
+                  business: b,
+                  colors: colors,
+                  onTap: () {
+                    AzamanHaptics.nav();
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => BusinessProfileScreen(bizId: b.bizId)));
+                  },
+                )
+                    .animate()
+                    .fadeIn(delay: (i * 70).ms, duration: 320.ms)
+                    .slideX(begin: 0.15, end: 0, delay: (i * 70).ms, duration: 320.ms, curve: Curves.easeOutCubic);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _featuredShimmer(AzamanColors colors) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(height: 15, width: 140, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(4))),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 196,
+            child: Shimmer.fromColors(
+              baseColor: colors.card,
+              highlightColor: colors.softSurface,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 4,
+                itemBuilder: (_, __) => Container(
+                  width: 280,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(18)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -947,40 +1073,44 @@ class _MarketplaceHomeScreenState
   // ── LIST shimmer ────────────────────────────────────────────────────────────
 
   Widget _listShimmer(AzamanColors colors) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 60),
-      itemCount: 8,
-      itemBuilder: (_, __) => Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        height: 68,
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(10),
+    return Shimmer.fromColors(
+      baseColor: colors.card,
+      highlightColor: colors.softSurface,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 60),
+        itemCount: 8,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          height: 68,
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.divider, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 14),
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  color: colors.divider,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(height: 13, width: 160, color: colors.divider),
-                  const SizedBox(height: 7),
-                  Container(height: 10, width: 100, color: colors.divider),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(height: 13, width: 160, color: colors.divider),
+                    const SizedBox(height: 7),
+                    Container(height: 10, width: 100, color: colors.divider),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1184,3 +1314,121 @@ class _MarketplaceHomeScreenState
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FeaturedBusinessCard — wide "Featured Near You" carousel card (2026-07-08)
+//
+// ~280px wide: large cover image, business avatar overlapping the bottom
+// edge of the image (like a business card tucked into a photo), name +
+// star rating below.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FeaturedBusinessCard extends StatelessWidget {
+  final BusinessProfile business;
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  const _FeaturedBusinessCard({
+    required this.business,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final coverUrl = business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl;
+    final cat = BusinessCategories.fromWire(business.category);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 14, offset: const Offset(0, 6)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Cover image
+                SizedBox(
+                  height: 118,
+                  width: double.infinity,
+                  child: coverUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: cat.color.withOpacity(0.15)),
+                          errorWidget: (_, __, ___) => Container(color: cat.color.withOpacity(0.15)),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft, end: Alignment.bottomRight,
+                              colors: [cat.color, cat.color.withOpacity(0.5)],
+                            ),
+                          ),
+                          child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withOpacity(0.5))),
+                        ),
+                ),
+                // Name + rating (indented to make room for the overlapping avatar)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 26, 14, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        business.businessName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          RatingStars(rating: business.averageRating, size: 12, showNumber: true),
+                          if (business.isVerified) ...[
+                            const SizedBox(width: 6),
+                            Icon(Icons.verified_rounded, size: 13, color: colors.accent),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // Avatar overlapping the bottom edge of the cover image
+            Positioned(
+              left: 14,
+              top: 118 - 24,
+              child: Container(
+                width: 48, height: 48,
+                padding: const EdgeInsets.all(2.5),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+                child: ClipOval(
+                  child: business.logoUrl != null
+                      ? CachedNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
+                      : Container(
+                          color: cat.color.withOpacity(0.2),
+                          child: Icon(cat.icon, size: 20, color: cat.color),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
