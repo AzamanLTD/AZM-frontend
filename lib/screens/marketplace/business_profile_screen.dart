@@ -21,6 +21,7 @@
 // Pay-Invoice affordance, matching the Booking.com pattern of one primary CTA.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -31,6 +32,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/widgets/parallax_header_delegate.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:animations/animations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -62,11 +64,22 @@ class BusinessProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _BusinessProfileScreenState
-    extends ConsumerState<BusinessProfileScreen>
-    with TickerProviderStateMixin {
+    extends ConsumerState<BusinessProfileScreen> {
   final _scrollCtrl = ScrollController();
   final _reviewsKey = GlobalKey();
-  late final TabController _tabController;
+
+  // 2026-07-08 UI/UX sprint: tabs are now pill buttons + a SharedAxisTransition
+  // switcher instead of a swipeable TabBar/TabBarView — swiping inside a tab's
+  // content (e.g. the restaurant flip-book menu) no longer fights with
+  // swiping between tabs, since there's no PageView-style gesture anymore.
+  // Catalog/Menu is no longer a tab at all — it moved to a floating bubble.
+  int _currentTab = 0; // 0=Overview 1=Locations 2=Reviews 3=Book
+
+  // Info popover (replaces the old always-visible "About" section) —
+  // auto-opens briefly right after the business loads, then auto-closes,
+  // both via a container-transform-style scale+fade.
+  bool _showAboutPopover = false;
+  Timer? _aboutPopoverTimer;
 
   bool _loading = true;
   String? _error;
@@ -89,15 +102,36 @@ class _BusinessProfileScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
     _load();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _aboutPopoverTimer?.cancel();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  /// Auto-opens the About info popover ~500ms after the business finishes
+  /// loading (long enough for the hero image to settle in), keeps it up for
+  /// ~3.2s, then auto-closes it — a "container transform in, container
+  /// transform out" intro instead of a permanent About section on the page.
+  void _autoShowAboutPopover() {
+    _aboutPopoverTimer?.cancel();
+    _aboutPopoverTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() => _showAboutPopover = true);
+      _aboutPopoverTimer = Timer(const Duration(milliseconds: 3200), () {
+        if (!mounted) return;
+        setState(() => _showAboutPopover = false);
+      });
+    });
+  }
+
+  void _toggleAboutPopover() {
+    _aboutPopoverTimer?.cancel();
+    AzamanHaptics.nav();
+    setState(() => _showAboutPopover = !_showAboutPopover);
   }
 
   Future<void> _load() async {
@@ -131,6 +165,7 @@ class _BusinessProfileScreenState
       _loadMenu(business.bizId);
       _loadFollowState(business.id);
       _loadShowcase(business.id);
+      _autoShowAboutPopover();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -421,6 +456,23 @@ class _BusinessProfileScreenState
                     minExtent: 56 + MediaQuery.of(context).padding.top,
                     maxExtent: 280,
                     actions: [
+                      // Info popover trigger — replaces the old permanent
+                      // "About" section; shows the same content in a small
+                      // container-transform popover anchored here.
+                      GestureDetector(
+                        onTap: _toggleAboutPopover,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          margin: const EdgeInsets.only(right: 8),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.16),
+                          ),
+                          child: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 17),
+                        ),
+                      ),
                       // Follow button
                       Center(
                         child: GestureDetector(
@@ -466,53 +518,382 @@ class _BusinessProfileScreenState
                 delegate: _StickyTabBarDelegate(
                   child: Container(
                     color: colors.background,
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorColor: colors.accent,
-                      labelColor: colors.accent,
-                      unselectedLabelColor: colors.textTertiary,
-                      labelStyle: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      indicatorSize: TabBarIndicatorSize.label,
-                      tabs: [
-                        const Tab(text: 'Overview'),
-                        Tab(text: _catalogTabLabel(business.category)),
-                        const Tab(text: 'Locations'),
-                        const Tab(text: 'Reviews'),
-                        const Tab(text: 'Book'),
-                      ],
-                    ),
+                    child: _pillTabBar(colors),
                   ),
                 ),
               ),
             ],
-            body: Column(
-              children: [
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _overviewTab(business, colors),
-                      _menuTab(business, colors),
-                      _locationsTab(colors),
-                      _reviewsTab(business, colors),
-                      _bookTab(colors),
-                    ],
-                  ),
-                ),
-              ],
+            body: PageTransitionSwitcher(
+              duration: const Duration(milliseconds: 280),
+              reverse: _tabReverse,
+              transitionBuilder: (child, primary, secondary) => SharedAxisTransition(
+                animation: primary,
+                secondaryAnimation: secondary,
+                transitionType: SharedAxisTransitionType.horizontal,
+                fillColor: colors.background,
+                child: child,
+              ),
+              child: KeyedSubtree(
+                key: ValueKey<int>(_currentTab),
+                child: _tabBody(_currentTab, business, colors),
+              ),
             ),
           ),
-          Positioned(left: 0, right: 0, bottom: 0, child: _actionBar(colors)),
+          // Info popover — container-transform-style scale+fade, anchored
+          // under the header info icon. Auto-shows briefly on open, and can
+          // be re-toggled any time by tapping the icon again.
+          if (_showAboutPopover)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 48,
+              right: 56,
+              left: 16,
+              child: _aboutPopover(business, colors),
+            ),
+          Positioned(
+            right: 16,
+            bottom: 16 + MediaQuery.of(context).padding.bottom,
+            child: _floatingActionBubbles(business, colors),
+          ),
         ],
       ),
     );
+  }
+
+  bool _tabReverse = false;
+
+  void _selectTab(int i) {
+    if (i == _currentTab) return;
+    AzamanHaptics.toggle();
+    setState(() {
+      _tabReverse = i < _currentTab;
+      _currentTab = i;
+    });
+  }
+
+  Widget _tabBody(int index, BusinessProfile business, AzamanColors colors) {
+    switch (index) {
+      case 1:
+        return _locationsTab(colors);
+      case 2:
+        return _reviewsTab(business, colors);
+      case 3:
+        return _bookTab(colors);
+      case 0:
+      default:
+        return _overviewTab(business, colors);
+    }
+  }
+
+  // ── Pill-shaped tab row ─────────────────────────────────────────────────
+  // Replaces the old underline TabBar. No swipe gesture is attached to the
+  // content area anymore (see PageTransitionSwitcher above), so swiping
+  // inside a tab (e.g. the flip-book menu, or a horizontal gallery) never
+  // accidentally flips to the next/previous tab.
+  Widget _pillTabBar(AzamanColors colors) {
+    final items = <({IconData icon, String emoji, String label})>[
+      (icon: Icons.grid_view_rounded, emoji: '📋', label: 'Overview'),
+      (icon: Icons.place_rounded, emoji: '📍', label: 'Locations'),
+      (icon: Icons.star_rounded, emoji: '⭐', label: 'Reviews'),
+      (icon: Icons.calendar_month_rounded, emoji: '📅', label: 'Book'),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          for (int i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _pill(
+                colors: colors,
+                selected: _currentTab == i,
+                emoji: items[i].emoji,
+                label: items[i].label,
+                onTap: () => _selectTab(i),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill({
+    required AzamanColors colors,
+    required bool selected,
+    required String emoji,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.softSurface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 220),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: selected ? Colors.white : colors.textSecondary,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── About popover (was a permanent section, now a transient popover) ────
+  Widget _aboutPopover(BusinessProfile business, AzamanColors colors) {
+    final hasDescription = business.description != null && business.description!.trim().isNotEmpty;
+    final contacts = <Widget>[];
+    if (business.phoneNumber != null && business.phoneNumber!.isNotEmpty) {
+      contacts.add(_contactRow(colors, Icons.call_outlined, business.phoneNumber!, () => _launch('tel:${business.phoneNumber}')));
+    }
+    if (business.contactEmail != null && business.contactEmail!.isNotEmpty) {
+      contacts.add(_contactRow(colors, Icons.mail_outline, business.contactEmail!, () => _launch('mailto:${business.contactEmail}')));
+    }
+    if (business.website != null && business.website!.isNotEmpty) {
+      contacts.add(_contactRow(colors, Icons.link_rounded, business.website!, () => _launch(business.website!)));
+    }
+    if (business.address != null && business.address!.isNotEmpty) {
+      contacts.add(_contactRow(colors, Icons.location_on_outlined, business.address!, null));
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.divider),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 24, offset: const Offset(0, 10))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 16, color: colors.accent),
+                const SizedBox(width: 8),
+                Text('About', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _toggleAboutPopover,
+                  child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary),
+                ),
+              ],
+            ),
+            if (hasDescription) ...[
+              const SizedBox(height: 8),
+              Text(business.description!.trim(),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4)),
+            ],
+            if (contacts.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...contacts,
+            ],
+          ],
+        ),
+      ),
+    )
+        .animate(target: 1)
+        .scaleXY(begin: 0.85, end: 1, duration: 260.ms, curve: Curves.easeOutBack)
+        .fadeIn(duration: 200.ms);
+  }
+
+  // ── Floating action bubbles (replaces the old bottom action bar) ────────
+  // Stacked bottom-right, container-transform (OpenContainer) into their
+  // respective full views. The primary bubble's emoji/label adapts per
+  // business vertical (same mapping the old CTA button used); the catalog
+  // bubble (book emoji) only appears when there's something to show and
+  // opens the same catalog/menu content — including the restaurant
+  // flip-book — full-screen via container transform.
+  Widget _floatingActionBubbles(BusinessProfile business, AzamanColors colors) {
+    final hasCatalog = _menuSections.isNotEmpty || _uncategorisedProducts.isNotEmpty;
+    final hasUnpaidInvoices = _unpaidInvoices > 0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasUnpaidInvoices) ...[
+          _bubble(
+            colors: colors,
+            emoji: '🧾',
+            tooltip: 'Pay Invoice',
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyInvoicesScreen()));
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (hasCatalog) ...[
+          OpenContainer(
+            transitionType: ContainerTransitionType.fade,
+            transitionDuration: const Duration(milliseconds: 420),
+            closedElevation: 0,
+            openElevation: 0,
+            closedShape: const CircleBorder(),
+            closedColor: Colors.transparent,
+            openColor: colors.background,
+            closedBuilder: (context, openAction) => _bubbleClosed(
+              colors: colors,
+              emoji: '📖',
+              onTap: () {
+                AzamanHaptics.nav();
+                openAction();
+              },
+            ),
+            openBuilder: (context, closeAction) => Scaffold(
+              backgroundColor: colors.background,
+              appBar: AppBar(
+                backgroundColor: colors.surface,
+                elevation: 0,
+                iconTheme: IconThemeData(color: colors.textPrimary),
+                title: Text(_catalogTabLabel(business.category),
+                    style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+              ),
+              body: _menuTab(business, colors),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        _bubble(
+          colors: colors,
+          emoji: _ctaEmoji(business),
+          tooltip: _ctaLabel(business),
+          primary: true,
+          onTap: () {
+            AzamanHaptics.confirm();
+            _primaryCtaAction();
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Programmatic entry point for jumping straight to the catalog view from
+  /// elsewhere on the page (e.g. the Book tab's "Shop the Catalog" CTA) —
+  /// the catalog is a floating bubble now, not a tab, so there's no
+  /// TabController index to animate to anymore.
+  void _openCatalogView() {
+    final business = _business;
+    if (business == null) return;
+    final colors = ref.read(themeProvider).colors;
+    AzamanHaptics.nav();
+    Navigator.of(context).push(PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 420),
+      pageBuilder: (_, animation, secondaryAnimation) => Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          backgroundColor: colors.surface,
+          elevation: 0,
+          iconTheme: IconThemeData(color: colors.textPrimary),
+          title: Text(_catalogTabLabel(business.category),
+              style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+        ),
+        body: _menuTab(business, colors),
+      ),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) => SharedAxisTransition(
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        transitionType: SharedAxisTransitionType.scaled,
+        child: child,
+      ),
+    ));
+  }
+
+  Widget _bubble({
+    required AzamanColors colors,
+    required String emoji,
+    required String tooltip,
+    bool primary = false,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: primary ? 58 : 46,
+          height: primary ? 58 : 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: primary ? colors.accent : colors.card,
+            border: primary ? null : Border.all(color: colors.divider),
+            boxShadow: [
+              BoxShadow(
+                color: (primary ? colors.accent : Colors.black).withOpacity(primary ? 0.35 : 0.14),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(emoji, style: TextStyle(fontSize: primary ? 24 : 18)),
+        ),
+      ),
+    ).animate().scale(begin: const Offset(0, 0), end: const Offset(1, 1), duration: 300.ms, curve: Curves.easeOutBack);
+  }
+
+  Widget _bubbleClosed({required AzamanColors colors, required String emoji, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colors.card,
+          border: Border.all(color: colors.divider),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 16, offset: const Offset(0, 6))],
+        ),
+        alignment: Alignment.center,
+        child: Text(emoji, style: const TextStyle(fontSize: 18)),
+      ),
+    ).animate().scale(begin: const Offset(0, 0), end: const Offset(1, 1), duration: 300.ms, delay: 60.ms, curve: Curves.easeOutBack);
+  }
+
+  /// Emoji for the primary CTA bubble, adapted to the business vertical
+  /// (mirrors _ctaIcon's mapping, just as an emoji for the bubble face).
+  String _ctaEmoji(BusinessProfile business) {
+    switch (business.category) {
+      case 'FOOD_BEVERAGE':
+        return '🍴';
+      case 'REAL_ESTATE':
+      case 'HOSPITALITY':
+        return '🏨';
+      case 'LOGISTICS':
+        return '🚌';
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return '🛍️';
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+        return '💇';
+      case 'EDUCATION':
+        return '🎓';
+      case 'ENTERTAINMENT':
+        return '🎟️';
+      case 'FINANCIAL_SERVICES':
+        return '💼';
+      default:
+        return '🛒';
+    }
   }
 
   // ── Hero header ────────────────────────────────────────────────────────────
@@ -1143,8 +1524,6 @@ class _BusinessProfileScreenState
           _buildShowcaseCarousel(colors),
           const SizedBox(height: 16),
         ],
-        _about(business, colors),
-        const SizedBox(height: 16),
         _categoryFacts(business, colors),
         const SizedBox(height: 16),
         _hoursOverview(colors),
@@ -1498,7 +1877,7 @@ class _BusinessProfileScreenState
           title: 'Shop the Catalog',
           subtitle: 'Browse everything this business sells and check out with escrow-backed payment protection.',
           buttonLabel: 'Shop Now',
-          onTap: () => _tabController.animateTo(1),
+          onTap: () => _openCatalogView(),
         );
       case 'HEALTH_WELLNESS':
       case 'FREELANCE_SERVICES':
@@ -1659,52 +2038,6 @@ class _BusinessProfileScreenState
     }
   }
 
-  Widget _actionBar(AzamanColors colors) {
-    final bool _hasUnpaidInvoices = _unpaidInvoices > 0;
-    return SafeArea(
-      child: PremiumGlassContainer(
-        blur: 24, opacity: 0.08, borderRadius: 0,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), enableShadow: false,
-        border: Border(top: BorderSide(color: colors.divider, width: 0.5)),
-        child: Row(
-          children: [
-            if (_hasUnpaidInvoices) ...[
-              Expanded(child: _glassCTAButton(label: 'Pay Invoice', icon: Icons.receipt_long_rounded, colors: colors, isPrimary: false, onTap: () {
-                AzamanHaptics.nav();
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const MyInvoicesScreen()));
-              })),
-              const SizedBox(width: 10),
-            ],
-            Expanded(flex: _hasUnpaidInvoices ? 2 : 1,
-              child: _glassCTAButton(label: _business != null ? _ctaLabel(_business!) : 'Order Now', icon: _business != null ? _ctaIcon(_business!) : Icons.shopping_bag_rounded, colors: colors, isPrimary: true, onTap: _primaryCtaAction)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _glassCTAButton({required String label, required IconData icon, required AzamanColors colors, required bool isPrimary, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: () { AzamanHaptics.confirm(); onTap(); },
-      child: AnimatedContainer(
-        duration: 200.ms, height: 46,
-        decoration: BoxDecoration(
-          color: isPrimary ? colors.accent : colors.card,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: isPrimary ? Colors.transparent : colors.divider),
-          boxShadow: isPrimary ? [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))] : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: isPrimary ? Colors.white : colors.textPrimary),
-            const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isPrimary ? Colors.white : colors.textPrimary)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

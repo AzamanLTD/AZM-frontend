@@ -125,6 +125,14 @@ dependencies:
   flutter_animate: ^4.5.0
   flutter_svg: ^2.3.0
 
+  # --- UI/UX SPRINT (2026-07-08): Material motion transitions ---
+  # Official Flutter-team package. Used for:
+  #   - Container transform (OpenContainer): bubble→sheet, story tap open/close,
+  #     chat attachment menu open, info popover open/close
+  #   - Shared axis (SharedAxisTransition): business profile pill-tab switches
+  #   - Fade through (FadeThroughTransition): bottom nav tab switches
+  animations: ^2.2.0
+
   # --- FLUTTER V3 MARKETPLACE SPRINT (2026-06-21) ---
   # `geolocator` resolves the user's GPS coordinates for the "Near You"
   # nearby-business search (/api/business/search/nearby?lat=&lng=).
