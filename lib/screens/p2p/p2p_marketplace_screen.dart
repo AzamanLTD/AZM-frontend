@@ -78,21 +78,9 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
                 const SizedBox(height: 8),
                 const _MoneyHeader(),
                 const SizedBox(height: 20),
-                // FIX (2026-07-08): the card itself was already fully
-                // theme-independent (hardcoded gold/carbon palette), but the
-                // horizontal gutter flanking it still painted the Scaffold's
-                // colors.surface -- which DOES flip between Light/Dark/
-                // Midnight. So the card's own "slot" visibly changed tone
-                // with the theme even though the card body didn't. Wrapping
-                // the padding band itself in the same fixed dark tone as the
-                // card's bottom gradient stop means the whole space the card
-                // occupies is now permanently dark, independent of app theme.
-                Container(
-                  width: double.infinity,
-                  color: _CashBalanceCard.backdropColor,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  child: const _CashBalanceCard(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: _CashBalanceCard(),
                 ),
                 const SizedBox(height: 24),
                 const _AzmProgressBar(),
@@ -201,10 +189,6 @@ class _CashBalanceCard extends ConsumerWidget {
   static const Color _cardAccent = Color(0xFFD4AF37); // permanent card gold — not the theme accent
   static const Color _gradTopBase = Color(0xFF0E1116);
   static const Color _gradBottom = Color(0xFF05070A);
-  // Exposed so the call site can paint the card's surrounding gutter the
-  // same permanent dark tone -- otherwise the Scaffold's theme-dependent
-  // colors.surface shows through the padding around the card.
-  static const Color backdropColor = _gradBottom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
