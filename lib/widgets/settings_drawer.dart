@@ -851,7 +851,7 @@ class SettingsDrawer extends ConsumerWidget {
       ),
       itemCount: items.length,
       itemBuilder: (context, i) => InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.lightImpact();
           // Close the drawer first so the destination screen is the visible
@@ -864,16 +864,37 @@ class SettingsDrawer extends ConsumerWidget {
         },
         child: Column(
           children: [
-            Icon(items[i]['icon'] as IconData,
-                color: colors.accent, size: 24),
+            // 2026-07-08 polish: bare icons upgraded to soft tinted-circle
+            // badges, matching the icon language used elsewhere this sprint
+            // (chat attachment menu, business follow button) instead of
+            // floating glyphs with no visual weight.
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accentSurface,
+              ),
+              child: Icon(items[i]['icon'] as IconData,
+                  color: colors.accent, size: 20),
+            ),
             const SizedBox(height: 6),
             Text(
               items[i]['label'] as String,
-              style: TextStyle(color: colors.textTertiary, fontSize: 10),
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
-      ),
+      ).animate(delay: (60 * i).ms).fadeIn(duration: 260.ms).scale(
+            begin: const Offset(0.85, 0.85),
+            end: const Offset(1, 1),
+            curve: Curves.easeOutBack,
+          ),
     );
   }
 
