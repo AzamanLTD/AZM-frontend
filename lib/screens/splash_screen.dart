@@ -148,7 +148,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0E11),
+      backgroundColor: Colors.white,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -168,7 +168,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         Hero(
                           tag: 'azaman_logo',
                           child: Image.asset(
-                            'assets/images/azaman_logo.png',
+                            'assets/images/azaman_logo_black.png',
                             width: 100,
                             height: 100,
                             fit: BoxFit.contain,
@@ -186,9 +186,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                       colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.white,
-                        Colors.white.withOpacity(0.3),
+                        Colors.black.withOpacity(0.3),
+                        Colors.black,
+                        Colors.black.withOpacity(0.3),
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ).createShader(bounds);
@@ -196,7 +196,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   child: const Text(
                     'AZAMAN',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 6,

@@ -163,14 +163,15 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.8
 
 flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  image_path: "assets/images/azaman_logo.png"
-  adaptive_icon_background: "#0A0A0A"
-  adaptive_icon_foreground: "assets/images/azaman_logo.png"
+  image_path: "assets/images/azaman_logo_padded.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/azaman_logo_padded.png"
   min_sdk_android: 21
 
 flutter:
@@ -187,3 +188,10 @@ flutter:
 
 dependency_overrides:
   objective_c: 9.3.0
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/azaman_logo_splash.png"
+  android_12:
+    image: "assets/images/azaman_logo_splash.png"
+    color: "#FFFFFF"
+
