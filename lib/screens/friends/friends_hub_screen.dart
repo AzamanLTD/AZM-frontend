@@ -805,11 +805,16 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
               return b.sortTime!.compareTo(a.sortTime!);
             });
 
+          // FIX (2026-07-08): Stan wants the row content to start at the
+          // screen edge, not inset -- removed the outer 20px horizontal
+          // list padding (each tile still has its own ~14px internal
+          // content padding, so text/avatars don't literally touch the
+          // glass edge, but there's no extra outer gutter anymore).
           return ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 120),
             itemCount: entries.length,
             // FIX (2026-07-08): a flat Divider at 0.4 opacity read as a
             // hard, prominent rule between rows. Replaced with a 1px band
@@ -818,7 +823,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             // between rows rather than a drawn line.
             separatorBuilder: (_, __) => Container(
               height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 10),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
