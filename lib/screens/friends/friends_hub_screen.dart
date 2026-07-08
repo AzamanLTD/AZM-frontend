@@ -811,9 +811,25 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             ),
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             itemCount: entries.length,
-            separatorBuilder: (_, __) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Divider(height: 1, thickness: 1, color: colors.divider.withOpacity(0.4)),
+            // FIX (2026-07-08): a flat Divider at 0.4 opacity read as a
+            // hard, prominent rule between rows. Replaced with a 1px band
+            // whose color fades in from both edges (transparent -> a very
+            // faint shadow tone -> transparent) -- reads as soft depth
+            // between rows rather than a drawn line.
+            separatorBuilder: (_, __) => Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    (colors.isDark ? Colors.black : Colors.black)
+                        .withOpacity(colors.isDark ? 0.35 : 0.07),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
             ),
             itemBuilder: (context, i) => entries[i].builder(),
           );

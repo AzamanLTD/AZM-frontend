@@ -1,15 +1,22 @@
 // =============================================================================
-// CHAT PLUS MENU — 2026-07-08 UI/UX sprint rework
+// CHAT PLUS MENU — 2026-07-08 sprint, reworked twice this sprint
 //
-// Was a stack of separate floating circular bubbles, each staggering in with
-// its own fade+translateY, plus a broken tap-outside scrim (it only covered
-// the widget's own internal Stack, not the actual screen, since it wasn't
-// rendered through an Overlay). Replaced with a proper OverlayEntry-based
-// popup: a single rounded-rect card that grows from the "+" button with a
-// container-transform-style scale+fade, holding a clean vertical list of
-// rows separated by hairline dividers — and a real full-screen scrim behind
-// it so tapping anywhere else genuinely closes the menu.
+// v1 (original): options stacked vertically directly above the "+" button
+// as individual floating circular bubbles (iMessage-style) -- but the
+// tap-outside-to-close scrim only covered the widget's own internal Stack
+// (never rendered through an Overlay), so it never really covered the
+// screen.
+// v2 (first rework): fixed the scrim by moving to a real OverlayEntry, but
+// changed the visual to a single rounded-rect dropdown card -- turned out
+// Stan specifically liked the original iMessage-style vertical bubble stack
+// and wanted that look kept.
+// v3 (this version): keeps v2's real OverlayEntry/full-screen-scrim fix,
+// but restores v1's visual -- individual circular icon bubbles (with a
+// label chip beside each) stacked vertically, growing directly upward from
+// the "+" button itself, staggered scale+fade entrance.
 // =============================================================================
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
@@ -46,7 +53,7 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 320),
     );
   }
 
@@ -93,41 +100,49 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final anchorPos = renderBox.localToGlobal(Offset.zero);
+    final screenHeight = MediaQuery.of(context).size.height;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
           // Real full-screen scrim — tapping anywhere closes the menu.
+          // (This was the actual bug in the original v1: its scrim only
+          // ever covered its own internal Stack, not the real screen.)
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _close,
               child: FadeTransition(
                 opacity: _controller,
-                child: Container(color: Colors.black.withOpacity(0.18)),
+                child: Container(color: Colors.black.withOpacity(0.16)),
               ),
             ),
           ),
+          // The bubble stack itself grows directly upward from the "+"
+          // button's own screen position.
           Positioned(
             left: anchorPos.dx,
-            bottom: MediaQuery.of(context).size.height - anchorPos.dy + 10,
-            child: ScaleTransition(
-              scale: CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-              alignment: Alignment.bottomLeft,
-              child: FadeTransition(
-                opacity: CurvedAnimation(
-                  parent: _controller,
-                  curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-                ),
-                child: _MenuCard(
-                  items: items,
-                  colors: colors,
-                  onItemTap: (item) {
-                    _close();
-                    item.onTap();
-                  },
-                ),
-              ),
+            bottom: screenHeight - anchorPos.dy + 8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int i = 0; i < items.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: i < items.length - 1 ? 12.0 : 0),
+                    child: _StaggeredBubble(
+                      controller: _controller,
+                      index: i,
+                      count: items.length,
+                      item: items[i],
+                      colors: colors,
+                      onTap: () {
+                        _close();
+                        items[i].onTap();
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -184,62 +199,92 @@ class _MenuItem {
   const _MenuItem({required this.icon, required this.label, required this.onTap});
 }
 
-class _MenuCard extends StatelessWidget {
-  final List<_MenuItem> items;
+/// One bubble in the vertical stack: a small rounded label chip beside a
+/// circular icon button, fading + rising into place with a stagger based
+/// on its position in the stack (items nearest the "+" button settle in
+/// first).
+class _StaggeredBubble extends StatelessWidget {
+  final AnimationController controller;
+  final int index;
+  final int count;
+  final _MenuItem item;
   final AzamanColors colors;
-  final ValueChanged<_MenuItem> onItemTap;
+  final VoidCallback onTap;
 
-  const _MenuCard({required this.items, required this.colors, required this.onItemTap});
+  const _StaggeredBubble({
+    required this.controller,
+    required this.index,
+    required this.count,
+    required this.item,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: 210,
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.divider),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.22), blurRadius: 24, offset: const Offset(0, 10)),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
+    // Items are laid out top-to-bottom as [farthest ... nearest the button].
+    // Reverse the stagger so the item closest to the button (last in the
+    // list) animates in first, like it's "popping out" of the button.
+    final reverseIndex = count - 1 - index;
+    final start = reverseIndex / count;
+    final end = (reverseIndex + 1.4).clamp(0, count) / count;
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Interval(start.clamp(0.0, 1.0), end.clamp(0.0, 1.0), curve: Curves.easeOutBack),
+    );
+
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, child) {
+        final t = curved.value.clamp(0.0, 1.0);
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, 24.0 * (1.0 - t)),
+            child: Transform.scale(scale: 0.6 + (0.4 * t), alignment: Alignment.bottomLeft, child: child),
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (int i = 0; i < items.length; i++) ...[
-              if (i > 0) Divider(height: 1, thickness: 1, color: colors.divider),
-              _row(items[i]),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _row(_MenuItem item) {
-    return InkWell(
-      onTap: () => onItemTap(item),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
             Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: colors.surface.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Text(
+                item.label,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textPrimary),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.accentSurface,
+                color: colors.surface,
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
               ),
-              child: Icon(item.icon, color: colors.accent, size: 17),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              item.label,
-              style: TextStyle(color: colors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w700),
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.accentSurface,
+                    ),
+                    child: Icon(item.icon, color: colors.accent, size: 19),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
