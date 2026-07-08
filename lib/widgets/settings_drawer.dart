@@ -37,7 +37,6 @@ import 'package:azaman/screens/admin/admin_dashboard.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
-import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
@@ -836,7 +835,11 @@ class SettingsDrawer extends ConsumerWidget {
       {
         'icon': Icons.analytics_outlined,
         'label': 'Leaderboard',
-        'destination': const LeaderboardScreen(),
+        // 2026-07-08 fix: was routing to the old standalone LeaderboardScreen
+        // (legacy/global leaderboard_provider.dart) — the real, actively
+        // maintained leaderboard is the Friends Leaderboard card inside the
+        // AZM Rewards page now, so route there instead.
+        'destination': const AzmRewardsScreen(),
       },
     ];
     return GridView.builder(

@@ -514,8 +514,14 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
               },
             ),
           ),
-          const SizedBox(width: 12),
-          // Cancel/Slide text
+          const SizedBox(width: 8),
+          // Cancel — 2026-07-08 fix: previously this button only existed
+          // when `locked == true`; while actively holding to record
+          // (the default, unlocked state) there was NO tappable cancel
+          // target at all, only the slide-left gesture, which most users
+          // never discover mid-hold. Now a real tap target is always
+          // present — while unlocked it sits next to the slide hint, while
+          // locked it's the sole cancel affordance, same as before.
           if (!widget.locked)
             Opacity(
               opacity: isCancelling ? 1.0 : (1.0 - (widget.dragDx / -40).clamp(0.0, 1.0)),
@@ -527,15 +533,25 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
                     style: TextStyle(color: widget.colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
                 ],
               ),
-            )
-          else
-            GestureDetector(
-              onTap: widget.onCancelRecording,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                child: Text('Cancel', style: TextStyle(color: widget.colors.danger, fontSize: 14, fontWeight: FontWeight.w700)),
-              ),
             ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              widget.onCancelRecording();
+            },
+            child: Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: widget.colors.danger.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.close_rounded, color: widget.colors.danger, size: 16),
+            ),
+          ),
         ],
       ),
     );
