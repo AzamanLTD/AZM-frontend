@@ -12,7 +12,37 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
   final List<StoryGroup> groups;
   final int initialGroupIndex;
   const StoryViewerScreen({super.key, required this.groups, this.initialGroupIndex = 0});
- 
+
+  /// 2026-07-08: container-transform-style open (fade + scale-up-from-ring)
+  /// instead of a flat MaterialPageRoute push. Popping — whether via the
+  /// back gesture, the back button, or the viewer auto-advancing past the
+  /// last story and calling Navigator.pop itself — automatically reverses
+  /// this exact transition, since Flutter routes always play their own
+  /// transitionsBuilder backwards on pop. No extra "closing" code needed.
+  static Future<void> open(
+    BuildContext context, {
+    required List<StoryGroup> groups,
+    int initialGroupIndex = 0,
+  }) {
+    return Navigator.of(context).push(PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 260),
+      opaque: true,
+      pageBuilder: (_, __, ___) =>
+          StoryViewerScreen(groups: groups, initialGroupIndex: initialGroupIndex),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween(begin: 0.92, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    ));
+  }
+
   @override
   ConsumerState<StoryViewerScreen> createState() => _StoryViewerScreenState();
 }

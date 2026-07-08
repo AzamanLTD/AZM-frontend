@@ -465,8 +465,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                         }
                         final g = groups[i - 1];
                         return GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => StoryViewerScreen(groups: groups, initialGroupIndex: i - 1))),
+                          onTap: () => StoryViewerScreen.open(context, groups: groups, initialGroupIndex: i - 1),
                           child: Padding(
                             padding: const EdgeInsets.only(right: 14),
                             child: Column(children: [
