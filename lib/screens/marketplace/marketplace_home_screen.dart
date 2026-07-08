@@ -343,23 +343,25 @@ class _MarketplaceHomeScreenState
 
     final isRegistered = bizState.profile != null;
 
-    return FloatingActionButton.extended(
-      heroTag: 'marketplace_business_fab',
-      backgroundColor: colors.accent,
-      foregroundColor: Colors.white,
-      icon: Icon(isRegistered ? Icons.storefront_rounded : Icons.add_business_rounded, size: 20),
-      label: Text(
-        isRegistered ? 'Your Business' : 'Register Business',
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+    // 2026-07-08: shrunk from a FloatingActionButton.extended (icon+text
+    // pill) to just a circular emoji bubble — same tap target/destination,
+    // less visual weight sitting over the marketplace feed.
+    return Tooltip(
+      message: isRegistered ? 'Your Business' : 'Register Business',
+      child: FloatingActionButton(
+        heroTag: 'marketplace_business_fab',
+        backgroundColor: colors.accent,
+        foregroundColor: Colors.white,
+        onPressed: () {
+          AzamanHaptics.nav();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => isRegistered
+                ? const BusinessDashboardScreen()
+                : const BusinessRegisterScreen(),
+          ));
+        },
+        child: Text(isRegistered ? '🏬' : '🏪', style: const TextStyle(fontSize: 22)),
       ),
-      onPressed: () {
-        AzamanHaptics.nav();
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => isRegistered
-              ? const BusinessDashboardScreen()
-              : const BusinessRegisterScreen(),
-        ));
-      },
     );
   }
 

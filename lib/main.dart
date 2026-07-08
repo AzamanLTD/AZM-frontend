@@ -273,11 +273,26 @@ class MainWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends ConsumerState<MainWrapper> {
+class _MainWrapperState extends ConsumerState<MainWrapper>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget> _pages;
+
+  // 2026-07-08: fade-through transition between Home/Chat/P2P (Material
+  // "fade through" pattern — the animations package's canonical use case
+  // for bottom-nav tab switches). Deliberately hand-rolled instead of
+  // wrapping IndexedStack in a PageTransitionSwitcher: that would swap the
+  // whole widget subtree on every tab change, which fully unmounts/remounts
+  // each page (losing scroll position, in-flight requests, etc). Instead
+  // the IndexedStack itself never changes identity — only its `index` and
+  // an Opacity wrapper animate — so all 3 tabs stay alive exactly as
+  // before, and the visual timing still matches the spec (fade the old tab
+  // out over the first ~25% of 300ms, then fade+the new tab in over the
+  // rest).
+  late final AnimationController _fadeCtrl;
+  int _displayedIndex = 0;
 
   @override
   void initState() {
@@ -289,15 +304,38 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       const P2PMarketplaceScreen(),
     ];
 
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    )..value = 1.0;
+    _fadeCtrl.addListener(() {
+      if (_fadeCtrl.value >= 0.25 && _displayedIndex != _selectedIndex) {
+        setState(() => _displayedIndex = _selectedIndex);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initUnifiedSocket();
     });
+  }
+
+  void _onNavItemSelected(int i) {
+    if (i == _selectedIndex) return;
+    setState(() => _selectedIndex = i);
+    _fadeCtrl.forward(from: 0);
+  }
+
+  double get _tabFadeOpacity {
+    final v = _fadeCtrl.value;
+    if (v < 0.25) return (1 - (v / 0.25)).clamp(0.0, 1.0);
+    return ((v - 0.25) / 0.75).clamp(0.0, 1.0);
   }
 
   @override
   void dispose() {
     // Phase P3: No per-screen socket.off() needed — SocketService owns
     // the callbacks via registered closures, disposed with the service.
+    _fadeCtrl.dispose();
     super.dispose();
   }
 
@@ -428,24 +466,31 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
       bottomNavigationBar: PremiumBottomNav(
         selectedIndex: _selectedIndex,
-        onItemSelected: (i) => setState(() => _selectedIndex = i),
+        onItemSelected: _onNavItemSelected,
       ),
 
       body: Stack(
         children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _pages[0],
-              _pages[1],
-              _pages[2],
-            ],
+          AnimatedBuilder(
+            animation: _fadeCtrl,
+            builder: (context, child) => Opacity(
+              opacity: _tabFadeOpacity,
+              child: child,
+            ),
+            child: IndexedStack(
+              index: _displayedIndex,
+              children: [
+                _pages[0],
+                _pages[1],
+                _pages[2],
+              ],
+            ),
           ),
           // Vendor Pull Tab — only visible on the P2P tab AND only when
           // the user has explicitly opted in via Settings → "Show vendor
           // pull tab" (off by default). Casual buyers no longer have the
           // tab nudging them every time they open the marketplace.
-          if (_selectedIndex == 2 &&
+          if (_displayedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
 
