@@ -389,11 +389,7 @@ class _CashBalanceCard extends ConsumerWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 340.ms, curve: Curves.easeOut).slideY(
-          begin: 0.06,
-          end: 0,
-          curve: Curves.easeOutCubic,
-        );
+    );
   }
 
   String _fmt(double value) {
