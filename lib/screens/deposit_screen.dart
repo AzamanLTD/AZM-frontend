@@ -1526,8 +1526,10 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
       final resp = await apiClient.post("/deposit/validate-name", {
         "phoneNumber": _phoneCtrl.text.trim(), "provider": _provider });
       final body = jsonDecode(resp.body);
-      if (body["success"] == true && body["data"]?["accountName"] != null) {
-        setState(() { _resolvedName = body["data"]["accountName"]; _loading = false; });
+      if (body["success"] == true && body["data"] != null) {
+        // /api/deposit/validate-name returns data as a plain string (the name),
+        // not a nested object. Read it directly.
+        setState(() { _resolvedName = body["data"].toString(); _loading = false; });
       } else {
         setState(() { _error = body["message"] ?? "Could not verify"; _loading = false; });
       }
@@ -1538,16 +1540,46 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
 
   Future<void> _saveAndContinue() async {
     if (_resolvedName == null) return;
+
+    // Backend requires password (security gate) before persisting any payout
+    // destination. Prompt the user inline — same as AddPayoutSheet does.
+    final passwordCtrl = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm password'),
+        content: TextField(
+          controller: passwordCtrl,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Your Azaman password'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, passwordCtrl.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    passwordCtrl.dispose();
+    if (password == null || password.isEmpty) return;
+
     setState(() => _loading = true);
     try {
-      await apiClient.post("/saved-momo", {
-        "phoneNumber": _phoneCtrl.text.trim(),
-        "provider": _provider,
-        "accountName": _resolvedName,
-      });
+      final notifier = ref.read(savedMomoProvider.notifier);
+      await notifier.create(
+        nickname: _resolvedName!,
+        provider: _provider,
+        phoneNumber: _phoneCtrl.text.trim(),
+        password: password,
+      );
       widget.onAdded();
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
     }
   }
 
