@@ -75,8 +75,10 @@ class AppConfig {
 
   /// Request timeout duration
   static Duration get requestTimeout {
+    // Moolre's PIN-push API + Render cold start can easily exceed 15s.
+    // 30s in dev, 30s in prod (Moolre is the bottleneck, not our server).
     if (isDevelopment) return const Duration(seconds: 30);
-    return const Duration(seconds: 15);
+    return const Duration(seconds: 30);
   }
 
   /// Socket reconnection delay

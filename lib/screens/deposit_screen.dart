@@ -22,6 +22,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -607,9 +608,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        String msg;
+        if (e is SocketException || e is TimeoutException) {
+          msg = 'Connection failed. Check your internet and retry.';
+        } else if (e is ApiException) {
+          msg = e.message;
+        } else {
+          msg = 'Something went wrong. Please try again.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
+        );
       }
     }
   }
@@ -645,9 +654,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     } catch (e) {
       setState(() => _isConfirmingOtp = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        final msg = (e is ApiException) ? e.message
+            : (e is SocketException || e is TimeoutException)
+                ? 'Connection failed. Check your internet and retry.'
+                : 'Something went wrong. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
+        );
       }
     }
   }
