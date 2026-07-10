@@ -37,7 +37,16 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
 
     return followingState.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (err, st) {
+        // Fallback to empty dummy state on error
+        return GestureDetector(
+          onTap: onTap,
+          child: _StackedSquircles(
+            following: const [{'businessName': '?'}, {'businessName': '?'}, {'businessName': '?'},],
+            colors: colors,
+          ),
+        );
+      },
       data: (following) {
         final list = following.isEmpty
             ? [{'businessName': '?'}, {'businessName': '?'}, {'businessName': '?'}]
@@ -69,8 +78,11 @@ class MarketplaceExpandedStories extends ConsumerWidget {
 
     return followingState.when(
       loading: () => const SizedBox(height: 40),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (err, st) => _buildEmptyState(context, colors),
       data: (following) {
+        if (following.isEmpty) {
+          return _buildEmptyState(context, colors);
+        }
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,106 +92,87 @@ class MarketplaceExpandedStories extends ConsumerWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: following.isEmpty ? 4 : following.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
-                itemBuilder: (context, index) {
-                  if (following.isEmpty) {
-                    if (index == 0) {
-                      return GestureDetector(
-                        onTap: onBrowsePressed,
-                        child: SizedBox(
-                          width: 68,
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 60, height: 60,
-                                decoration: BoxDecoration(
-                                  color: colors.accentSurface,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.5),
-                                ),
-                                child: Icon(Icons.add_rounded, color: colors.accent, size: 28),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Follow',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.accent,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else {
-                      return SizedBox(
-                        width: 68,
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 60, height: 60,
-                              decoration: BoxDecoration(
-                                color: colors.softSurface,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.2)),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              width: 40, height: 8,
-                              decoration: BoxDecoration(
-                                color: colors.softSurface,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
-
-                  final biz = following[index];
-                  final id = biz['id']?.toString() ?? '';
-                  final name = biz['businessName']?.toString() ?? '';
-                  final logoUrl = biz['logoUrl']?.toString();
-                  final isVerified = biz['isVerified'] == true;
-
-                  return GestureDetector(
-                    onTap: () => onOpenBusiness(id),
-                    child: SizedBox(
-                      width: 68,
-                      child: Column(
-                        children: [
-                          StoryRing(
-                            avatarUrl: logoUrl,
-                            hasUnseenStory: true,
-                            isBoosted: isVerified,
-                            size: 60,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            name,
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: colors.textSecondary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
               ),
             ),
             const SizedBox(height: 4),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, AzamanColors colors) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 88,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return GestureDetector(
+                  onTap: onBrowsePressed,
+                  child: SizedBox(
+                    width: 68,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 60, height: 60,
+                          decoration: BoxDecoration(
+                            color: colors.accentSurface,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.5),
+                          ),
+                          child: Icon(Icons.add_rounded, color: colors.accent, size: 28),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Follow',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              } else {
+                return SizedBox(
+                  width: 68,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 60, height: 60,
+                        decoration: BoxDecoration(
+                          color: colors.softSurface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.2)),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40, height: 8,
+                        decoration: BoxDecoration(
+                          color: colors.softSurface,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
     );
   }
 }
