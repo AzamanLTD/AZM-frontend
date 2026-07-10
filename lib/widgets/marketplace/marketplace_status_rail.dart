@@ -92,6 +92,43 @@ class MarketplaceExpandedStories extends ConsumerWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: following.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final biz = following[index];
+                  final id = biz['id']?.toString() ?? '';
+                  final name = biz['businessName']?.toString() ?? '';
+                  final logoUrl = biz['logoUrl']?.toString();
+                  final isVerified = biz['isVerified'] == true;
+
+                  return GestureDetector(
+                    onTap: () => onOpenBusiness(id),
+                    child: SizedBox(
+                      width: 68,
+                      child: Column(
+                        children: [
+                          StoryRing(
+                            avatarUrl: logoUrl,
+                            hasUnseenStory: true,
+                            isBoosted: isVerified,
+                            size: 60,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            name,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: colors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 4),
