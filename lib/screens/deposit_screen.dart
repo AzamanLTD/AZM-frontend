@@ -9,7 +9,7 @@
 //                    user from the platform's HD wallet xpub (backend:
 //                    GET /api/wallet/deposit-address/polygon).
 //
-//   • Mobile Money — fiat top-up via MTN / Vodafone / AirtelTigo (Telecel)
+//   • Mobile Money — fiat top-up via MTN / Telecel / AirtelTigo
 //                    or bank transfer. Posts to /api/deposit/fiat/initiate
 //                    and the gateway webhook credits the user once funds
 //                    settle.
@@ -427,17 +427,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
   /// Map the canonical saved-account provider (MTN | VODAFONE | TELECEL) to the
   /// enum the backend's `initiateMoolreFiatDeposit` MOMO set accepts
-  /// (MTN_MOMO | VODAFONE_CASH | AIRTELTIGO). Telecel is the Vodafone Ghana
+  /// (MTN_MOMO | TELECEL_CASH | AIRTELTIGO). Telecel is the Vodafone Ghana
   /// rebrand — the backend treats VODAFONE and TELECEL as the same channel —
-  /// so both map to VODAFONE_CASH. The same enum is accepted by
+  /// so both map to TELECEL_CASH. The same enum is accepted by
   /// `/deposit/validate-name`, so one mapping serves both calls.
   String _backendProvider(String provider) {
     switch (provider) {
       case 'MTN':
         return 'MTN_MOMO';
-      case 'VODAFONE':
       case 'TELECEL':
-        return 'VODAFONE_CASH';
+      case 'VODAFONE': // legacy
+        return 'TELECEL_CASH';
       case 'AIRTELTIGO':
         return 'AIRTELTIGO';
       default:
@@ -730,28 +730,75 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                           onAdded: () => ref.invalidate(savedMomoProvider),
                         );
                       }
-                      return _PanelCard(
-                        colors: colors,
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: accounts
-                              .map(
-                                (a) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _SavedAccountTile(
-                                    account: a,
-                                    colors: colors,
-                                    selected: _selectedAccountId == a.id,
-                                    onTap: () => setState(() {
-                                      _selectedAccountId = a.id;
-                                      _selectedAccount = a;
-                                      _selectedProvider = a.provider;
-                                    }),
-                                  ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _PanelCard(
+                            colors: colors,
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              children: accounts
+                                  .map(
+                                    (a) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: _SavedAccountTile(
+                                        account: a,
+                                        colors: colors,
+                                        selected: _selectedAccountId == a.id,
+                                        onTap: () => setState(() {
+                                          _selectedAccountId = a.id;
+                                          _selectedAccount = a;
+                                          _selectedProvider = a.provider;
+                                        }),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // ── Add Account pill button ──────────────────────
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              AddPayoutSheet.show(
+                                context,
+                                onSaved: () {
+                                  if (!mounted) return;
+                                  ref.invalidate(savedMomoProvider);
+                                },
+                                initialTab: 'mobileMoney',
+                              );
+                            },
+                            child: Container(
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: colors.accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: colors.accent.withValues(alpha: 0.35),
+                                  width: 1.2,
                                 ),
-                              )
-                              .toList(),
-                        ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_circle_outline,
+                                      color: colors.accent, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Add Account',
+                                    style: TextStyle(
+                                      color: colors.accent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -1404,7 +1451,8 @@ class _SavedAccountTile extends StatelessWidget {
 
   Color _providerColor() => switch (account.provider) {
     'MTN' => const Color(0xFFFFCC00),
-    'VODAFONE' => const Color(0xFFE60000),
+    'TELECEL' => const Color(0xFFE60000),
+    'VODAFONE' => const Color(0xFFE60000), // legacy
     'TELECEL' => const Color(0xFF0066CC),
     _ => colors.textSecondary,
   };
@@ -1440,13 +1488,17 @@ class _SavedAccountTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        account.nickname,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                      Expanded(
+                        child: Text(
+                          account.nickname,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       if (account.isPrimary) ...[
@@ -1473,6 +1525,8 @@ class _SavedAccountTile extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ],
@@ -1515,7 +1569,7 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
   bool _loading = false;
   String? _resolvedName;
   String? _error;
-  final _providers = ["MTN_MOMO", "VODAFONE_CASH", "AIRTELTIGO"];
+  final _providers = ["MTN_MOMO", "TELECEL_CASH", "AIRTELTIGO"];
 
   Future<void> _validateName() async {
     if (_phoneCtrl.text.trim().length < 9) {

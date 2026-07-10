@@ -39,7 +39,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.bolt_outlined,
       imagePath: "assets/images/1.webp",
       title: "Ghana's Fastest P2P Platform",
-      subtitle: "Buy and sell USDC instantly via MTN MoMo or Vodafone Cash. "
+      subtitle: "Buy and sell USDC instantly via MTN MoMo, Telecel or AirtelTigo. "
         "No bank account needed — just your phone number.",
     ),
     _OnboardingPageData(

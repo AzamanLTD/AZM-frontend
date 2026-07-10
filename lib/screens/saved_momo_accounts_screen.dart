@@ -124,7 +124,8 @@ class _MomoTile extends ConsumerWidget {
 
   Color _providerColor() => switch (account.provider) {
         'MTN' => const Color(0xFFFFCC00),
-        'VODAFONE' => const Color(0xFFE60000),
+        'TELECEL' => const Color(0xFFE60000),
+        'VODAFONE' => const Color(0xFFE60000), // legacy
         'TELECEL' => const Color(0xFF0066CC),
         _ => colors.textSecondary,
       };
@@ -354,7 +355,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
             _label(colors, 'Network Provider'),
             Wrap(
               spacing: 6,
-              children: ['MTN', 'VODAFONE', 'TELECEL']
+              children: ['MTN', 'TELECEL', 'AIRTELTIGO']
                   .map((p) => ChoiceChip(
                         selected: _provider == p,
                         label: Text(p),

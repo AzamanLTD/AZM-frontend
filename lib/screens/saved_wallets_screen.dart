@@ -7,7 +7,7 @@
 //   want Azaman to send my money when I withdraw?". Two categories are
 //   permitted, NOTHING ELSE:
 //
-//     1. Local Mobile Money — MTN MoMo, Vodafone Cash, AirtelTigo,
+//     1. Local Mobile Money — MTN MoMo, Telecel Cash, AirtelTigo,
 //                             Telecel Cash.
 //     2. Crypto Wallets     — Polygon USDC addresses, Binance Pay IDs,
 //                             TRC20 USDT, ERC20/BEP20 USDC.
@@ -103,7 +103,8 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
           final a = raw as Map<String, dynamic>;
           final providerLegacy = switch (a['provider']) {
             'MTN' => 'MTN_MOMO',
-            'VODAFONE' => 'VODAFONE_CASH',
+            'VODAFONE' => 'TELECEL_CASH', // legacy mapping
+            'TELECEL' => 'TELECEL_CASH',
             'TELECEL' => 'AIRTELTIGO',
             _ => 'MTN_MOMO',
           };
@@ -180,13 +181,13 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
     // recognised crypto network. Anything else (UNKNOWN, miscategorised
     // legacy rows) is hidden.
     const allowed = {
-      'MTN_MOMO', 'VODAFONE_CASH', 'AIRTELTIGO', 'TELECEL_CASH',
+      'MTN_MOMO', 'TELECEL_CASH', 'AIRTELTIGO',
       'BINANCE_ID', 'TRC20', 'ERC20_BEP20', 'POLYGON',
     };
     if (allowed.contains(network)) return true;
     // Provider-based fallback for older rows that don't set `network`.
     const allowedProviders = {
-      'MTN MOMO', 'VODAFONE CASH', 'AIRTELTIGO', 'TELECEL CASH',
+      'MTN MOMO', 'TELECEL CASH', 'AIRTELTIGO',
       'BINANCE PAY', 'EXTERNAL WALLET',
     };
     return allowedProviders.contains(provider);
@@ -534,7 +535,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
 
   static const _momos = [
     {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'color': Color(0xFFFFCC00)},
-    {'id': 'VODAFONE_CASH', 'name': 'Vodafone Cash', 'color': Color(0xFFE60000)},
+    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFFE60000)},
     {'id': 'AIRTELTIGO', 'name': 'AirtelTigo', 'color': Color(0xFFD62828)},
     {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFF0066CC)},
   ];
@@ -899,7 +900,8 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                 // expects (MTN / VODAFONE / TELECEL).
                 final providerStr = switch (_momoNetwork) {
                   'MTN_MOMO' => 'MTN',
-                  'VODAFONE_CASH' => 'VODAFONE',
+                  'VODAFONE_CASH' => 'TELECEL', // legacy
+                  'TELECEL_CASH' => 'TELECEL',
                   'AIRTELTIGO' || 'TELECEL_CASH' => 'TELECEL',
                   _ => 'MTN',
                 };

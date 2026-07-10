@@ -11,7 +11,7 @@ import 'package:azaman/services/api_client.dart';
 class SavedMomoAccount {
   final String id;
   final String nickname;
-  final String provider;       // MTN | VODAFONE | TELECEL
+  final String provider;       // MTN | TELECEL | AIRTELTIGO (VODAFONE legacy still accepted)
   final String phoneNumber;    // E.164
   final String? accountName;   // resolved registered name
   final bool isVerified;
@@ -97,7 +97,7 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
       final list = body['wallets'] as List<dynamic>? ?? const [];
       const momoNetworks = {
         'MTN_MOMO',
-        'VODAFONE_CASH',
+        'TELECEL_CASH', 'VODAFONE_CASH', // legacy
         'AIRTELTIGO',
         'TELECEL_CASH',
       };
@@ -109,7 +109,8 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
         final network = (w['network'] ?? '').toString();
         final providerCanon = switch (network) {
           'MTN_MOMO' => 'MTN',
-          'VODAFONE_CASH' => 'VODAFONE',
+          'VODAFONE_CASH' => 'TELECEL', // legacy
+          'TELECEL_CASH' => 'TELECEL',
           'AIRTELTIGO' || 'TELECEL_CASH' => 'TELECEL',
           _ => network,
         };

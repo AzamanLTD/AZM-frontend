@@ -45,7 +45,7 @@ import 'package:azaman/widgets/slide_to_confirm.dart';
 
 enum _WithdrawMode { mobileMoney, cryptoWallet }
 
-enum MomoNetwork { mtn, vodafone, airtelTigo }
+enum MomoNetwork { mtn, telecel, airtelTigo }
 
 extension on MomoNetwork {
   /// Backend-canonical token sent on the wire.
@@ -53,8 +53,8 @@ extension on MomoNetwork {
     switch (this) {
       case MomoNetwork.mtn:
         return 'MTN';
-      case MomoNetwork.vodafone:
-        return 'VODAFONE';
+      case MomoNetwork.telecel:
+        return 'TELECEL';
       case MomoNetwork.airtelTigo:
         return 'AIRTELTIGO';
     }
@@ -1092,7 +1092,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                               _selectedNetwork = MomoNetwork.mtn;
                               break;
                             case 'VODAFONE':
-                              _selectedNetwork = MomoNetwork.vodafone;
+                              _selectedNetwork = MomoNetwork.telecel;
                               break;
                             case 'TELECEL':
                               _selectedNetwork = MomoNetwork.airtelTigo;

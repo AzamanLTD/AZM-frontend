@@ -150,7 +150,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
             _label(colors, 'Network Provider'),
             Wrap(
               spacing: 6,
-              children: ['MTN', 'VODAFONE', 'TELECEL']
+              children: ['MTN', 'TELECEL', 'AIRTELTIGO']
                   .map(
                     (provider) => ChoiceChip(
                       selected: _provider == provider,
