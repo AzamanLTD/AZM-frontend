@@ -469,7 +469,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           child: Padding(
                             padding: const EdgeInsets.only(right: 14),
                             child: Column(children: [
-                              StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted),
+                              StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted, storyCount: g.stories.length),
                               const SizedBox(height: 6),
                               SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
                                 overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
