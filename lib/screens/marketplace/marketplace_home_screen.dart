@@ -622,20 +622,20 @@ class _MarketplaceHomeScreenState
     // just the active one) now carries a subtle resting shadow so the strip
     // reads as a row of small floating cards instead of flat pills.
     return SizedBox(
-      height: 62,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, i) {
           final catItem = categories[i];
           final isAll = catItem.$1 == null;
           final isActive = _selectedCategory == catItem.$1;
-          final iconSize = isAll ? 21.0 : 16.0;
-          final fontSize = isAll ? 10.0 : 9.0;
-          final hPad = isAll ? 14.0 : 9.0;
-          final vPad = isAll ? 9.0 : 7.0;
+          final iconSize = isAll ? 14.0 : 11.0;
+          final fontSize = isAll ? 7.5 : 7.0;
+          final hPad = isAll ? 10.0 : 7.0;
+          final vPad = isAll ? 6.0 : 5.0;
           return GestureDetector(
             onTap: () {
               AzamanHaptics.toggle();
@@ -647,13 +647,13 @@ class _MarketplaceHomeScreenState
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               decoration: BoxDecoration(
                 color: isActive ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(isAll ? 14 : 12),
+                borderRadius: BorderRadius.circular(isAll ? 10 : 9),
                 border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
                 boxShadow: [
                   BoxShadow(
                     color: isActive ? colors.accent.withOpacity(0.18) : Colors.black.withOpacity(0.06),
-                    blurRadius: isActive ? 12 : 6,
-                    offset: const Offset(0, 3),
+                    blurRadius: isActive ? 8 : 4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -663,7 +663,7 @@ class _MarketplaceHomeScreenState
                   isAll
                       ? Icon(catItem.$2 as IconData, size: iconSize, color: isActive ? colors.accent : colors.textSecondary)
                       : HugeIcon(icon: catItem.$2, size: iconSize, color: isActive ? colors.accent : colors.textSecondary),
-                  SizedBox(height: isAll ? 4 : 3),
+                  SizedBox(height: 2),
                   Text(catItem.$3, style: TextStyle(fontSize: fontSize, fontWeight: isActive || isAll ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
                 ],
               ),
@@ -1037,7 +1037,7 @@ class _MarketplaceHomeScreenState
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollCtrl,
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 120),
         itemCount: results.length + (state.hasMore ? 1 : 0),
         itemBuilder: (ctx, i) {
           // Infinite-scroll loader sentinel
@@ -1077,7 +1077,7 @@ class _MarketplaceHomeScreenState
       baseColor: colors.card,
       highlightColor: colors.softSurface,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 60),
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 60),
         itemCount: 8,
         itemBuilder: (_, __) => Container(
           margin: const EdgeInsets.symmetric(vertical: 3),

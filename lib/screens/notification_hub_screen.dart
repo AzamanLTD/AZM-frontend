@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -20,7 +19,14 @@ import 'package:hugeicons_pro/hugeicons.dart';
     case NotificationCategory.vendorPriority:
       return (icon: HugeIconsSolid.store01, color: colors.success);
     case NotificationCategory.adminSystem:
+    case NotificationCategory.system:
       return (icon: HugeIconsSolid.shield01, color: colors.textTertiary);
+    case NotificationCategory.money:
+      return (icon: HugeIconsSolid.moneyReceiveFlow01, color: const Color(0xFFFFD700));
+    case NotificationCategory.social:
+      return (icon: HugeIconsSolid.userGroup, color: const Color(0xFF9C59FF));
+    case NotificationCategory.chat:
+      return (icon: HugeIconsSolid.message01, color: const Color(0xFF3B97F7));
     case NotificationCategory.general:
       return (icon: HugeIconsSolid.notification01, color: colors.accent);
   }
@@ -38,13 +44,13 @@ class _NotificationHubScreenState
     extends ConsumerState<NotificationHubScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  int _tabCount = 2;
+  static const int _tabCount = 6; // All / Money / Security / Social / Chat / System
   bool _markingAllRead = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
   }
 
   @override
@@ -56,21 +62,19 @@ class _NotificationHubScreenState
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final role = ref.watch(authProvider).user?.role ?? '';
-    final isVendor = role.toUpperCase() == 'VENDOR';
-    final tabCount = isVendor ? 3 : 2;
+    final allNotifications    = ref.watch(notificationProvider);
+    final unreadCount         = ref.watch(unreadCountProvider);
 
-    if (tabCount != _tabCount) {
-      _tabCount = tabCount;
-      final oldIndex = _tabController.index.clamp(0, tabCount - 1);
-      _tabController.dispose();
-      _tabController = TabController(length: tabCount, vsync: this, initialIndex: oldIndex);
-    }
-
-    final generalNotifications = ref.watch(generalNotificationsProvider);
-    final securityNotifications = ref.watch(securityNotificationsProvider);
-    final vendorNotifications = ref.watch(vendorNotificationsProvider);
-    final unreadCount = ref.watch(unreadCountProvider);
+    // Derived category lists
+    final moneyNotifs    = allNotifications.where((n) => n.category == NotificationCategory.money).toList();
+    final securityNotifs = allNotifications.where((n) => n.category == NotificationCategory.securityAccount).toList();
+    final socialNotifs   = allNotifications.where((n) => n.category == NotificationCategory.social).toList();
+    final chatNotifs     = allNotifications.where((n) => n.category == NotificationCategory.chat).toList();
+    final systemNotifs   = allNotifications.where((n) =>
+      n.category == NotificationCategory.system ||
+      n.category == NotificationCategory.adminSystem ||
+      n.category == NotificationCategory.vendorPriority
+    ).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -99,8 +103,10 @@ class _NotificationHubScreenState
               ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(48),
-                child: _buildTabBar(context, colors, isVendor,
-                  generalNotifications.length, securityNotifications.length, vendorNotifications.length),
+                child: _buildTabBar(colors,
+                  allNotifications.length, moneyNotifs.length,
+                  securityNotifs.length, socialNotifs.length,
+                  chatNotifs.length, systemNotifs.length),
               ),
             ),
           ),
@@ -110,10 +116,12 @@ class _NotificationHubScreenState
         controller: _tabController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildNotificationList(context, colors, generalNotifications),
-          _buildNotificationList(context, colors, securityNotifications),
-          if (isVendor)
-            _buildNotificationList(context, colors, vendorNotifications),
+          _buildNotificationList(context, colors, allNotifications),
+          _buildNotificationList(context, colors, moneyNotifs),
+          _buildNotificationList(context, colors, securityNotifs),
+          _buildNotificationList(context, colors, socialNotifs),
+          _buildNotificationList(context, colors, chatNotifs),
+          _buildNotificationList(context, colors, systemNotifs),
         ],
       ),
     );
@@ -152,100 +160,74 @@ class _NotificationHubScreenState
     }
   }
 
-  Widget _buildTabBar(BuildContext context, AzamanColors colors, bool isVendor,
-      int generalCount, int securityCount, int vendorCount) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: colors.softSurface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tabCount = isVendor ? 3 : 2;
-          final tabWidth = (constraints.maxWidth - 6) / tabCount;
-          return Stack(
-            children: [
-              // Animated sliding indicator
-              AnimatedPositioned(
-                duration: 300.ms,
-                curve: Curves.easeOutCubic,
-                left: 3 + (_tabController.index * tabWidth),
-                top: 0, bottom: 0,
-                width: tabWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.accent.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
+  Widget _buildTabBar(AzamanColors colors,
+      int allCount, int moneyCount, int securityCount,
+      int socialCount, int chatCount, int systemCount) {
+    final tabs = [
+      ('All',      allCount,      Icons.notifications_outlined),
+      ('Money',    moneyCount,    Icons.monetization_on_outlined),
+      ('Security', securityCount, Icons.security_outlined),
+      ('Social',   socialCount,   Icons.people_outline),
+      ('Chat',     chatCount,     Icons.chat_bubble_outline),
+      ('System',   systemCount,   Icons.info_outline),
+    ];
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final tab = tabs[i];
+          final isSelected = _tabController.index == i;
+          return GestureDetector(
+            onTap: () { AzamanHaptics.toggle(); setState(() => _tabController.animateTo(i)); },
+            child: AnimatedContainer(
+              duration: 250.ms, curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: isSelected ? colors.accent : colors.softSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? colors.accent : colors.divider,
+                  width: isSelected ? 1.5 : 0.5,
                 ),
               ),
-              // Tab labels
-              Row(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _tabLabel('General', generalCount, colors, 0),
-                  _tabLabel('Security', securityCount, colors, 1),
-                  if (isVendor) _tabLabel('Vendor', vendorCount, colors, 2),
+                  Icon(tab.$3, size: 13,
+                    color: isSelected ? Colors.white : colors.textSecondary),
+                  const SizedBox(width: 5),
+                  Text(tab.$1,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : colors.textSecondary,
+                    ),
+                  ),
+                  if (tab.$2 > 0) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white.withOpacity(0.3) : colors.accent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('${tab.$2}',
+                        style: TextStyle(
+                          fontSize: 9, fontWeight: FontWeight.w800,
+                          color: isSelected ? Colors.white : colors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-            ],
+            ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _tabLabel(String label, int count, AzamanColors colors, int index) {
-    final isSelected = _tabController.index == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () { AzamanHaptics.toggle(); _tabController.animateTo(index); },
-        child: SizedBox(
-          height: 38,
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedDefaultTextStyle(
-                  duration: 200.ms,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                    color: isSelected ? colors.background : colors.textSecondary,
-                  ),
-                  child: Text(label),
-                ),
-                if (count > 0) ...[
-                  const SizedBox(width: 4),
-                  AnimatedContainer(
-                    duration: 200.ms,
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: isSelected ? colors.background.withOpacity(0.2) : colors.accentSurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: isSelected ? colors.background : colors.accent,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
