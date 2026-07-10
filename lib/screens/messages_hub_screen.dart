@@ -21,6 +21,9 @@ class PersonalChat {
   final String? lastMessage;
   final DateTime? lastMessageTime;
   int unreadCount;
+  bool isMuted;
+  bool isArchived;
+  bool hasActiveTicket; // cannot delete chats with open tickets
 
   PersonalChat({
     required this.id,
@@ -30,6 +33,9 @@ class PersonalChat {
     this.lastMessage,
     this.lastMessageTime,
     this.unreadCount = 0,
+    this.isMuted = false,
+    this.isArchived = false,
+    this.hasActiveTicket = false,
   });
 }
 
@@ -655,6 +661,125 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
     );
   }
 
+  void _showChatActions(PersonalChat chat, AzamanColors colors) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(chat.contactName,
+                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _actionTile(
+                icon: chat.isMuted ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+                label: chat.isMuted ? 'Unmute Notifications' : 'Mute Notifications',
+                colors: colors,
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() => chat.isMuted = !chat.isMuted);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(chat.isMuted ? '${chat.contactName} muted' : '${chat.contactName} unmuted'),
+                    duration: const Duration(seconds: 2),
+                  ));
+                },
+              ),
+              _actionTile(
+                icon: chat.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                label: chat.isArchived ? 'Unarchive' : 'Archive',
+                colors: colors,
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    chat.isArchived = !chat.isArchived;
+                    if (chat.isArchived) _chats.remove(chat);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(chat.isArchived ? 'Chat archived' : 'Chat unarchived'),
+                    duration: const Duration(seconds: 2),
+                  ));
+                },
+              ),
+              _actionTile(
+                icon: Icons.delete_outline,
+                label: 'Delete Chat',
+                colors: colors,
+                isDestructive: true,
+                onTap: chat.hasActiveTicket
+                    ? () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Cannot delete — this chat has an active ticket. Resolve it first.'),
+                          duration: Duration(seconds: 3),
+                        ));
+                      }
+                    : () {
+                        Navigator.pop(context);
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            backgroundColor: colors.card,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: Text('Delete chat?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                            content: Text(
+                              'This will delete your conversation with ${chat.contactName}. This cannot be undone.',
+                              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  setState(() => _chats.remove(chat));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Chat deleted'), duration: Duration(seconds: 2)),
+                                  );
+                                },
+                                child: Text('Delete', style: TextStyle(color: colors.danger, fontWeight: FontWeight.w700)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _actionTile({
+    required IconData icon,
+    required String label,
+    required AzamanColors colors,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final color = isDestructive ? colors.danger : colors.textPrimary;
+    return ListTile(
+      leading: Icon(icon, color: color, size: 20),
+      title: Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
+      onTap: onTap,
+    );
+  }
+
   Widget _buildChatItem(PersonalChat chat, AzamanColors colors) {
     final bool hasUnread = chat.unreadCount > 0;
     final currentUsername = ref.watch(authProvider).user?.username ?? '';
@@ -663,34 +788,24 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         chat.lastMessage!.contains('@$currentUsername');
 
     return Dismissible(
-      key: ValueKey('chat_${chat.id}_${chat.unreadCount}'),
+      key: ValueKey('chat_${chat.id}_${chat.unreadCount}_${chat.isMuted}_${chat.isArchived}'),
       direction: DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         HapticFeedback.mediumImpact();
         if (direction == DismissDirection.startToEnd) {
-          // Swipe right: mark read
-          setState(() {
-            chat.unreadCount = 0;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Marked ${chat.contactName} as read'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          // Swipe right → mark read (or unread if already read)
+          setState(() => chat.unreadCount = chat.unreadCount > 0 ? 0 : 1);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(chat.unreadCount > 0
+                ? 'Marked ${chat.contactName} as unread'
+                : 'Marked ${chat.contactName} as read'),
+            duration: const Duration(seconds: 1),
+          ));
         } else {
-          // Swipe left: toggle unread status
-          setState(() {
-            chat.unreadCount = chat.unreadCount == 0 ? 1 : 0;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Marked ${chat.contactName} as ${chat.unreadCount > 0 ? "unread" : "read"}'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          // Swipe left → action sheet (mute / archive / delete)
+          _showChatActions(chat, colors);
         }
-        return false; // Prevent removing tile from list
+        return false;
       },
       background: Container(
         alignment: Alignment.centerLeft,
@@ -700,17 +815,35 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
           color: Colors.green.withOpacity(0.85),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(Icons.mark_chat_read, color: Colors.white, size: 20),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(chat.unreadCount > 0 ? Icons.mark_chat_read : Icons.mark_chat_unread,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 6),
+            Text(chat.unreadCount > 0 ? 'Read' : 'Unread',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
       secondaryBackground: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: colors.accent.withOpacity(0.85),
+          color: colors.softSurface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.divider),
         ),
-        child: const Icon(Icons.mark_chat_unread, color: Colors.white, size: 20),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text('More', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 6),
+            Icon(Icons.more_horiz, color: colors.textSecondary, size: 20),
+          ],
+        ),
       ),
       child: GestureDetector(
         onTap: () {

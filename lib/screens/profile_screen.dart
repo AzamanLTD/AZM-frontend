@@ -142,16 +142,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       HapticFeedback.lightImpact();
       setState(() => _isUploadingAvatar = true);
 
+      // Build the multipart request against the full resolved URL,
+      // then hand it to apiClient.multipart() which injects the auth header.
       final uri = Uri.parse('${ApiClient.baseUrl}/users/profile/avatar');
       final request = http.MultipartRequest('POST', uri);
-      request.files.add(await http.MultipartFile.fromPath('avatar', picked.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('avatar', picked.path,
+            filename: 'avatar.jpg'),
+      );
+
       final response = await apiClient.multipart('/users/profile/avatar', request);
 
-      final data = jsonDecode(response.body);
-      final newUrl = (data is Map
-              ? (data['data']?['profilePictureUrl'] ?? data['profilePictureUrl'])
-              : null)
-          ?.toString();
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        throw Exception('Server returned unexpected response (${response.statusCode})');
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final msg = data['message']?.toString() ?? 'Upload failed (${response.statusCode})';
+        throw Exception(msg);
+      }
+
+      final newUrl = (data['data']?['profilePictureUrl'] ?? data['profilePictureUrl'])?.toString();
 
       if (!mounted) return;
       setState(() {
@@ -159,21 +173,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _isUploadingAvatar = false;
       });
 
-      // Propagate everywhere else the avatar shows (home header, drawer).
+      // Propagate to home header, settings drawer, etc.
       if (newUrl != null && newUrl.isNotEmpty) {
         ref.read(authProvider).updateProfilePicture(newUrl);
       }
 
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile picture updated')),
+        const SnackBar(content: Text('Profile picture updated ✓')),
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isUploadingAvatar = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not update photo. Try again.'),
+            content: Text('Could not update photo: ${e.toString().replaceFirst("Exception: ", "")}'),
             backgroundColor: colors.danger,
           ),
         );

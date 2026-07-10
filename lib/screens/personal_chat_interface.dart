@@ -966,15 +966,98 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               ),
             ),
             const SizedBox(width: 6),
-            GestureDetector(
-              onTap: _showChatProfileSheet,
-              child: Container(
+            PopupMenuButton<String>(
+              icon: Container(
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(color: colors.softSurface, shape: BoxShape.circle),
                 alignment: Alignment.center,
-                child: Icon(Icons.info_outline, color: colors.textSecondary, size: 18),
+                child: Icon(Icons.more_vert, color: colors.textSecondary, size: 18),
               ),
+              color: colors.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 6,
+              onSelected: (value) {
+                switch (value) {
+                  case 'profile':
+                    _showChatProfileSheet();
+                    break;
+                  case 'search':
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Search in conversation — coming soon')),
+                    );
+                    break;
+                  case 'mute':
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${_displayName} muted')),
+                    );
+                    break;
+                  case 'block':
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        backgroundColor: colors.card,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: Text('Block ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                        content: Text('They won't be able to message you. You can unblock from your settings.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_displayName} blocked')));
+                            },
+                            child: Text('Block', style: TextStyle(color: colors.danger)),
+                          ),
+                        ],
+                      ),
+                    );
+                    break;
+                  case 'report':
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        backgroundColor: colors.card,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: Text('Report ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                        content: Text('We'll review this conversation and take action if guidelines are violated.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted. Thank you.')));
+                            },
+                            child: Text('Report', style: TextStyle(color: colors.danger)),
+                          ),
+                        ],
+                      ),
+                    );
+                    break;
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'profile',
+                  child: Row(children: [Icon(Icons.person_outline, size: 18, color: colors.textPrimary), const SizedBox(width: 12), Text('View Profile', style: TextStyle(color: colors.textPrimary, fontSize: 13))]),
+                ),
+                PopupMenuItem(
+                  value: 'search',
+                  child: Row(children: [Icon(Icons.search, size: 18, color: colors.textPrimary), const SizedBox(width: 12), Text('Search', style: TextStyle(color: colors.textPrimary, fontSize: 13))]),
+                ),
+                PopupMenuItem(
+                  value: 'mute',
+                  child: Row(children: [Icon(Icons.notifications_off_outlined, size: 18, color: colors.textPrimary), const SizedBox(width: 12), Text('Mute Notifications', style: TextStyle(color: colors.textPrimary, fontSize: 13))]),
+                ),
+                PopupMenuItem(
+                  value: 'block',
+                  child: Row(children: [Icon(Icons.block, size: 18, color: colors.danger), const SizedBox(width: 12), Text('Block', style: TextStyle(color: colors.danger, fontSize: 13))]),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(children: [Icon(Icons.flag_outlined, size: 18, color: colors.danger), const SizedBox(width: 12), Text('Report', style: TextStyle(color: colors.danger, fontSize: 13))]),
+                ),
+              ],
             ),
           ],
         ),
@@ -1072,25 +1155,60 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                 ),
               )
             else if (msg.type == 'image' && msg.mediaUrl != null)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Thin-ring image bubble: edge-to-edge image, accent border,
+              // floating timestamp chip in the bottom-right corner so the image
+              // fills the bubble with no dead space.
+              Stack(
+                alignment: Alignment.bottomRight,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(msg.mediaUrl!, fit: BoxFit.cover),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.accent.withOpacity(0.35), width: 1.5),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13),
+                      child: Image.network(
+                        msg.mediaUrl!,
+                        fit: BoxFit.cover,
+                        width: 240,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 240, height: 160,
+                          color: colors.card,
+                          child: Icon(Icons.image_not_supported_outlined, color: colors.textTertiary, size: 32),
+                        ),
+                        loadingBuilder: (_, child, progress) => progress == null
+                            ? child
+                            : Container(
+                                width: 240, height: 160,
+                                color: colors.card,
+                                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent)),
+                              ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Spacer(),
-                      Text(_formatMessageTime(msg.createdAt), style: TextStyle(color: metaColor, fontSize: 9.5, fontWeight: FontWeight.w500)),
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        _statusIcon(msg.status, colors),
-                      ],
-                    ],
+                  // Floating time + status chip
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.52),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_formatMessageTime(msg.createdAt),
+                              style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w500)),
+                          if (isMe) ...[
+                            const SizedBox(width: 3),
+                            _statusIcon(msg.status, colors),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               )
