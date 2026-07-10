@@ -141,9 +141,11 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             ),
           ),
           Expanded(
-            child: state.isLoading && state.items.isEmpty
-                ? _buildShimmer(colors)
-                : _buildGroupedList(colors, state),
+            child: state.error != null && state.items.isEmpty
+                ? _buildErrorState(colors, state.error!)
+                : state.isLoading && state.items.isEmpty
+                    ? _buildShimmer(colors)
+                    : _buildGroupedList(colors, state),
           ),
         ],
       ),
@@ -153,7 +155,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
   Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state) {
     final allTxns = state.items;
     final filtered = _searchQuery.isEmpty ? allTxns : allTxns.where((t) {
-      final label = _humanLabel(t.type).toLowerCase();
+      final label = _humanLabel(t.rawType).toLowerCase();
       final amt = t.amountUsdc.toString();
       final id = t.id.toLowerCase();
       return label.contains(_searchQuery) || amt.contains(_searchQuery) || id.contains(_searchQuery);
@@ -214,22 +216,22 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: txn.type == 'OUT'
+                            color: txn.category == 'WITHDRAWAL'
                                 ? colors.danger.withOpacity(0.1)
-                                : txn.type == 'INTERNAL'
+                                : txn.category == 'TRANSFER'
                                     ? colors.accent.withOpacity(0.1)
                                     : colors.success.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            txn.type == 'OUT'
+                            txn.category == 'WITHDRAWAL'
                                 ? HugeIconsSolid.arrowUp01
-                                : txn.type == 'INTERNAL'
+                                : txn.category == 'TRANSFER'
                                     ? HugeIconsSolid.arrowDataTransferHorizontal
                                     : HugeIconsSolid.arrowDown01,
-                            color: txn.type == 'OUT'
+                            color: txn.category == 'WITHDRAWAL'
                                 ? colors.danger
-                                : txn.type == 'INTERNAL'
+                                : txn.category == 'TRANSFER'
                                     ? colors.accent
                                     : colors.success,
                             size: 16,
@@ -241,7 +243,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _humanLabel(txn.type),
+                                _humanLabel(txn.rawType),
                                 style: TextStyle(
                                   color: colors.textPrimary,
                                   fontSize: 14,
@@ -265,9 +267,9 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '${txn.type == "OUT" ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
+                              '${txn.category == 'WITHDRAWAL' ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
                               style: TextStyle(
-                                color: txn.type == 'OUT' ? colors.danger : colors.success,
+                                color: txn.category == 'WITHDRAWAL' ? colors.danger : colors.success,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -297,6 +299,8 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       Divider(color: colors.divider),
                       _detailRow(colors, 'Reference', 'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}'),
                       _detailRow(colors, 'Provider', txn.provider),
+                      if (txn.counterparty.isNotEmpty)
+                        _detailRow(colors, 'Counterparty', txn.counterparty),
                       _detailRow(colors, 'GHS Equivalent', 'GH₵ ${txn.amountGhs.toStringAsFixed(2)}'),
                       _detailRow(colors, 'Rate', '${txn.rateAtInitiation.toStringAsFixed(2)}'),
                       _detailRow(colors, 'Settled', _formatDate(txn.createdAt)),
@@ -358,6 +362,34 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         children: [
           Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11)),
           Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AzamanColors colors, String error) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
+          const SizedBox(height: 12),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => ref.read(transactionHistoryProvider.notifier).refresh(),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Retry', style: TextStyle(fontSize: 13)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.accent,
+              side: BorderSide(color: colors.accent),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            ),
+          ),
         ],
       ),
     );
@@ -425,13 +457,13 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: txn.type == 'OUT' ? colors.danger.withOpacity(0.15) : colors.success.withOpacity(0.15),
+                color: txn.category == 'WITHDRAWAL' ? colors.danger.withOpacity(0.15) : colors.success.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                _humanLabel(txn.type),
+                _humanLabel(txn.rawType),
                 style: TextStyle(
-                  color: txn.type == 'OUT' ? colors.danger : colors.success,
+                  color: txn.category == 'WITHDRAWAL' ? colors.danger : colors.success,
                   fontSize: 11, fontWeight: FontWeight.bold,
                 ),
               ),
@@ -497,7 +529,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             pw.Text("Transaction Receipt",
               style: const pw.TextStyle(fontSize: 14)),
             pw.Divider(height: 32),
-            _pdfRow("Type",      _humanLabel(txn.type)),
+            _pdfRow("Type",      _humanLabel(txn.rawType)),
             _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
             _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
             _pdfRow("Status",    txn.status),
@@ -547,7 +579,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             pw.Text("Transaction Receipt",
               style: const pw.TextStyle(fontSize: 14)),
             pw.Divider(height: 32),
-            _pdfRow("Type",      _humanLabel(txn.type)),
+            _pdfRow("Type",      _humanLabel(txn.rawType)),
             _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
             _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
             _pdfRow("Status",    txn.status),
