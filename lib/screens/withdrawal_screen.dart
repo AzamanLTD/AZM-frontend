@@ -1087,16 +1087,21 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           // Map provider → MomoNetwork enum for backend
                           // compatibility — the existing _handleMomoWithdraw
                           // path still reads _selectedNetwork.apiValue.
-                          switch (a.provider) {
+                          // Map saved account provider → MomoNetwork enum
+                          switch (a.provider.toUpperCase()) {
                             case 'MTN':
                               _selectedNetwork = MomoNetwork.mtn;
                               break;
-                            case 'VODAFONE':
+                            case 'TELECEL':
+                            case 'VODAFONE': // legacy stored value
                               _selectedNetwork = MomoNetwork.telecel;
                               break;
-                            case 'TELECEL':
+                            case 'AIRTELTIGO':
+                            case 'AT':
                               _selectedNetwork = MomoNetwork.airtelTigo;
                               break;
+                            default:
+                              _selectedNetwork = MomoNetwork.mtn;
                           }
                         }),
                       ),
@@ -1805,19 +1810,50 @@ class _MomoAccountPicker extends StatelessWidget {
     required this.onTap,
   });
 
+  Color get _providerColor {
+    switch (account.provider.toUpperCase()) {
+      case 'MTN': return const Color(0xFFFFCC00);
+      case 'TELECEL': return const Color(0xFFE60000);
+      case 'AIRTELTIGO': case 'AT': return const Color(0xFFD62828);
+      default: return const Color(0xFF888888);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = _providerColor;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? c.withOpacity(0.10) : colors.softSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? c.withOpacity(0.70) : colors.divider,
+            width: selected ? 1.8 : 1.0,
+          ),
+          boxShadow: selected
+            ? [BoxShadow(color: c.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 3))]
+            : const [],
+        ),
         child: Row(
           children: [
-            Icon(
-              Icons.smartphone_outlined,
-              color: colors.textPrimary,
-              size: 19,
+            // Provider dot
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: c.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Container(
+                  width: 12, height: 12,
+                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1829,24 +1865,25 @@ class _MomoAccountPicker extends StatelessWidget {
                     account.accountName ?? account.nickname,
                     style: TextStyle(
                       color: colors.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5, fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${account.provider} · ${account.phoneNumber}',
+                    '${account.provider}  ·  ${account.phoneNumber}',
                     style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(
-              selected
-                  ? Icons.check_circle_outline
-                  : Icons.circle_outlined,
-              color: selected ? colors.textPrimary : colors.textTertiary,
-              size: 20,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                key: ValueKey(selected),
+                color: selected ? c : colors.textTertiary.withOpacity(0.5),
+                size: 22,
+              ),
             ),
           ],
         ),

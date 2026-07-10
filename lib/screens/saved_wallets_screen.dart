@@ -534,10 +534,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
   bool _submitting = false;
 
   static const _momos = [
-    {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'color': Color(0xFFFFCC00)},
-    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFFE60000)},
-    {'id': 'AIRTELTIGO', 'name': 'AirtelTigo', 'color': Color(0xFFD62828)},
-    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFF0066CC)},
+    {'id': 'MTN_MOMO',     'name': 'MTN MoMo',     'color': Color(0xFFFFCC00)},
+    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash',  'color': Color(0xFFE60000)},
+    {'id': 'AIRTELTIGO',   'name': 'AirtelTigo',    'color': Color(0xFFD62828)},
   ];
 
   @override
@@ -735,23 +734,57 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Drag handle
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 decoration: BoxDecoration(
                   color: colors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            Text('Add Payout Destination',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
+            // Header row
+            Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: colors.accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.account_balance_wallet_outlined,
+                    color: colors.accent, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Add Payout Destination',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 17, fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3)),
+                      const SizedBox(height: 2),
+                      Text('Saved accounts for quick withdrawals',
+                        style: TextStyle(
+                          color: colors.textTertiary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(Icons.close, color: colors.textTertiary, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Divider(color: colors.divider, height: 1),
+            const SizedBox(height: 18),
 
             // Category toggle
             Row(
@@ -840,27 +873,49 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8)),
       const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      Row(
         children: _momos.map((m) {
           final selected = _momoNetwork == m['id'];
           final c = m['color'] as Color;
-          return ChoiceChip(
-            label: Text(m['name'] as String),
-            selected: selected,
-            onSelected: (_) =>
-                setState(() => _momoNetwork = m['id'] as String),
-            backgroundColor: colors.card,
-            selectedColor: c.withOpacity(0.15),
-            side: BorderSide(
-              color: selected ? c : colors.divider,
-              width: selected ? 1.4 : 1,
-            ),
-            labelStyle: TextStyle(
-              color: selected ? c : colors.textSecondary,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () { HapticFeedback.selectionClick(); setState(() => _momoNetwork = m['id'] as String); },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected ? c.withOpacity(0.13) : colors.softSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? c : colors.divider,
+                      width: selected ? 1.8 : 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(m['name'] as String,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: selected ? c : colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           );
         }).toList(),
