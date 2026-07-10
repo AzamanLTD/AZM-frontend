@@ -99,7 +99,6 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
         'MTN_MOMO',
         'TELECEL_CASH', 'VODAFONE_CASH', // legacy
         'AIRTELTIGO',
-        'TELECEL_CASH',
       };
       return list
           .map((raw) => raw as Map<String, dynamic>)

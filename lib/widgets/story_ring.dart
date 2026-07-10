@@ -110,18 +110,17 @@ class _StoryRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    // Use a circular ring drawn around the squircle content
-    // Radius is slightly less than half the widget size to keep within bounds
-    final ringR = (math.min(size.width, size.height) / 2) - (strokeWidth / 2) - 0.5;
+    final rect = Rect.fromLTWH(strokeWidth / 2, strokeWidth / 2, size.width - strokeWidth, size.height - strokeWidth);
+    final shape = ContinuousRectangleBorder(borderRadius: BorderRadius.circular(squircleRadius));
+    final path = shape.getOuterPath(rect);
 
     if (!hasUnseen) {
-      // Dim border — simple circle
+      // Dim border — squircle path
       final paint = Paint()
         ..color = dimColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth;
-      canvas.drawCircle(center, ringR, paint);
+      canvas.drawPath(path, paint);
       return;
     }
 
@@ -133,43 +132,50 @@ class _StoryRingPainter extends CustomPainter {
         ..strokeWidth = strokeWidth + 6
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
       if (storyCount == 1) {
-        canvas.drawCircle(center, ringR, glowPaint);
+        canvas.drawPath(path, glowPaint);
       }
     }
 
     if (storyCount == 1) {
-      // Full solid arc
+      // Full solid squircle
       final paint = Paint()
         ..color = ringColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round;
-      canvas.drawCircle(center, ringR, paint);
+      canvas.drawPath(path, paint);
     } else {
-      // Segmented arcs — equally spaced with small gaps
-      // Total gap angle (in radians) between segments
-      const gapDeg = 6.0; // degrees gap per segment boundary
-      final gapRad = gapDeg * math.pi / 180;
-      final totalGap = gapRad * storyCount;
-      final segmentSweep = (2 * math.pi - totalGap) / storyCount;
-
+      // Segmented squircle — use PathMetrics
       final paint = Paint()
         ..color = ringColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round;
 
-      // Start at top (-π/2), draw clockwise
-      double startAngle = -math.pi / 2;
+      final metrics = path.computeMetrics().toList();
+      if (metrics.isEmpty) return;
+      final metric = metrics.first;
+
+      final totalLength = metric.length;
+      final gapLength = totalLength * (6.0 / 360.0); // 6 deg equivalent
+      final segmentLength = (totalLength - (gapLength * storyCount)) / storyCount;
+
+      // Start at top center (roughly 3/8 of the way along the path for a standard rect, but ContinuousRectangleBorder starts at top left)
+      double currentOffset = totalLength * 0.125; 
+      
       for (int i = 0; i < storyCount; i++) {
-        canvas.drawArc(
-          Rect.fromCircle(center: center, radius: ringR),
-          startAngle,
-          segmentSweep,
-          false,
-          paint,
-        );
-        startAngle += segmentSweep + gapRad;
+        final start = currentOffset % totalLength;
+        final end = (currentOffset + segmentLength) % totalLength;
+        
+        final segment = Path();
+        if (end > start) {
+          segment.addPath(metric.extractPath(start, end), Offset.zero);
+        } else {
+          segment.addPath(metric.extractPath(start, totalLength), Offset.zero);
+          segment.addPath(metric.extractPath(0, end), Offset.zero);
+        }
+        canvas.drawPath(segment, paint);
+        currentOffset += segmentLength + gapLength;
       }
     }
   }

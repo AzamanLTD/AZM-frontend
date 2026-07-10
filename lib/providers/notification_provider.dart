@@ -213,7 +213,9 @@ final notificationProvider =
 });
 
 final unreadCountProvider = Provider<int>((ref) {
-  return ref.watch(notificationProvider).where((n) => !n.isRead).length;
+  return ref.watch(notificationProvider)
+      .where((n) => !n.isRead && n.category != NotificationCategory.general)
+      .length;
 });
 
 final generalNotificationsProvider = Provider<List<AppNotification>>((ref) {

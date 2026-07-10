@@ -999,7 +999,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                         backgroundColor: colors.card,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         title: Text('Block ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                        content: Text('They won't be able to message you. You can unblock from your settings.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                        content: Text('They won\'t be able to message you. You can unblock from your settings.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
                           TextButton(
@@ -1020,7 +1020,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                         backgroundColor: colors.card,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         title: Text('Report ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                        content: Text('We'll review this conversation and take action if guidelines are violated.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                        content: Text('We\'ll review this conversation and take action if guidelines are violated.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
                           TextButton(

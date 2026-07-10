@@ -87,6 +87,9 @@ class _MarketplaceHomeScreenState
   bool _searchFocused = false;
   final _searchFocusNode = FocusNode();
 
+  // Telegram-style stories collapse state
+  bool _storiesCollapsed = false;
+
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
@@ -142,6 +145,12 @@ class _MarketplaceHomeScreenState
         _scrollCtrl.position.pixels >=
             _scrollCtrl.position.maxScrollExtent - 320) {
       ref.read(businessSearchProvider.notifier).loadMore();
+    }
+    
+    // Collapse stories if scrolled down by more than 10 pixels
+    final shouldCollapse = _scrollCtrl.offset > 10;
+    if (_storiesCollapsed != shouldCollapse) {
+      setState(() => _storiesCollapsed = shouldCollapse);
     }
   }
 
@@ -310,13 +319,19 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MarketplaceStatusRail(
-                      onOpenBusiness: (bizId) {
-                        setState(() => _expandedBizId = bizId);
-                      },
-                      onBrowsePressed: () {
-                        setState(() => _selectedCategory = null);
-                      },
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: _storiesCollapsed
+                          ? const SizedBox.shrink()
+                          : MarketplaceExpandedStories(
+                              onOpenBusiness: (bizId) {
+                                setState(() => _expandedBizId = bizId);
+                              },
+                              onBrowsePressed: () {
+                                setState(() => _selectedCategory = null);
+                              },
+                            ),
                     ),
                     _categoryStrip(colors),
                     if (_selectedCategory == null && _searchCtrl.text.isEmpty)
@@ -419,6 +434,22 @@ class _MarketplaceHomeScreenState
                           ),
                         ],
                       ),
+                    ),
+
+                    // Collapsed avatars between Explore text and Search button
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: _storiesCollapsed
+                          ? Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: MarketplaceCollapsedAvatars(
+                                onTap: () {
+                                  _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+                                },
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
 
                     // Search — directly after "Explore", in line with the view toggle.
@@ -622,20 +653,20 @@ class _MarketplaceHomeScreenState
     // just the active one) now carries a subtle resting shadow so the strip
     // reads as a row of small floating cards instead of flat pills.
     return SizedBox(
-      height: 44,
+      height: 60,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final catItem = categories[i];
           final isAll = catItem.$1 == null;
           final isActive = _selectedCategory == catItem.$1;
-          final iconSize = isAll ? 14.0 : 11.0;
-          final fontSize = isAll ? 7.5 : 7.0;
-          final hPad = isAll ? 10.0 : 7.0;
-          final vPad = isAll ? 6.0 : 5.0;
+          final iconSize = isAll ? 20.0 : 16.0;
+          final fontSize = isAll ? 12.0 : 11.0;
+          final hPad = isAll ? 14.0 : 12.0;
+          final vPad = isAll ? 10.0 : 8.0;
           return GestureDetector(
             onTap: () {
               AzamanHaptics.toggle();

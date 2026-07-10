@@ -25,49 +25,42 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 
-class MarketplaceStatusRail extends ConsumerStatefulWidget {
+class MarketplaceCollapsedAvatars extends ConsumerWidget {
+  final VoidCallback onTap;
+
+  const MarketplaceCollapsedAvatars({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    final followingState = ref.watch(followingListProvider);
+
+    return followingState.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (following) {
+        if (following.isEmpty) return const SizedBox.shrink();
+        return GestureDetector(
+          onTap: onTap,
+          child: _StackedSquircles(following: following, colors: colors),
+        );
+      },
+    );
+  }
+}
+
+class MarketplaceExpandedStories extends ConsumerWidget {
   final void Function(String businessProfileId) onOpenBusiness;
   final VoidCallback? onBrowsePressed;
 
-  const MarketplaceStatusRail({
+  const MarketplaceExpandedStories({
     super.key,
     required this.onOpenBusiness,
     this.onBrowsePressed,
   });
 
   @override
-  ConsumerState<MarketplaceStatusRail> createState() =>
-      _MarketplaceStatusRailState();
-}
-
-class _MarketplaceStatusRailState extends ConsumerState<MarketplaceStatusRail>
-    with SingleTickerProviderStateMixin {
-  bool _expanded = false;
-  late final AnimationController _animCtrl;
-  late final Animation<double> _expandAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 320));
-    _expandAnim =
-        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
-  }
-
-  @override
-  void dispose() {
-    _animCtrl.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() => _expanded = !_expanded);
-    _expanded ? _animCtrl.forward() : _animCtrl.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final followingState = ref.watch(followingListProvider);
 
@@ -78,7 +71,7 @@ class _MarketplaceStatusRailState extends ConsumerState<MarketplaceStatusRail>
         if (following.isEmpty) {
           // Empty state: subtle inline nudge, not a full card
           return GestureDetector(
-            onTap: widget.onBrowsePressed,
+            onTap: onBrowsePressed,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Row(
@@ -109,98 +102,53 @@ class _MarketplaceStatusRailState extends ConsumerState<MarketplaceStatusRail>
 
         return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Collapsed pill: stacked squircles ──────────────────────────
-            SizeTransition(
-              sizeFactor: ReverseAnimation(_expandAnim),
-              axisAlignment: -1,
-              child: GestureDetector(
-                onTap: _toggle,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-                  child: Row(
-                    children: [
-                      _StackedSquircles(following: following, colors: colors),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          '${following.length} business update${following.length == 1 ? '' : 's'}',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textSecondary,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 18, color: colors.textTertiary),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // ── Expanded list: full story rings ────────────────────────────
-            SizeTransition(
-              sizeFactor: _expandAnim,
-              axisAlignment: -1,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 88,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: following.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 14),
-                      itemBuilder: (context, index) {
-                        final biz = following[index];
-                        final id = biz['id']?.toString() ?? '';
-                        final name = biz['businessName']?.toString() ?? '';
-                        final logoUrl = biz['logoUrl']?.toString();
-                        final isVerified = biz['isVerified'] == true;
+            SizedBox(
+              height: 88,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: following.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final biz = following[index];
+                  final id = biz['id']?.toString() ?? '';
+                  final name = biz['businessName']?.toString() ?? '';
+                  final logoUrl = biz['logoUrl']?.toString();
+                  final isVerified = biz['isVerified'] == true;
 
-                        return GestureDetector(
-                          onTap: () => widget.onOpenBusiness(id),
-                          child: SizedBox(
-                            width: 68,
-                            child: Column(
-                              children: [
-                                StoryRing(
-                                  avatarUrl: logoUrl,
-                                  hasUnseenStory: true,
-                                  isBoosted: isVerified,
-                                  size: 60,
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  name,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: colors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                  return GestureDetector(
+                    onTap: () => onOpenBusiness(id),
+                    child: SizedBox(
+                      width: 68,
+                      child: Column(
+                        children: [
+                          StoryRing(
+                            avatarUrl: logoUrl,
+                            hasUnseenStory: true,
+                            isBoosted: isVerified,
+                            size: 60,
                           ),
-                        );
-                      },
+                          const SizedBox(height: 6),
+                          Text(
+                            name,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: colors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  // Collapse handle
-                  GestureDetector(
-                    onTap: _toggle,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Icon(Icons.keyboard_arrow_up_rounded,
-                          size: 18, color: colors.textTertiary),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
+            const SizedBox(height: 4),
           ],
         );
       },

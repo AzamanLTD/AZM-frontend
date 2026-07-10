@@ -29,6 +29,7 @@ import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/rating_stars.dart';
+import 'package:azaman/widgets/story_ring.dart';
 
 class BusinessCard extends ConsumerWidget {
   final BusinessProfile business;
@@ -321,29 +322,12 @@ class BusinessCard extends ConsumerWidget {
   }
 
   Widget _smallLogo(AzamanColors colors) {
-    final url = business.logoUrl;
-    final placeholder = Container(
-      width: 52,
-      height: 52,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accentSurface),
-      child: Text(
-        business.businessName.isNotEmpty
-            ? business.businessName.substring(0, 1).toUpperCase()
-            : 'B',
-        style: TextStyle(color: colors.accent, fontSize: 20, fontWeight: FontWeight.w800),
-      ),
-    );
-    if (url == null || url.isEmpty) return placeholder;
-    return ClipOval(
-      child: CachedNetworkImage(
-        imageUrl: url,
-        width: 52,
-        height: 52,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => placeholder,
-        errorWidget: (_, __, ___) => placeholder,
-      ),
+    return StoryRing(
+      avatarUrl: business.logoUrl,
+      hasUnseenStory: business.showcaseUrls.isNotEmpty,
+      isBoosted: false,
+      size: 52,
+      storyCount: business.showcaseUrls.isNotEmpty ? business.showcaseUrls.length : 1,
     );
   }
 
