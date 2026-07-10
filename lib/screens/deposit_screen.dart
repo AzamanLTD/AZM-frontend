@@ -247,6 +247,11 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           _isLoading = false;
         });
       }
+    } on ApiException catch (e) {
+      setState(() {
+        _error = e.message;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _error = 'Network error. Tap retry.';
@@ -432,6 +437,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// so both map to TELECEL_CASH. The same enum is accepted by
   /// `/deposit/validate-name`, so one mapping serves both calls.
   String _backendProvider(String provider) {
+    if (provider == 'MTN_MOMO' || provider == 'VODAFONE_CASH' || provider == 'AIRTELTIGO') {
+      return provider;
+    }
     switch (provider) {
       case 'MTN':
         return 'MTN_MOMO';
@@ -1587,6 +1595,8 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
       } else {
         setState(() { _error = body["message"] ?? "Could not verify"; _loading = false; });
       }
+    } on ApiException catch (e) {
+      setState(() { _error = e.message; _loading = false; });
     } catch (_) {
       setState(() { _error = "Network error"; _loading = false; });
     }
@@ -1616,8 +1626,8 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
         ],
       ),
     );
-    passwordCtrl.dispose();
     if (password == null || password.isEmpty) return;
+    if (!mounted) return;
 
     setState(() => _loading = true);
     try {
@@ -1671,8 +1681,11 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
         ),
         if (_resolvedName != null) ...[
           const SizedBox(height: 8),
-          Row(children: [Icon(Icons.check_circle, color: c.success, size: 16), const SizedBox(width: 6),
-            Text(_resolvedName!, style: TextStyle(color: c.success, fontWeight: FontWeight.w700))]),
+          Row(children: [
+            Icon(Icons.check_circle, color: c.success, size: 16), 
+            const SizedBox(width: 6),
+            Expanded(child: Text(_resolvedName!, style: TextStyle(color: c.success, fontWeight: FontWeight.w700)))
+          ]),
         ],
         if (_error != null) ...[
           const SizedBox(height: 6), Text(_error!, style: TextStyle(color: c.danger, fontSize: 12)),

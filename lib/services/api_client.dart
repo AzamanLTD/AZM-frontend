@@ -274,7 +274,7 @@ class ApiException implements Exception {
     if (errors != null && errors!.isNotEmpty) {
       return '$message: ${errors!.join(', ')}';
     }
-    return '$message (Status: $statusCode)';
+    return message;
   }
 }
 
