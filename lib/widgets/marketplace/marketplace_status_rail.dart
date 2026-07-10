@@ -39,10 +39,13 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (following) {
-        if (following.isEmpty) return const SizedBox.shrink();
+        final list = following.isEmpty
+            ? [{'businessName': '?'}, {'businessName': '?'}, {'businessName': '?'}]
+            : following;
+
         return GestureDetector(
           onTap: onTap,
-          child: _StackedSquircles(following: following, colors: colors),
+          child: _StackedSquircles(following: list, colors: colors),
         );
       },
     );
@@ -68,38 +71,6 @@ class MarketplaceExpandedStories extends ConsumerWidget {
       loading: () => const SizedBox(height: 40),
       error: (_, __) => const SizedBox.shrink(),
       data: (following) {
-        if (following.isEmpty) {
-          // Empty state: subtle inline nudge, not a full card
-          return GestureDetector(
-            onTap: onBrowsePressed,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28, height: 28,
-                    decoration: BoxDecoration(
-                        color: colors.accentSurface, shape: BoxShape.circle),
-                    child: Icon(Icons.storefront_outlined,
-                        size: 14, color: colors.accent),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Follow businesses to see live updates here',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          color: colors.textTertiary,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, size: 16, color: colors.textTertiary),
-                ],
-              ),
-            ),
-          );
-        }
-
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,9 +80,66 @@ class MarketplaceExpandedStories extends ConsumerWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: following.length,
+                itemCount: following.isEmpty ? 4 : following.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
+                  if (following.isEmpty) {
+                    if (index == 0) {
+                      return GestureDetector(
+                        onTap: onBrowsePressed,
+                        child: SizedBox(
+                          width: 68,
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 60, height: 60,
+                                decoration: BoxDecoration(
+                                  color: colors.accentSurface,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: Icon(Icons.add_rounded, color: colors.accent, size: 28),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Follow',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else {
+                      return SizedBox(
+                        width: 68,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 60, height: 60,
+                              decoration: BoxDecoration(
+                                color: colors.softSurface,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.2)),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              width: 40, height: 8,
+                              decoration: BoxDecoration(
+                                color: colors.softSurface,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+
                   final biz = following[index];
                   final id = biz['id']?.toString() ?? '';
                   final name = biz['businessName']?.toString() ?? '';
@@ -202,6 +230,13 @@ class _StackedSquircles extends StatelessWidget {
   }
 
   Widget _initial(String name, AzamanColors colors) {
+    if (name == '?') {
+      return Container(
+        color: colors.softSurface,
+        alignment: Alignment.center,
+        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.4), size: 14),
+      );
+    }
     return Container(
       color: colors.accentSurface,
       alignment: Alignment.center,
