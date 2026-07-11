@@ -234,37 +234,29 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
               ),
               // ── Content ──────────────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _topRow(),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     _amountRow(),
-                    const SizedBox(height: 6),
-                    Text(
-                      _typeLabel,
-                      style: TextStyle(
-                          color: _textColor.withValues(alpha: 0.55),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500),
-                    ),
                     if (widget.memo != null && widget.memo!.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _memoBlock(),
                     ],
                     if (widget.reference != null) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         widget.reference ?? '—',
                         style: TextStyle(
                             color: _textColor,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.4),
+                            letterSpacing: 0.2),
                       ),
                     ],
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     // Action buttons OR footer
                     _showActionButtons
                         ? _actionButtons()
@@ -336,28 +328,43 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
   Widget _amountRow() => Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                _typeLabel,
+                style: TextStyle(
+                    color: _textColor.withValues(alpha: 0.65),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Padding(
-            padding: const EdgeInsets.only(bottom: 5),
+            padding: const EdgeInsets.only(bottom: 2),
             child: Text(
               widget.currency,
               style: TextStyle(
                   color: _textColor.withValues(alpha: 0.65),
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Flexible(
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: Alignment.bottomLeft,
+              alignment: Alignment.bottomRight,
               child: Text(
                 _fmtAmount(widget.amount),
                 style: TextStyle(
                     color: _textColor,
-                    fontSize: 36,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -1.0,
+                    letterSpacing: -0.5,
                     height: 1.0),
               ),
             ),
