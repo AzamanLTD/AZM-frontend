@@ -1,5 +1,5 @@
 // =============================================================================
-// AZAMAN — TRANSIT SEAT SELECTION SCREEN (2026-07-07)
+// AZAMAN — TRANSIT SEAT SELECTION SCREEN
 //
 // Shows a visual seat map grid. Customer taps available seats to select/deselect.
 // When done, taps "Book" to reserve the seats atomically.
@@ -8,12 +8,17 @@
 // structurally impossible — if someone races you, you get a clean error.
 //
 // 2026-07-07: added tier-aware pricing (Economy/Standard/VIP — each seat can
-// carry its own fare) and pinch-zoom/pan via InteractiveViewer so larger
-// vehicle layouts (e.g. 2-3 coaches) are still comfortable to browse on a
-// small screen.
+//             carry its own fare) and pinch-zoom/pan via InteractiveViewer so
+//             larger vehicle layouts are comfortable on small screens.
+// 2026-07-11: replaced icon-based seat chips with premium PNG seat assets.
+//             BOOKED  → assets/images/booked.png  (occupied silhouette)
+//             AVAILABLE → assets/images/unbooked.png  (empty dark seat)
+//             SELECTED  → unbooked.png + ColorFiltered purple tint (0.5 opacity)
+//             Haptic lightImpact on every valid tap.
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,21 +29,26 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
+// Azaman brand purple — used for SELECTED tint overlay
+const _kSelectedPurple = Color(0xFF7C3AED);
+
 Color _tierColor(SeatTier tier) {
   switch (tier) {
-    case SeatTier.vip: return const Color(0xFFF59E0B); // amber/gold
-    case SeatTier.standard: return const Color(0xFF3B82F6); // blue
-    case SeatTier.economy: return const Color(0xFF22C55E); // green
+    case SeatTier.vip:      return const Color(0xFFF59E0B);
+    case SeatTier.standard: return const Color(0xFF3B82F6);
+    case SeatTier.economy:  return const Color(0xFF22C55E);
   }
 }
 
 String _tierLabel(SeatTier tier) {
   switch (tier) {
-    case SeatTier.vip: return 'VIP';
+    case SeatTier.vip:      return 'VIP';
     case SeatTier.standard: return 'Standard';
-    case SeatTier.economy: return 'Economy';
+    case SeatTier.economy:  return 'Economy';
   }
 }
+
+// ── SCREEN ───────────────────────────────────────────────────────────────────
 
 class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -46,10 +56,12 @@ class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
   const TransitSeatSelectionScreen({super.key, required this.tripId});
 
   @override
-  ConsumerState<TransitSeatSelectionScreen> createState() => _TransitSeatSelectionScreenState();
+  ConsumerState<TransitSeatSelectionScreen> createState() =>
+      _TransitSeatSelectionScreenState();
 }
 
-class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectionScreen> {
+class _TransitSeatSelectionScreenState
+    extends ConsumerState<TransitSeatSelectionScreen> {
   final _passengerNames = <String, TextEditingController>{};
   final _transformController = TransformationController();
 
@@ -59,6 +71,67 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
     _transformController.dispose();
     super.dispose();
   }
+
+  // ── helpers ─────────────────────────────────────────────────────────────
+
+  double _minFare(SeatAvailability a) =>
+      a.tierFares.values.isNotEmpty ? a.tierFares.values.reduce((x, y) => x < y ? x : y) : a.fareUsdc;
+
+  double _totalFare(SeatAvailability a, Set<String> selected) {
+    double total = 0;
+    for (final id in selected) {
+      final seat = a.seats.where((s) => s.seatId == id).firstOrNull;
+      total += seat?.fare ?? a.fareUsdc;
+    }
+    return total;
+  }
+
+  void _onSeatTap(String seatId, SeatStatus status) {
+    if (status != SeatStatus.available) return;
+    HapticFeedback.lightImpact();
+    ref.read(selectedSeatsProvider.notifier).toggle(seatId);
+  }
+
+  Widget _bookingListener(SeatAvailability availability) {
+    ref.listen(bookingActionProvider, (_, state) {
+      if (!mounted) return;
+      final colors = ref.read(themeProvider.select((t) => t.colors));
+      if (state.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(state.error.toString()
+                .replaceFirst('MarketplaceBookingException: ', '')),
+            backgroundColor: colors.danger,
+          ),
+        );
+      } else if (state.hasValue && state.value != null) {
+        final result = state.value!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Booked ${result.seatIds.length} seat(s)! Ref: ${result.bookingRef}'),
+            backgroundColor: colors.accent,
+          ),
+        );
+        context.go('/marketplace/transit');
+      }
+    });
+    return const SizedBox.shrink();
+  }
+
+  Future<void> _bookSeats(SeatAvailability availability) async {
+    final selected = ref.read(selectedSeatsProvider);
+    final names = <String, String>{};
+    for (final id in selected) {
+      final text = _passengerNames[id]?.text.trim() ?? '';
+      if (text.isNotEmpty) names[id] = text;
+    }
+    await ref
+        .read(bookingActionProvider.notifier)
+        .bookSeats(widget.tripId, selected.toList(), passengerNames: names);
+  }
+
+  // ── build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -70,43 +143,94 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Text('Select Seats', style: TextStyle(color: colors.textPrimary)),
+        title: Text('Select Seats',
+            style: TextStyle(color: colors.textPrimary)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        actions: seatsAsync.valueOrNull != null ? [
-          IconButton(
-            tooltip: 'Reset zoom',
-            icon: Icon(Icons.center_focus_strong_rounded, color: colors.textSecondary),
-            onPressed: () => _transformController.value = Matrix4.identity(),
-          ),
-        ] : null,
+        actions: seatsAsync.valueOrNull != null
+            ? [
+                IconButton(
+                  tooltip: 'Reset zoom',
+                  icon: Icon(Icons.center_focus_strong_rounded,
+                      color: colors.textSecondary),
+                  onPressed: () =>
+                      _transformController.value = Matrix4.identity(),
+                ),
+              ]
+            : null,
       ),
-      bottomNavigationBar: seatsAsync.valueOrNull != null ? PremiumGlassContainer(
-        blur: 24, opacity: 0.08, borderRadius: 0,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), enableShadow: false,
-        border: Border(top: BorderSide(color: colors.divider, width: 0.5)),
-        child: SafeArea(child: Row(children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text('${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}', style: TextStyle(fontSize: 12, color: colors.textTertiary)),
-            Text('\$${_totalFare(seatsAsync.valueOrNull!, selectedSeats).toStringAsFixed(2)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colors.accent)),
-          ]),
-          const Spacer(),
-          GestureDetector(
-            onTap: (selectedSeats.isNotEmpty && !bookingState.isLoading) ? () => _bookSeats(seatsAsync.valueOrNull!) : null,
-            child: AnimatedContainer(
-              duration: 200.ms, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              decoration: BoxDecoration(
-                color: selectedSeats.isEmpty ? colors.card : colors.accent, borderRadius: BorderRadius.circular(14),
-                boxShadow: selectedSeats.isNotEmpty ? [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))] : null,
+      bottomNavigationBar: seatsAsync.valueOrNull != null
+          ? PremiumGlassContainer(
+              blur: 24,
+              opacity: 0.08,
+              borderRadius: 0,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              enableShadow: false,
+              border: Border(
+                  top: BorderSide(color: colors.divider, width: 0.5)),
+              child: SafeArea(
+                child: Row(children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                          '${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}',
+                          style: TextStyle(
+                              fontSize: 12, color: colors.textTertiary)),
+                      Text(
+                          '\$${_totalFare(seatsAsync.valueOrNull!, selectedSeats).toStringAsFixed(2)}',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: colors.accent)),
+                    ],
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: (selectedSeats.isNotEmpty &&
+                            !bookingState.isLoading)
+                        ? () => _bookSeats(seatsAsync.valueOrNull!)
+                        : null,
+                    child: AnimatedContainer(
+                      duration: 200.ms,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: selectedSeats.isEmpty
+                            ? colors.card
+                            : colors.accent,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: selectedSeats.isNotEmpty
+                            ? [
+                                BoxShadow(
+                                    color:
+                                        colors.accent.withOpacity(0.25),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4))
+                              ]
+                            : null,
+                      ),
+                      child: bookingState.isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colors.background))
+                          : Text('Book Now',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: selectedSeats.isEmpty
+                                      ? colors.textTertiary
+                                      : colors.background)),
+                    ),
+                  ),
+                ]),
               ),
-              child: bookingState.isLoading
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.background))
-                  : Text('Book Now', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
-                      color: selectedSeats.isEmpty ? colors.textTertiary : colors.background)),
-            ),
-          ),
-        ])),
-      ) : null,
+            )
+          : null,
       body: seatsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -115,12 +239,17 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
             children: [
               Icon(Icons.error_outline, size: 48, color: colors.danger),
               const SizedBox(height: 12),
-              Text(err.toString().replaceFirst('MarketplaceBookingException: ', ''),
+              Text(
+                  err
+                      .toString()
+                      .replaceFirst('MarketplaceBookingException: ', ''),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary)),
+                  style:
+                      TextStyle(color: colors.textSecondary)),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => ref.invalidate(seatAvailabilityProvider(widget.tripId)),
+                onPressed: () => ref
+                    .invalidate(seatAvailabilityProvider(widget.tripId)),
                 child: const Text('Retry'),
               ),
             ],
@@ -128,29 +257,34 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
         ),
         data: (availability) => Column(
           children: [
+            _bookingListener(availability),
+
             // Trip info header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               color: colors.surface,
-              child: Row(
-                children: [
-                  Icon(Icons.event_seat, color: colors.accent),
-                  const SizedBox(width: 8),
-                  Text('${availability.availableCount} of ${availability.totalSeats} available',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                  const Spacer(),
-                  Text(
-                    availability.tierFares.isEmpty
-                        ? '\$${availability.fareUsdc.toStringAsFixed(2)}/seat'
-                        : 'from \$${_minFare(availability).toStringAsFixed(2)}/seat',
-                    style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
+              child: Row(children: [
+                Icon(Icons.event_seat, color: colors.accent),
+                const SizedBox(width: 8),
+                Text(
+                    '${availability.availableCount} of ${availability.totalSeats} available',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary)),
+                const Spacer(),
+                Text(
+                  availability.tierFares.isEmpty
+                      ? '\$${availability.fareUsdc.toStringAsFixed(2)}/seat'
+                      : 'from \$${_minFare(availability).toStringAsFixed(2)}/seat',
+                  style: TextStyle(
+                      color: colors.accent,
+                      fontWeight: FontWeight.bold),
+                ),
+              ]),
             ),
 
-            // Pinch-to-zoom / pan seat map
+            // ── Pinch-to-zoom seat map ──────────────────────────────────
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -185,39 +319,58 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Passenger Names (optional)',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: colors.textPrimary, fontSize: 13)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                              fontSize: 13)),
                       const SizedBox(height: 8),
                       ...selectedSeats.map((seatId) {
-                        final seat = availability.seats.where((s) => s.seatId == seatId).firstOrNull;
+                        final seat = availability.seats
+                            .where((s) => s.seatId == seatId)
+                            .firstOrNull;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 56,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(seatId, style: TextStyle(fontWeight: FontWeight.bold, color: colors.accent)),
-                                    if (seat != null)
-                                      Text('\$${seat.fare.toStringAsFixed(0)}',
-                                          style: TextStyle(fontSize: 10, color: _tierColor(seat.tier))),
-                                  ],
-                                ),
+                          child: Row(children: [
+                            SizedBox(
+                              width: 56,
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(seatId,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: colors.accent)),
+                                  if (seat != null)
+                                    Text(
+                                        '\$${seat.fare.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: _tierColor(seat.tier))),
+                                ],
                               ),
-                              Expanded(
-                                child: TextField(
-                                  controller: _passengerNames.putIfAbsent(seatId, () => TextEditingController()),
-                                  decoration: InputDecoration(
-                                    hintText: 'Passenger name for seat $seatId',
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _passengerNames.putIfAbsent(
+                                    seatId,
+                                    () => TextEditingController()),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Passenger name for seat $seatId',
+                                  isDense: true,
+                                  border:
+                                      const OutlineInputBorder(),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
                                 ),
+                                style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 13),
                               ),
-                            ],
-                          ),
+                            ),
+                          ]),
                         );
                       }),
                     ],
@@ -225,86 +378,14 @@ class _TransitSeatSelectionScreenState extends ConsumerState<TransitSeatSelectio
                 ),
               ),
             ],
-
-            // Error message
-            if (bookingState.error != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                color: colors.danger.withOpacity(0.1),
-                child: Text(bookingState.error!,
-                    style: TextStyle(color: colors.danger, fontSize: 12)),
-              ),
-
-            // Success → navigate
-            if (bookingState.result != null)
-              _buildSuccessWidget(bookingState.result!, colors),
           ],
         ),
       ),
     );
   }
-
-  double _minFare(SeatAvailability availability) {
-    if (availability.tierFares.isEmpty) return availability.fareUsdc;
-    return availability.tierFares.values.reduce((a, b) => a < b ? a : b);
-  }
-
-  double _totalFare(SeatAvailability availability, Set<String> selected) {
-    double total = 0;
-    for (final id in selected) {
-      final seat = availability.seats.where((s) => s.seatId == id).firstOrNull;
-      total += seat?.fare ?? availability.fareUsdc;
-    }
-    return total;
-  }
-
-  void _onSeatTap(String seatId, SeatStatus status) {
-    if (status == SeatStatus.occupied || status == SeatStatus.blocked) return;
-    AzamanHaptics.toggle();
-    final current = ref.read(selectedSeatsProvider);
-    final next = Set<String>.from(current);
-    if (next.contains(seatId)) {
-      next.remove(seatId);
-      _passengerNames[seatId]?.dispose();
-      _passengerNames.remove(seatId);
-    } else {
-      next.add(seatId);
-    }
-    ref.read(selectedSeatsProvider.notifier).state = next;
-  }
-
-  Future<void> _bookSeats(SeatAvailability availability) async {
-    final selected = ref.read(selectedSeatsProvider);
-    final names = selected.map((s) => _passengerNames[s]?.text ?? '').toList();
-
-    await ref.read(bookingActionProvider.notifier).bookSeats(
-      tripId: widget.tripId,
-      seatIds: selected.toList(),
-      passengerNames: names,
-      businessProfileId: availability.tripId, // Note: BE uses tripId to look up biz
-    );
-  }
-
-  Widget _buildSuccessWidget(BookSeatResult result, dynamic colors) {
-    // Auto-navigate on next frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(selectedSeatsProvider.notifier).state = {};
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Booked ${result.seatIds.length} seat(s)! Ref: ${result.bookingRef}'),
-            backgroundColor: colors.accent,
-          ),
-        );
-        context.go('/marketplace/transit');
-      }
-    });
-    return const SizedBox.shrink();
-  }
 }
 
-// ── SEAT MAP GRID WIDGET ─────────────────────────────────────────────────────
+// ── SEAT MAP GRID ─────────────────────────────────────────────────────────────
 
 class _SeatMapGrid extends StatelessWidget {
   final List<TransitSeat> seats;
@@ -336,7 +417,8 @@ class _SeatMapGrid extends StatelessWidget {
       children: [
         // Driver indicator
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: colors.surface,
             borderRadius: BorderRadius.circular(8),
@@ -344,9 +426,12 @@ class _SeatMapGrid extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.airline_seat_recline_normal, color: colors.textSecondary, size: 20),
+              Icon(Icons.airline_seat_recline_normal,
+                  color: colors.textSecondary, size: 20),
               const SizedBox(width: 4),
-              Text('Driver', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              Text('Driver',
+                  style: TextStyle(
+                      color: colors.textSecondary, fontSize: 12)),
             ],
           ),
         ),
@@ -354,87 +439,107 @@ class _SeatMapGrid extends StatelessWidget {
 
         // Seat rows
         ...sortedRows.map((rowNum) {
-          final rowSeats = rowMap[rowNum]!..sort((a, b) => a.col.compareTo(b.col));
+          final rowSeats = rowMap[rowNum]!
+            ..sort((a, b) => a.col.compareTo(b.col));
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: _buildRowWithAisle(rowSeats, colors),
+              children:
+                  _buildRowWithAisle(rowSeats, selectedSeats),
             ),
           );
         }),
 
         const SizedBox(height: 24),
 
-        // Legend
+        // Legend — uses mini seat images instead of colour chips
         Wrap(
           alignment: WrapAlignment.center,
-          spacing: 16,
+          spacing: 20,
           runSpacing: 8,
           children: [
-            if (hasTiers) ...[
-              _legendItem(_tierColor(SeatTier.economy), 'Economy', colors),
-              _legendItem(_tierColor(SeatTier.standard), 'Standard', colors),
-              _legendItem(_tierColor(SeatTier.vip), 'VIP', colors),
-            ] else
-              _legendItem(_tierColor(SeatTier.economy), 'Available', colors),
-            _legendItem(colors.accent, 'Selected', colors),
-            _legendItem(Colors.grey, 'Occupied', colors),
+            _legendItem(
+                image: 'assets/images/unbooked.png',
+                label: hasTiers ? 'Economy' : 'Available',
+                colors: colors),
+            _legendItem(
+                color: _kSelectedPurple.withOpacity(0.8),
+                label: 'Selected',
+                colors: colors),
+            _legendItem(
+                image: 'assets/images/booked.png',
+                label: 'Occupied',
+                colors: colors),
             if (seats.any((s) => s.status == SeatStatus.blocked))
-              _legendItem(colors.danger, 'Blocked', colors),
+              _legendItem(
+                  color: colors.danger,
+                  label: 'Blocked',
+                  colors: colors),
           ],
         ),
       ],
     );
   }
 
-  List<Widget> _buildRowWithAisle(List<TransitSeat> rowSeats, dynamic colors) {
+  List<Widget> _buildRowWithAisle(
+      List<TransitSeat> rowSeats, Set<String> selectedSeats) {
     final widgets = <Widget>[];
     for (int i = 0; i < rowSeats.length; i++) {
       widgets.add(_SeatWidget(
         seat: rowSeats[i],
         isSelected: selectedSeats.contains(rowSeats[i].seatId),
         onTap: () => onSeatTap(rowSeats[i].seatId, rowSeats[i].status),
-        colors: colors,
       ));
-      // Add aisle gap between col 1 and 2 (or middle)
       if (i == 0 && rowSeats.length > 2) {
-        widgets.add(const SizedBox(width: 24));
+        // Aisle gap after the first seat
+        widgets.add(const SizedBox(width: 28));
       } else if (i < rowSeats.length - 1) {
-        widgets.add(const SizedBox(width: 8));
+        widgets.add(const SizedBox(width: 6));
       }
     }
     return widgets;
   }
 
-  Widget _legendItem(Color color, String label, dynamic colors) {
+  Widget _legendItem({
+    String? image,
+    Color? color,
+    required String label,
+    required dynamic colors,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 16, height: 16,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+        if (image != null)
+          Image.asset(image, width: 18, height: 18)
+        else
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4)),
+          ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(
+                color: colors.textSecondary, fontSize: 11)),
       ],
     );
   }
 }
 
-// ── INDIVIDUAL SEAT WIDGET ───────────────────────────────────────────────────
+// ── INDIVIDUAL SEAT WIDGET ────────────────────────────────────────────────────
 
 class _SeatWidget extends StatelessWidget {
   final TransitSeat seat;
   final bool isSelected;
   final VoidCallback onTap;
-  final dynamic colors;
 
   const _SeatWidget({
     required this.seat,
     required this.isSelected,
     required this.onTap,
-    required this.colors,
   });
 
   @override
@@ -443,51 +548,122 @@ class _SeatWidget extends StatelessWidget {
     final isBlocked = seat.status == SeatStatus.blocked;
     final isDisabled = isOccupied || isBlocked;
 
-    final baseColor = isOccupied
-        ? Colors.grey
-        : isBlocked
-            ? colors.danger
-            : _tierColor(seat.tier);
+    // ── Base seat image ───────────────────────────────────────────────
+    Widget seatImage;
 
-    // Tactile "physical button" treatment: every seat gets a soft resting
-    // shadow (so the map reads as a grid of raised chips, not flat boxes),
-    // selected seats lift further with a stronger tier-tinted glow, and
-    // booked/blocked seats are visibly flattened (no shadow, dimmed via
-    // Opacity) so they read as inert at a glance.
-    final content = GestureDetector(
-      onTap: isDisabled ? null : onTap,
-      child: Tooltip(
-        message: isOccupied
-            ? '${seat.seatId} — Occupied'
-            : isBlocked
-                ? '${seat.seatId} — Blocked'
-                : '${seat.seatId} — ${_tierLabel(seat.tier)} · \$${seat.fare.toStringAsFixed(0)}',
-        child: AnimatedContainer(
-          duration: 250.ms, curve: Curves.easeOutCubic, width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: isDisabled ? colors.divider : isSelected ? colors.accent : colors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDisabled ? Colors.transparent : isSelected ? colors.accent : baseColor.withOpacity(0.55),
-              width: isSelected ? 1.5 : 1,
-            ),
-            boxShadow: isDisabled
-                ? null
-                : isSelected
-                    ? [BoxShadow(color: colors.accent.withOpacity(0.35), blurRadius: 16, spreadRadius: 1, offset: const Offset(0, 5))]
-                    : [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 2))],
+    if (isOccupied) {
+      // Booked: show occupied silhouette, dimmed slightly
+      seatImage = Opacity(
+        opacity: 0.75,
+        child: Image.asset(
+          'assets/images/booked.png',
+          width: 50,
+          height: 50,
+          fit: BoxFit.contain,
+        ),
+      );
+    } else if (isSelected) {
+      // Selected: unbooked seat + purple tint overlay
+      seatImage = ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          _kSelectedPurple.withOpacity(0.50),
+          BlendMode.srcATop,
+        ),
+        child: Image.asset(
+          'assets/images/unbooked.png',
+          width: 50,
+          height: 50,
+          fit: BoxFit.contain,
+        ),
+      );
+    } else if (isBlocked) {
+      // Blocked: unbooked seat, heavily dimmed + red tint
+      seatImage = ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          Colors.red.withOpacity(0.55),
+          BlendMode.srcATop,
+        ),
+        child: Opacity(
+          opacity: 0.5,
+          child: Image.asset(
+            'assets/images/unbooked.png',
+            width: 50,
+            height: 50,
+            fit: BoxFit.contain,
           ),
-          child: Icon(
-            isOccupied ? Icons.close_rounded : isBlocked ? Icons.block_rounded : Icons.event_seat_rounded,
-            size: 18,
-            color: isDisabled ? colors.textTertiary : isSelected ? colors.background : baseColor,
-          ),
-        ).animate(target: isSelected ? 1 : 0)
-          .scale(begin: const Offset(1, 1), end: const Offset(1.15, 1.15), duration: 150.ms, curve: Curves.easeOutBack)
-          .then().scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 100.ms),
+        ),
+      );
+    } else {
+      // Available: clean unbooked seat
+      seatImage = Image.asset(
+        'assets/images/unbooked.png',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
+      );
+    }
+
+    // ── Seat label (id) overlaid below the image ──────────────────────
+    final seatLabel = Text(
+      seat.seatId,
+      style: TextStyle(
+        fontSize: 8,
+        fontWeight: FontWeight.w700,
+        color: isSelected
+            ? _kSelectedPurple
+            : isDisabled
+                ? Colors.grey
+                : _tierColor(seat.tier),
+        letterSpacing: 0.3,
       ),
     );
 
-    return isDisabled ? Opacity(opacity: 0.45, child: content) : content;
+    // ── Animate scale on selection ────────────────────────────────────
+    Widget child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        seatImage,
+        const SizedBox(height: 2),
+        seatLabel,
+      ],
+    );
+
+    child = child
+        .animate(target: isSelected ? 1.0 : 0.0)
+        .scale(
+          begin: const Offset(1, 1),
+          end: const Offset(1.12, 1.12),
+          duration: 140.ms,
+          curve: Curves.easeOutBack,
+        );
+
+    // ── Glow effect behind selected seat ─────────────────────────────
+    if (isSelected) {
+      child = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: _kSelectedPurple.withOpacity(0.40),
+              blurRadius: 14,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: child,
+      );
+    }
+
+    return Tooltip(
+      message: isOccupied
+          ? '${seat.seatId} — Occupied'
+          : isBlocked
+              ? '${seat.seatId} — Blocked'
+              : '${seat.seatId} — ${_tierLabel(seat.tier)} · \$${seat.fare.toStringAsFixed(0)}',
+      child: GestureDetector(
+        onTap: isDisabled ? null : onTap,
+        child: child,
+      ),
+    );
   }
 }
