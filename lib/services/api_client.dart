@@ -16,8 +16,36 @@ class ApiClient {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final http.Client _client = http.Client();
 
+  // Token refresh state — prevents concurrent refresh storms.
+  // Only one refresh call is in-flight at a time; all others wait for it.
+  bool _isRefreshing = false;
+  Future<bool>? _refreshFuture;
+
   /// Base API URL from configuration (resolved at runtime, not compile-time).
   static String get baseUrl => AppConfig.apiUrl;
+
+
+  // ── Retry-on-token-expired wrapper ─────────────────────────────────────────
+  // Executes [makeRequest], and if it throws ApiException with code
+  // TOKEN_EXPIRED (401), attempts a silent refresh then retries exactly once.
+  Future<http.Response> _executeWithRefresh(
+    Future<http.Response> Function() makeRequest,
+  ) async {
+    try {
+      return await makeRequest();
+    } on ApiException catch (e) {
+      if (e.statusCode == 401 && e.code == 'TOKEN_EXPIRED') {
+        final refreshed = await _tryRefreshToken();
+        if (refreshed) {
+          // One retry with the new access token.
+          return await makeRequest();
+        }
+        // Refresh failed — re-throw so the UI shows the login screen.
+        rethrow;
+      }
+      rethrow;
+    }
+  }
 
   /// Generic GET request with authentication
   Future<http.Response> get(
@@ -31,21 +59,16 @@ class ApiClient {
       ...?headers,
     };
 
-    if (requireAuth) {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
-        requestHeaders['Authorization'] = 'Bearer $token';
+    return _executeWithRefresh(() async {
+      if (requireAuth) {
+        final token = await _storage.read(key: 'auth_token');
+        if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-    }
-
-    final response = await _client
-        .get(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: requestHeaders,
-        )
-        .timeout(AppConfig.requestTimeout);
-
-    return _handleResponse(response);
+      final response = await _client
+          .get(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders))
+          .timeout(AppConfig.requestTimeout);
+      return _handleResponse(response);
+    });
   }
 
   /// Generic POST request with authentication
@@ -61,22 +84,17 @@ class ApiClient {
       ...?headers,
     };
 
-    if (requireAuth) {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
-        requestHeaders['Authorization'] = 'Bearer $token';
+    return _executeWithRefresh(() async {
+      if (requireAuth) {
+        final token = await _storage.read(key: 'auth_token');
+        if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-    }
-
-    final response = await _client
-        .post(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: requestHeaders,
-          body: jsonEncode(body),
-        )
-        .timeout(AppConfig.requestTimeout);
-
-    return _handleResponse(response);
+      final response = await _client
+          .post(Uri.parse('$baseUrl$endpoint'),
+              headers: Map.of(requestHeaders), body: jsonEncode(body))
+          .timeout(AppConfig.requestTimeout);
+      return _handleResponse(response);
+    });
   }
 
   /// Generic PUT request with authentication
@@ -92,22 +110,17 @@ class ApiClient {
       ...?headers,
     };
 
-    if (requireAuth) {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
-        requestHeaders['Authorization'] = 'Bearer $token';
+    return _executeWithRefresh(() async {
+      if (requireAuth) {
+        final token = await _storage.read(key: 'auth_token');
+        if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-    }
-
-    final response = await _client
-        .put(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: requestHeaders,
-          body: jsonEncode(body),
-        )
-        .timeout(AppConfig.requestTimeout);
-
-    return _handleResponse(response);
+      final response = await _client
+          .put(Uri.parse('$baseUrl$endpoint'),
+              headers: Map.of(requestHeaders), body: jsonEncode(body))
+          .timeout(AppConfig.requestTimeout);
+      return _handleResponse(response);
+    });
   }
 
   /// Generic PATCH request with authentication
@@ -123,22 +136,18 @@ class ApiClient {
       ...?headers,
     };
 
-    if (requireAuth) {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
-        requestHeaders['Authorization'] = 'Bearer $token';
+    return _executeWithRefresh(() async {
+      if (requireAuth) {
+        final token = await _storage.read(key: 'auth_token');
+        if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-    }
-
-    final response = await _client
-        .patch(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: requestHeaders,
-          body: body != null ? jsonEncode(body) : null,
-        )
-        .timeout(AppConfig.requestTimeout);
-
-    return _handleResponse(response);
+      final response = await _client
+          .patch(Uri.parse('$baseUrl$endpoint'),
+              headers: Map.of(requestHeaders),
+              body: body != null ? jsonEncode(body) : null)
+          .timeout(AppConfig.requestTimeout);
+      return _handleResponse(response);
+    });
   }
 
   /// Generic DELETE request with authentication
@@ -153,21 +162,16 @@ class ApiClient {
       ...?headers,
     };
 
-    if (requireAuth) {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
-        requestHeaders['Authorization'] = 'Bearer $token';
+    return _executeWithRefresh(() async {
+      if (requireAuth) {
+        final token = await _storage.read(key: 'auth_token');
+        if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-    }
-
-    final response = await _client
-        .delete(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: requestHeaders,
-        )
-        .timeout(AppConfig.requestTimeout);
-
-    return _handleResponse(response);
+      final response = await _client
+          .delete(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders))
+          .timeout(AppConfig.requestTimeout);
+      return _handleResponse(response);
+    });
   }
 
   /// Handle multipart/form-data requests for file uploads
@@ -175,17 +179,17 @@ class ApiClient {
     String endpoint,
     http.MultipartRequest request,
   ) async {
-    final token = await _storage.read(key: 'auth_token');
-    if (token != null) {
-      request.headers['Authorization'] = 'Bearer $token';
-    }
-
-    final streamedResponse = await request.send().timeout(
-      const Duration(seconds: 60), // Longer timeout for file uploads
-    );
-    final responseData = await http.Response.fromStream(streamedResponse);
-
-    return _handleResponse(responseData);
+    return _executeWithRefresh(() async {
+      final token = await _storage.read(key: 'auth_token');
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
+      final responseData = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(responseData);
+    });
   }
 
   /// Response handler with common error checking.
@@ -207,13 +211,15 @@ class ApiClient {
     }
 
     // Parse error from backend JSON body
-    String message = 'Request failed with status ${response.statusCode}';
+    String message = 'Request failed with status \${response.statusCode}';
     List<String>? errors;
+    String? code;
 
     try {
       final errorData = jsonDecode(response.body);
       if (errorData is Map<String, dynamic>) {
         message = errorData['message']?.toString() ?? message;
+        code    = errorData['code']?.toString();
         if (errorData['errors'] is List) {
           errors = List<String>.from(errorData['errors']);
         }
@@ -226,7 +232,62 @@ class ApiClient {
       message: message,
       statusCode: response.statusCode,
       errors: errors,
+      code: code,
     );
+  }
+
+  // ── Silent token refresh ────────────────────────────────────────────────────
+  // Called when a request gets a 401 TOKEN_EXPIRED. Tries to exchange the
+  // stored refresh token for a new access token via POST /auth/refresh.
+  // Returns true if refresh succeeded (caller should retry the original
+  // request), false if the refresh token itself is gone/expired (caller
+  // should navigate to login).
+  Future<bool> _tryRefreshToken() async {
+    // Collapse concurrent refresh attempts into a single in-flight call.
+    if (_isRefreshing && _refreshFuture != null) {
+      return _refreshFuture!;
+    }
+    _isRefreshing = true;
+    _refreshFuture = _doRefresh().whenComplete(() {
+      _isRefreshing = false;
+      _refreshFuture = null;
+    });
+    return _refreshFuture!;
+  }
+
+  Future<bool> _doRefresh() async {
+    try {
+      final refreshToken = await _storage.read(key: 'refresh_token');
+      if (refreshToken == null || refreshToken.isEmpty) return false;
+
+      final response = await _client
+          .post(
+            Uri.parse('\$baseUrl/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final newAccess  = (body['accessToken'] ?? body['token'])?.toString();
+        final newRefresh = body['refreshToken']?.toString();
+        if (newAccess == null || newAccess.isEmpty) return false;
+
+        await _storage.write(key: 'auth_token',    value: newAccess);
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          await _storage.write(key: 'refresh_token', value: newRefresh);
+        }
+        debugPrint('[ApiClient] Token silently refreshed.');
+        return true;
+      }
+      // Refresh token itself is expired/revoked — clear everything.
+      await clearAuth();
+      return false;
+    } catch (e) {
+      debugPrint('[ApiClient] Token refresh error: \$e');
+      return false;
+    }
   }
 
   /// Check if user is authenticated by validating token with backend
@@ -251,6 +312,7 @@ class ApiClient {
   Future<void> clearAuthData() async {
     await Future.wait([
       _storage.delete(key: 'auth_token'),
+      _storage.delete(key: 'refresh_token'),
       _storage.delete(key: 'user_id'),
       _storage.delete(key: 'user_role'),
     ]);
@@ -261,11 +323,13 @@ class ApiClient {
 class ApiException implements Exception {
   final String message;
   final int statusCode;
+  final String? code;
   final List<String>? errors;
 
   ApiException({
     required this.message,
     required this.statusCode,
+    this.code,
     this.errors,
   });
 

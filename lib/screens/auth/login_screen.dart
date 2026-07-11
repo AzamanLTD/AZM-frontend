@@ -132,7 +132,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           availableBalance: _d(u['availableBalance']),
         );
 
+        final refreshToken = (data['refreshToken'] ?? data['data']?['refreshToken'])?.toString();
         await _storage.write(key: 'auth_token', value: loggedInUser.token);
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _storage.write(key: 'refresh_token', value: refreshToken);
+        }
         await _storage.write(key: 'user_id', value: loggedInUser.id);
         await _storage.write(key: 'user_role', value: loggedInUser.role.toLowerCase());
 

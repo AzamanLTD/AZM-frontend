@@ -129,7 +129,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             availableBalance: _d(u['availableBalance']),
           );
 
+          final signupRefreshToken = (loginData['refreshToken'] ?? loginData['data']?['refreshToken'])?.toString();
           await _storage.write(key: 'auth_token', value: newUser.token);
+          if (signupRefreshToken != null && signupRefreshToken.isNotEmpty) {
+            await _storage.write(key: 'refresh_token', value: signupRefreshToken);
+          }
           await _storage.write(key: 'user_id', value: newUser.id);
           await _storage.write(key: 'user_role', value: newUser.role.toLowerCase());
 
