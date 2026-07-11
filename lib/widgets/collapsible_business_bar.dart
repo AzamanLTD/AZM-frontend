@@ -123,115 +123,271 @@ class CollapsibleBusinessBar extends ConsumerWidget {
     );
   }
 
-  // ── Collapsed bar ────────────────────────────────────────────────────────────
+
+  // ── Collapsed bar (screenshot aesthetic) ─────────────────────────────────────
   //
-  // Layout: [Logo 42px] | [Name / category dot + label + rating + distance] | [↓]
-  // Height: ~68px — slim, scannable, no buttons.
+  // Tall row with a large square-ish flush image on the left (no internal
+  // border-radius — outer card clips), bold business name, category label,
+  // rating, and a right chevron. Clean and scannable — matches the meal-list
+  // screenshot reference provided 2026-07-11.
+  //
+  // Height: 88px — noticeably taller than the old 68px so the image has room.
 
   Widget _collapsedBar(
       BuildContext context, AzamanColors colors, BusinessCategory cat) {
+    final coverUrl = _bestCoverUrl(cat);
     return GestureDetector(
       onTap: () {
         AzamanHaptics.toggle();
         onToggle();
       },
       behavior: HitTestBehavior.opaque,
-      child: PremiumGlassContainer(
-        blur: 16,
-        // Subtle per-business tint so the feed doesn't read as one flat
-        // repeated block — derived deterministically from the category
-        // color + business id so it never flickers/reshuffles on rebuild.
-        opacity: _collapsedTintOpacity(),
-        tintColor: business.adAccentColorValue ?? cat.color,
-        borderRadius: 16,
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: EdgeInsets.zero,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Business photo — flush to the card's left/top/bottom edges
-              // (no bezel, no circle). PremiumGlassContainer already clips
-              // its child to `borderRadius`, so this automatically picks up
-              // rounded top-left/bottom-left corners and a clean square-cut
-              // right edge where it meets the text content.
-              _ExpandableProfilePic(business: business, cat: cat, width: 76),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(business.businessName,
-                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
-                                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ),
-                                const SizedBox(width: 6),
-                                _BookmarkToggle(bizId: business.bizId, colors: colors),
-                                if (business.isVerified) ...[
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.verified_rounded, size: 14, color: colors.accent),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                AnimatedRatingStars(rating: business.averageRating, size: 11, filledColor: colors.accent, emptyColor: colors.divider),
-                                if (business.averageRating > 0) ...[
-                                  const SizedBox(width: 4),
-                                  Text(business.averageRating.toStringAsFixed(1),
-                                    style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w600)),
-                                ],
-                                const SizedBox(width: 8),
-                                // Store/category icon now sits between rating and type label.
-                                Icon(cat.icon, size: 12, color: cat.color),
-                                const SizedBox(width: 3),
-                                Text(cat.label,
-                                  style: TextStyle(fontSize: 11, color: colors.textTertiary)),
-                              ],
-                            ),
-                          ],
-                        ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+        height: 90,
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: colors.isDark ? 0.22 : 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Left image tile (88×88) ───────────────────────────────────
+            Stack(
+              children: [
+                SizedBox(
+                  width: 90,
+                  height: double.infinity,
+                  child: coverUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => _imgPlaceholder(cat),
+                          errorWidget: (_, __, ___) => _imgPlaceholder(cat),
+                        )
+                      : _imgPlaceholder(cat),
+                ),
+                // Category colour label overlay at bottom-left
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                    color: cat.color.withValues(alpha: 0.82),
+                    child: Text(
+                      cat.label.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
                       ),
-                      AnimatedRotation(
-                        turns: isExpanded ? 0.25 : 0,
-                        duration: 300.ms, curve: Curves.easeOutCubic,
-                        child: Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 22),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
+              ],
+            ),
+            // ── Text content ──────────────────────────────────────────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Name + bookmark
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            business.businessName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: colors.textPrimary,
+                              height: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _BookmarkToggle(bizId: business.bizId, colors: colors),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Subtitle row: rating stars + verified
+                    Row(
+                      children: [
+                        if (business.averageRating > 0) ...[
+                          AnimatedRatingStars(
+                            rating: business.averageRating,
+                            size: 11,
+                            filledColor: const Color(0xFFF59E0B),
+                            emptyColor: colors.divider,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            business.averageRating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        if (business.isVerified)
+                          Icon(Icons.verified_rounded,
+                              size: 13, color: colors.accent),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    // Description preview or vertical stat
+                    Text(
+                      _subtitleLine(),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colors.textTertiary,
+                        height: 1.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            // ── Chevron ───────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Center(
+                child: AnimatedRotation(
+                  turns: isExpanded ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(Icons.chevron_right_rounded,
+                      color: colors.textTertiary, size: 22),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Deterministic subtle tint strength (0.035–0.075) per business, so the
-  // collapsed feed shows gentle variation between cards instead of every
-  // row reading as the exact same flat glass tone. Same business always
-  // gets the same tint (stable across rebuilds/scroll).
-  //
-  // Businesses can override WHICH color is tinted via adAccentColor (set
-  // from the business portal, 2026-07-06) — this only controls the
-  // strength/opacity, which stays category-derived either way so a
-  // custom-colored card doesn't suddenly look garish.
-  double _collapsedTintOpacity() {
-    final hash = business.bizId.codeUnits.fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7FFFFFFF);
-    return 0.035 + (hash % 100) / 100 * 0.04;
+  /// Best image for the collapsed tile — prefers a real Unsplash cover seeded
+  /// per category, falls back to logoUrl, then null.
+  String? _bestCoverUrl(BusinessCategory cat) {
+    // Use showcaseUrls first (set by portal), then logoUrl.
+    if (business.showcaseUrls.isNotEmpty) return business.showcaseUrls.first;
+    if (business.logoUrl != null && business.logoUrl!.isNotEmpty) {
+      return business.logoUrl;
+    }
+    // Per-category Unsplash fallback — deterministic by bizId hash so each
+    // business always gets the same image but different businesses in the
+    // same category look varied.
+    final fallbacks = _categoryFallbacks(cat);
+    if (fallbacks.isEmpty) return null;
+    final idx = business.bizId.codeUnits
+        .fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7FFFFFFF) %
+        fallbacks.length;
+    return fallbacks[idx];
   }
 
-  // ── Expanded card ────────────────────────────────────────────────────────────
+  String _subtitleLine() {
+    if (business.description != null && business.description!.isNotEmpty) {
+      return business.description!;
+    }
+    return _verticalStat() ??
+        BusinessCategories.fromWire(business.category).label;
+  }
+
+  Widget _imgPlaceholder(BusinessCategory cat) => Container(
+        color: cat.color.withValues(alpha: 0.12),
+        child: Center(
+          child: Icon(cat.icon, size: 34, color: cat.color.withValues(alpha: 0.5)),
+        ),
+      );
+
+  /// Per-category Unsplash image pool (real food/product/venue photos, no emoji).
+  static List<String> _categoryFallbacks(BusinessCategory cat) {
+    const food = [
+      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80',
+      'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80',
+      'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=80',
+      'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80',
+      'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&q=80',
+    ];
+    const retail = [
+      'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80',
+      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&q=80',
+      'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80',
+    ];
+    const hotel = [
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80',
+      'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80',
+      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80',
+    ];
+    const transit = [
+      'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&q=80',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
+      'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&q=80',
+    ];
+    const realestate = [
+      'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&q=80',
+      'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&q=80',
+      'https://images.unsplash.com/photo-1449844908441-8829872d2607?w=400&q=80',
+    ];
+    const tech = [
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80',
+      'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=400&q=80',
+      'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&q=80',
+    ];
+    const health = [
+      'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80',
+      'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400&q=80',
+    ];
+    const edu = [
+      'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&q=80',
+      'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&q=80',
+    ];
+    const entertainment = [
+      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80',
+      'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=80',
+    ];
+    const generic = [
+      'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400&q=80',
+      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&q=80',
+    ];
+
+    return switch (cat.wire) {
+      'FOOD_BEVERAGE'             => food,
+      'RETAIL'                    => retail,
+      'HOSPITALITY'               => hotel,
+      'LOGISTICS'                 => transit,
+      'REAL_ESTATE'               => realestate,
+      'TECHNOLOGY'                => tech,
+      'HEALTH_WELLNESS'           => health,
+      'EDUCATION'                 => edu,
+      'ENTERTAINMENT'             => entertainment,
+      _                           => generic,
+    };
+  }
+
+
+    // ── Expanded card ────────────────────────────────────────────────────────────
   //
   // Layout (top→bottom):
   //   Cover photo 150px (with collapse button + name overlay at bottom)
@@ -391,9 +547,12 @@ class CollapsibleBusinessBar extends ConsumerWidget {
               ),
             ),
 
+            // ── Squircle avatar — overlaps cover/details seam ────────
+            _ExpandedAvatar(business: business, cat: cat, colors: colors),
+
             // ── Details section ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -758,3 +917,113 @@ class _ExpandableProfilePic extends StatelessWidget {
     );
   }
 }
+
+// =============================================================================
+// _ExpandedAvatar — squircle profile picture that spans the seam between the
+// cover photo and the details section in the expanded card. Mirrors the
+// FeaturedBusinessCard avatar style but uses ContinuousRectangleBorder (the
+// same squircle shape used by StoryRing) instead of a circle clip.
+// =============================================================================
+class _ExpandedAvatar extends StatelessWidget {
+  final BusinessProfile business;
+  final BusinessCategory cat;
+  final AzamanColors colors;
+
+  const _ExpandedAvatar({
+    required this.business,
+    required this.cat,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 52;
+    final hasPic =
+        business.logoUrl != null && business.logoUrl!.isNotEmpty;
+
+    return Transform.translate(
+      // Pull the avatar up so it overlaps the bottom of the cover photo.
+      offset: const Offset(0, 0),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+        child: Row(
+          children: [
+            // Squircle avatar
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.card, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipPath(
+                clipper: ShapeBorderClipper(
+                  shape: ContinuousRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: hasPic
+                    ? CachedNetworkImage(
+                        imageUrl: business.logoUrl!,
+                        fit: BoxFit.cover,
+                        width: size,
+                        height: size,
+                        placeholder: (_, __) => _placeholder(),
+                        errorWidget: (_, __, ___) => _placeholder(),
+                      )
+                    : _placeholder(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Business name beside the avatar
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    business.businessName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: colors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (business.description != null &&
+                      business.description!.isNotEmpty)
+                    Text(
+                      business.description!,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colors.textTertiary,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        color: cat.color.withOpacity(0.12),
+        child:
+            Center(child: Icon(cat.icon, size: 24, color: cat.color)),
+      );
+}
+

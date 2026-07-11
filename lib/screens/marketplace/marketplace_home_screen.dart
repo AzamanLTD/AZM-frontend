@@ -1435,7 +1435,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                 ),
               ],
             ),
-            // Avatar overlapping the bottom edge of the cover image
+            // Avatar — squircle (matches chat story rings)
             Positioned(
               left: 14,
               top: 118 - 24,
@@ -1444,10 +1444,15 @@ class _FeaturedBusinessCard extends StatelessWidget {
                 padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
                   color: colors.card,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
-                child: ClipOval(
+                child: ClipPath(
+                  clipper: ShapeBorderClipper(
+                    shape: ContinuousRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   child: business.logoUrl != null
                       ? CachedNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
                       : Container(
