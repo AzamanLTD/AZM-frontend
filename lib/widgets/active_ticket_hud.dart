@@ -1,40 +1,37 @@
 // =============================================================================
-// ACTIVE TICKET HUD  (2026-07-11)
+// ACTIVE TICKET HUD  (2026-07-11 v2)
 //
-// A draggable vertical pill that floats on the right edge of the chat screen
-// whenever there is at least one open ticket in the friendship.
+// A draggable side-tag on the RIGHT edge of the chat screen — directly modelled
+// after VendorPullTab in vendor_pull_tab.dart.
 //
-// Behaviour:
-//   • Positioned on the right edge, vertically draggable (Y-axis only)
-//   • Tapping it opens a compact bottom sheet showing the active ticket details
-//   • Hidden automatically when there are no open tickets
+// DRAG BEHAVIOUR (mirrors VendorPullTab exactly):
+//   • User drags LEFT (toward the screen) — tab slides out from the right
+//   • Past 50% screen width → heavy haptic + opens ticket immediately
+//   • Released before threshold → elastic snap-back (Curves.elasticOut)
+//   • Single listener installed in initState (no per-drag addListener leak)
+//   • Also vertically draggable along the right edge (Y-axis clamped)
 //
-// Usage — wrap the chat screen body in a Stack, then add this widget:
+// VISUAL:
+//   • Amber vertical pill with lock icon + rotated 'ACTIVE DEAL' text
+//   • Idle: slow floating oscillation (same as VendorPullTab's bobbing)
+//   • Dragging: oscillation paused, thumb stretches slightly
 //
-//   Stack(
-//     children: [
-//       ChatBody(...),
-//       ActiveTicketHud(
-//         tickets: openTickets,
-//         peerName: widget.contactName,
-//         onTap: _openTicketWorkspace,
-//       ),
-//     ],
-//   )
+// When there are multiple open tickets, dragging past threshold opens a
+// compact bottom-sheet picker instead of jumping straight to one workspace.
 // =============================================================================
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'package:azaman/services/ticket_service.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/ticket_service.dart';
 
 class ActiveTicketHud extends ConsumerStatefulWidget {
   final List<Ticket> tickets;
   final String peerName;
-
-  /// Called when the user taps the HUD or selects a ticket from the sheet.
   final ValueChanged<Ticket> onTap;
 
   const ActiveTicketHud({
@@ -49,48 +46,127 @@ class ActiveTicketHud extends ConsumerStatefulWidget {
 }
 
 class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
-    with SingleTickerProviderStateMixin {
-  // Vertical offset from top of the safe area (initialised in build to 35% of screen)
-  double? _topOffset;
-  bool _initialised = false;
+    with TickerProviderStateMixin {
+  // ── Float (idle bob) ───────────────────────────────────────────────────────
+  late final AnimationController _floatCtrl;
+  late final Animation<double> _floatAnim;
 
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulseAnim;
+  // ── Snap-back (elastic return after release) ───────────────────────────────
+  late final AnimationController _snapCtrl;
+  Animation<double> _snapAnim; // reassigned per drag-end (same pattern as VendorPullTab)
+  late final VoidCallback _snapListener;
+
+  // ── Drag state ─────────────────────────────────────────────────────────────
+  double _dragX = 0; // how far LEFT the tab has been pulled (0 = flush to edge)
+  bool _isDragging = false;
+  bool _passedThreshold = false;
+
+  // ── Vertical position ──────────────────────────────────────────────────────
+  double? _topOffset;
+
+  _ActiveTicketHudState() : _snapAnim = const AlwaysStoppedAnimation(0);
 
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(
+
+    // Idle float
+    _floatCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    _floatAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
+      CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut),
     );
+
+    // Snap-back — listener installed ONCE (avoids the leak VendorPullTab docs warn about)
+    _snapCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _snapAnim = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut),
+    );
+    _snapListener = () {
+      if (mounted) setState(() => _dragX = _snapAnim.value);
+    };
+    _snapCtrl.addListener(_snapListener);
   }
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
+    _floatCtrl.dispose();
+    _snapCtrl.removeListener(_snapListener);
+    _snapCtrl.dispose();
     super.dispose();
   }
 
-  void _onPanUpdate(DragUpdateDetails d, double maxTop) {
+  // ── Drag handlers ──────────────────────────────────────────────────────────
+
+  void _onDragStart(DragStartDetails _) {
+    _floatCtrl.stop();
     setState(() {
-      _topOffset = ((_topOffset ?? 200) + d.delta.dy)
+      _isDragging = true;
+      _passedThreshold = false;
+    });
+  }
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    final sw = MediaQuery.of(context).size.width;
+    // Dragging LEFT = negative dx → we invert to make _dragX positive
+    setState(() {
+      _dragX = (_dragX - d.delta.dx).clamp(0.0, sw);
+      if (_dragX > sw * 0.5 && !_passedThreshold) {
+        _passedThreshold = true;
+        HapticFeedback.heavyImpact();
+      }
+    });
+  }
+
+  void _onDragEnd(DragEndDetails _) {
+    final sw = MediaQuery.of(context).size.width;
+    if (_passedThreshold) {
+      // Commit — navigate
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _dragX = 0;
+        _isDragging = false;
+        _passedThreshold = false;
+      });
+      _floatCtrl.repeat(reverse: true);
+      _openDestination();
+    } else {
+      // Snap back with elastic
+      HapticFeedback.lightImpact();
+      _snapAnim = Tween<double>(begin: _dragX, end: 0).animate(
+        CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut),
+      );
+      _snapCtrl.forward(from: 0).then((_) {
+        if (mounted) setState(() => _dragX = 0);
+      });
+      setState(() {
+        _isDragging = false;
+        _passedThreshold = false;
+      });
+      _floatCtrl.repeat(reverse: true);
+    }
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails d) {
+    final mq = MediaQuery.of(context);
+    final maxTop = mq.size.height - mq.padding.bottom - 120.0;
+    setState(() {
+      _topOffset = ((_topOffset ?? mq.size.height * 0.35) + d.delta.dy)
           .clamp(0.0, maxTop);
     });
   }
 
-  void _showSheet(BuildContext context) {
-    HapticFeedback.mediumImpact();
-    final colors = ref.read(themeProvider).colors;
-
+  void _openDestination() {
     if (widget.tickets.length == 1) {
       widget.onTap(widget.tickets.first);
       return;
     }
-
+    final colors = ref.read(themeProvider).colors;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -103,70 +179,46 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
     );
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (widget.tickets.isEmpty) return const SizedBox.shrink();
 
     final mq = MediaQuery.of(context);
-    final screenH = mq.size.height;
-    if (!_initialised) {
-      _topOffset = screenH * 0.35;
-      _initialised = true;
-    }
-    final maxTop = screenH - mq.padding.bottom - 120.0;
+    _topOffset ??= mq.size.height * 0.35;
+
+    // Tab visual width (flush to right edge, pulled LEFT by _dragX)
+    const tabWidth = 28.0;
 
     return Positioned(
-      top: _topOffset!,
-      right: 0,
+      top: _topOffset,
+      right: -_dragX, // negative = moves left as _dragX grows
       child: GestureDetector(
-        onPanUpdate: (d) => _onPanUpdate(d, maxTop),
-        onTap: () => _showSheet(context),
+        onHorizontalDragStart: _onDragStart,
+        onHorizontalDragUpdate: _onDragUpdate,
+        onHorizontalDragEnd: _onDragEnd,
+        onVerticalDragUpdate: _onVerticalDragUpdate,
         child: AnimatedBuilder(
-          animation: _pulseAnim,
-          builder: (_, child) => Transform.scale(
-            alignment: Alignment.centerRight,
-            scale: _pulseAnim.value,
-            child: child,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B), // amber — "active deal" signal
-              borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(16)),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  spreadRadius: -2,
-                  offset: const Offset(-2, 0),
-                ),
-              ],
-            ),
-            padding:
-                const EdgeInsets.only(left: 10, right: 6, top: 12, bottom: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_rounded,
-                    color: Color(0xFF0E1116), size: 16),
-                const SizedBox(height: 6),
-                // Rotated "DEAL" label
-                RotatedBox(
-                  quarterTurns: 1,
-                  child: Text(
-                    widget.tickets.length == 1
-                        ? 'ACTIVE DEAL'
-                        : '${widget.tickets.length} DEALS',
-                    style: const TextStyle(
-                      color: Color(0xFF0E1116),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          animation: Listenable.merge([_floatAnim, _snapCtrl]),
+          builder: (_, child) {
+            final floatOffset =
+                _isDragging ? 0.0 : _floatAnim.value;
+            final scaleX =
+                1.0 + (_dragX / (mq.size.width * 2)).clamp(0.0, 0.15);
+            return Transform.translate(
+              offset: Offset(0, floatOffset),
+              child: Transform.scale(
+                alignment: Alignment.centerRight,
+                scaleX: scaleX,
+                child: child,
+              ),
+            );
+          },
+          child: _TabBody(
+            count: widget.tickets.length,
+            dragProgress:
+                (_dragX / (MediaQuery.of(context).size.width * 0.5))
+                    .clamp(0.0, 1.0),
           ),
         ),
       ),
@@ -174,7 +226,63 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
   }
 }
 
-// ── Bottom sheet shown when there are multiple active tickets ─────────────────
+// ── Tab body (the pill itself) ────────────────────────────────────────────────
+class _TabBody extends StatelessWidget {
+  final int count;
+  final double dragProgress; // 0–1
+  const _TabBody({required this.count, required this.dragProgress});
+
+  static const _amber = Color(0xFFF59E0B);
+  static const _dark = Color(0xFF0E1116);
+
+  @override
+  Widget build(BuildContext context) {
+    // Tab glows brighter as user pulls more
+    final glowOpacity = 0.25 + dragProgress * 0.5;
+    return Container(
+      decoration: BoxDecoration(
+        color: _amber,
+        borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+        boxShadow: [
+          BoxShadow(
+            color: _amber.withValues(alpha: glowOpacity),
+            blurRadius: 18 + dragProgress * 12,
+            spreadRadius: -2,
+            offset: const Offset(-4, 0),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.only(left: 8, right: 4, top: 14, bottom: 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            dragProgress > 0.4
+                ? Icons.arrow_back_ios_rounded
+                : Icons.lock_rounded,
+            color: _dark,
+            size: 14,
+          ),
+          const SizedBox(height: 6),
+          RotatedBox(
+            quarterTurns: 1,
+            child: Text(
+              count == 1 ? 'ACTIVE DEAL' : '$count DEALS',
+              style: const TextStyle(
+                color: _dark,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Multi-ticket picker sheet ─────────────────────────────────────────────────
 class _TicketPickerSheet extends StatelessWidget {
   final AzamanColors colors;
   final List<Ticket> tickets;
@@ -205,7 +313,6 @@ class _TicketPickerSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Center(
             child: Container(
               width: 40,
@@ -219,7 +326,7 @@ class _TicketPickerSheet extends StatelessWidget {
           ),
           Row(
             children: [
-              Icon(Icons.lock_rounded, color: const Color(0xFFF59E0B), size: 18),
+              const Icon(Icons.lock_rounded, color: Color(0xFFF59E0B), size: 18),
               const SizedBox(width: 8),
               Text(
                 'Active Deals with $peerName',
