@@ -9,6 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
+import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
+import 'package:azaman/providers/ticket_provider.dart';
+import 'package:azaman/services/ticket_service.dart';
+import 'package:azaman/widgets/chat_money_card.dart';
+import 'package:azaman/widgets/active_ticket_hud.dart';
+import 'package:azaman/services/pdf_receipt_service.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -826,54 +832,80 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // ── Fetch open tickets for this friendship (for the HUD) ────────────────
+    final ticketState = ref.watch(ticketDashboardProvider(widget.chatId));
+    final openTickets = ticketState.openTickets;
+
     return Scaffold(
       backgroundColor: colors.background,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(colors),
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2))
-                : _messages.isEmpty
-                    ? _buildEmptyChat(colors)
-                    : ListView.builder(
-                        controller: _scrollController,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, i) {
-                          final msg = _messages[i];
-                          return Dismissible(
-                            key: ValueKey('reply_${msg.id}'),
-                            direction: DismissDirection.startToEnd,
-                            confirmDismiss: (dir) async {
-                              _triggerReply(msg);
-                              return false; // Snaps back, does not delete
+          Column(
+            children: [
+              _buildHeader(colors),
+              Expanded(
+                child: _isLoading
+                    ? Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2))
+                    : _messages.isEmpty
+                        ? _buildEmptyChat(colors)
+                        : ListView.builder(
+                            controller: _scrollController,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, i) {
+                              final msg = _messages[i];
+                              return Dismissible(
+                                key: ValueKey('reply_\${msg.id}'),
+                                direction: DismissDirection.startToEnd,
+                                confirmDismiss: (dir) async {
+                                  _triggerReply(msg);
+                                  return false; // Snaps back, does not delete
+                                },
+                                background: Container(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 16),
+                                  child: Icon(Icons.reply, color: colors.accent, size: 20),
+                                ),
+                                child: Column(
+                                  children: [
+                                    if (_shouldShowDateHeader(i))
+                                      _buildDateHeader(msg.createdAt, colors),
+                                    if (msg.type == 'crypto')
+                                      _transactionBubble(msg, colors)
+                                    else if (msg.type == 'image' && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
+                                      _slantedStackBubble(msg, colors)
+                                    else
+                                      _textBubble(msg, colors),
+                                  ],
+                                ),
+                              );
                             },
-                            background: Container(
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.only(left: 16),
-                              child: Icon(Icons.reply, color: colors.accent, size: 20),
-                            ),
-                            child: Column(
-                              children: [
-                                if (_shouldShowDateHeader(i))
-                                  _buildDateHeader(msg.createdAt, colors),
-                                if (msg.type == 'crypto')
-                                  _transactionBubble(msg, colors)
-                                else if (msg.type == 'image' && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
-                                  _slantedStackBubble(msg, colors)
-                                else
-                                  _textBubble(msg, colors),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                          ),
+              ),
+              
+              if (_isTyping) _buildTypingDots(colors),
+              _buildInputBar(colors),
+            ],
           ),
-          
-          if (_isTyping) _buildTypingDots(colors),
-          _buildInputBar(colors),
+
+          // ── Active Ticket HUD — draggable right-edge indicator ────────────
+          if (openTickets.isNotEmpty)
+            ActiveTicketHud(
+              tickets: openTickets,
+              peerName: widget.contactName,
+              onTap: (ticket) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TicketWorkspaceScreen(
+                      ticketId: ticket.id,
+                      friendUsername: widget.contactName,
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1282,73 +1314,39 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
   }
 
   Widget _transactionBubble(PersonalChatMessage msg, AzamanColors colors) {
-    final isMe = msg.isMe;
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.divider, width: 0.8),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: colors.accent.withOpacity(0.12),
-                  radius: 16,
-                  child: Icon(HugeIconsSolid.exchange01, color: colors.accent, size: 16),
-                ),
-                const SizedBox(width: 10),
-                Text('AZM Transfer', style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: (msg.cryptoCompleted ? colors.success : colors.danger).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    msg.cryptoCompleted ? 'Completed' : 'Failed',
-                    style: TextStyle(color: msg.cryptoCompleted ? colors.success : colors.danger, fontSize: 9, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${msg.cryptoAmount?.toStringAsFixed(2)} AZM',
-              style: TextStyle(color: colors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              isMe ? 'Sent to ${widget.contactName}' : 'Received from ${widget.contactName}',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
-            ),
-            const SizedBox(height: 10),
-            Divider(height: 1, color: colors.divider),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  _formatMessageTime(msg.createdAt),
-                  style: TextStyle(color: colors.textTertiary, fontSize: 10),
-                ),
-                const Spacer(),
-                Icon(Icons.shield_outlined, color: colors.success, size: 12),
-                const SizedBox(width: 4),
-                Text('Secured by Azaman', style: TextStyle(color: colors.success, fontSize: 10, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final currentUser = ref.read(authProvider).user;
+    final myAzmId = currentUser?.azamanId ?? '';
+
+    return ChatMoneyCard(
+      amount: msg.cryptoAmount ?? 0,
+      currency: msg.cryptoCurrency ?? 'USDC',
+      isMe: msg.isMe,
+      contactName: widget.contactName,
+      status: msg.cryptoCompleted ? 'completed' : 'failed',
+      isRequest: false,
+      reference: msg.id,
+      memo: msg.text.contains('Sent') || msg.text.contains('Received') ? null : msg.text,
+      timestamp: msg.createdAt,
+      onDownloadReceipt: msg.cryptoCompleted ? () async {
+        try {
+          await PdfReceiptService.instance.shareTransferReceipt(
+            referenceId: msg.id,
+            amount: msg.cryptoAmount ?? 0,
+            currency: msg.cryptoCurrency ?? 'USDC',
+            fromAzmId: msg.isMe ? myAzmId : widget.contactAzamanId,
+            toName: msg.isMe ? widget.contactName : 'You',
+            toAzmId: msg.isMe ? widget.contactAzamanId : myAzmId,
+            timestamp: msg.createdAt,
+            completed: msg.cryptoCompleted,
+          );
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not generate receipt: \$e')),
+            );
+          }
+        }
+      } : null,
     );
   }
 
@@ -1689,56 +1687,20 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
   }
 
   void _showEscrowInstructions() {
-    final colors = ref.read(themeProvider).colors;
+    // Open the premium ticket create sheet directly.
+    // The old multi-step "how escrow works" screen is replaced by
+    // the inline escrow toggle in the new TicketCreateSheet.
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (_, scrollCtrl) => Container(
-          decoration: BoxDecoration(color: colors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-          padding: const EdgeInsets.all(24),
-          child: ListView(
-            controller: scrollCtrl,
-            children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: colors.textTertiary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              Text('How Escrow Works', style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              _escrowStep(colors, '1', 'Agree Terms', 'Both parties confirm the deal details in the ticket.'),
-              _escrowStep(colors, '2', 'Buyer Funds Escrow', 'The buyer locks funds using the Initiate Escrow button. Funds are held securely.'),
-              _escrowStep(colors, '3', 'Seller Delivers', 'The seller fulfils the agreed service or delivers the goods.'),
-              _escrowStep(colors, '4', 'Automatic Release', 'Once the buyer confirms delivery, funds are released. Disputes trigger admin review.'),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => Padding(
-                        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 40),
-                        child: TicketCreateSheet(friendshipId: widget.chatId),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text('Initiate Escrow Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ),
-              ),
-            ],
-          ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(ctx).padding.top + 40,
+        ),
+        child: TicketCreateSheet(
+          friendshipId: widget.chatId,
+          peerName: widget.contactName,
         ),
       ),
     );

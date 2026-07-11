@@ -644,6 +644,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                 backgroundColor: Colors.transparent,
                 builder: (_) => TicketCreateSheet(
                   friendshipId: widget.friendshipId,
+                  peerName: widget.friendUsername,
                 ),
               );
             },
