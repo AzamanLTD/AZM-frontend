@@ -28,6 +28,8 @@ import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/ticket_service.dart';
+import 'package:azaman/widgets/chat_money_card.dart';
+
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
@@ -789,6 +791,39 @@ class _Bubble extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: ChatMediaBubble(payload: payload, isMe: isMe),
+        ),
+      );
+    }
+
+
+    // TRANSFER messages render as premium ChatMoneyCards
+    final isTransfer = const {
+      'TRANSFER_SENT',
+      'TRANSFER_REQUEST',
+      'TRANSFER_COMPLETED',
+      'TRANSFER_DECLINED'
+    }.contains(msg.type);
+
+    if (isTransfer) {
+      final amt = (msg.metadata?['amount'] as num?)?.toDouble() ?? 0.0;
+      final cur = msg.metadata?['currency']?.toString() ?? 'USDC';
+      final isRequest = msg.type == 'TRANSFER_REQUEST';
+      // If we don't have senderUsername, we can fall back to 'Unknown' or ''
+      final contactName = msg.sender?['username']?.toString() ?? '';
+      
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: ChatMoneyCard(
+          amount: amt,
+          currency: cur,
+          isMe: isMe,
+          contactName: contactName,
+          status: msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
+          isRequest: isRequest,
+          reference: msg.metadata?['reference']?.toString(),
+          memo: msg.content,
+          timestamp: msg.createdAt,
+          skinId: msg.metadata?['cardSkin']?.toString(),
         ),
       );
     }

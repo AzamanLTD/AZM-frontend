@@ -8,7 +8,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
-import 'package:azaman/widgets/peer_transfer_card.dart';
+import 'package:azaman/widgets/chat_money_card.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 /// Callback typedef for swipe-to-reply gesture.
@@ -306,10 +306,21 @@ class _State extends ConsumerState<PremiumMessageBubble>
               _AvatarChip(username: msg.senderUsername ?? '?', avatarUrl: msg.senderAvatar, colors: c),
               const SizedBox(width: 6),
             ],
-            PeerTransferCard(
-              message: msg,
+            ChatMoneyCard(
+              amount: msg.amount ?? 0.0,
+              currency: msg.currency ?? 'USDC',
               isMe: _isMe,
-              onTapRequest: msg.kind == MessageKind.transferRequest
+              contactName: !_isMe ? (msg.senderUsername ?? 'Unknown') : '',
+              status: msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
+              isRequest: msg.kind == MessageKind.transferRequest,
+              reference: msg.metadata?['reference']?.toString(),
+              memo: msg.text.isNotEmpty ? msg.text : null,
+              timestamp: msg.timestamp,
+              skinId: msg.metadata?['cardSkin']?.toString(),
+              onAccept: msg.kind == MessageKind.transferRequest && !_isMe
+                  ? () => _respondToTransferRequest(context, c, msg)
+                  : null,
+              onDecline: msg.kind == MessageKind.transferRequest && !_isMe
                   ? () => _respondToTransferRequest(context, c, msg)
                   : null,
             ),

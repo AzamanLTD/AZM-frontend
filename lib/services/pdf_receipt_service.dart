@@ -20,7 +20,7 @@ import 'package:printing/printing.dart';
 import 'package:azaman/services/ticket_service.dart';
 
 class PdfReceiptService {
-  PdfReceiptService._();
+  const PdfReceiptService._();
   static const PdfReceiptService instance = PdfReceiptService._();
 
   // ── Brand palette ──────────────────────────────────────────────────────────

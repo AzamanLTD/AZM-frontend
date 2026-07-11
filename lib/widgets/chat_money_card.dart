@@ -29,6 +29,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class ChatMoneyCard extends StatefulWidget {
   final double amount;
@@ -47,6 +48,7 @@ class ChatMoneyCard extends StatefulWidget {
   final String? reference;
   final String? memo;
   final DateTime timestamp;
+  final String? skinId;
 
   /// Called when the non-sender taps Accept on a pending request.
   final VoidCallback? onAccept;
@@ -68,6 +70,7 @@ class ChatMoneyCard extends StatefulWidget {
     this.reference,
     this.memo,
     required this.timestamp,
+    this.skinId,
     this.onAccept,
     this.onDecline,
     this.onDownloadReceipt,
@@ -85,6 +88,48 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
   static const Color _cardGold = Color(0xFFD4AF37);
   static const Color _gradTop = Color(0xFF0E1116);
   static const Color _gradBottom = Color(0xFF05070A);
+
+
+  // ── Skins logic ──────────────────────────────────────────────────────────
+  List<Color> get _gradColors {
+    switch (widget.skinId) {
+      case 'gold': return [const Color(0xFFD4AF37), const Color(0xFFF0B90B)];
+      case 'midnight': return [const Color(0xFF0F0F1A), const Color(0xFF23233B)];
+      case 'emerald': return [const Color(0xFF00B894), const Color(0xFF00CEC9)];
+      case 'sunset': return [const Color(0xFFFF6B6B), const Color(0xFFEE5A24)];
+      case 'classic':
+      default:
+        return [
+          Color.alphaBlend(_cardGold.withValues(alpha: 0.16), _gradTop),
+          _gradBottom,
+        ];
+    }
+  }
+
+  Color get _textColor {
+    return widget.skinId == 'gold' ? const Color(0xFF1A1400) : Colors.white;
+  }
+  
+  Color get _accentColor {
+    return widget.skinId == 'gold' ? const Color(0xFF1A1400) : _cardGold;
+  }
+
+  Widget _applySkinAnimation(Widget child) {
+    switch (widget.skinId) {
+      case 'gold':
+        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2000.ms, color: _textColor.withOpacity(0.3)).blurXY(begin: 0, end: 0.5, duration: 1000.ms).then().blurXY(begin: 0.5, end: 0);
+      case 'midnight':
+        return child.animate(onPlay: (c) => c.repeat(reverse: true)).tint(color: Colors.blueAccent.withOpacity(0.2), duration: 4000.ms);
+      case 'emerald':
+        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2500.ms, color: Colors.greenAccent.withOpacity(0.4), angle: math.pi / 2);
+      case 'sunset':
+        return child.animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 3000.ms, color: _textColor.withOpacity(0.2), angle: 0);
+      case 'classic':
+      default:
+        // Already uses the AnimatedBuilder sheen inside the stack
+        return child;
+    }
+  }
 
   @override
   void initState() {
@@ -120,8 +165,8 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
       return widget.isMe ? 'Payment Request Sent' : 'Payment Requested';
     }
     return widget.isMe
-        ? 'Sent to ${widget.contactName}'
-        : 'Received from ${widget.contactName}';
+        ? (widget.contactName.isNotEmpty && widget.contactName != 'Unknown' ? 'Sent to ${widget.contactName}' : 'You sent')
+        : (widget.contactName.isNotEmpty && widget.contactName != 'Unknown' ? 'Received from ${widget.contactName}' : 'You received');
   }
 
   String _fmtAmount(double v) {
@@ -141,7 +186,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
         width: width,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: Stack(
+          child: _applySkinAnimation(Stack(
             children: [
               // ── Background gradient ──────────────────────────────────────
               Positioned.fill(
@@ -150,17 +195,13 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Color.alphaBlend(
-                            _cardGold.withValues(alpha: 0.16), _gradTop),
-                        _gradBottom,
-                      ],
+                      colors: _gradColors,
                     ),
                     border:
-                        Border.all(color: _cardGold.withValues(alpha: 0.25), width: 1),
+                        Border.all(color: _accentColor.withValues(alpha: 0.25), width: 1),
                     boxShadow: [
                       BoxShadow(
-                        color: _cardGold.withValues(alpha: 0.12),
+                        color: _accentColor.withValues(alpha: 0.12),
                         blurRadius: 24,
                         spreadRadius: -6,
                         offset: const Offset(0, 12),
@@ -180,7 +221,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: _cardGold.withValues(alpha: 0.09), width: 20),
+                          color: _accentColor.withValues(alpha: 0.09), width: 20),
                     ),
                   ),
                 ),
@@ -204,7 +245,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                     Text(
                       _typeLabel,
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
+                          color: _textColor.withValues(alpha: 0.55),
                           fontSize: 11,
                           fontWeight: FontWeight.w500),
                     ),
@@ -215,10 +256,10 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                     if (widget.reference != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'Ref: ${widget.reference}',
+                        widget.reference ?? '—',
                         style: TextStyle(
-                            color: _cardGold.withValues(alpha: 0.70),
-                            fontSize: 10,
+                            color: _textColor,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.4),
                       ),
@@ -232,7 +273,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                 ),
               ),
             ],
-          ),
+          )),
         ),
       ),
     );
@@ -266,7 +307,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
           Text(
             widget.isRequest ? 'Payment Request' : 'AZM Transfer',
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: _textColor.withValues(alpha: 0.85),
                 fontSize: 12,
                 fontWeight: FontWeight.w700),
           ),
@@ -300,7 +341,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
             child: Text(
               widget.currency,
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: _textColor.withValues(alpha: 0.65),
                   fontSize: 14,
                   fontWeight: FontWeight.w700),
             ),
@@ -312,8 +353,8 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
               alignment: Alignment.bottomLeft,
               child: Text(
                 _fmtAmount(widget.amount),
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: _textColor,
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -1.0,
@@ -327,13 +368,13 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
   Widget _memoBlock() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.07),
+          color: _textColor.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           '"${widget.memo}"',
           style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
+              color: _textColor.withValues(alpha: 0.75),
               fontSize: 11,
               fontStyle: FontStyle.italic),
           maxLines: 2,
@@ -347,7 +388,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
           Text(
             DateFormat('HH:mm').format(widget.timestamp.toLocal()),
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
+                color: _textColor.withValues(alpha: 0.4),
                 fontSize: 10),
           ),
           const SizedBox(width: 6),
@@ -370,11 +411,11 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: _cardGold.withValues(alpha: 0.15),
+                  color: _accentColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.download_outlined,
-                    color: _cardGold, size: 14),
+                    color: _accentColor, size: 14),
               ),
             ),
         ],
@@ -391,14 +432,14 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: _textColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2), width: 1),
+                        color: _textColor.withValues(alpha: 0.2), width: 1),
                   ),
-                  child: const Text('Decline',
+                  child: Text('Accept',
                       style: TextStyle(
-                          color: Colors.white,
+                          color: _textColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 13)),
                 ),
@@ -415,7 +456,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _cardGold,
+                    color: _accentColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text('Accept & Pay',

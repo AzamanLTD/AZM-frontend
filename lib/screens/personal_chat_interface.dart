@@ -13,6 +13,7 @@ import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
+import 'package:azaman/widgets/chat_transfer_sheet.dart';
 import 'package:azaman/widgets/active_ticket_hud.dart';
 import 'package:azaman/services/pdf_receipt_service.dart';
 import 'package:local_auth/local_auth.dart';
@@ -167,20 +168,22 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
             _messages.add(PersonalChatMessage(
               id: m['id']?.toString() ?? '',
               isMe: senderId == currentUserId,
-              text: m['text']?.toString() ?? '',
+              text: m['text']?.toString() ?? m['content']?.toString() ?? '',
               mediaUrl: m['mediaUrl']?.toString(),
-              type: m['type']?.toString() ?? 'text',
+              type: m['messageType']?.toString() ?? m['type']?.toString() ?? 'text',
               status: 'read',
               createdAt: m['createdAt'] != null
                   ? DateTime.tryParse(m['createdAt'].toString()) ?? DateTime.now()
                   : DateTime.now(),
-              cryptoAmount: (m['cryptoAmount'] as num?)?.toDouble(),
-              cryptoCurrency: m['cryptoCurrency']?.toString(),
-              cryptoCompleted: m['cryptoCompleted'] == true,
+              cryptoAmount: (m['cryptoAmount'] as num?)?.toDouble() ?? (meta?['amount'] as num?)?.toDouble(),
+              cryptoCurrency: m['cryptoCurrency']?.toString() ?? meta?['currency']?.toString(),
+              cryptoCompleted: m['cryptoCompleted'] == true || meta?['status'] == 'COMPLETED',
               replyToId: meta?['replyToId']?.toString(),
               replyToText: meta?['replyToText']?.toString(),
               replyToSenderName: meta?['replyToSenderName']?.toString(),
             ));
+            // DEBUG: Log EVERY message's raw keys and parsed type
+            print('DEBUG MSG #${_messages.length}: raw keys=${m.keys.toList()}, m[type]=${m['type']}, m[messageType]=${m['messageType']}, parsed_type=${_messages.last.type}, content_preview=${(m['content']?.toString() ?? m['text']?.toString() ?? '').substring(0, (m['content']?.toString() ?? m['text']?.toString() ?? '').length.clamp(0, 40))}');
           }
           _nickname = data['nickname']?.toString() ?? '';
         });
@@ -281,175 +284,27 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     await _sendMessage(text: txt, type: 'text');
   }
 
-  Future<void> _handleSendCrypto() async {
-    final colors = ref.read(themeProvider).colors;
-    final amountController = TextEditingController();
-
-    final amount = await showModalBottomSheet<double>(
+  Future<void> _openTransferSheet({bool initialIsRequest = false}) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        double? selected;
-        return StatefulBuilder(builder: (ctx, setSheetState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colors.textTertiary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Send Crypto',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 19,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Transfer AZM to $_displayName',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Amount (AZM)',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors.softSurface,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: TextField(
-                      controller: amountController,
-                      autofocus: true,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        hintText: '0.00',
-                        hintStyle: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                      ),
-                      onChanged: (v) {
-                        final parsed = double.tryParse(v);
-                        setSheetState(() => selected = parsed);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(ctx),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: colors.softSurface,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Cancel',
-                              style: TextStyle(
-                                color: colors.textSecondary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: selected != null && selected! > 0
-                              ? () => Navigator.pop(ctx, selected)
-                              : null,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: selected != null && selected! > 0
-                                  ? colors.accent
-                                  : colors.softSurface,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Continue',
-                              style: TextStyle(
-                                color: selected != null && selected! > 0
-                                    ? (colors.isDark ? Colors.black : Colors.white)
-                                    : colors.textTertiary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          );
-        });
-      },
+      builder: (ctx) => ChatTransferSheet(contactName: widget.contactName, initialIsRequest: initialIsRequest),
     );
 
-    if (amount == null || amount <= 0) return;
+    if (result == null) return;
+    
+    final double amount = result['amount'] as double;
+    final bool isRequest = result['isRequest'] as bool;
 
-    final bool authenticated = await _authenticateBiometric();
-    if (!authenticated || !mounted) return;
+    if (amount <= 0) return;
 
-    _executeCryptoTransfer(amount);
+    if (!isRequest) {
+      final bool authenticated = await _authenticateBiometric();
+      if (!authenticated || !mounted) return;
+    }
+
+    _executeCryptoTransfer(amount, isRequest: isRequest);
   }
 
   Future<bool> _authenticateBiometric() async {
@@ -500,12 +355,12 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     }
   }
 
-  Future<void> _executeCryptoTransfer(double amount) async {
+  Future<void> _executeCryptoTransfer(double amount, {bool isRequest = false}) async {
     if (!mounted) return;
     final colors = ref.read(themeProvider).colors;
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('Processing transfer...'),
+      content: Text(isRequest ? 'Sending request...' : 'Processing transfer...'),
       backgroundColor: colors.accent,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 1),
@@ -516,14 +371,23 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       final token = auth.user?.token;
       if (token == null) return;
 
-      final response = await apiClient.post(
-        '/friends/chat/${widget.chatId}/transfer',
-        {
-          'amount': amount,
-          'currency': 'AZM',
-          'recipientAzamanId': widget.contactAzamanId,
-        },
-      );
+      final endpoint = isRequest 
+          ? '/friends/transfer/request' 
+          : '/friends/transfer/send';
+
+      final body = isRequest 
+          ? {
+              'friendshipId': widget.chatId,
+              'amount': amount,
+              'reference': 'Request for $amount USDC'
+            }
+          : {
+              'friendshipId': widget.chatId,
+              'amount': amount,
+              'reference': 'Transfer $amount USDC'
+            };
+
+      final response = await apiClient.post(endpoint, body);
 
       final bool completed = response.statusCode == 200 || response.statusCode == 201;
 
@@ -531,22 +395,26 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         final cryptoMsg = PersonalChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
           isMe: true,
-          text: 'Sent $amount AZM',
-          type: 'crypto',
-          status: completed ? 'sent' : 'failed',
+          text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
+          type: isRequest ? 'TRANSFER_REQUEST' : 'PAYMENT_TRANSFER',
+          status: completed ? (isRequest ? 'sent' : 'sent') : 'failed',
           cryptoAmount: amount,
-          cryptoCurrency: 'AZM',
-          cryptoCompleted: completed,
+          cryptoCurrency: 'USDC',
+          cryptoCompleted: completed && !isRequest,
         );
         setState(() => _messages.add(cryptoMsg));
         _scrollToBottom();
-        _sendMessage(type: 'crypto', text: 'Sent $amount AZM');
+        
+        // Wait, the API for transfer already sends the message! 
+        // For TRANSFER_REQUEST we just sent the message manually.
+        // For PAYMENT_TRANSFER, the /transfer endpoint automatically broadcasted a DirectMessage in the backend.
+        // Let's rely on Socket to receive the actual message from the server, but keep the optimistic update.
 
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(completed
-              ? '$amount AZM sent successfully!'
-              : 'Transfer failed. Please try again.'),
+              ? (isRequest ? 'Request sent!' : '\$$amount sent successfully!')
+              : (isRequest ? 'Failed to send request.' : 'Transfer failed. Please try again.')),
           backgroundColor: completed ? colors.success : colors.danger,
           behavior: SnackBarBehavior.floating,
         ));
@@ -557,11 +425,11 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         final cryptoMsg = PersonalChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
           isMe: true,
-          text: 'Sent $amount AZM',
-          type: 'crypto',
+          text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
+          type: isRequest ? 'TRANSFER_REQUEST' : 'PAYMENT_TRANSFER',
           status: 'failed',
           cryptoAmount: amount,
-          cryptoCurrency: 'AZM',
+          cryptoCurrency: 'USDC',
           cryptoCompleted: false,
         );
         setState(() => _messages.add(cryptoMsg));
@@ -569,7 +437,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
 
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Transfer failed. Please try again.'),
+          content: const Text('Action failed. Please try again.'),
           backgroundColor: colors.danger,
           behavior: SnackBarBehavior.floating,
         ));
@@ -871,9 +739,9 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                                   children: [
                                     if (_shouldShowDateHeader(i))
                                       _buildDateHeader(msg.createdAt, colors),
-                                    if (msg.type == 'crypto')
+                                    if (const {'crypto', 'PAYMENT_TRANSFER', 'TRANSFER_SENT', 'TRANSFER_REQUEST', 'TRANSFER_COMPLETED', 'TRANSFER_DECLINED'}.contains(msg.type))
                                       _transactionBubble(msg, colors)
-                                    else if (msg.type == 'image' && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
+                                    else if ((msg.type == 'image' || msg.type == 'IMAGE') && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
                                       _slantedStackBubble(msg, colors)
                                     else
                                       _textBubble(msg, colors),
@@ -1317,15 +1185,27 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     final currentUser = ref.read(authProvider).user;
     final myAzmId = currentUser?.azamanId ?? '';
 
+    // Derive card status from messageType
+    final String cardStatus;
+    if (msg.type == 'TRANSFER_SENT' || msg.type == 'TRANSFER_COMPLETED' || msg.cryptoCompleted) {
+      cardStatus = 'completed';
+    } else if (msg.type == 'TRANSFER_REQUEST') {
+      cardStatus = 'pending';
+    } else if (msg.type == 'TRANSFER_DECLINED') {
+      cardStatus = 'failed';
+    } else {
+      cardStatus = msg.cryptoCompleted ? 'completed' : 'failed';
+    }
+
     return ChatMoneyCard(
       amount: msg.cryptoAmount ?? 0,
       currency: msg.cryptoCurrency ?? 'USDC',
       isMe: msg.isMe,
       contactName: widget.contactName,
-      status: msg.cryptoCompleted ? 'completed' : 'failed',
-      isRequest: false,
+      status: cardStatus,
+      isRequest: msg.type == 'TRANSFER_REQUEST',
       reference: msg.id,
-      memo: msg.text.contains('Sent') || msg.text.contains('Received') ? null : msg.text,
+      memo: msg.text.contains('Sent') || msg.text.contains('Received') || msg.text.contains('Requested') ? null : msg.text,
       timestamp: msg.createdAt,
       onDownloadReceipt: msg.cryptoCompleted ? () async {
         try {
@@ -1608,13 +1488,14 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               Expanded(
                 child: _plusTransactionBtn(colors, 'Send USDC', HugeIconsSolid.moneySend01, Colors.green, () {
                   setState(() => _plusMenuOpen = false);
-                  _handleSendCrypto();
+                  _openTransferSheet(initialIsRequest: false);
                 }),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _plusTransactionBtn(colors, 'Request', HugeIconsSolid.moneyReceive01, colors.accent, () {
                   setState(() => _plusMenuOpen = false);
+                  _openTransferSheet(initialIsRequest: true);
                 }),
               ),
               const SizedBox(width: 12),
