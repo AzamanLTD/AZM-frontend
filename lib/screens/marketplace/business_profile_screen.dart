@@ -193,9 +193,10 @@ class _BusinessProfileScreenState
     try {
       final res = await apiClient.get('/showcases/$businessId');
       final data = jsonDecode(res.body);
-      if (mounted && data is List) {
+      if (mounted) {
+        final raw = data is List ? data : (data["items"] ?? data["slides"] ?? []);
         setState(() {
-          _showcaseSlides = data.cast<Map<String, dynamic>>();
+          _showcaseSlides = (raw as List).cast<Map<String, dynamic>>();
         });
       }
     } catch (_) {}
