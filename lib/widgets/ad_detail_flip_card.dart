@@ -44,6 +44,7 @@ import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/vendor_badge_row.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 
 /// Public entry point: open the in-place flip overlay.
@@ -750,7 +751,7 @@ class _BackFaceState extends ConsumerState<_BackFace> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shield_outlined, size: 11, color: riskColor),
+            Icon(HugeIconsSolid.shield01, size: 11, color: riskColor),
             const SizedBox(width: 4),
             Text(riskLabel, style: TextStyle(color: riskColor, fontSize: 10, fontWeight: FontWeight.w700)),
           ],
