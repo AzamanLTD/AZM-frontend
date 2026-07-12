@@ -89,14 +89,22 @@ class _TransitSeatSelectionScreenState
   void _onSeatTap(String seatId, SeatStatus status) {
     if (status != SeatStatus.available) return;
     HapticFeedback.lightImpact();
-    ref.read(selectedSeatsProvider.notifier).toggle(seatId);
+    ref.read(selectedSeatsProvider.notifier).update((state) {
+      final newSet = {...state};
+      if (newSet.contains(seatId)) {
+        newSet.remove(seatId);
+      } else {
+        newSet.add(seatId);
+      }
+      return newSet;
+    });
   }
 
   Widget _bookingListener(SeatAvailability availability) {
     ref.listen(bookingActionProvider, (_, state) {
       if (!mounted) return;
       final colors = ref.read(themeProvider.select((t) => t.colors));
-      if (state.hasError) {
+      if (state.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.error.toString()
@@ -104,8 +112,8 @@ class _TransitSeatSelectionScreenState
             backgroundColor: colors.danger,
           ),
         );
-      } else if (state.hasValue && state.value != null) {
-        final result = state.value!;
+      } else if (state.result != null) {
+        final result = state.result!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -121,14 +129,17 @@ class _TransitSeatSelectionScreenState
 
   Future<void> _bookSeats(SeatAvailability availability) async {
     final selected = ref.read(selectedSeatsProvider);
-    final names = <String, String>{};
-    for (final id in selected) {
+    final namesList = selected.map((id) {
       final text = _passengerNames[id]?.text.trim() ?? '';
-      if (text.isNotEmpty) names[id] = text;
-    }
+      return text.isEmpty ? 'Passenger' : text;
+    }).toList();
     await ref
         .read(bookingActionProvider.notifier)
-        .bookSeats(widget.tripId, selected.toList(), passengerNames: names);
+        .bookSeats(
+          tripId: widget.tripId,
+          seatIds: selected.toList(),
+          passengerNames: namesList,
+        );
   }
 
   // ── build ────────────────────────────────────────────────────────────────
@@ -290,6 +301,7 @@ class _TransitSeatSelectionScreenState
                 padding: const EdgeInsets.all(8),
                 child: InteractiveViewer(
                   transformationController: _transformController,
+                  constrained: false,
                   minScale: 0.8,
                   maxScale: 3.0,
                   boundaryMargin: const EdgeInsets.all(80),

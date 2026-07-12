@@ -282,7 +282,7 @@ class ApiClient {
         return true;
       }
       // Refresh token itself is expired/revoked — clear everything.
-      await clearAuth();
+      await clearAuthData();
       return false;
     } catch (e) {
       debugPrint('[ApiClient] Token refresh error: \$e');
