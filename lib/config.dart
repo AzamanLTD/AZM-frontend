@@ -48,7 +48,7 @@ class AppConfig {
     // Otherwise fall back to environment defaults
     switch (_env) {
       case 'prod':
-        return 'https://api.azaman.app';
+        return 'https://azaman-backend-9d3u.onrender.com';
       case 'staging':
         return 'https://staging-api.azaman.app';
       case 'dev':
