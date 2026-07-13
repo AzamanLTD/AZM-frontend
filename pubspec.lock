@@ -442,10 +442,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_contacts
-      sha256: c2591314166678adab23ef02a0ab3b4d4da71071dc03519de3dc059982dcfef2
+      sha256: f668066af6cad0cc1d91719560edc1e552993dcafb12cb687ca8690b858b993d
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.2"
+    version: "2.1.0"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -490,10 +490,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_native_splash
-      sha256: "9db4b80b044e9af17cc4b1272137fc7ace0054d879ef8210a76adc34aaf4cdff"
+      sha256: "4fb9f4113350d3a80841ce05ebf1976a36de622af7d19aca0ca9a9911c7ff002"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.8"
+    version: "2.4.7"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -908,10 +908,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
       url: "https://pub.dev"
     source: hosted
-    version: "1.18.0"
+    version: "1.17.0"
   mime:
     dependency: transitive
     description:
@@ -1084,26 +1084,26 @@ packages:
     dependency: transitive
     description:
       name: pdfium_flutter
-      sha256: "420ba8e7673b54da387ceeeb18a72c8bc6e4452128dbb391dca900c748f9e9ba"
+      sha256: "0b115c0917aef9cf6bb9c4d47d0efc61d97f44844cd76287c921f997c26cf15d"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.2"
+    version: "0.2.3"
   pdfrx:
     dependency: transitive
     description:
       name: pdfrx
-      sha256: e0ca318004c3f32144db8e74fa612abb80ebe79004677293af74ed9af119f47f
+      sha256: acce61944c31bd36f0c3031b1bbf41f59d0b0d4e5e27614fbdc74ff093d55464
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.4"
+    version: "2.4.7"
   pdfrx_engine:
     dependency: transitive
     description:
       name: pdfrx_engine
-      sha256: "89865e158ced818690ab207a13a34a65803cd67ee1bec9f5f87838eb5a79600b"
+      sha256: "8043527245e4c35a2a3b7df8494c066b9efa97fe031945951e46b378318b3d5f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.3"
+    version: "0.4.5"
   petitparser:
     dependency: transitive
     description:
@@ -1465,10 +1465,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "949a932224383300f01be9221c39180316445ecb8e7547f70a41a35bf421fb9e"
+      sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.11"
+    version: "0.7.10"
   timezone:
     dependency: transitive
     description:
@@ -1480,11 +1480,12 @@ packages:
   turnable_page:
     dependency: "direct main"
     description:
-      name: turnable_page
-      sha256: "36f682a9e292c28f40589a1e614fc428252e403334379b97c84db1bbd0947fee"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
+      path: "."
+      ref: e8ad982c8e7c0ba9f8665274fbc5f604da8dc751
+      resolved-ref: e8ad982c8e7c0ba9f8665274fbc5f604da8dc751
+      url: "https://github.com/saeedahmed725/turnable_page.git"
+    source: git
+    version: "1.0.2"
   typed_data:
     dependency: transitive
     description:
@@ -1678,5 +1679,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.12.0 <4.0.0"
-  flutter: ">=3.44.0"
+  dart: ">=3.11.0 <4.0.0"
+  flutter: ">=3.41.0"

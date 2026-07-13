@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -166,11 +167,14 @@ void main() async {
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase before anything else
-  await Firebase.initializeApp();
-
-  // Register background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('[Bootstrap] Firebase init failed: $e');
+    }
+  }
 
   // Initialize push notification service (permissions, foreground handling)
   // await PushNotificationService.instance.init();

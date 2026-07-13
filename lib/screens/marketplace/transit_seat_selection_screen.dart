@@ -89,14 +89,14 @@ class _TransitSeatSelectionScreenState
   void _onSeatTap(String seatId, SeatStatus status) {
     if (status != SeatStatus.available) return;
     HapticFeedback.lightImpact();
-    ref.read(selectedSeatsProvider.notifier).update((state) {
-      final newSet = {...state};
-      if (newSet.contains(seatId)) {
-        newSet.remove(seatId);
+    ref.read(selectedSeatsProvider.notifier).update((seats) {
+      final next = Set<String>.from(seats);
+      if (next.contains(seatId)) {
+        next.remove(seatId);
       } else {
-        newSet.add(seatId);
+        next.add(seatId);
       }
-      return newSet;
+      return next;
     });
   }
 
@@ -107,7 +107,7 @@ class _TransitSeatSelectionScreenState
       if (state.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(state.error.toString()
+            content: Text(state.error!
                 .replaceFirst('MarketplaceBookingException: ', '')),
             backgroundColor: colors.danger,
           ),
@@ -129,16 +129,15 @@ class _TransitSeatSelectionScreenState
 
   Future<void> _bookSeats(SeatAvailability availability) async {
     final selected = ref.read(selectedSeatsProvider);
-    final namesList = selected.map((id) {
-      final text = _passengerNames[id]?.text.trim() ?? '';
-      return text.isEmpty ? 'Passenger' : text;
-    }).toList();
-    await ref
-        .read(bookingActionProvider.notifier)
-        .bookSeats(
+    final seatIds = selected.toList();
+    final names = seatIds
+        .map((id) => _passengerNames[id]?.text.trim() ?? '')
+        .toList();
+    final hasNames = names.any((name) => name.isNotEmpty);
+    await ref.read(bookingActionProvider.notifier).bookSeats(
           tripId: widget.tripId,
-          seatIds: selected.toList(),
-          passengerNames: namesList,
+          seatIds: seatIds,
+          passengerNames: hasNames ? names : null,
         );
   }
 

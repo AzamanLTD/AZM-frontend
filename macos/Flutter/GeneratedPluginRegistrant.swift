@@ -19,6 +19,7 @@ import geolocator_apple
 import local_auth_darwin
 import mobile_scanner
 import package_info_plus
+import pdfium_flutter
 import printing
 import record_macos
 import sentry_flutter
@@ -42,6 +43,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   LocalAuthPlugin.register(with: registry.registrar(forPlugin: "LocalAuthPlugin"))
   MobileScannerPlugin.register(with: registry.registrar(forPlugin: "MobileScannerPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
+  PDFiumFlutterPlugin.register(with: registry.registrar(forPlugin: "PDFiumFlutterPlugin"))
   PrintingPlugin.register(with: registry.registrar(forPlugin: "PrintingPlugin"))
   RecordMacOsPlugin.register(with: registry.registrar(forPlugin: "RecordMacOsPlugin"))
   SentryFlutterPlugin.register(with: registry.registrar(forPlugin: "SentryFlutterPlugin"))
