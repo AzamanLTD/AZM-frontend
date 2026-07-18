@@ -319,19 +319,25 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 300),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 280),
                       curve: Curves.easeOutCubic,
-                      child: _storiesCollapsed
-                          ? const SizedBox.shrink()
-                          : MarketplaceExpandedStories(
-                              onOpenBusiness: (bizId) {
-                                setState(() => _expandedBizId = bizId);
-                              },
-                              onBrowsePressed: () {
-                                setState(() => _selectedCategory = null);
-                              },
-                            ),
+                      height: _storiesCollapsed ? 0 : 96,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          minHeight: 96,
+                          maxHeight: 96,
+                          child: MarketplaceExpandedStories(
+                            onOpenBusiness: (bizId) {
+                              setState(() => _expandedBizId = bizId);
+                            },
+                            onBrowsePressed: () {
+                              setState(() => _selectedCategory = null);
+                            },
+                          ),
+                        ),
+                      ),
                     ),
                     _categoryStrip(colors),
                     if (_selectedCategory == null && _searchCtrl.text.isEmpty)
@@ -724,6 +730,29 @@ class _MarketplaceHomeScreenState
     final featured = _topRated(state.results);
     if (featured.isEmpty) return const SizedBox.shrink();
 
+    return _FeaturedCarousel(colors: colors, featured: featured);
+  }
+
+  String _categoryLabel(String? cat) {
+    switch (cat) {
+      case 'FOOD_BEVERAGE': return 'restaurants';
+      case 'REAL_ESTATE': return 'hotels & stays';
+      case 'LOGISTICS': return 'transit services';
+      case 'RETAIL': return 'retail shops';
+      case 'FREELANCE_SERVICES': return 'service providers';
+      case 'HEALTH_WELLNESS': return 'beauty & wellness';
+      default: return 'businesses';
+    }
+  }
+
+  Widget _featuredCarouselLegacy(AzamanColors colors) {
+    final state = ref.watch(businessSearchProvider);
+
+    if (state.isLoading) return _featuredShimmer(colors);
+
+    final featured = _topRated(state.results);
+    if (featured.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 12),
       child: Column(
@@ -1053,8 +1082,14 @@ class _MarketplaceHomeScreenState
                   const SizedBox(height: 12),
                   Text('No businesses found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
                   const SizedBox(height: 4),
-                  Text(_searchCtrl.text.isNotEmpty ? 'Try a different search term' : 'Be the first to register here',
-                    style: TextStyle(fontSize: 13, color: colors.textTertiary)),
+                  Text(
+                    _searchCtrl.text.isNotEmpty
+                        ? 'Try a different search term or category'
+                        : _selectedCategory != null
+                            ? 'No ${_categoryLabel(_selectedCategory)} yet — be the first!'
+                            : 'Be the first to register here',
+                    style: TextStyle(fontSize: 13, color: colors.textTertiary),
+                  ),
                 ],
               ),
             ),
@@ -1464,6 +1499,121 @@ class _FeaturedBusinessCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+// ── Auto-scrolling Featured Carousel ─────────────────────────────────────────
+class _FeaturedCarousel extends StatefulWidget {
+  final AzamanColors colors;
+  final List<BusinessProfile> featured;
+
+  const _FeaturedCarousel({required this.colors, required this.featured});
+
+  @override
+  State<_FeaturedCarousel> createState() => _FeaturedCarouselState();
+}
+
+class _FeaturedCarouselState extends State<_FeaturedCarousel> {
+  late final PageController _pageController;
+  Timer? _autoScrollTimer;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.78);
+    // Auto-scroll every 4 seconds if there are 3+ featured items
+    if (widget.featured.length > 2) {
+      _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!_pageController.hasClients) return;
+        _currentPage++;
+        if (_currentPage >= widget.featured.length) _currentPage = 0;
+        _pageController.animateToPage(
+          _currentPage,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Featured Near You',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 196,
+            child: PageView.builder(
+              controller: _pageController,
+              padEnds: true,
+              itemCount: widget.featured.length,
+              itemBuilder: (context, i) {
+                final b = widget.featured[i];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _FeaturedBusinessCard(
+                    business: b,
+                    colors: widget.colors,
+                    onTap: () {
+                      AzamanHaptics.nav();
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => BusinessProfileScreen(bizId: b.bizId)));
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          // Page indicator dots
+          if (widget.featured.length > 2)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.featured.length > 5 ? 5 : widget.featured.length,
+                  (i) => AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, child) {
+                      double page = 0;
+                      if (_pageController.hasClients) {
+                        page = _pageController.page ?? 0;
+                      }
+                      final isActive = (page.round() % widget.featured.length) == i;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        width: isActive ? 16 : 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isActive ? widget.colors.accent : widget.colors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
