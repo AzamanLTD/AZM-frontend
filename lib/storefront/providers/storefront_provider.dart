@@ -180,3 +180,49 @@ final azmTierProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final service = ref.read(storefrontServiceProvider);
   return service.getTierInfo();
 });
+
+// ── Staking Providers ────────────────────────────────────────────────────────
+
+/// User's active stakes
+final stakesProvider = FutureProvider<List<AzmStake>>((ref) async {
+  final service = ref.read(storefrontServiceProvider);
+  return service.getStakes();
+});
+
+/// User's Nitro eligibility (staked balance, tier, disabled status)
+final eligibilityProvider = FutureProvider<StorefrontEligibility>((ref) async {
+  final service = ref.read(storefrontServiceProvider);
+  return service.getEligibility();
+});
+
+/// Staking actions (create stake, request unstake)
+final stakingProvider = StateNotifierProvider<StakingNotifier, AsyncValue<void>>((ref) {
+  return StakingNotifier(ref.read(storefrontServiceProvider));
+});
+
+class StakingNotifier extends StateNotifier<AsyncValue<void>> {
+  final StorefrontService _service;
+  StakingNotifier(this._service) : super(const AsyncValue.data(null));
+
+  Future<void> createStake(int amountAzm) async {
+    state = const AsyncValue.loading();
+    try {
+      await _service.createStake(amountAzm.toDouble());
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> requestUnstake(String stakeId) async {
+    state = const AsyncValue.loading();
+    try {
+      await _service.requestUnstake(stakeId);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+}
