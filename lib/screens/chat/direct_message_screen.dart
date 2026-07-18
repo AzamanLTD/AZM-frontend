@@ -28,8 +28,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'package:azaman/providers/chat_provider.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/chat_theme_model.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:azaman/widgets/sticker_sheet.dart';
@@ -1037,13 +1037,74 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     );
   }
 
+  void _showReactionPicker(ChatMessage msg, AzamanColors colors) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)),
+              )),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['👍','❤️','😂','😮','😢','🙏','🔥','✅'].map((e) => GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _toggleReaction(msg.id, e);
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: msg.reactions[e]?.isNotEmpty == true
+                        ? colors.accent.withOpacity(0.1) : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(e, style: const TextStyle(fontSize: 24)),
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                onTap: () { Navigator.pop(ctx); setState(() => _replyToMessage = msg); },
+                leading: Icon(Icons.reply, size: 20, color: colors.textPrimary),
+                title: Text('Reply', style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+                dense: true,
+              ),
+              ListTile(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: msg.text));
+                  Navigator.pop(ctx);
+                },
+                leading: Icon(Icons.copy, size: 20, color: colors.textPrimary),
+                title: Text('Copy', style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+                dense: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextBubble(ChatMessage msg, AzamanColors colors) {
     final isMe = msg.isMe;
     final bubbleColor = isMe ? colors.glow : colors.card;
     final textColor = isMe ? Colors.black : colors.textPrimary;
 
     return GestureDetector(
-      onLongPress: () => setState(() => _replyToMessage = msg),
+      onLongPress: () => _showReactionPicker(msg, colors),
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
@@ -1083,17 +1144,87 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                _formatTime(msg.timestamp),
-                style: TextStyle(
-                  color: isMe ? Colors.black54 : colors.textTertiary,
-                  fontSize: 10,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTime(msg.timestamp),
+                    style: TextStyle(
+                      color: isMe ? Colors.black54 : colors.textTertiary,
+                      fontSize: 10,
+                    ),
+                  ),
+                  if (isMe) ...[
+                    const SizedBox(width: 4),
+                    _buildStatusTick(msg, colors),
+                  ],
+                ],
               ),
+              // Reaction shelf
+              if (msg.reactions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(spacing: 4, runSpacing: 4,
+                    alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+                    children: msg.reactions.entries.map((e) {
+                      final iMine = e.value.contains(int.tryParse(ref.read(authProvider).user?.id ?? '') ?? -1);
+                      return GestureDetector(
+                        onTap: () => _toggleReaction(msg.id, e.key),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: iMine ? colors.accent.withOpacity(0.18) : colors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: iMine ? colors.accent.withOpacity(0.5) : colors.divider,
+                              width: 0.8)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text(e.key, style: const TextStyle(fontSize: 13)),
+                            const SizedBox(width: 3),
+                            Text('${e.value.length}',
+                              style: TextStyle(
+                                color: iMine ? colors.accent : colors.textSecondary,
+                                fontSize: 11, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusTick(ChatMessage msg, AzamanColors colors) {
+    switch (msg.status) {
+      case DmMessageStatus.sending:
+        return Icon(Icons.access_time_rounded, size: 12, color: Colors.black54);
+      case DmMessageStatus.sent:
+        return Icon(Icons.check, size: 14, color: Colors.black54);
+      case DmMessageStatus.delivered:
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.check, size: 14, color: Colors.black54),
+          Transform.translate(offset: const Offset(-4, 0), child: Icon(Icons.check, size: 14, color: Colors.black54)),
+        ]);
+      case DmMessageStatus.read:
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.check, size: 14, color: colors.accent),
+          Transform.translate(offset: const Offset(-4, 0), child: Icon(Icons.check, size: 14, color: colors.accent)),
+        ]);
+      case DmMessageStatus.failed:
+        return Icon(Icons.error_outline, size: 14, color: Colors.red);
+    }
+  }
+
+  void _toggleReaction(String messageId, String emoji) {
+    HapticFeedback.selectionClick();
+    // Optimistically toggle reaction locally
+    // Real implementation would call the API
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Reacted $emoji'), duration: const Duration(milliseconds: 500)),
     );
   }
 

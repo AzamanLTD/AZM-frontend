@@ -35,6 +35,9 @@ enum MessageType {
   sticker,
 }
 
+/// Delivery status for chat messages (DM screen).
+enum DmMessageStatus { sending, sent, delivered, read, failed }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Message Model
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +69,10 @@ class ChatMessage {
   final String? stickerAssetPath;
   final bool isAnimatedSticker;
 
+  // Delivery status + reactions
+  final DmMessageStatus status;
+  final Map<String, List<int>> reactions;
+
   ChatMessage({
     required this.id,
     required this.senderId,
@@ -85,6 +92,8 @@ class ChatMessage {
     this.waveformPeaks,
     this.stickerAssetPath,
     this.isAnimatedSticker = false,
+    this.status = DmMessageStatus.sent,
+    this.reactions = const {},
   });
 
   ChatMessage copyWith({
@@ -126,6 +135,8 @@ class ChatMessage {
       waveformPeaks: waveformPeaks ?? this.waveformPeaks,
       stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
       isAnimatedSticker: isAnimatedSticker ?? this.isAnimatedSticker,
+      status: status ?? this.status,
+      reactions: reactions ?? this.reactions,
     );
   }
 }
