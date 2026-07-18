@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart' as intl;
 
@@ -216,9 +217,41 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   }
 
   Future<void> _pickImage() async {
-    final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+    final file = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 1920, imageQuality: 85);
     if (file == null) return;
-    final bytes = await file.readAsBytes();
+
+    // Crop before sending
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: file.path,
+      aspectRatioPresets: [
+        CropAspectRatioPreset.square,
+        CropAspectRatioPreset.original,
+        CropAspectRatioPreset.ratio3x2,
+        CropAspectRatioPreset.ratio4x3,
+        CropAspectRatioPreset.ratio16x9,
+      ],
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Photo',
+          toolbarColor: Theme.of(context).scaffoldBackgroundColor,
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Photo',
+          cancelButtonTitle: 'Cancel',
+          doneButtonTitle: 'Done',
+          aspectRatioPresets: [
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.square,
+          ],
+        ),
+      ],
+    );
+
+    if (cropped == null) return; // user cancelled crop
     final params = {
       'chatId': widget.chatId,
       'contactId': widget.contactId,
@@ -232,8 +265,9 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         timestamp: DateTime.now(),
         type: MessageType.image,
         isMe: true,
-        mediaUrl: file.path,
+        mediaUrl: cropped.path,
         mediaType: 'image',
+        status: DmMessageStatus.sending,
       ),
     );
   }

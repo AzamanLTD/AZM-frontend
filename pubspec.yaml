@@ -32,6 +32,9 @@ dependencies:
   # For proof of payment uploads
   image_picker: ^1.2.1
 
+  # `image_cropper` lets users crop/rotate photos before sending in chat.
+  image_cropper: ^8.0.2
+
   # Restaurant flip-book menu (pinned — proprietary license, approved-PR-only upstream)
   turnable_page:
     git:
