@@ -44,4 +44,14 @@ class StoryFeedNotifier extends StateNotifier<AsyncValue<List<StoryGroup>>> {
     await apiClient.post('/stories/$storyId/boost', {'amount': amount});
     await load();
   }
+
+  /// Reply to a story — sends a DM to the story author with the story attached.
+  Future<bool> replyStory(String storyId, String message) async {
+    try {
+      await apiClient.post('/stories/$storyId/reply', {'message': message});
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

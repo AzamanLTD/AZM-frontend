@@ -145,6 +145,10 @@ dependencies:
   geolocator: ^13.0.1
   cached_network_image: ^3.4.1
 
+  # `video_player` plays story videos and video content in feeds.
+  # Pinned to 2.9.x for API stability.
+  video_player: ^2.9.2
+
   # --- CHATS · NOTIFICATIONS · TRANSACTIONS SPRINT (2026-06-28) ---
   # PDF printing & generation for ticket/transaction exports
   printing: ^5.12.0

@@ -6,6 +6,7 @@ import '../widgets/story_ring.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:video_player/video_player.dart';
 // Note: VendorPage and StoryVideoPlayer imports may be needed depending on project structure
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
@@ -53,6 +54,10 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
   int _storyIndex = 0;
   late AnimationController _progress;
   bool _isPaused = false;
+  VideoPlayerController? _videoController;
+  bool _videoReady = false;
+  final _replyController = TextEditingController();
+  bool _replySending = false;
  
   @override
   void initState() {
@@ -67,9 +72,34 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
   StoryItem get _story => _group.stories[_storyIndex];
  
   void _playCurrent() {
-    _progress
-      ..duration = Duration(seconds: _story.durationSeconds)
-      ..forward(from: 0);
+    _videoController?.dispose();
+    _videoController = null;
+    _videoReady = false;
+
+    if (_story.mediaType == 'VIDEO') {
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(_story.mediaUrl))
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() => _videoReady = true);
+            _videoController!.play();
+            _videoController!.setLooping(false);
+            // Use video duration if available, fallback to config
+            final dur = _videoController!.value.duration.inSeconds;
+            _progress
+              ..duration = Duration(seconds: dur > 0 ? dur : _story.durationSeconds)
+              ..forward(from: 0);
+            _videoController!.setVolume(0.0); // muted by default in stories
+          }
+        });
+      // Start progress even before video loads (fallback)
+      _progress
+        ..duration = Duration(seconds: _story.durationSeconds)
+        ..forward(from: 0);
+    } else {
+      _progress
+        ..duration = Duration(seconds: _story.durationSeconds)
+        ..forward(from: 0);
+    }
     ref.read(storyFeedProvider.notifier).markViewed(_story.id);
   }
  
@@ -96,8 +126,32 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
   }
  
   @override
-  void dispose() { _progress.dispose(); super.dispose(); }
+  void dispose() {
+    _videoController?.dispose();
+    _replyController.dispose();
+    _progress.dispose();
+    super.dispose();
+  }
  
+  Future<void> _sendReply() async {
+    final msg = _replyController.text.trim();
+    if (msg.isEmpty || _replySending) return;
+    setState(() => _replySending = true);
+    HapticFeedback.lightImpact();
+    final ok = await ref.read(storyFeedProvider.notifier).replyStory(_story.id, msg);
+    if (mounted) {
+      _replyController.clear();
+      setState(() => _replySending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Reply sent!' : 'Failed to send reply'),
+          duration: const Duration(seconds: 1),
+          backgroundColor: ok ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,7 +166,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         onLongPressEnd: (_) { _progress.forward(); setState(() => _isPaused = false); },
         child: Stack(fit: StackFit.expand, children: [
           _story.mediaType == 'VIDEO'
-            ? const Center(child: Text('Video player placeholder', style: TextStyle(color: Colors.white)))
+            ? (_videoReady && _videoController != null
+                ? Center(child: AspectRatio(
+                    aspectRatio: _videoController!.value.aspectRatio,
+                    child: VideoPlayer(_videoController!),
+                  ))
+                : const Center(child: CircularProgressIndicator(color: Colors.white70)))
             : CachedNetworkImage(
                 imageUrl: _story.mediaUrl, fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: Colors.black),
@@ -217,6 +276,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: TextField(
+                                    controller: _replyController,
                                     style: const TextStyle(color: Colors.white, fontSize: 14),
                                     decoration: InputDecoration(
                                       hintText: 'Reply to story...',
@@ -224,7 +284,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                                       border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(vertical: 12)
                                     ),
-                                    onSubmitted: (_) => HapticFeedback.lightImpact()
+                                    onSubmitted: (msg) => _sendReply(),
                                   )
                                 ),
                                 Icon(Icons.emoji_emotions_outlined, color: Colors.white.withOpacity(0.6), size: 20),
@@ -234,16 +294,25 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: () => HapticFeedback.lightImpact(),
-                          child: Container(
+                          onTap: _sendReply,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             width: 42, height: 42,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1), 
+                              color: _replyController.text.isNotEmpty
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.1),
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)
                             ),
                             alignment: Alignment.center,
-                            child: Icon(Icons.favorite_border, color: Colors.white.withOpacity(0.7), size: 20)
+                            child: _replySending
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                              : Icon(Icons.send,
+                                  color: _replyController.text.isNotEmpty
+                                    ? Colors.black
+                                    : Colors.white.withOpacity(0.7),
+                                  size: 18),
                           )
                         ),
                       ]
