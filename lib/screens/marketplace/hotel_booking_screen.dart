@@ -7,6 +7,7 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,6 +15,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/rating_stars.dart';
+import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 
 class HotelBookingScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -46,6 +48,28 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (picked != null) setState(() { _checkIn = picked.start; _checkOut = picked.end; });
   }
 
+  IconData _amenityIcon(String amenity) {
+    final a = amenity.toLowerCase();
+    if (a.contains('wifi') || a.contains('internet')) return Icons.wifi;
+    if (a.contains('ac') || a.contains('air')) return Icons.ac_unit;
+    if (a.contains('tv')) return Icons.tv;
+    if (a.contains('pool') || a.contains('spa')) return Icons.pool;
+    if (a.contains('gym') || a.contains('fitness')) return Icons.fitness_center;
+    if (a.contains('breakfast')) return Icons.free_breakfast;
+    if (a.contains('parking')) return Icons.local_parking;
+    if (a.contains('balcony') || a.contains('terrace')) return Icons.balcony;
+    if (a.contains('kitchen') || a.contains('kitchenette')) return Icons.kitchen;
+    if (a.contains('bar')) return Icons.local_bar;
+    if (a.contains('pet')) return Icons.pets;
+    if (a.contains('smoke')) return Icons.smoke_free;
+    return Icons.check_circle_outline;
+  }
+
+  int get _nightsCount {
+    if (_checkIn == null || _checkOut == null) return 0;
+    return _checkOut!.difference(_checkIn!).inDays;
+  }
+
   Future<void> _confirmBooking() async {
     if (_checkIn == null || _checkOut == null || _selectedRoomId == null) return;
     setState(() => _loading = true);
@@ -58,7 +82,23 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
             productId: _selectedRoomId!,
           );
       if (mounted) {
-        context.pushReplacement('/marketplace/booking/checkin-qr/${booking.id}');
+        // Show celebration sheet, then navigate to QR
+        final nights = _checkOut!.difference(_checkIn!).inDays;
+        final colors = ref.read(themeProvider).colors;
+        final products = ref.read(marketplaceBookingProvider).products ?? [];
+        final room = products.firstWhere((p) => p.id == _selectedRoomId, orElse: () => products.first);
+        BookingSuccessSheet.show(
+          context,
+          bookingRef: booking.id.substring(0, 8).toUpperCase(),
+          seatCount: 1,
+          totalFare: (room.priceUsdc as double) * (nights > 0 ? nights : 1),
+          route: '${room.name} x $nights night${nights > 1 ? 's' : ''}',
+          departureTime: _checkIn!,
+        );
+        // Navigate to QR after a delay
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) context.pushReplacement('/marketplace/booking/checkin-qr/${booking.id}');
+        });
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -133,46 +173,90 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
               final isSelected = _selectedRoomId == room.id;
               return GestureDetector(
                 onTap: () => setState(() => _selectedRoomId = room.id),
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isSelected ? colors.accent : colors.divider,
-                      width: isSelected ? 1.5 : 0.5,
+                      width: isSelected ? 2 : 0.5,
                     ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: colors.accent.withOpacity(0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ] : null,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (room.imageUrl != null)
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                          child: CachedNetworkImage(imageUrl: room.imageUrl!,
-                            height: 160, width: double.infinity, fit: BoxFit.cover),
-                        ),
+                      Stack(children: [
+                        if (room.imageUrl != null)
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                            child: CachedNetworkImage(imageUrl: room.imageUrl!,
+                              height: 160, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                        // Selected checkmark overlay
+                        if (isSelected)
+                          Positioned(top: 10, right: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: colors.accent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check, color: Colors.white, size: 16),
+                            )).animate().scale(duration: 200.ms),
+                      ]),
                       Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(children: [
+                              // Room type badge
+                              if (room.category != null)
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: colors.accent.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(room.category!,
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
+                                ),
                               Expanded(child: Text(room.name, style: TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary))),
-                              Text('${room.priceUsdc.toStringAsFixed(2)} USDC',
-                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.accent)),
                             ]),
                             if (room.description != null) ...[
                               const SizedBox(height: 6),
                               Text(room.description!, style: TextStyle(
                                 fontSize: 13, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
                             ],
-                            const SizedBox(height: 8),
-                            Wrap(spacing: 6, runSpacing: 4, children: [
-                              if (room.amenities != null) ...room.amenities!.map((a) =>
-                                Chip(label: Text(a, style: const TextStyle(fontSize: 10)),
-                                  visualDensity: VisualDensity.compact)),
+                            const SizedBox(height: 10),
+                            // Amenities with icons
+                            if (room.amenities != null && room.amenities!.isNotEmpty)
+                              Wrap(spacing: 12, runSpacing: 6, children: room.amenities!.map((a) {
+                                final icon = _amenityIcon(a);
+                                return Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(icon, size: 14, color: colors.textTertiary),
+                                  const SizedBox(width: 4),
+                                  Text(a, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                                ]);
+                              }).toList()),
+                            const SizedBox(height: 12),
+                            Row(children: [
+                              Text('${room.priceUsdc.toStringAsFixed(2)} USDC',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.accent)),
+                              const SizedBox(width: 4),
+                              Text('/ night',
+                                style: TextStyle(fontSize: 11, color: colors.textTertiary)),
                             ]),
                           ],
                         ),
@@ -227,6 +311,44 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                         'No-show penalty: ${(business!.penaltyPolicy!.penaltyPct * 100).toStringAsFixed(0)}% of deposit. '
                         'Grace period: ${business.penaltyPolicy!.gracePeriodMins} min after check-in window.',
                         style: TextStyle(fontSize: 12, color: Colors.orange.shade900))),
+                    ]),
+                  ),
+                ],
+                // Price breakdown
+                if (_checkIn != null && _checkOut != null && _selectedRoomId != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Price Breakdown',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                      const SizedBox(height: 8),
+                      (() {
+                        final nights = _nightsCount;
+                        final products = state.products ?? [];
+                        final room = products.firstWhere((p) => p.id == _selectedRoomId, orElse: () => products.first);
+                        final pricePerNight = room.priceUsdc as double;
+                        final total = pricePerNight * (nights > 0 ? nights : 1);
+                        return Column(children: [
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text('$pricePerNight USDC x $nights night${nights > 1 ? 's' : ''}',
+                              style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                            Text('$total USDC',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                          ]),
+                          const Divider(height: 16),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text('Total',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                            Text('$total USDC',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.accent)),
+                          ]),
+                        ]);
+                      })(),
                     ]),
                   ),
                 ],
