@@ -35,6 +35,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:animations/animations.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -330,6 +331,14 @@ class _BusinessProfileScreenState
     }
   }
 
+  void _shareBusiness(BusinessProfile business) {
+    final shareUrl = 'https://azaman.app/business/${business.bizId}';
+    Share.share(
+      'Check out ${business.businessName} on AZAMAN! $shareUrl',
+      subject: '${business.businessName} on AZAMAN',
+    );
+  }
+
   /// Label for the catalog tab (was hardcoded 'Menu' for every vertical).
   static String _catalogTabLabel(String? category) {
     switch (category) {
@@ -592,11 +601,16 @@ class _BusinessProfileScreenState
   // inside a tab (e.g. the flip-book menu, or a horizontal gallery) never
   // accidentally flips to the next/previous tab.
   Widget _pillTabBar(AzamanColors colors) {
+    final cat = _business?.category;
     final items = <({IconData icon, String emoji, String label})>[
       (icon: Icons.grid_view_rounded, emoji: '📋', label: 'Overview'),
+      (icon: Icons.menu_book_rounded, emoji: '📖', label: _catalogTabLabel(cat)),
       (icon: Icons.place_rounded, emoji: '📍', label: 'Locations'),
       (icon: Icons.star_rounded, emoji: '⭐', label: 'Reviews'),
-      (icon: Icons.calendar_month_rounded, emoji: '📅', label: 'Book'),
+      if (cat == 'HOSPITALITY' || cat == 'REAL_ESTATE')
+        (icon: Icons.calendar_month_rounded, emoji: '📅', label: 'Book'),
+      if (cat == 'LOGISTICS')
+        (icon: Icons.directions_bus_rounded, emoji: '🚌', label: 'Trips'),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -730,6 +744,41 @@ class _BusinessProfileScreenState
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Quick actions (Call, Directions, Share)
+        if (business.phoneNumber != null && business.phoneNumber!.isNotEmpty) ...[
+          _bubble(
+            colors: colors,
+            emoji: '📞',
+            tooltip: 'Call',
+            onTap: () {
+              AzamanHaptics.nav();
+              _launch('tel:${business.phoneNumber}');
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (business.address != null && business.address!.isNotEmpty) ...[
+          _bubble(
+            colors: colors,
+            emoji: '📍',
+            tooltip: 'Directions',
+            onTap: () {
+              AzamanHaptics.nav();
+              _launch('https://maps.google.com/?q=${Uri.encodeComponent(business.address!)}');
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        _bubble(
+          colors: colors,
+          emoji: '↗️',
+          tooltip: 'Share',
+          onTap: () {
+            AzamanHaptics.nav();
+            _shareBusiness(business);
+          },
+        ),
+        const SizedBox(height: 12),
         if (hasUnpaidInvoices) ...[
           _bubble(
             colors: colors,
