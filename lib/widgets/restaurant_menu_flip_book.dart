@@ -14,6 +14,7 @@
 // =============================================================================
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:turnable_page/turnable_page.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -164,19 +165,34 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
   }
 
   Widget _coverPage(AzamanColors colors) {
+    // Find the dish with the best image for the cover hero
+    final allProducts = [
+      ...widget.sections.expand((s) => s.products),
+      ...widget.uncategorisedProducts,
+    ];
+    final heroDish = allProducts
+        .where((p) => p.primaryImage != null)
+        .firstOrNull ?? allProducts.firstOrNull;
+
     return _bookPageChrome(
       colors: colors,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (widget.logoUrl != null && widget.logoUrl!.isNotEmpty)
+          if (heroDish != null && heroDish.primaryImage != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CachedNetworkImage(
+                imageUrl: heroDish.primaryImage!,
+                width: 120, height: 120, fit: BoxFit.cover,
+              ),
+            )
+          else if (widget.logoUrl != null && widget.logoUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: CachedNetworkImage(
                 imageUrl: widget.logoUrl!,
-                width: 84,
-                height: 84,
-                fit: BoxFit.cover,
+                width: 84, height: 84, fit: BoxFit.cover,
               ),
             )
           else
@@ -202,13 +218,27 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
               letterSpacing: 4,
             ),
           ),
-          const SizedBox(height: 28),
-          Icon(Icons.touch_app_outlined, size: 18, color: colors.textTertiary),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            'Drag a corner to open',
-            style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+            '$' + '{allProducts.length} dishes',
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.swipe_left_rounded, size: 16, color: colors.textTertiary),
+              const SizedBox(width: 6),
+              Text(
+                'Drag a corner to open',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+              ),
+            ],
+          ).animate().fadeIn(delay: 800.ms, duration: 600.ms),
         ],
       ),
     );
@@ -265,6 +295,10 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
   }
 
   Widget _dishRow(BusinessProduct product, AzamanColors colors) {
+    final isVeg = product.tags.any((t) => t.toLowerCase().contains('veg'));
+    final isSpicy = product.tags.any((t) => t.toLowerCase().contains('spicy'));
+    final isPopular = product.tags.any((t) => t.toLowerCase().contains('popular'));
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _poppedItem = product),
@@ -295,16 +329,44 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+                Row(children: [
+                  if (isVeg)
+                    Container(
+                      width: 8, height: 8,
+                      margin: const EdgeInsets.only(right: 5),
+                      decoration: const BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  if (isPopular)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: colors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text('Popular',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ]),
                 if (product.description != null && product.description!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
@@ -316,14 +378,20 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
                     ),
                   ),
                 const SizedBox(height: 3),
-                Text(
-                  '${product.priceUsdc.toStringAsFixed(2)} USDC',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                Row(children: [
+                  Text(
+                    '${product.priceUsdc.toStringAsFixed(2)} USDC',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
+                  if (isSpicy) ...[
+                    const SizedBox(width: 6),
+                    Text('🌶', style: const TextStyle(fontSize: 10)),
+                  ],
+                ]),
               ],
             ),
           ),
