@@ -101,6 +101,12 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                   final logoUrl = biz['logoUrl']?.toString();
                   final isVerified = biz['isVerified'] == true;
 
+                  final lastStoryAt = biz['lastStoryAt'];
+                  final lastViewedAt = biz['lastViewedAt'];
+                  final hasUnseen = lastStoryAt != null &&
+                      (lastViewedAt == null ||
+                       DateTime.parse(lastStoryAt.toString()).isAfter(DateTime.parse(lastViewedAt.toString())));
+
                   return GestureDetector(
                     onTap: () => onOpenBusiness(id),
                     child: SizedBox(
@@ -109,7 +115,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                         children: [
                           StoryRing(
                             avatarUrl: logoUrl,
-                            hasUnseenStory: true,
+                            hasUnseenStory: hasUnseen,
                             isBoosted: isVerified,
                             size: 60,
                           ),
@@ -143,12 +149,24 @@ class MarketplaceExpandedStories extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Suggested businesses',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: colors.textTertiary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
         SizedBox(
           height: 88,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 4,
+            itemCount: 5,
             separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
               if (index == 0) {
@@ -165,11 +183,11 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.5),
                           ),
-                          child: Icon(Icons.add_rounded, color: colors.accent, size: 28),
+                          child: Icon(Icons.explore_rounded, color: colors.accent, size: 26),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Follow',
+                          'Browse',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -181,6 +199,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                   ),
                 );
               } else {
+                // Suggested business skeletons (shimmer placeholders)
                 return SizedBox(
                   width: 68,
                   child: Column(
@@ -191,8 +210,8 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                           color: colors.softSurface,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.2)),
-                      ),
+                      )
+                        .animate().shimmer(delay: (index * 200).ms, duration: 1200.ms),
                       const SizedBox(height: 6),
                       Container(
                         width: 40, height: 8,
@@ -200,7 +219,8 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                           color: colors.softSurface,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                      ),
+                      )
+                        .animate().shimmer(delay: (index * 200 + 100).ms, duration: 1200.ms),
                     ],
                   ),
                 );
