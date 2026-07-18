@@ -28,6 +28,7 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 
 // Azaman brand purple — used for SELECTED tint overlay
 const _kSelectedPurple = Color(0xFF7C3AED);
@@ -114,14 +115,27 @@ class _TransitSeatSelectionScreenState
         );
       } else if (state.result != null) {
         final result = state.result!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Booked ${result.seatIds.length} seat(s)! Ref: ${result.bookingRef}'),
-            backgroundColor: colors.accent,
-          ),
+        final total = _totalFare(availability, ref.read(selectedSeatsProvider));
+
+        // Try to get trip details for the success sheet
+        final tripDetail = ref.read(tripDetailProvider(widget.tripId)).valueOrNull;
+        final route = tripDetail != null
+            ? '\${tripDetail.origin} → \${tripDetail.destination}'
+            : 'Trip \${widget.tripId}';
+        final departureTime = tripDetail?.departureAt ?? DateTime.now();
+
+        // Invalidate the seats provider so they refresh on next visit
+        ref.invalidate(seatAvailabilityProvider(widget.tripId));
+
+        // Show the celebration sheet instead of a plain SnackBar
+        BookingSuccessSheet.show(
+          context,
+          bookingRef: result.bookingRef,
+          seatCount: result.seatIds.length,
+          totalFare: total,
+          route: route,
+          departureTime: departureTime,
         );
-        context.go('/marketplace/transit');
       }
     });
     return const SizedBox.shrink();

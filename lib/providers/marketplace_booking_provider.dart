@@ -267,3 +267,13 @@ class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> 
 final marketplaceBookingProvider = StateNotifierProvider<MarketplaceBookingNotifier, MarketplaceBookingState>(
   (ref) => MarketplaceBookingNotifier(ref.watch(marketplaceBookingServiceProvider)),
 );
+
+// ── TRIP DETAIL (single trip by ID) ──────────────────────────────────────────
+/// Fetches all trips and finds the one matching [tripId].
+/// Used by the seat selection screen to show trip info in the booking success sheet.
+final tripDetailProvider =
+    FutureProvider.family<TransitTrip?, String>((ref, tripId) async {
+  final svc = ref.watch(marketplaceBookingServiceProvider);
+  final trips = await svc.listTrips();
+  return trips.where((t) => t.id == tripId).firstOrNull;
+});
