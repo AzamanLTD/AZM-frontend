@@ -39,6 +39,7 @@ import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer/shimmer.dart';
@@ -464,6 +465,15 @@ class _MarketplaceHomeScreenState
                       icon: Icons.search_rounded,
                       onTap: _openSearch,
                       colors: colors,
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Storefront discovery
+                    _iconAction(
+                      icon: Icons.storefront_rounded,
+                      onTap: () => context.pushNamed('storefront-discovery'),
+                      colors: colors,
+                      activeColor: colors.accent,
                     ),
                     const SizedBox(width: 8),
 

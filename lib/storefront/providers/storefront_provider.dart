@@ -226,3 +226,49 @@ class StakingNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 }
+
+// ── Storefront Discovery (Phase 2) ─────────────────────────────────────────────
+
+/// Discover businesses with published storefronts.
+/// Supports search query, category filter, and pagination via refresh family.
+final storefrontDiscoveryProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, StorefrontDiscoveryQuery>((ref, query) async {
+  final service = ref.read(storefrontServiceProvider);
+  return service.discoverStorefronts(
+    query: query.search,
+    category: query.category,
+    limit: query.limit,
+    offset: query.offset,
+  );
+});
+
+class StorefrontDiscoveryQuery {
+  final String? search;
+  final String? category;
+  final int limit;
+  final int offset;
+
+  const StorefrontDiscoveryQuery({
+    this.search,
+    this.category,
+    this.limit = 20,
+    this.offset = 0,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is StorefrontDiscoveryQuery &&
+      other.search == search &&
+      other.category == category &&
+      other.offset == offset;
+
+  @override
+  int get hashCode => Object.hash(search, category, offset);
+}
+
+/// Public product listing for a business's storefront (Phase 4 — direct ordering).
+final storefrontProductsProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, businessProfileId) async {
+  final service = ref.read(storefrontServiceProvider);
+  return service.getStorefrontProducts(businessProfileId);
+});

@@ -178,6 +178,63 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
+
+  // ── Discovery (Phase 2) ─────────────────────────────────────────────────────
+
+  /// Discover businesses with published storefronts.
+  /// Returns a list of storefront summaries with business info.
+  Future<List<Map<String, dynamic>>> discoverStorefronts({
+    String? query,
+    String? category,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final params = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
+    if (category != null) params['category'] = category;
+
+    final queryString = params.entries.map((e) => '\${e.key}=\${Uri.encodeComponent(e.value)}').join('&');
+    final response = await _apiClient.get('/storefront/discover?\$queryString', requireAuth: false);
+    final data = _parseResponse(response) as Map<String, dynamic>;
+    return (data['results'] as List).cast<Map<String, dynamic>>();
+  }
+
+  // ── Direct Ordering (Phase 4) ────────────────────────────────────────────────
+
+  /// Get public product listing for a business's storefront.
+  Future<Map<String, dynamic>> getStorefrontProducts(String businessProfileId) async {
+    final response = await _apiClient.get(
+      '/storefront/\$businessProfileId/products',
+      requireAuth: false,
+    );
+    return _parseResponse(response) as Map<String, dynamic>;
+  }
+
+
+  /// Place an order from the storefront (Phase 4 — direct ordering).
+  /// Requires authentication. Creates a BusinessOrder with AWAITING_PAYMENT.
+  Future<Map<String, dynamic>> placeStorefrontOrder({
+    required String businessProfileId,
+    required String productId,
+    int quantity = 1,
+    String? customerNotes,
+    String? deliveryNotes,
+  }) async {
+    final response = await _apiClient.post(
+      '/storefront/$businessProfileId/order',
+      body: jsonEncode({
+        'productId': productId,
+        'quantity': quantity,
+        if (customerNotes != null) 'customerNotes': customerNotes,
+        if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
+      }),
+    );
+    return _parseResponse(response) as Map<String, dynamic>;
+  }
+
   // ── Helper ──────────────────────────────────────────────────────────────────
 
   dynamic _parseResponse(http.Response response) {
