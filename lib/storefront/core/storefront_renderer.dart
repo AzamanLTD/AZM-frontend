@@ -4,6 +4,10 @@
 // Takes a StorefrontRenderResponse and renders the complete SDUI storefront.
 // The renderer iterates through tiles in order and delegates to the widget
 // registry for each tile.
+//
+// When [businessProfileId] is provided, a StorefrontTrackingScope wraps the
+// entire tree so widgets can fire analytics events, and each tile is wrapped
+// with a StorefrontVisibilityDetector for widget_view tracking.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -11,11 +15,16 @@ import 'package:flutter/material.dart';
 import '../models/storefront_models.dart';
 import 'storefront_theme_resolver.dart';
 import 'storefront_widget_registry.dart';
+import 'storefront_tracking_scope.dart';
+import '../widgets/storefront_visibility_detector.dart';
 
 class StorefrontRenderer extends StatelessWidget {
   final StorefrontRenderResponse response;
 
-  const StorefrontRenderer({super.key, required this.response});
+  /// When provided, enables analytics tracking for this render.
+  final String? businessProfileId;
+
+  const StorefrontRenderer({super.key, required this.response, this.businessProfileId});
 
   @override
   Widget build(BuildContext context) {
@@ -31,21 +40,32 @@ class StorefrontRenderer extends StatelessWidget {
         return a.position.col.compareTo(b.position.col);
       });
 
+    final column = Column(
+      children: sortedTiles.asMap().entries.map((entry) {
+        final index = entry.key;
+        final tile = entry.value;
+        return _TileWrapper(
+          tile: tile,
+          spacingScale: spacingScale,
+          business: response.business,
+          businessProfileId: businessProfileId,
+          widgetIndex: index,
+        );
+      }).toList(),
+    );
+
+    final scrollChild = SingleChildScrollView(child: column);
+
     return Theme(
       data: theme,
       child: Container(
         color: theme.scaffoldBackgroundColor,
-        child: SingleChildScrollView(
-          child: Column(
-            children: sortedTiles.map((tile) {
-              return _TileWrapper(
-                tile: tile,
-                spacingScale: spacingScale,
-                business: response.business,
-              );
-            }).toList(),
-          ),
-        ),
+        child: businessProfileId != null
+          ? StorefrontTrackingScope(
+              businessProfileId: businessProfileId,
+              child: scrollChild,
+            )
+          : scrollChild,
       ),
     );
   }
@@ -55,18 +75,22 @@ class _TileWrapper extends StatelessWidget {
   final RenderTile tile;
   final double spacingScale;
   final StorefrontBusinessInfo business;
+  final String? businessProfileId;
+  final int widgetIndex;
 
   const _TileWrapper({
     required this.tile,
     required this.spacingScale,
     required this.business,
+    this.businessProfileId,
+    required this.widgetIndex,
   });
 
   @override
   Widget build(BuildContext context) {
     final padding = 16.0 * spacingScale;
 
-    return Padding(
+    final child = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: padding,
         vertical: padding * 0.4,
@@ -77,6 +101,18 @@ class _TileWrapper extends StatelessWidget {
         business,
       ),
     );
+
+    // Wrap with visibility tracking only when businessProfileId is provided
+    if (businessProfileId != null) {
+      return StorefrontVisibilityDetector(
+        businessProfileId: businessProfileId!,
+        widgetType: tile.widgetType,
+        widgetIndex: widgetIndex,
+        child: child,
+      );
+    }
+
+    return child;
   }
 }
 

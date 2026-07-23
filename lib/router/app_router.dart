@@ -45,6 +45,7 @@ import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/storefront_staking_screen.dart';
+import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
@@ -432,6 +433,14 @@ final GoRouter appRouter = GoRouter(
       path: '/storefront/staking',
       name: 'storefront-staking',
       builder: (_, __) => const StorefrontStakingScreen(),
+    ),
+    GoRoute(
+      path: '/storefront/:businessProfileId',
+      name: 'storefront',
+      builder: (context, state) => StorefrontScreen(
+        businessProfileId: state.pathParameters['businessProfileId']!,
+        businessName: state.uri.queryParameters['name'],
+      ),
     ),
   ],
 );

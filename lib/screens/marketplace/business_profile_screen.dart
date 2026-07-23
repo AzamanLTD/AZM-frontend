@@ -55,6 +55,7 @@ import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 import 'package:azaman/widgets/review_card.dart';
 import 'package:azaman/widgets/stacked_gallery_cards.dart';
+import 'package:azaman/screens/storefront_screen.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -791,6 +792,25 @@ class _BusinessProfileScreenState
           ),
           const SizedBox(height: 12),
         ],
+        // SDUI Storefront — opens the customizable widget-based storefront
+        _bubble(
+          colors: colors,
+          emoji: '🏪',
+          tooltip: 'Storefront',
+          onTap: () {
+            AzamanHaptics.nav();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StorefrontScreen(
+                  businessProfileId: business.id,
+                  businessName: business.businessName,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
         if (hasCatalog) ...[
           OpenContainer(
             transitionType: ContainerTransitionType.fade,
