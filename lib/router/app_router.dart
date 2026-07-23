@@ -428,6 +428,11 @@ final GoRouter appRouter = GoRouter(
       name: 'worker-swaps',
       builder: (_, __) => const WorkerSwapsScreen(),
     ),
+    GoRoute(
+      path: '/storefront/staking',
+      name: 'storefront-staking',
+      builder: (_, __) => const StorefrontStakingScreen(),
+    ),
   ],
 );
 
