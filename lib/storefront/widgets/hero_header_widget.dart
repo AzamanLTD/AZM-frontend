@@ -35,6 +35,15 @@ class HeroHeaderWidget extends StatelessWidget {
                 imageUrl: mediaUrl,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),
+                errorWidget: (_, __, ___) => business.coverPhotoUrl != null
+                    ? CachedNetworkImage(imageUrl: business.coverPhotoUrl!, fit: BoxFit.cover)
+                    : _gradientBackground(context),
+              )
+            else if (business.coverPhotoUrl != null && business.coverPhotoUrl!.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: business.coverPhotoUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),
                 errorWidget: (_, __, ___) => _gradientBackground(context),
               )
             else

@@ -19,7 +19,12 @@ class QuickInfoBarWidget extends StatelessWidget {
       items.add(_chip(Icons.store, _formatCategory(business.category!)));
     }
     if (showHours) items.add(_chip(Icons.access_time, 'Open Now'));
-    if (showRating) items.add(_chip(Icons.star, '4.5'));
+    if (showRating) {
+      final rating = business.averageRating;
+      if (rating != null) {
+        items.add(_chip(Icons.star, rating.toStringAsFixed(1)));
+      }
+    }
     if (customInfo.isNotEmpty) items.add(_chip(Icons.info_outline, customInfo));
 
     return Container(

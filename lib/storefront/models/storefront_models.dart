@@ -517,14 +517,29 @@ class StorefrontBusinessInfo {
   final String name;
   final String? category;
   final String? logoUrl;
+  final String? coverPhotoUrl;
+  final double? averageRating;
+  final String? phoneNumber;
 
-  StorefrontBusinessInfo({required this.name, this.category, this.logoUrl});
+  StorefrontBusinessInfo({
+    required this.name,
+    this.category,
+    this.logoUrl,
+    this.coverPhotoUrl,
+    this.averageRating,
+    this.phoneNumber,
+  });
 
   factory StorefrontBusinessInfo.fromJson(Map<String, dynamic> json) {
     return StorefrontBusinessInfo(
       name: json['name'] ?? '',
       category: json['category'],
       logoUrl: json['logoUrl'],
+      coverPhotoUrl: json['coverPhotoUrl'],
+      averageRating: json['averageRating'] != null
+          ? (json['averageRating'] as num).toDouble()
+          : null,
+      phoneNumber: json['phoneNumber'],
     );
   }
 }

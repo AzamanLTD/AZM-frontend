@@ -15,9 +15,18 @@ class ContactCardWidget extends StatelessWidget {
     final showEmail = props['showEmail'] ?? true;
     final showWebsite = props['showWebsite'] ?? false;
 
+    final phone = business.phoneNumber;
+    // Normalize phone: strip non-digits for tel/WhatsApp links
+    final rawPhone = phone?.replaceAll(RegExp(r'[^\d+]'), '') ?? '';
+
     final buttons = <Widget>[];
-    if (showPhone) buttons.add(_contactButton(Icons.phone, 'Call', 'tel:+1234567890'));
-    if (showWhatsApp) buttons.add(_contactButton(Icons.chat, 'WhatsApp', 'https://wa.me/1234567890'));
+    if (showPhone && phone != null && phone.isNotEmpty) {
+      buttons.add(_contactButton(Icons.phone, 'Call', 'tel:$rawPhone'));
+    }
+    if (showWhatsApp && phone != null && phone.isNotEmpty) {
+      final waNumber = rawPhone.startsWith('+') ? rawPhone.substring(1) : rawPhone;
+      buttons.add(_contactButton(Icons.chat, 'WhatsApp', 'https://wa.me/$waNumber'));
+    }
     if (showEmail) buttons.add(_contactButton(Icons.email, 'Email', 'mailto:contact@example.com'));
     if (showWebsite) buttons.add(_contactButton(Icons.language, 'Website', 'https://example.com'));
 
