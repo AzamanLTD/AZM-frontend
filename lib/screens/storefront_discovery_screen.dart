@@ -111,6 +111,13 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
+            onPressed: () => context.pushNamed('storefront-order-history'),
+            tooltip: 'My Orders',
+          ),
+        ],
       ),
       body: Column(
         children: [

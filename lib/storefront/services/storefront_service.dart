@@ -235,6 +235,35 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
+
+  // ── Customer Order History ──────────────────────────────────────────────────
+
+  /// Get the authenticated customer's storefront order history (paginated).
+  Future<Map<String, dynamic>> getMyOrders({
+    String? status,
+    int limit = 20,
+    String? cursor,
+  }) async {
+    final params = <String, String>{
+      'limit': limit.toString(),
+      if (status != null) 'status': status,
+      if (cursor != null) 'cursor': cursor,
+    };
+    final query = params.entries.map((e) => '\${e.key}=\${e.value}').join('&');
+    final response = await _apiClient.get(
+      '/storefront/me/orders?\$query',
+    );
+    return _parseResponse(response) as Map<String, dynamic>;
+  }
+
+  /// Get details for a single order.
+  Future<Map<String, dynamic>> getOrderDetail(String orderId) async {
+    final response = await _apiClient.get(
+      '/storefront/me/orders/\$orderId',
+    );
+    return _parseResponse(response) as Map<String, dynamic>;
+  }
+
   // ── Helper ──────────────────────────────────────────────────────────────────
 
   dynamic _parseResponse(http.Response response) {

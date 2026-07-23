@@ -477,6 +477,15 @@ class _MarketplaceHomeScreenState
                     ),
                     const SizedBox(width: 8),
 
+                    // My Orders
+                    _iconAction(
+                      icon: Icons.receipt_long_rounded,
+                      onTap: () => context.pushNamed('storefront-order-history'),
+                      colors: colors,
+                      activeColor: colors.accent,
+                    ),
+                    const SizedBox(width: 8),
+
                     // View mode toggle (list / map)
                     Container(
                       padding: const EdgeInsets.all(3),

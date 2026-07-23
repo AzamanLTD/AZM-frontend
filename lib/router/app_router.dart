@@ -47,6 +47,7 @@ import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/storefront_staking_screen.dart';
 import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/storefront_discovery_screen.dart';
+import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
@@ -446,7 +447,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/discover/storefronts',
       name: 'storefront-discovery',
-      builder: (_, __) => const StorefrontDiscoveryScreen(),
+      builder: (context, state) => const StorefrontDiscoveryScreen(),
+    ),
+    GoRoute(
+      path: '/my-orders',
+      name: 'storefront-order-history',
+      builder: (context, state) => const StorefrontOrderHistoryScreen(),
     ),
   ],
 );
