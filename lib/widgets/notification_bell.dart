@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/notification_provider.dart';
+import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/notification_overlay.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -14,7 +15,14 @@ class NotificationBell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final unread = ref.watch(unreadCountProvider);
+    final generalUnread = ref.watch(unreadCountProvider);
+    final bizUnread = ref.watch(bizUnreadCountProvider);
+    final hasBiz = ref.watch(myBusinessProvider).profile != null;
+
+    // Combined unread count — general notifications + business owner
+    // notifications (new orders, KYB updates, etc.) so the badge reflects
+    // everything the user needs to see at a glance.
+    final unread = generalUnread + (hasBiz ? bizUnread : 0);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -34,7 +42,7 @@ class NotificationBell extends ConsumerWidget {
               color: colors.textSecondary,
             ),
 
-            // Pulsing badge
+            // Pulsing badge — combined count
             if (unread > 0)
               Positioned(
                 top: 6, right: 6,

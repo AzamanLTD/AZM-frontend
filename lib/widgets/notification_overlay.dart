@@ -6,6 +6,8 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -77,6 +79,103 @@ class _State extends ConsumerState<NotificationOverlay>
   bool _isSocial(AppNotification n) =>
       n.category == NotificationCategory.general && !_isMoney(n) && !_isSystem(n);
 
+  // Business notification card — shown when the Business tab is selected.
+  // Business notifications (NEW_ORDER, KYB_STATUS_CHANGED, etc.) live on a
+  // separate API + screen, so we show a summary card with a deep-link.
+  Widget _buildBusinessSection(BuildContext context, AzamanColors colors, int unread) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              widget.onClose();
+              Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const BusinessNotificationsScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.divider, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: colors.accent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.storefront_rounded,
+                        size: 22, color: colors.accent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Business Notifications',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            )),
+                        const SizedBox(height: 2),
+                        Text(
+                          unread > 0
+                              ? '$unread unread notification${unread == 1 ? '' : 's'}'
+                              : 'All caught up',
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (unread > 0)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: colors.danger,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Text(
+                        '$unread',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  else
+                    Icon(Icons.chevron_right_rounded,
+                        size: 22, color: colors.textSecondary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'New orders, KYB updates, and other business alerts appear here.',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   bool _isSecurity(AppNotification n) =>
       n.category == NotificationCategory.securityAccount;
 
@@ -133,14 +232,20 @@ class _State extends ConsumerState<NotificationOverlay>
     final all     = ref.watch(generalNotificationsProvider);
     final sec     = ref.watch(securityNotificationsProvider);
     final vendor  = ref.watch(vendorNotificationsProvider);
+    final hasBiz  = ref.watch(myBusinessProvider).profile != null;
+    final bizUnread = ref.watch(bizUnreadCountProvider);
     final allN = [...all, ...sec, ...vendor]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
-    final unread  = allN.where((n) => !n.isRead).length;
+    final unread  = allN.where((n) => !n.isRead).length + (hasBiz ? bizUnread : 0);
     final sysCnt  = allN.where(_isSystem).length;
     final money   = allN.where(_isMoney).length;
     final social  = allN.where(_isSocial).length;
     final secCnt  = allN.where(_isSecurity).length;
+
+    // Build the body: business tab shows a link to business notifications,
+    // other tabs show the filtered notification list.
+    final showBusinessTab = _tab == 5 && hasBiz;
 
     return Stack(children: [
       GestureDetector(onTap: _dismiss, child: Container(color: Colors.transparent)),
@@ -231,12 +336,16 @@ class _State extends ConsumerState<NotificationOverlay>
                                   _categoryRow(3, Icons.lock_rounded, 'Security', secCnt, colors),
                                   Divider(height: 1, color: colors.divider),
                                   _categoryRow(4, Icons.admin_panel_settings_rounded, 'System', sysCnt, colors),
+                                  if (hasBiz)
+                                    _categoryRow(5, Icons.storefront_rounded, 'Business', bizUnread, colors),
                                 ]),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Expanded(
-                              child: filtered.isEmpty
+                              child: showBusinessTab
+                                  ? _buildBusinessSection(context, colors, bizUnread)
+                                  : filtered.isEmpty
                                   ? Center(child: Text(
                                   _tab == 0 ? 'No unread notifications' : 'Nothing here',
                                   style: TextStyle(color: colors.textTertiary, fontSize: 13,
