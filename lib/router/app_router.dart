@@ -25,6 +25,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:azaman/router/auth_guard.dart';
 import 'package:azaman/screens/marketplace/hotel_booking_screen.dart';
 import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
 import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
@@ -90,6 +91,14 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
+  redirect: (context, state) {
+    // Allow public routes (splash, login, public invite) through
+    final path = state.uri.path;
+    if (path == '/' || path.startsWith('/susu/invite/')) return null;
+    // Gate all other routes behind auth
+    if (!AuthGuard.isAuthenticated) return '/';
+    return null;
+  },
   routes: [
     // ── Boot & shell ────────────────────────────────────────────────────────
     GoRoute(
