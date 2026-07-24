@@ -85,11 +85,12 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       ref.read(transactionChatProvider(widget.tradeId).notifier).addMessage(
             ChatMessage(
               id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
+              localId: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
               senderId: 'system',
               text:
                   'Trade initiated: ${widget.tradeAmount} ${widget.tradeCurrency}\nComplete payment within the time limit.',
               timestamp: DateTime.now(),
-              type: MessageType.system,
+              kind: MessageType.system,
               isMe: false,
             ),
           );
@@ -104,10 +105,11 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
     ref.read(transactionChatProvider(widget.tradeId).notifier).addMessage(
           ChatMessage(
             id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+            localId: 'msg_${DateTime.now().millisecondsSinceEpoch}',
             senderId: 'me',
             text: text,
             timestamp: DateTime.now(),
-            type: MessageType.text,
+            kind: MessageType.text,
             isMe: true,
           ),
         );
@@ -350,11 +352,11 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessage msg, AzamanColors colors) {
-    if (msg.type == MessageType.system) {
+    if (msg.kind == MessageType.system) {
       return _buildSystemMessage(msg, colors);
-    } else if (msg.type == MessageType.timeRequest) {
+    } else if (msg.kind == MessageType.timeRequest) {
       return _buildTimeRequestBubble(msg, colors);
-    } else if (msg.type == MessageType.timeApproved) {
+    } else if (msg.kind == MessageType.timeApproved) {
       return _buildTimeApprovedBubble(msg, colors);
     } else {
       return _buildTextBubble(msg, colors);

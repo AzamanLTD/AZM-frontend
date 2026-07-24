@@ -88,10 +88,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       ref.read(directChatProvider(params).notifier).addMessage(
             ChatMessage(
               id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
+              localId: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
               senderId: 'system',
               text: 'Chat with ${widget.contactName} started. You can send messages or transfer crypto.',
               timestamp: DateTime.now(),
-              type: MessageType.system,
+              kind: MessageType.system,
               isMe: false,
             ),
           );
@@ -111,10 +112,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     ref.read(directChatProvider(params).notifier).addMessage(
           ChatMessage(
             id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+            localId: 'msg_${DateTime.now().millisecondsSinceEpoch}',
             senderId: 'me',
             text: text,
             timestamp: DateTime.now(),
-            type: MessageType.text,
+            kind: MessageType.text,
             isMe: true,
             replyToId: _replyToMessage?.id,
             replyToText: _replyToMessage?.text,
@@ -260,10 +262,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     ref.read(directChatProvider(params).notifier).addMessage(
       ChatMessage(
         id: 'img_${DateTime.now().millisecondsSinceEpoch}',
+        localId: 'img_${DateTime.now().millisecondsSinceEpoch}',
         senderId: 'me',
         text: '',
         timestamp: DateTime.now(),
-        type: MessageType.image,
+        kind: MessageType.image,
         isMe: true,
         mediaUrl: cropped.path,
         mediaType: 'image',
@@ -285,10 +288,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     ref.read(directChatProvider(params).notifier).addMessage(
       ChatMessage(
         id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
+        localId: 'doc_${DateTime.now().millisecondsSinceEpoch}',
         senderId: 'me',
         text: result.files.single.name,
         timestamp: DateTime.now(),
-        type: MessageType.document,
+        kind: MessageType.document,
         isMe: true,
         mediaUrl: path,
         mediaType: 'document',
@@ -317,10 +321,11 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     ref.read(directChatProvider(params).notifier).addMessage(
       ChatMessage(
         id: 'sticker_${DateTime.now().millisecondsSinceEpoch}',
+        localId: 'sticker_${DateTime.now().millisecondsSinceEpoch}',
         senderId: 'me',
         text: '',
         timestamp: DateTime.now(),
-        type: MessageType.sticker,
+        kind: MessageType.sticker,
         isMe: true,
         stickerAssetPath: assetPath,
         isAnimatedSticker: isAnimated,
@@ -756,7 +761,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   }
 
   Widget _buildBubbleForType(ChatMessage msg, AzamanColors colors) {
-    switch (msg.type) {
+    switch (msg.kind) {
       case MessageType.system:
         return _buildSystemMessage(msg, colors);
       case MessageType.transaction:

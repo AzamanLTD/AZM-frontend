@@ -21,125 +21,14 @@ import 'package:azaman/services/api_client.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Message Type Enum
 // ─────────────────────────────────────────────────────────────────────────────
-enum MessageType {
-  text,
-  system,
-  transaction,
-  timeRequest,
-  timeApproved,
-  timeRejected,
-  image,
-  video,
-  audio,
-  document,
-  sticker,
-}
-
-/// Delivery status for chat messages (DM screen).
-enum DmMessageStatus { sending, sent, delivered, read, failed }
+import 'package:azaman/models/chat_message.dart';
+export 'package:azaman/models/chat_message.dart' show ChatMessage, MessageKind, MessageStatus;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Message Model
+// Backward-compat aliases — the canonical ChatMessage lives in models/chat_message.dart.
 // ─────────────────────────────────────────────────────────────────────────────
-class ChatMessage {
-  final String id;
-  final String senderId;
-  final String text;
-  final DateTime timestamp;
-  final MessageType type;
-  final bool isMe;
-
-  // For transaction-specific messages
-  final double? amount;
-  final String? currency;
-
-  // Reply-to support
-  final String? replyToId;
-  final String? replyToText;
-  final String? replyToSenderName;
-
-  // Rich media
-  final String? mediaUrl;
-  final String? mediaType;
-  final String? mediaMimeType;
-  final int? mediaDuration;
-  final List<int>? waveformPeaks;
-
-  // Sticker
-  final String? stickerAssetPath;
-  final bool isAnimatedSticker;
-
-  // Delivery status + reactions
-  final DmMessageStatus status;
-  final Map<String, List<int>> reactions;
-
-  ChatMessage({
-    required this.id,
-    required this.senderId,
-    required this.text,
-    required this.timestamp,
-    required this.type,
-    required this.isMe,
-    this.amount,
-    this.currency,
-    this.replyToId,
-    this.replyToText,
-    this.replyToSenderName,
-    this.mediaUrl,
-    this.mediaType,
-    this.mediaMimeType,
-    this.mediaDuration,
-    this.waveformPeaks,
-    this.stickerAssetPath,
-    this.isAnimatedSticker = false,
-    this.status = DmMessageStatus.sent,
-    this.reactions = const {},
-  });
-
-  ChatMessage copyWith({
-    String? id,
-    String? senderId,
-    String? text,
-    DateTime? timestamp,
-    MessageType? type,
-    bool? isMe,
-    double? amount,
-    String? currency,
-    String? replyToId,
-    String? replyToText,
-    String? replyToSenderName,
-    String? mediaUrl,
-    String? mediaType,
-    String? mediaMimeType,
-    int? mediaDuration,
-    List<int>? waveformPeaks,
-    String? stickerAssetPath,
-    bool? isAnimatedSticker,
-  }) {
-    return ChatMessage(
-      id: id ?? this.id,
-      senderId: senderId ?? this.senderId,
-      text: text ?? this.text,
-      timestamp: timestamp ?? this.timestamp,
-      type: type ?? this.type,
-      isMe: isMe ?? this.isMe,
-      amount: amount ?? this.amount,
-      currency: currency ?? this.currency,
-      replyToId: replyToId ?? this.replyToId,
-      replyToText: replyToText ?? this.replyToText,
-      replyToSenderName: replyToSenderName ?? this.replyToSenderName,
-      mediaUrl: mediaUrl ?? this.mediaUrl,
-      mediaType: mediaType ?? this.mediaType,
-      mediaMimeType: mediaMimeType ?? this.mediaMimeType,
-      mediaDuration: mediaDuration ?? this.mediaDuration,
-      waveformPeaks: waveformPeaks ?? this.waveformPeaks,
-      stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
-      isAnimatedSticker: isAnimatedSticker ?? this.isAnimatedSticker,
-      status: status ?? this.status,
-      reactions: reactions ?? this.reactions,
-    );
-  }
-}
+typedef MessageType = MessageKind;
+typedef DmMessageStatus = MessageStatus;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Transaction Chat State (with Countdown)
@@ -205,10 +94,11 @@ class TransactionChatNotifier extends StateNotifier<TransactionChatState> {
     // Add system message
     addMessage(ChatMessage(
       id: 'sys_${DateTime.now().millisecondsSinceEpoch}',
+      localId: 'sys_${DateTime.now().millisecondsSinceEpoch}',
       senderId: 'system',
       text: 'Time extended by $minutes minutes',
       timestamp: DateTime.now(),
-      type: MessageType.timeApproved,
+      kind: MessageType.timeApproved,
       isMe: false,
     ));
   }
@@ -216,10 +106,11 @@ class TransactionChatNotifier extends StateNotifier<TransactionChatState> {
   void requestTimeExtension(int minutes) {
     addMessage(ChatMessage(
       id: 'req_${DateTime.now().millisecondsSinceEpoch}',
+      localId: 'req_${DateTime.now().millisecondsSinceEpoch}',
       senderId: 'me',
       text: 'Requested +$minutes minutes',
       timestamp: DateTime.now(),
-      type: MessageType.timeRequest,
+      kind: MessageType.timeRequest,
       isMe: true,
     ));
   }
@@ -296,10 +187,11 @@ class DirectChatNotifier extends StateNotifier<DirectChatState> {
   void sendCryptoTransfer(double amount, String currency) {
     addMessage(ChatMessage(
       id: 'crypto_${DateTime.now().millisecondsSinceEpoch}',
+      localId: 'crypto_${DateTime.now().millisecondsSinceEpoch}',
       senderId: 'me',
       text: 'Sent $amount $currency',
       timestamp: DateTime.now(),
-      type: MessageType.transaction,
+      kind: MessageType.transaction,
       isMe: true,
       amount: amount,
       currency: currency,
