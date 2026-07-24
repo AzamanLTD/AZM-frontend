@@ -25,6 +25,7 @@ import '../storefront/core/storefront_renderer.dart';
 import '../storefront/services/storefront_tracking_service.dart';
 import 'storefront_order_sheet.dart';
 import '../storefront/core/scroll_to_products_notification.dart';
+import '../storefront/widgets/storefront_skeleton.dart';
 import '../theme/azaman_colors.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
@@ -138,7 +139,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
         ],
       ),
       body: renderAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+        loading: () => const StorefrontSkeleton(),
         error: (err, stack) => _ErrorState(
           error: err.toString(),
           onRetry: () => ref.invalidate(storefrontRenderProvider(widget.businessProfileId)),
@@ -150,7 +151,14 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
           }
 
           // Build the SDUI storefront + products section
-          return NotificationListener<ScrollToProductsNotification>(
+          return RefreshIndicator(
+            color: colors.accent,
+            onRefresh: () async {
+              ref.invalidate(storefrontRenderProvider(widget.businessProfileId));
+              ref.invalidate(storefrontProductsProvider(widget.businessProfileId));
+              await ref.read(storefrontRenderProvider(widget.businessProfileId).future);
+            },
+            child: NotificationListener<ScrollToProductsNotification>(
             onNotification: (_) {
               final ctx = _productsKey.currentContext;
               if (ctx != null) {
@@ -203,6 +211,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
               ),
               ],
             ),
+          ),
           );
         },
       ),
