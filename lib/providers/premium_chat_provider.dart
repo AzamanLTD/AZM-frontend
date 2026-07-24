@@ -553,6 +553,9 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       'message_ack','message_delivered','messages_read','message_read',
       'message_error','reaction_updated','message_edited','message_deleted',
       'typing_started','typing_stopped',
+      'friend_message_saved',
+      'user_typing_personal','user_typing_trade','friend_typing',
+      'group_typing_started','group_typing_stopped',
       ..._incomingEventNames()
     ]) { socket.off(ev); }
   }

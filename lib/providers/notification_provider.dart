@@ -73,6 +73,16 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     }
   }
 
+  @override
+  void dispose() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket != null) {
+      socket.off('new_notification');
+      socket.off('notifications_updated');
+    }
+    super.dispose();
+  }
+
   /// Fetch notifications from the backend API.
   Future<void> fetchNotifications() async {
     try {

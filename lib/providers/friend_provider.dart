@@ -314,9 +314,19 @@ class FriendProvider with ChangeNotifier {
   // CLEANUP
   // ===========================================================================
 
+  @override
+  void dispose() {
+    disconnectSocket();
+    super.dispose();
+  }
+
   void disconnectSocket() {
-    _socket?.disconnect();
-    _socket?.dispose();
+    if (_socket != null) {
+      _socket!.off('friend_request_received');
+      _socket!.off('friend_request_accepted');
+      _socket!.off('friend_message');
+      _socket!.off('friend_transfer_received');
+    }
     _socket = null;
     _socketInitialized = false;
   }
