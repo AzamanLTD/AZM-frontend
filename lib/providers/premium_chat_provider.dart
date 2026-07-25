@@ -31,6 +31,11 @@ class PremiumChatState {
   final Set<String> typingUserIds; // users currently typing
   final Map<int,String> groupMemberNames; // userId -> username for group avatar labels
 
+  /// Disappearing message timer (seconds). null = off. When set, all new
+  /// outgoing messages include this in the socket payload so the backend
+  /// sets expiresAt and the sweep worker eventually deletes them.
+  final int? disappearAfterSeconds;
+
   const PremiumChatState({
     this.messages = const [],
     this.isLoading = false,
@@ -39,12 +44,24 @@ class PremiumChatState {
     this.errorMessage,
     this.typingUserIds = const {},
     this.groupMemberNames = const {},
+    this.disappearAfterSeconds,
   });
+
+  /// Human-readable label for the current timer setting.
+  String get disappearLabel {
+    if (disappearAfterSeconds == null) return 'Off';
+    final s = disappearAfterSeconds!;
+    if (s < 60) return '\${s}s';
+    if (s < 3600) return '\${s ~/ 60}m';
+    if (s < 86400) return '\${s ~/ 3600}h';
+    return '\${s ~/ 86400}d';
+  }
 
   PremiumChatState copyWith({
     List<ChatMessage>? messages, bool? isLoading, bool? hasMore,
     bool? isSending, String? errorMessage,
     Set<String>? typingUserIds, Map<int,String>? groupMemberNames,
+    int? disappearAfterSeconds, bool clearDisappear = false,
   }) => PremiumChatState(
     messages: messages ?? this.messages,
     isLoading: isLoading ?? this.isLoading,
@@ -53,6 +70,7 @@ class PremiumChatState {
     errorMessage: errorMessage,
     typingUserIds: typingUserIds ?? this.typingUserIds,
     groupMemberNames: groupMemberNames ?? this.groupMemberNames,
+    disappearAfterSeconds: clearDisappear ? null : (disappearAfterSeconds ?? this.disappearAfterSeconds),
   );
 }
 
@@ -70,6 +88,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   Timer? _typingTimer;
   static const _ackTimeout = Duration(seconds: 7);
   final Map<String, Timer> _ackTimers = {};
+  Timer? _disappearSweepTimer;
 
   PremiumChatNotifier(this._ref, this._params)
     : super(const PremiumChatState()) {
@@ -83,6 +102,18 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _joinRoom();
     loadMessages();
     _subscribeToSocket();
+    _startDisappearSweep();
+  }
+
+  /// Every 5 seconds, remove messages whose [ChatMessage.expiresAt] has passed.
+  /// This gives the UI a live "poof" effect without waiting for the backend sweep.
+  void _startDisappearSweep() {
+    _disappearSweepTimer?.cancel();
+    _disappearSweepTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!state.messages.any((m) => m.isExpired)) return;
+      final filtered = state.messages.where((m) => !m.isExpired).toList();
+      state = state.copyWith(messages: filtered);
+    });
   }
 
   void _joinRoom() {
@@ -128,6 +159,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   @override
   void dispose() {
     _typingTimer?.cancel();
+    _disappearSweepTimer?.cancel();
     _leaveRoom();
     _unsubscribeFromSocket();
     super.dispose();
@@ -154,6 +186,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       // (friend-chat endpoint returns chronological; group-chat returns DESC.)
       final merged = loadMore ? [...state.messages, ...loaded] : loaded;
       merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      // Filter out messages that have already expired (disappearing messages)
+      merged.removeWhere((m) => m.isExpired);
       state = state.copyWith(
         messages: merged,
         hasMore: body['hasMore'] == true,
@@ -187,6 +221,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   }) async {
     if (text.trim().isEmpty) return;
     final localId = _uuid.v4();
+    final disappear = state.disappearAfterSeconds;
     final optimistic = ChatMessage.optimistic(
       localId: localId,
       senderId: _myUserId,
@@ -195,6 +230,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       replyToId: replyToId,
       replyToText: replyToText,
       replyToSenderName: replyToSenderName,
+      disappearAfterSeconds: disappear,
     );
     // Prepend to list (newest first)
     state = state.copyWith(messages: [optimistic, ...state.messages]);
@@ -202,6 +238,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       replyToId: replyToId,
       replyToText: replyToText,
       replyToSenderName: replyToSenderName,
+      disappearAfterSeconds: disappear,
     );
   }
 
@@ -242,6 +279,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     String? mediaUrl, String? mediaType, String? mediaMimeType,
     int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
     Map<String,dynamic>? linkPreview,
+    int? disappearAfterSeconds,
   }) {
     // Ticket chat has NO socket send handler on the backend by design --
     // authoritative writes are REST-only. Skip straight to HTTP.
@@ -250,7 +288,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         replyToText: replyToText, replyToSenderName: replyToSenderName,
         mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
         mediaSize: mediaSize, mediaDuration: mediaDuration,
-        waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+        waveformPeaks: waveformPeaks, linkPreview: linkPreview,
+        disappearAfterSeconds: disappearAfterSeconds);
       return;
     }
 
@@ -260,7 +299,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         replyToText: replyToText, replyToSenderName: replyToSenderName,
         mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
         mediaSize: mediaSize, mediaDuration: mediaDuration,
-        waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+        waveformPeaks: waveformPeaks, linkPreview: linkPreview,
+        disappearAfterSeconds: disappearAfterSeconds);
       return;
     }
 
@@ -276,6 +316,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       if (mediaDuration != null) 'mediaDuration': mediaDuration,
       if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
+      if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
     };
 
     switch (_params.context) {
@@ -311,7 +352,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
           replyToText: replyToText, replyToSenderName: replyToSenderName,
           mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
           mediaSize: mediaSize, mediaDuration: mediaDuration,
-          waveformPeaks: waveformPeaks, linkPreview: linkPreview);
+          waveformPeaks: waveformPeaks, linkPreview: linkPreview,
+          disappearAfterSeconds: disappearAfterSeconds);
       }
     });
   }
@@ -326,6 +368,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     String? mediaUrl, String? mediaType, String? mediaMimeType,
     int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
     Map<String,dynamic>? linkPreview,
+    int? disappearAfterSeconds,
   }) async {
     final endpoint = _httpSendEndpoint();
     if (endpoint == null) { _markFailed(localId); return; }
@@ -345,6 +388,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
           if (waveformPeaks != null) 'waveformPeaks': waveformPeaks,
           if (linkPreview != null) 'linkPreview': linkPreview,
         },
+        if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
       };
     } else {
       bodyMap = {
@@ -359,6 +403,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         if (mediaDuration != null) 'mediaDuration': mediaDuration,
         if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
         if (linkPreview != null) 'linkPreview': linkPreview,
+        if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
       };
     }
 
@@ -570,6 +615,15 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   }
 
   // ── EMIT TYPING ─────────────────────────────────────────────────────────
+  /// Set the disappearing message timer for this conversation.
+  /// Pass null to disable. Common values: 30, 60, 300, 3600, 86400, 604800.
+  void setDisappearTimer(int? seconds) {
+    state = state.copyWith(
+      disappearAfterSeconds: seconds,
+      clearDisappear: seconds == null,
+    );
+  }
+
   void sendTyping(bool isTyping) {
     final socket = SocketService.instance.rawSocket;
     if (socket == null) return;

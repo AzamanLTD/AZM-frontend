@@ -71,6 +71,23 @@ class ChatMessage {
   // For SUSU_EVENT cards
   final Map<String, dynamic>? metadata;
 
+  // ── Disappearing messages (Phase 2) ──────────────────────────────────
+  /// If non-null, the message auto-disappears after this many seconds.
+  final int? disappearAfterSeconds;
+  /// Server-computed expiry timestamp. When this passes, the bubble is
+  /// visually removed and the backend hard-deletes the row.
+  final DateTime? expiresAt;
+  /// True when [expiresAt] has passed — used to hide the bubble locally
+  /// before the server sweep catches up.
+  bool get isExpired =>
+      expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  /// Remaining seconds until expiry (0 if already expired or no timer).
+  int get remainingSeconds {
+    if (expiresAt == null) return 0;
+    final diff = expiresAt!.difference(DateTime.now()).inSeconds;
+    return diff > 0 ? diff : 0;
+  }
+
   ChatMessage({
     required this.id,
     required this.localId,
@@ -102,6 +119,8 @@ class ChatMessage {
     this.stickerAssetPath,
     this.isAnimatedSticker = false,
     this.metadata,
+    this.disappearAfterSeconds,
+    this.expiresAt,
   });
 
   /// Parse a server JSON payload into a ChatMessage.
@@ -161,6 +180,12 @@ class ChatMessage {
                         ?? (meta?['amount'] as num?)?.toDouble(),
       currency:         json['currency']?.toString() ?? meta?['currency']?.toString(),
       metadata:         meta,
+      disappearAfterSeconds: json['disappearAfterSeconds'] is int
+                        ? json['disappearAfterSeconds'] as int
+                        : null,
+      expiresAt:        json['expiresAt'] != null
+                        ? DateTime.tryParse(json['expiresAt'].toString())?.toLocal()
+                        : null,
     );
   }
 
@@ -195,6 +220,25 @@ class ChatMessage {
     }
   }
 
+  /// Serialize to JSON for Socket.IO emission.
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{
+      'id': id,
+      'localId': localId,
+      'senderId': senderId,
+      'content': text,
+      'createdAt': timestamp.toUtc().toIso8601String(),
+      'status': status.name,
+    };
+    if (mediaUrl != null) m['mediaUrl'] = mediaUrl;
+    if (mediaType != null) m['mediaType'] = mediaType;
+    if (replyToId != null) m['replyToId'] = replyToId;
+    if (replyToText != null) m['replyToText'] = replyToText;
+    if (replyToSenderName != null) m['replyToSenderName'] = replyToSenderName;
+    if (disappearAfterSeconds != null) m['disappearAfterSeconds'] = disappearAfterSeconds;
+    return m;
+  }
+
   static DateTime _parseDate(dynamic raw) {
     if (raw == null) return DateTime.now();
     if (raw is String) return DateTime.tryParse(raw)?.toLocal() ?? DateTime.now();
@@ -215,6 +259,7 @@ class ChatMessage {
     String? replyToId,
     String? replyToText,
     String? replyToSenderName,
+    int? disappearAfterSeconds,
   }) {
     return ChatMessage(
       id: '',
@@ -228,6 +273,10 @@ class ChatMessage {
       status: MessageStatus.sending,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
+      disappearAfterSeconds: disappearAfterSeconds,
+      expiresAt: disappearAfterSeconds != null
+          ? DateTime.now().add(Duration(seconds: disappearAfterSeconds))
+          : null,
       mediaDuration: mediaDuration,
       waveformPeaks: waveformPeaks,
       replyToId: replyToId,
@@ -253,6 +302,8 @@ class ChatMessage {
     String? replyToId, String? replyToText, String? replyToSenderName,
     bool? isDeleted, bool? isEdited, Map<String,List<int>>? reactions,
     Map<String,dynamic>? metadata,
+    int? disappearAfterSeconds,
+    DateTime? expiresAt,
   }) {
     return ChatMessage(
       id:                id ?? this.id,
@@ -282,6 +333,8 @@ class ChatMessage {
       forwardedFromUser: this.forwardedFromUser,
       amount:            this.amount,
       currency:          this.currency,
+      disappearAfterSeconds: disappearAfterSeconds ?? this.disappearAfterSeconds,
+      expiresAt:         expiresAt ?? this.expiresAt,
     );
   }
 }

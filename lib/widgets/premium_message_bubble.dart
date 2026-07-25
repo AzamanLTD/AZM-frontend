@@ -449,6 +449,14 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
+                                  if (msg.disappearAfterSeconds != null) ...[
+                                    Icon(Icons.timer_outlined,
+                                        size: 11,
+                                        color: _isMe
+                                            ? Colors.white.withOpacity(0.5)
+                                            : c.textTertiary),
+                                    const SizedBox(width: 3),
+                                  ],
                                   if (msg.isEdited)
                                     Padding(
                                       padding: const EdgeInsets.only(right: 4),

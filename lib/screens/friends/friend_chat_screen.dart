@@ -558,6 +558,18 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         ),
         actions: [
           IconButton(
+            icon: Icon(Icons.timer_outlined,
+                size: 20,
+                color: chatState.disappearAfterSeconds != null
+                    ? c.accent
+                    : c.textSecondary),
+            tooltip: chatState.disappearAfterSeconds != null
+                ? 'Disappearing: \${chatState.disappearLabel}'
+                : 'Disappearing messages',
+            onPressed: () =>
+                showDisappearTimerSheet(context, params),
+          ),
+          IconButton(
             icon: Icon(Icons.more_vert, color: c.textPrimary),
             onPressed: _openChatProfile,
           ),

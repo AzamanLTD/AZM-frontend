@@ -210,8 +210,25 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             );
           },
         ),
+        actions: [
+          Builder(builder: (ctx) {
+            final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
+            final chatState = ref.watch(premiumChatProvider(params));
+            return IconButton(
+              icon: Icon(Icons.timer_outlined,
+                  size: 20,
+                  color: chatState.disappearAfterSeconds != null
+                      ? colors.accent
+                      : colors.textSecondary),
+              tooltip: chatState.disappearAfterSeconds != null
+                  ? 'Disappearing: \${chatState.disappearLabel}'
+                  : 'Disappearing messages',
+              onPressed: () => showDisappearTimerSheet(context, params),
+            );
+          }),
+        ],
       ),
-      body: Column(
+      body: Column
         children: [
           _SusuBanner(groupId: widget.groupId),
           Expanded(
