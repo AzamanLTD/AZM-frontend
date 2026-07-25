@@ -24,42 +24,8 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/screens/deposit_screen.dart';
-
-class PersonalChatMessage {
-  final String id;
-  final bool isMe;
-  final String text;
-  final String? mediaUrl;
-  final String type; // text | crypto | image | audio | document | sticker
-  String status; // sending | sent | read | failed
-  final DateTime createdAt;
-
-  final double? cryptoAmount;
-  final String? cryptoCurrency;
-  final bool cryptoCompleted;
-
-  // Reply-to fields
-  final String? replyToId;
-  final String? replyToText;
-  final String? replyToSenderName;
-
-  PersonalChatMessage({
-    required this.id,
-    required this.isMe,
-    required this.text,
-    this.mediaUrl,
-    this.type = 'text',
-    this.status = 'sending',
-    DateTime? createdAt,
-    this.cryptoAmount,
-    this.cryptoCurrency,
-    this.cryptoCompleted = false,
-    this.replyToId,
-    this.replyToText,
-    this.replyToSenderName,
-  }) : createdAt = createdAt ?? DateTime.now();
-}
 
 class PersonalChatInterface extends ConsumerStatefulWidget {
   final String chatId;
@@ -87,13 +53,13 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
   final FocusNode _inputFocus = FocusNode();
   final ImagePicker _imagePicker = ImagePicker();
 
-  final List<PersonalChatMessage> _messages = [];
+  final List<ChatMessage> _messages = [];
   bool _isLoading = true;
   String _nickname = '';
   bool _inputHasText = false;
 
   // Premium feature states
-  PersonalChatMessage? _replyToMessage;
+  ChatMessage? _replyToMessage;
   bool _isTyping = false;
   bool _plusMenuOpen = false;
 
@@ -141,6 +107,26 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     });
   }
 
+
+  /// Parse a string type from the API into a MessageKind.
+  static MessageKind _parseKind(String t) {
+    switch (t.toUpperCase()) {
+      case 'IMAGE': case 'IMAGE_PROOF': return MessageKind.image;
+      case 'VIDEO': return MessageKind.video;
+      case 'AUDIO': return MessageKind.audio;
+      case 'DOCUMENT': return MessageKind.document;
+      case 'LINK': return MessageKind.link;
+      case 'STICKER': return MessageKind.sticker;
+      case 'SYSTEM': case 'SYSTEM_URGENCY': return MessageKind.system;
+      case 'PAYMENT_TRANSFER': return MessageKind.transaction;
+      case 'TRANSFER_SENT': case 'TRANSFER_COMPLETED': case 'TRANSFER_DECLINED':
+        return MessageKind.peerTransfer;
+      case 'TRANSFER_REQUEST': return MessageKind.transferRequest;
+      case 'TEXT': case '': return MessageKind.text;
+      default: return MessageKind.text;
+    }
+  }
+
   Future<void> _fetchMessages() async {
     setState(() => _isLoading = true);
     try {
@@ -165,25 +151,31 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
             final senderId = m['senderId']?.toString() ?? '';
             final currentUserId = auth.user?.id.toString() ?? '';
             final meta = m['metadata'] != null ? m['metadata'] as Map<String, dynamic> : null;
-            _messages.add(PersonalChatMessage(
+            _messages.add(ChatMessage(
               id: m['id']?.toString() ?? '',
+              localId: m['localId']?.toString() ?? m['id']?.toString() ?? '',
+              senderId: senderId,
               isMe: senderId == currentUserId,
               text: m['text']?.toString() ?? m['content']?.toString() ?? '',
               mediaUrl: m['mediaUrl']?.toString(),
-              type: m['messageType']?.toString() ?? m['type']?.toString() ?? 'text',
-              status: 'read',
-              createdAt: m['createdAt'] != null
+              kind: _parseKind(m['messageType']?.toString() ?? m['type']?.toString() ?? 'TEXT'),
+              status: MessageStatus.read,
+              timestamp: m['createdAt'] != null
                   ? DateTime.tryParse(m['createdAt'].toString()) ?? DateTime.now()
                   : DateTime.now(),
-              cryptoAmount: (m['cryptoAmount'] as num?)?.toDouble() ?? (meta?['amount'] as num?)?.toDouble(),
-              cryptoCurrency: m['cryptoCurrency']?.toString() ?? meta?['currency']?.toString(),
-              cryptoCompleted: m['cryptoCompleted'] == true || meta?['status'] == 'COMPLETED',
+              amount: (m['cryptoAmount'] as num?)?.toDouble() ?? (meta?['amount'] as num?)?.toDouble(),
+              currency: m['cryptoCurrency']?.toString() ?? meta?['currency']?.toString(),
+              metadata: {
+                if (m['cryptoCompleted'] == true || meta?['status'] == 'COMPLETED')
+                  'completed': true,
+                if (meta != null) ...meta,
+              },
               replyToId: meta?['replyToId']?.toString(),
               replyToText: meta?['replyToText']?.toString(),
               replyToSenderName: meta?['replyToSenderName']?.toString(),
             ));
             // DEBUG: Log EVERY message's raw keys and parsed type
-            print('DEBUG MSG #${_messages.length}: raw keys=${m.keys.toList()}, m[type]=${m['type']}, m[messageType]=${m['messageType']}, parsed_type=${_messages.last.type}, content_preview=${(m['content']?.toString() ?? m['text']?.toString() ?? '').substring(0, (m['content']?.toString() ?? m['text']?.toString() ?? '').length.clamp(0, 40))}');
+            print('DEBUG MSG #${_messages.length}: raw keys=${m.keys.toList()}, m[type]=${m['type']}, m[messageType]=${m['messageType']}, parsed_type=${_messages.last.kind}, content_preview=${(m['content']?.toString() ?? m['text']?.toString() ?? '').substring(0, (m['content']?.toString() ?? m['text']?.toString() ?? '').length.clamp(0, 40))}');
           }
           _nickname = data['nickname']?.toString() ?? '';
         });
@@ -272,7 +264,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     return '$m:$s';
   }
 
-  void _triggerReply(PersonalChatMessage msg) {
+  void _triggerReply(ChatMessage msg) {
     HapticFeedback.lightImpact();
     setState(() => _replyToMessage = msg);
   }
@@ -392,15 +384,18 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       final bool completed = response.statusCode == 200 || response.statusCode == 201;
 
       if (mounted) {
-        final cryptoMsg = PersonalChatMessage(
+        final cryptoMsg = ChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
+          localId: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
+          senderId: auth.user?.id.toString() ?? '',
           isMe: true,
           text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
-          type: isRequest ? 'TRANSFER_REQUEST' : 'PAYMENT_TRANSFER',
-          status: completed ? (isRequest ? 'sent' : 'sent') : 'failed',
-          cryptoAmount: amount,
-          cryptoCurrency: 'USDC',
-          cryptoCompleted: completed && !isRequest,
+          kind: isRequest ? MessageKind.transferRequest : MessageKind.transaction,
+          timestamp: DateTime.now(),
+          status: completed ? MessageStatus.sent : MessageStatus.failed,
+          amount: amount,
+          currency: 'USDC',
+          metadata: {'completed': completed && !isRequest},
         );
         setState(() => _messages.add(cryptoMsg));
         _scrollToBottom();
@@ -422,15 +417,18 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     } catch (e) {
       debugPrint('transfer error: $e');
       if (mounted) {
-        final cryptoMsg = PersonalChatMessage(
+        final cryptoMsg = ChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
+          localId: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
+          senderId: auth.user?.id.toString() ?? '',
           isMe: true,
           text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
-          type: isRequest ? 'TRANSFER_REQUEST' : 'PAYMENT_TRANSFER',
-          status: 'failed',
-          cryptoAmount: amount,
-          cryptoCurrency: 'USDC',
-          cryptoCompleted: false,
+          kind: isRequest ? MessageKind.transferRequest : MessageKind.transaction,
+          timestamp: DateTime.now(),
+          status: MessageStatus.failed,
+          amount: amount,
+          currency: 'USDC',
+          metadata: null,
         );
         setState(() => _messages.add(cryptoMsg));
         _scrollToBottom();
@@ -448,13 +446,16 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
   Future<void> _sendMessage({required String text, String? mediaUrl, required String type}) async {
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     
-    final msg = PersonalChatMessage(
+    final msg = ChatMessage(
       id: tempId,
+      localId: tempId,
+      senderId: auth.user?.id.toString() ?? '',
       isMe: true,
       text: text,
       mediaUrl: mediaUrl,
-      type: type,
-      status: 'sending',
+      kind: _parseKind(type),
+      timestamp: DateTime.now(),
+      status: MessageStatus.sending,
       replyToId: _replyToMessage?.id,
       replyToText: _replyToMessage?.text,
       replyToSenderName: _replyToMessage != null
@@ -485,14 +486,16 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         final idx = _messages.indexOf(msg);
         if (idx != -1) {
           setState(() {
-            _messages[idx] = PersonalChatMessage(
+            _messages[idx] = ChatMessage(
               id: data['message']?['id']?.toString() ?? tempId,
+              localId: tempId,
+              senderId: auth.user?.id.toString() ?? '',
               isMe: true,
               text: data['message']?['text']?.toString() ?? text,
               mediaUrl: data['message']?['mediaUrl']?.toString(),
-              type: data['message']?['type']?.toString() ?? type,
-              status: 'sent',
-              createdAt: data['message']?['createdAt'] != null
+              kind: _parseKind(data['message']?['type']?.toString() ?? type),
+              status: MessageStatus.sent,
+              timestamp: data['message']?['createdAt'] != null
                   ? DateTime.tryParse(data['message']['createdAt'].toString()) ?? DateTime.now()
                   : DateTime.now(),
               replyToId: msg.replyToId,
@@ -502,10 +505,10 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
           });
         }
       } else if (mounted) {
-        setState(() => msg.status = 'failed');
+        setState(() => msg.status = MessageStatus.failed);
       }
     } catch (e) {
-      if (mounted) setState(() => msg.status = 'failed');
+      if (mounted) setState(() => msg.status = MessageStatus.failed);
     }
   }
 
@@ -514,7 +517,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     HapticFeedback.selectionClick();
     
     // Extract shared photos from messages
-    final mediaMessages = _messages.where((m) => m.type == 'image' || m.mediaUrl != null).toList();
+    final mediaMessages = _messages.where((m) => m.kind == MessageKind.image || m.mediaUrl != null).toList();
 
     showModalBottomSheet(
       context: context,
@@ -738,10 +741,10 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                                 child: Column(
                                   children: [
                                     if (_shouldShowDateHeader(i))
-                                      _buildDateHeader(msg.createdAt, colors),
-                                    if (const {'crypto', 'PAYMENT_TRANSFER', 'TRANSFER_SENT', 'TRANSFER_REQUEST', 'TRANSFER_COMPLETED', 'TRANSFER_DECLINED'}.contains(msg.type))
+                                      _buildDateHeader(msg.timestamp, colors),
+                                    if (const [MessageKind.peerTransfer, MessageKind.transaction, MessageKind.transferRequest].contains(msg.kind))
                                       _transactionBubble(msg, colors)
-                                    else if ((msg.type == 'image' || msg.type == 'IMAGE') && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
+                                    else if ((msg.kind == MessageKind.image || msg.kind == MessageKind.image) && msg.mediaUrl != null && msg.mediaUrl!.contains(','))
                                       _slantedStackBubble(msg, colors)
                                     else
                                       _textBubble(msg, colors),
@@ -1000,7 +1003,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     );
   }
 
-  Widget _textBubble(PersonalChatMessage msg, AzamanColors colors) {
+  Widget _textBubble(ChatMessage msg, AzamanColors colors) {
     final bool isMe = msg.isMe;
     final bubbleColor = isMe ? colors.accent : colors.softSurface;
     final textColor = isMe ? (colors.isDark ? Colors.black : Colors.white) : colors.textPrimary;
@@ -1045,7 +1048,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               ),
 
             // If it's an audio message note, show play button and wave
-            if (msg.type == 'audio' && msg.mediaUrl != null)
+            if (msg.kind == MessageKind.audio && msg.mediaUrl != null)
               SizedBox(
                 width: 190,
                 child: _AudioPlayerBubble(
@@ -1054,7 +1057,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                   colors: colors,
                 ),
               )
-            else if (msg.type == 'image' && msg.mediaUrl != null)
+            else if (msg.kind == MessageKind.image && msg.mediaUrl != null)
               // Thin-ring image bubble: edge-to-edge image, accent border,
               // floating timestamp chip in the bottom-right corner so the image
               // fills the bubble with no dead space.
@@ -1100,7 +1103,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_formatMessageTime(msg.createdAt),
+                          Text(_formatMessageTime(msg.timestamp),
                               style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w500)),
                           if (isMe) ...[
                             const SizedBox(width: 3),
@@ -1125,7 +1128,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_formatMessageTime(msg.createdAt), style: TextStyle(color: metaColor, fontSize: 9.5, fontWeight: FontWeight.w500)),
+                          Text(_formatMessageTime(msg.timestamp), style: TextStyle(color: metaColor, fontSize: 9.5, fontWeight: FontWeight.w500)),
                           if (isMe) ...[
                             const SizedBox(width: 3),
                             _statusIcon(msg.status, colors),
@@ -1143,8 +1146,8 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Spacer(),
-                if (msg.type != 'text' && msg.type != 'image') ...[
-                  Text(_formatMessageTime(msg.createdAt), style: TextStyle(color: metaColor, fontSize: 10, fontWeight: FontWeight.w500)),
+                if (msg.kind != MessageKind.text && msg.kind != MessageKind.image) ...[
+                  Text(_formatMessageTime(msg.timestamp), style: TextStyle(color: metaColor, fontSize: 10, fontWeight: FontWeight.w500)),
                   if (isMe) ...[
                     const SizedBox(width: 4),
                     _statusIcon(msg.status, colors),
@@ -1158,7 +1161,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     );
   }
 
-  Widget _slantedStackBubble(PersonalChatMessage msg, AzamanColors colors) {
+  Widget _slantedStackBubble(ChatMessage msg, AzamanColors colors) {
     final isMe = msg.isMe;
     final urls = msg.mediaUrl?.split(',') ?? [];
     return Align(
@@ -1174,50 +1177,50 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(_formatMessageTime(msg.createdAt), style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+            child: Text(_formatMessageTime(msg.timestamp), style: TextStyle(color: colors.textTertiary, fontSize: 10)),
           ),
         ],
       ),
     );
   }
 
-  Widget _transactionBubble(PersonalChatMessage msg, AzamanColors colors) {
+  Widget _transactionBubble(ChatMessage msg, AzamanColors colors) {
     final currentUser = ref.read(authProvider).user;
     final myAzmId = currentUser?.azamanId ?? '';
 
     // Derive card status from messageType
     final String cardStatus;
-    if (msg.type == 'TRANSFER_SENT' || msg.type == 'TRANSFER_COMPLETED' || msg.cryptoCompleted) {
+    if (msg.kind == MessageKind.peerTransfer || (msg.metadata?['completed'] == true)) {
       cardStatus = 'completed';
-    } else if (msg.type == 'TRANSFER_REQUEST') {
+    } else if (msg.kind == MessageKind.transferRequest) {
       cardStatus = 'pending';
-    } else if (msg.type == 'TRANSFER_DECLINED') {
+    } else if (msg.kind == MessageKind.peerTransfer) {
       cardStatus = 'failed';
     } else {
-      cardStatus = msg.cryptoCompleted ? 'completed' : 'failed';
+      cardStatus = (msg.metadata?['completed'] == true) ? 'completed' : 'failed';
     }
 
     return ChatMoneyCard(
-      amount: msg.cryptoAmount ?? 0,
-      currency: msg.cryptoCurrency ?? 'USDC',
+      amount: msg.amount ?? 0,
+      currency: msg.currency ?? 'USDC',
       isMe: msg.isMe,
       contactName: widget.contactName,
       status: cardStatus,
-      isRequest: msg.type == 'TRANSFER_REQUEST',
+      isRequest: msg.kind == MessageKind.transferRequest,
       reference: msg.id,
       memo: msg.text.contains('Sent') || msg.text.contains('Received') || msg.text.contains('Requested') ? null : msg.text,
-      timestamp: msg.createdAt,
-      onDownloadReceipt: msg.cryptoCompleted ? () async {
+      timestamp: msg.timestamp,
+      onDownloadReceipt: (msg.metadata?['completed'] == true) ? () async {
         try {
           await PdfReceiptService.instance.shareTransferReceipt(
             referenceId: msg.id,
-            amount: msg.cryptoAmount ?? 0,
-            currency: msg.cryptoCurrency ?? 'USDC',
+            amount: msg.amount ?? 0,
+            currency: msg.currency ?? 'USDC',
             fromAzmId: msg.isMe ? myAzmId : widget.contactAzamanId,
             toName: msg.isMe ? widget.contactName : 'You',
             toAzmId: msg.isMe ? widget.contactAzamanId : myAzmId,
-            timestamp: msg.createdAt,
-            completed: msg.cryptoCompleted,
+            timestamp: msg.timestamp,
+            completed: (msg.metadata?['completed'] == true),
           );
         } catch (e) {
           if (mounted) {
@@ -1230,17 +1233,17 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     );
   }
 
-  Widget _statusIcon(String status, AzamanColors colors) {
-    if (status == 'sending') {
+  Widget _statusIcon(MessageStatus status, AzamanColors colors) {
+    if (status == MessageStatus.sending) {
       return SizedBox(
         width: 10, height: 10,
         child: CircularProgressIndicator(color: colors.isDark ? Colors.black : Colors.white, strokeWidth: 1.2),
       );
     }
-    if (status == 'sent') {
+    if (status == MessageStatus.sent) {
       return Icon(Icons.check, color: colors.isDark ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.7), size: 11);
     }
-    if (status == 'read') {
+    if (status == MessageStatus.read) {
       return Icon(Icons.done_all, color: colors.isDark ? Colors.black : Colors.white, size: 12);
     }
     return Icon(Icons.error_outline, color: colors.danger, size: 12);
@@ -1658,8 +1661,8 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
 
   bool _shouldShowDateHeader(int index) {
     if (index == 0) return true;
-    final current = _messages[index].createdAt;
-    final previous = _messages[index - 1].createdAt;
+    final current = _messages[index].timestamp;
+    final previous = _messages[index - 1].timestamp;
     return current.day != previous.day || current.month != previous.month || current.year != previous.year;
   }
 }
