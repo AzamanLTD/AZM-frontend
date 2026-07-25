@@ -177,7 +177,9 @@ Future<void> _bootstrap() async {
   }
 
   // Initialize push notification service (permissions, foreground handling)
-  // await PushNotificationService.instance.init();
+  if (!kIsWeb) {
+    await PushNotificationService.instance.init();
+  }
 
   // Phase Q22 (2026-05-31): wire the FCM notification-tap callback so
   // cold-start (`getInitialMessage`) and warm-from-bg (`onMessageOpenedApp`)
@@ -186,24 +188,17 @@ Future<void> _bootstrap() async {
   // to settle MainWrapper underneath the deep-link target — otherwise
   // the destination ends up on top of an unsettled navigator and back
   // pops to a blank screen.
-  /*
   PushNotificationService.instance.onNotificationTap = (data) {
     final action = data['action']?.toString() ?? '';
     if (action.isEmpty) return;
-    // Coerce the rest of the payload (everything except `action`).
     final actionPayload = <String, dynamic>{};
     data.forEach((k, v) {
       if (k != 'action') actionPayload[k] = v;
     });
-    // Allow the navigator to settle. 1500ms covers the splash 2s delay
-    // worst-case race; in practice the navigator is ready well before
-    // then. handleNotificationTap itself uses Navigator.push on the
-    // root navigator key, so it's a no-op until the key has a state.
     Future.delayed(const Duration(milliseconds: 1500), () {
       handleNotificationTap(action: action, actionPayload: actionPayload);
     });
   };
-  */
 
   runApp(
     const ProviderScope(
