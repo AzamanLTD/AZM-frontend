@@ -57,6 +57,8 @@ import 'package:azaman/widgets/review_card.dart';
 import 'package:azaman/widgets/stacked_gallery_cards.dart';
 import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
+import 'package:azaman/screens/marketplace/business_reviews_section.dart';
+import 'package:azaman/screens/marketplace/business_book_tab.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -590,7 +592,13 @@ class _BusinessProfileScreenState
       case 2:
         return _reviewsTab(business, colors);
       case 3:
-        return _bookTab(colors);
+        return BusinessBookTab(
+              business: business,
+              colors: colors,
+              onNavigate: (route) => context.push(route),
+              onOpenOrderSheet: _openOrderSheet,
+              onOpenCatalogView: _openCatalogView,
+            );
       case 0:
       default:
         return _overviewTab(business, colors);
@@ -740,6 +748,19 @@ class _BusinessProfileScreenState
   // bubble (book emoji) only appears when there's something to show and
   // opens the same catalog/menu content — including the restaurant
   // flip-book — full-screen via container transform.
+
+  /// Builds the full-screen catalog/menu route.
+  ///
+  /// FOOD_BEVERAGE keeps the dedicated page-turning flip-book experience
+  /// (a fixed full-bleed metaphor — you flip pages, you don't scroll a
+  /// list, so a sliver hero doesn't fit it) wrapped in a plain app bar.
+  ///
+  /// Every other vertical (Retail, Technology, Services, ...) gets the new
+  /// "UberEats-style" storefront: a CustomScrollView with a parallax hero
+  /// (reusing ParallaxHeaderDelegate, same as the profile page itself), a
+  /// pinned horizontally-scrolling category bar, and tap-a-category ->
+  /// smooth-scroll-to-that-section. This replaces what used to be a single
+  /// flat ListView with no way to jump around a long catalog.
   Widget _floatingActionBubbles(BusinessProfile business, AzamanColors colors) {
     final hasCatalog = _menuSections.isNotEmpty || _uncategorisedProducts.isNotEmpty;
     final hasUnpaidInvoices = _unpaidInvoices > 0;
@@ -859,6 +880,7 @@ class _BusinessProfileScreenState
   /// pinned horizontally-scrolling category bar, and tap-a-category ->
   /// smooth-scroll-to-that-section. This replaces what used to be a single
   /// flat ListView with no way to jump around a long catalog.
+
   Widget _catalogRouteScaffold(BusinessProfile business, AzamanColors colors) {
     final hasSections = _menuSections.isNotEmpty;
     final hasUncat = _uncategorisedProducts.isNotEmpty;
@@ -1434,178 +1456,9 @@ class _BusinessProfileScreenState
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   // ── Reviews ────────────────────────────────────────────────────────────────
-  Widget _reviewsSection(BusinessProfile business, AzamanColors colors) {
-    final reviewsAsync = ref.watch(businessReviewsProvider(widget.bizId));
-    return Padding(
-      key: _reviewsKey,
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Reviews',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800)),
-              const Spacer(),
-              RatingStars(rating: business.averageRating, size: 15),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () async {
-                  final submitted =
-                      await LeaveReviewSheet.show(context, business: business);
-                  if (submitted && mounted) {
-                    // Refresh reviews after a successful submission.
-                    ref.invalidate(businessReviewsProvider(widget.bizId));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Review submitted. Thank you!')),
-                    );
-                  }
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: colors.accent),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '+ Review',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          reviewsAsync.when(
-            loading: () => _reviewsShimmer(colors),
-            error: (_, __) => Text(
-              'Could not load reviews.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13),
-            ),
-            data: (page) {
-              if (page.reviews.isEmpty) {
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.divider),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.star_outline,
-                          size: 28, color: colors.textTertiary),
-                      const SizedBox(height: 8),
-                      Text('No reviews yet',
-                          style: TextStyle(
-                              color: colors.textSecondary, fontSize: 13)),
-                    ],
-                  ),
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _distribution(page.reviews, colors),
-                  const SizedBox(height: 12),
-                  ...page.reviews.map((r) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: ReviewCard(review: r),
-                      )),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _reviewsShimmer(AzamanColors colors) {
-    return Column(
-      children: List.generate(
-        3,
-        (_) => Container(
-          height: 86,
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: colors.softSurface,
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
 
   /// 5-star breakdown bar chart computed from the loaded review page.
-  Widget _distribution(List<BusinessReview> reviews, AzamanColors colors) {
-    final counts = <int, int>{5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-    for (final r in reviews) {
-      final star = r.rating.clamp(1, 5);
-      counts[star] = (counts[star] ?? 0) + 1;
-    }
-    final total = reviews.length;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Column(
-        children: [
-          for (int star = 5; star >= 1; star--)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 14,
-                    child: Text('$star',
-                        style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                  Icon(Icons.star_outline, size: 11, color: colors.warning),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: total == 0 ? 0 : (counts[star] ?? 0) / total,
-                        minHeight: 6,
-                        backgroundColor: colors.softSurface,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(colors.warning),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 22,
-                    child: Text('${counts[star] ?? 0}',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            color: colors.textTertiary, fontSize: 11)),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   // ── Tab: Overview ──────────────────────────────────────────────────────────
   Widget _overviewTab(BusinessProfile business, AzamanColors colors) {
@@ -1920,159 +1773,13 @@ class _BusinessProfileScreenState
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        _reviewsSection(business, colors),
+        BusinessReviewsSection(business: business, colors: colors),
       ],
     );
   }
 
   // ── Tab: Book (placeholder) ────────────────────────────────────────────────
-  Widget _bookTab(AzamanColors colors) {
-    final business = _business;
-    if (business == null) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
-    }
 
-    switch (business.category) {
-      case 'HOSPITALITY':
-      case 'REAL_ESTATE':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.hotel_outlined,
-          title: 'Book a Room',
-          subtitle: 'Browse room types, pick your dates, and reserve with an escrow-backed deposit.',
-          buttonLabel: 'Browse Rooms',
-          onTap: () => context.push('/business-market/${business.id}/hotel-booking'),
-        );
-      case 'LOGISTICS':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.directions_bus_filled_outlined,
-          title: 'Book a Seat',
-          subtitle: 'See upcoming trips, pick your seat on the live seat map, and reserve instantly.',
-          buttonLabel: 'View Trips',
-          onTap: () => context.push('/business-market/${business.id}/transit'),
-        );
-      case 'FOOD_BEVERAGE':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.table_restaurant_outlined,
-          title: 'Reserve a Table',
-          subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.',
-          buttonLabel: 'Request Reservation',
-          onTap: () => _openOrderSheet(),
-        );
-      case 'RETAIL':
-      case 'TECHNOLOGY':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.shopping_bag_outlined,
-          title: 'Shop the Catalog',
-          subtitle: 'Browse everything this business sells and check out with escrow-backed payment protection.',
-          buttonLabel: 'Shop Now',
-          onTap: () => _openCatalogView(),
-        );
-      case 'HEALTH_WELLNESS':
-      case 'FREELANCE_SERVICES':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.design_services_outlined,
-          title: 'Book a Service',
-          subtitle: 'Pick a listed service or package and request it — the business confirms your booking directly.',
-          buttonLabel: 'View Services',
-          onTap: () => _openOrderSheet(),
-        );
-      case 'EDUCATION':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.school_outlined,
-          title: 'Enroll in a Course',
-          subtitle: 'Browse available courses and enroll — your payment is held in escrow until access is confirmed.',
-          buttonLabel: 'View Courses',
-          onTap: () => _openOrderSheet(),
-        );
-      case 'ENTERTAINMENT':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.confirmation_number_outlined,
-          title: 'Get Tickets',
-          subtitle: 'Browse tickets and experiences from this business and secure yours with escrow protection.',
-          buttonLabel: 'View Tickets',
-          onTap: () => _openOrderSheet(),
-        );
-      case 'FINANCIAL_SERVICES':
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.account_balance_outlined,
-          title: 'View Plans',
-          subtitle: "Browse this business's financial products and services and request the one you need.",
-          buttonLabel: 'View Plans',
-          onTap: () => _openOrderSheet(),
-        );
-      default:
-        return _bookCtaCard(
-          colors: colors,
-          icon: Icons.storefront_outlined,
-          title: 'Browse Offerings',
-          subtitle: 'See what this business offers and request it directly — payments are escrow-protected.',
-          buttonLabel: 'View Offerings',
-          onTap: () => _openOrderSheet(),
-        );
-    }
-  }
-
-  Widget _bookCtaCard({
-    required AzamanColors colors,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String buttonLabel,
-    required VoidCallback onTap,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: colors.accentSurface,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 40, color: colors.accent),
-            ),
-            const SizedBox(height: 18),
-            Text(title,
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              ),
-              onPressed: onTap,
-              child: Text(buttonLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ── Sticky action bar ────────────────────────────────────────────────────
   
