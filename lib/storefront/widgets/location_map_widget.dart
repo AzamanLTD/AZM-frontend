@@ -41,7 +41,7 @@ class LocationMapWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Theme.of(context).dividerColor),
                     ),
-                    child: Text('Zoom: $zoomx', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
+                    child: Text('Zoom: $zoom', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
                   ),
                 ),
               ],

@@ -26,7 +26,7 @@ import '../storefront/services/storefront_tracking_service.dart';
 import 'storefront_order_sheet.dart';
 import '../storefront/core/scroll_to_products_notification.dart';
 import '../storefront/widgets/storefront_skeleton.dart';
-import '../theme/azaman_colors.dart';
+import '../providers/theme_provider.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -117,7 +117,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AzamanColors.of(context);
+    final colors = ref.watch(themeProvider).colors;
     final renderAsync = ref.watch(storefrontRenderProvider(widget.businessProfileId));
     final productsAsync = ref.watch(storefrontProductsProvider(widget.businessProfileId));
 

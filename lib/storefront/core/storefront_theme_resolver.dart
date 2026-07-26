@@ -56,11 +56,9 @@ class StorefrontThemeResolver {
         onError: _getOnColor(danger),
         surface: surface,
         onSurface: textPrimary,
-        background: background,
-        onBackground: textPrimary,
       ),
       textTheme: _buildTextTheme(textPrimary, textSecondary, textMuted, headingFont, bodyFont),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -112,8 +110,6 @@ class StorefrontThemeResolver {
       onError: Colors.white,
       surface: _parseColor(tokens.surfaceSolid, Colors.white),
       onSurface: _parseColor(tokens.textPrimary, Colors.black87),
-      background: _parseColor(tokens.background, Colors.white),
-      onBackground: _parseColor(tokens.textPrimary, Colors.black87),
     );
   }
 

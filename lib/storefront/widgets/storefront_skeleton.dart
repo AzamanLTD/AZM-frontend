@@ -7,7 +7,7 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import '../widgets/premium_shimmer.dart';
+import '../../widgets/premium_shimmer.dart';
 
 class StorefrontSkeleton extends StatelessWidget {
   const StorefrontSkeleton({super.key});

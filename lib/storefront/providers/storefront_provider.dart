@@ -164,7 +164,7 @@ final storefrontEligibilityProvider =
 // ── Public Render ─────────────────────────────────────────────────────────────
 
 final storefrontRenderProvider =
-    FutureProvider.family<StorefrontRenderResponse?, String>((bizId) async {
+    FutureProvider.family<StorefrontRenderResponse?, String>((ref, bizId) async {
   final service = StorefrontService();
   return service.renderStorefront(bizId);
 });

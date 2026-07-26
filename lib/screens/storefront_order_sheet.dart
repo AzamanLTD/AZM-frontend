@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../storefront/providers/storefront_provider.dart';
 import '../storefront/services/storefront_tracking_service.dart';
-import '../theme/azaman_colors.dart';
+import '../providers/theme_provider.dart';
 import '../utils/azaman_haptics.dart';
 
 class StorefrontOrderSheet extends ConsumerStatefulWidget {
@@ -80,7 +80,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AzamanColors.of(context);
+    final colors = ref.watch(themeProvider).colors;
     final tags = (widget.product['tags'] as List?)?.cast<String>() ?? [];
     final prepMins = widget.product['preparationMins'] as int?;
     final description = widget.product['description'] as String?;
@@ -248,7 +248,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
   }
 
   Widget _QtyButton({required IconData icon, required VoidCallback onTap}) {
-    final colors = AzamanColors.of(context);
+    final colors = ref.read(themeProvider).colors;
     return GestureDetector(
       onTap: () { AzamanHaptics.selection(); onTap(); },
       child: Container(

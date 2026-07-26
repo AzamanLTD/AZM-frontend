@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../storefront/providers/storefront_provider.dart';
 import '../storefront/services/storefront_tracking_service.dart';
-import '../theme/azaman_colors.dart';
+import '../providers/theme_provider.dart';
 import 'storefront_screen.dart';
 
 class StorefrontDiscoveryScreen extends ConsumerStatefulWidget {
@@ -95,7 +95,7 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
 
   @override
   Widget build(BuildContext context) {
-    final colors = AzamanColors.of(context);
+    final colors = ref.watch(themeProvider).colors;
     final query = StorefrontDiscoveryQuery(
       search: _search,
       category: _category,

@@ -445,6 +445,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
 
   Future<void> _sendMessage({required String text, String? mediaUrl, required String type}) async {
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final auth = ref.read(authProvider);
     
     final msg = ChatMessage(
       id: tempId,

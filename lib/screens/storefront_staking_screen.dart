@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storefront/providers/storefront_provider.dart';
 import '../storefront/models/storefront_models.dart';
-import '../theme/azaman_colors.dart';
+import '../providers/theme_provider.dart';
 
 class StorefrontStakingScreen extends ConsumerStatefulWidget {
   const StorefrontStakingScreen({super.key});
@@ -88,7 +88,7 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
 
   @override
   Widget build(BuildContext context) {
-    final colors = AzamanColors.of(context);
+    final colors = ref.watch(themeProvider).colors;
     final eligibility = ref.watch(storefrontEligibilityProvider);
     final stakes = ref.watch(stakesProvider);
 
