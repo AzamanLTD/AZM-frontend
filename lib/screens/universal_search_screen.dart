@@ -89,6 +89,7 @@ final _quickActions = <_QuickAction>[
   _QuickAction(title: 'Referrals', icon: HugeIconsSolid.gift, route: '/referral', keywords: ['refer', 'invite', 'friend', 'reward']),
   _QuickAction(title: 'QR Scanner', icon: HugeIconsSolid.qrCode01, route: '/qr-scanner', keywords: ['qr', 'scan', 'code']),
   _QuickAction(title: 'Transaction History', icon: HugeIconsSolid.note01, route: '/transactions', keywords: ['transaction', 'history', 'statement']),
+  _QuickAction(title: 'Spending Insights', icon: HugeIconsSolid.dashboardSquare01, route: '/spending-insights', keywords: ['spending', 'budget', 'insights', 'analytics', 'budget']),
 ];
 
 // ── Universal Search Screen ─────────────────────────────────────────────────

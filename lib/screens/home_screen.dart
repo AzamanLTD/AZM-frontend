@@ -32,6 +32,7 @@ import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:azaman/screens/universal_search_screen.dart';
+import 'package:azaman/screens/spending_insights_screen.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -97,6 +98,59 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
                 const SizedBox(height: 18),
 
                 _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
+
+                const SizedBox(height: 28),
+
+                // Spending Insights shortcut
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    AzamanHaptics.nav();
+                    context.push('/spending-insights');
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [colors.accent.withValues(alpha: 0.08), colors.accentSecondary.withValues(alpha: 0.04)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colors.accent.withValues(alpha: 0.15), width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(HugeIconsSolid.dashboardSquare01, size: 20, color: colors.accent),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Spending Insights',
+                                style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                              ),
+                              Text(
+                                'Track your spending & set budgets',
+                                style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(HugeIconsSolid.arrowRight01, size: 18, color: colors.accent),
+                      ],
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 350.ms, duration: 350.ms).slideY(begin: 0.1, end: 0, delay: 350.ms, duration: 350.ms),
 
                 const SizedBox(height: 28),
 
