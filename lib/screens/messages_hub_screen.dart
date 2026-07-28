@@ -26,6 +26,7 @@ class PersonalChat {
   bool isMuted;
   bool isArchived;
   bool hasActiveTicket; // cannot delete chats with open tickets
+  String? folder; // custom folder assignment
 
   PersonalChat({
     required this.id,
@@ -38,7 +39,34 @@ class PersonalChat {
     this.isMuted = false,
     this.isArchived = false,
     this.hasActiveTicket = false,
+    this.folder,
   });
+}
+
+enum ChatFolder { all, unread, groups, business, archived, favorites }
+
+extension ChatFolderX on ChatFolder {
+  String get label {
+    switch (this) {
+      case ChatFolder.all: return 'All';
+      case ChatFolder.unread: return 'Unread';
+      case ChatFolder.groups: return 'Groups';
+      case ChatFolder.business: return 'Business';
+      case ChatFolder.archived: return 'Archived';
+      case ChatFolder.favorites: return 'Favorites';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ChatFolder.all: return Icons.chat_bubble_outline;
+      case ChatFolder.unread: return Icons.mark_chat_unread;
+      case ChatFolder.groups: return Icons.group;
+      case ChatFolder.business: return Icons.storefront;
+      case ChatFolder.archived: return Icons.archive_outlined;
+      case ChatFolder.favorites: return Icons.star_outline;
+    }
+  }
 }
 
 class MessagesHubScreen extends ConsumerStatefulWidget {
@@ -52,6 +80,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   final List<PersonalChat> _chats = [];
   bool _isLoading = false;
   String _searchQuery = '';
+  ChatFolder _activeFolder = ChatFolder.all;
 
   // Telegram-style collapsing status bar (2026-07-06) — the stories row
   // shrinks away smoothly as the chat list scrolls down, and returns as you
@@ -463,6 +492,84 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
               ),
             ),
 
+            const SizedBox(height: 10),
+
+            // ── Chat Folder Tabs ──
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: ChatFolder.values.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final folder = ChatFolder.values[i];
+                  final isActive = _activeFolder == folder;
+                  final count = _getFolderCount(folder);
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _activeFolder = folder);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? colors.accent.withValues(alpha: 0.15)
+                            : colors.surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isActive
+                              ? colors.accent.withValues(alpha: 0.4)
+                              : colors.divider,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            folder.icon,
+                            size: 14,
+                            color: isActive ? colors.accent : colors.textTertiary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            folder.label,
+                            style: TextStyle(
+                              color: isActive ? colors.accent : colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                          if (count > 0) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? colors.accent.withValues(alpha: 0.2)
+                                    : colors.divider,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: TextStyle(
+                                  color: isActive ? colors.accent : colors.textTertiary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
             const SizedBox(height: 12),
             ClipRect(
               child: Align(
@@ -584,6 +691,23 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         ),
       ),
     );
+  }
+
+  int _getFolderCount(ChatFolder folder) {
+    switch (folder) {
+      case ChatFolder.all:
+        return _chats.where((c) => !c.isArchived).length;
+      case ChatFolder.unread:
+        return _chats.where((c) => !c.isArchived && c.unreadCount > 0).length;
+      case ChatFolder.groups:
+        return _chats.where((c) => !c.isArchived && c.folder == 'group').length;
+      case ChatFolder.business:
+        return _chats.where((c) => !c.isArchived && c.folder == 'business').length;
+      case ChatFolder.archived:
+        return _chats.where((c) => c.isArchived).length;
+      case ChatFolder.favorites:
+        return _chats.where((c) => !c.isArchived && c.folder == 'favorite').length;
+    }
   }
 
   Widget _buildEmptyState(AzamanColors colors) {
@@ -729,6 +853,26 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                 },
               ),
               _actionTile(
+                icon: Icons.folder_outlined,
+                label: 'Move to Folder',
+                colors: colors,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFolderPicker(chat, colors);
+                },
+              ),
+              _actionTile(
+                icon: chat.folder == 'favorite' ? Icons.star : Icons.star_outline,
+                label: chat.folder == 'favorite' ? 'Remove from Favorites' : 'Add to Favorites',
+                colors: colors,
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    chat.folder = chat.folder == 'favorite' ? null : 'favorite';
+                  });
+                },
+              ),
+              _actionTile(
                 icon: Icons.delete_outline,
                 label: 'Delete Chat',
                 colors: colors,
@@ -777,6 +921,57 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
             ],
           ),
         );
+      },
+    );
+  }
+
+  void _showFolderPicker(PersonalChat chat, AzamanColors colors) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Text('Move to Folder',
+                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15)),
+              const SizedBox(height: 12),
+              _folderOption('None', null, chat, colors),
+              _folderOption('Favorites', 'favorite', chat, colors),
+              _folderOption('Groups', 'group', chat, colors),
+              _folderOption('Business', 'business', chat, colors),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _folderOption(String label, String? value, PersonalChat chat, AzamanColors colors) {
+    final isSelected = chat.folder == value;
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? colors.accent : colors.textTertiary,
+        size: 20,
+      ),
+      title: Text(label, style: TextStyle(color: colors.textPrimary, fontSize: 14)),
+      onTap: () {
+        Navigator.pop(context);
+        setState(() => chat.folder = value);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Moved to $label'),
+          duration: const Duration(seconds: 1),
+        ));
       },
     );
   }
