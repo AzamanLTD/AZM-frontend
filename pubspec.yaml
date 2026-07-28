@@ -120,6 +120,7 @@ dependencies:
   # don't sit in front of a spinning fetch with no signal. Watches radio
   # state changes (wifi / mobile / ethernet / none).
   connectivity_plus: ^6.1.0
+  flutter_webrtc: ^0.12.0
 
   # --- PHASE UI-OVERHAUL: Premium micro-interactions (gskinner) ---
   # `flutter_animate` is the canonical micro-interaction layer for the

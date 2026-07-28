@@ -34,6 +34,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/chat_theme_model.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:azaman/widgets/sticker_sheet.dart';
+import 'package:azaman/screens/call/call_screen.dart';
 
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
@@ -536,7 +537,37 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.call_outlined, color: colors.glow),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CallScreen(
+                    peerId: int.tryParse(widget.contactId) ?? 0,
+                    peerName: widget.contactName,
+                    peerAvatar: null,
+                    isVideoCall: false,
+                    isCaller: true,
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.videocam_outlined, color: colors.glow),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CallScreen(
+                    peerId: int.tryParse(widget.contactId) ?? 0,
+                    peerName: widget.contactName,
+                    peerAvatar: null,
+                    isVideoCall: true,
+                    isCaller: true,
+                  ),
+                ),
+              );
+            },
           ),
           IconButton(
             icon: Icon(Icons.palette_outlined, color: colors.glow),

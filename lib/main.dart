@@ -48,6 +48,7 @@ import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
 
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/services/webrtc_service.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
@@ -398,6 +399,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void _initUnifiedSocket() {
     final socketService = ref.read(socketServiceProvider);
     socketService.init(ref);
+
+    // Initialize WebRTC and wire socket for signaling
+    final webrtcService = ref.read(webrtcServiceProvider);
+    webrtcService.initialize();
+    webrtcService.setSocket(socketService);
 
     final auth = ref.read(auth_pkg.authProvider);
     if (auth.user != null) {
