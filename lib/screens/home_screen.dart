@@ -31,6 +31,7 @@ import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
+import 'package:azaman/screens/universal_search_screen.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -203,6 +204,36 @@ class _GreetingHeader extends ConsumerWidget {
                 duration: 300.ms,
                 curve: Curves.easeOutBack,
               ),
+          const SizedBox(width: 10),
+          // Universal search
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              AzamanHaptics.nav();
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const UniversalSearchScreen(),
+                  transitionsBuilder: (_, anim, __, child) =>
+                      FadeTransition(opacity: anim, child: child),
+                  transitionDuration: 200.ms,
+                ),
+              );
+            },
+            child: PremiumGlassContainer(
+              blur: 8,
+              opacity: 0.06,
+              borderRadius: 20,
+              padding: EdgeInsets.zero,
+              enableShadow: false,
+              child: SizedBox(
+                width: 40, height: 40,
+                child: Center(
+                  child: Icon(HugeIconsSolid.search01, size: 18, color: colors.textSecondary),
+                ),
+              ),
+            ),
+          ),
           const Spacer(),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
