@@ -564,7 +564,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     ? c.accent
                     : c.textSecondary),
             tooltip: chatState.disappearAfterSeconds != null
-                ? 'Disappearing: \${chatState.disappearLabel}'
+                ? 'Disappearing: ${chatState.disappearLabel}'
                 : 'Disappearing messages',
             onPressed: () =>
                 showDisappearTimerSheet(context, params),

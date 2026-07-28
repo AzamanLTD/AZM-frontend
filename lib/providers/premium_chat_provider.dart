@@ -51,10 +51,10 @@ class PremiumChatState {
   String get disappearLabel {
     if (disappearAfterSeconds == null) return 'Off';
     final s = disappearAfterSeconds!;
-    if (s < 60) return '\${s}s';
-    if (s < 3600) return '\${s ~/ 60}m';
-    if (s < 86400) return '\${s ~/ 3600}h';
-    return '\${s ~/ 86400}d';
+    if (s < 60) return '${s}s';
+    if (s < 3600) return '${s ~/ 60}m';
+    if (s < 86400) return '${s ~/ 3600}h';
+    return '${s ~/ 86400}d';
   }
 
   PremiumChatState copyWith({

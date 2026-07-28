@@ -221,7 +221,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                       ? colors.accent
                       : colors.textSecondary),
               tooltip: chatState.disappearAfterSeconds != null
-                  ? 'Disappearing: \${chatState.disappearLabel}'
+                  ? 'Disappearing: ${chatState.disappearLabel}'
                   : 'Disappearing messages',
               onPressed: () => showDisappearTimerSheet(context, params),
             );

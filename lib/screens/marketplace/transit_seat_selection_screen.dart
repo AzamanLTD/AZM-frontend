@@ -120,8 +120,8 @@ class _TransitSeatSelectionScreenState
         // Try to get trip details for the success sheet
         final tripDetail = ref.read(tripDetailProvider(widget.tripId)).valueOrNull;
         final route = tripDetail != null
-            ? '\${tripDetail.origin} → \${tripDetail.destination}'
-            : 'Trip \${widget.tripId}';
+            ? '${tripDetail.origin} → ${tripDetail.destination}'
+            : 'Trip ${widget.tripId}';
         final departureTime = tripDetail?.departureAt ?? DateTime.now();
 
         // Invalidate the seats provider so they refresh on next visit

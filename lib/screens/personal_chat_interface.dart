@@ -728,7 +728,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                             itemBuilder: (context, i) {
                               final msg = _messages[i];
                               return Dismissible(
-                                key: ValueKey('reply_\${msg.id}'),
+                                key: ValueKey('reply_${msg.id}'),
                                 direction: DismissDirection.startToEnd,
                                 confirmDismiss: (dir) async {
                                   _triggerReply(msg);

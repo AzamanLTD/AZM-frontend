@@ -211,7 +211,7 @@ class ApiClient {
     }
 
     // Parse error from backend JSON body
-    String message = 'Request failed with status \${response.statusCode}';
+    String message = 'Request failed with status ${response.statusCode}';
     List<String>? errors;
     String? code;
 

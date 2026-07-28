@@ -12,6 +12,7 @@
 //     so the app shell does not repaint when an unrelated theme field flips.
 // =============================================================================
 
+import 'dart:isolate';
 import 'dart:async';
 import 'dart:convert';
 
@@ -167,45 +168,88 @@ void main() async {
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (!kIsWeb) {
-    try {
-      await Firebase.initializeApp();
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    } catch (e) {
-      debugPrint('[Bootstrap] Firebase init failed: $e');
-    }
-  }
-
-  // Initialize push notification service (permissions, foreground handling)
-  if (!kIsWeb) {
-    await PushNotificationService.instance.init();
-  }
-
-  // Phase Q22 (2026-05-31): wire the FCM notification-tap callback so
-  // cold-start (`getInitialMessage`) and warm-from-bg (`onMessageOpenedApp`)
-  // both deep-link via the canonical `handleNotificationTap` resolver.
-  // Defer with a 1.5s delay on cold start so the SplashScreen has time
-  // to settle MainWrapper underneath the deep-link target — otherwise
-  // the destination ends up on top of an unsettled navigator and back
-  // pops to a blank screen.
-  PushNotificationService.instance.onNotificationTap = (data) {
-    final action = data['action']?.toString() ?? '';
-    if (action.isEmpty) return;
-    final actionPayload = <String, dynamic>{};
-    data.forEach((k, v) {
-      if (k != 'action') actionPayload[k] = v;
-    });
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      handleNotificationTap(action: action, actionPayload: actionPayload);
-    });
+  // ── 1. GLOBAL ERROR BOUNDARY ─────────────────────────────────────────────
+  // Capture framework-level errors (build/layout failures) so they NEVER
+  // produce a red screen that bounces the user to home. Instead we log and
+  // show a recoverable error widget.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('[AZM-FATAL] ${details.exception}');
+    _lastFrameworkError.value = details.exception;
   };
 
-  runApp(
-    const ProviderScope(
-      child: AzamanApp(),
-    ),
-  );
+  // ── 2. ISOLATE ERROR GUARD ───────────────────────────────────────────────
+  // Errors thrown in separate isolates (image decoding, JSON parsing in
+  // compute()) don't reach FlutterError.onError. This catches them.
+  Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
+    final list = data as List;
+    debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
+  }).sendPort);
+
+  // ── 3. ERROR WIDGET BUILDER (no red screen) ──────────────────────────────
+  // Replace the default red error screen with a themed fallback that lets
+  // the user retry instead of being bounced to home.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF1A1A2E),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 16),
+              const Text('Something went wrong',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Pull down to refresh, or restart the app.',
+                style: TextStyle(color: Colors.white54, fontSize: 13)),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
+  // ── 4. ZONE GUARD for async errors outside Flutter ───────────────────────
+  await runZonedGuarded<Future<void>>(
+    () async {
+      if (!kIsWeb) {
+        try {
+          await Firebase.initializeApp();
+          FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        } catch (e) {
+          debugPrint('[Bootstrap] Firebase init failed: $e');
+        }
+      }
+
+      if (!kIsWeb) {
+        await PushNotificationService.instance.init();
+      }
+
+      PushNotificationService.instance.onNotificationTap = (data) {
+        final action = data['action']?.toString() ?? '';
+        if (action.isEmpty) return;
+        final actionPayload = <String, dynamic>{};
+        data.forEach((k, v) {
+          if (k != 'action') actionPayload[k] = v;
+        });
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          handleNotificationTap(action: action, actionPayload: actionPayload);
+        });
+      };
+
+      runApp(const ProviderScope(child: AzamanApp()));
+    },
+    (Object error, StackTrace stack) {
+      debugPrint('[AZM-ZONE] Uncaught async error: $error\n$stack');
+    },
+  ) ?? runApp(const ProviderScope(child: AzamanApp()));
 }
+
+/// ValueNotifier holding the last framework error, for optional display.
+final ValueNotifier<Object?> _lastFrameworkError = ValueNotifier<Object?>(null);
 
 // =============================================================================
 // ROOT APP

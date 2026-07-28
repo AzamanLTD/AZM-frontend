@@ -168,13 +168,13 @@ class _BusinessDashboardScreenState
           return Row(
             children: [
               Expanded(child: _miniStat(colors, 'Accrued',
-                '\${dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0"}', Icons.savings)),
+                '${dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0"}', Icons.savings)),
               const SizedBox(width: 8),
               Expanded(child: _miniStat(colors, 'EWA',
-                '\${dash.ewaAvailable.toStringAsFixed(0)}', Icons.bolt)),
+                '${dash.ewaAvailable.toStringAsFixed(0)}', Icons.bolt)),
               const SizedBox(width: 8),
               Expanded(child: _miniStat(colors, 'Next',
-                dash!.nextShift != null ? '\${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
+                dash!.nextShift != null ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
             ],
           );
         },

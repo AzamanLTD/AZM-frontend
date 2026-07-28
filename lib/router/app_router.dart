@@ -92,13 +92,19 @@ final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
   redirect: (context, state) {
-    // Allow public routes (splash, login, public invite) through
     final path = state.uri.path;
+    // Public routes always pass
     if (path == '/' || path.startsWith('/susu/invite/')) return null;
-    // Gate all other routes behind auth
-    if (!AuthGuard.isAuthenticated) return '/';
+    // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
+    // and go to splash rather than letting a red error screen bounce home.
+    try {
+      if (!AuthGuard.isAuthenticated) return '/';
+    } catch (_) {
+      return '/';
+    }
     return null;
   },
+  errorBuilder: (context, state) => _AzamanRouteErrorScreen(error: state.error),
   routes: [
     // ── Boot & shell ────────────────────────────────────────────────────────
     GoRoute(
@@ -717,4 +723,43 @@ Map<String, dynamic>? parseFcmPayload(dynamic raw) {
     } catch (_) {}
   }
   return null;
+}
+
+// ── Phase 1.2: Crash-safe route error screen ──────────────────────────────
+class _AzamanRouteErrorScreen extends ConsumerWidget {
+  final Object? error;
+  const _AzamanRouteErrorScreen({this.error});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Page not found'), backgroundColor: colors.surface),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.explore_off, size: 56, color: colors.textTertiary),
+              const SizedBox(height: 16),
+              Text('This page could not be loaded.',
+                  style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              if (error != null)
+                Text('$error',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                    textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Back to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
