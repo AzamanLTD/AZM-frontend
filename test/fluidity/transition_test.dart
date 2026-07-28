@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('SliverAppBar collapses and expands smoothly', (tester) async {
     await tester.pumpWidget(MaterialApp(
-      home: CustomScrollView(
+      home: Scaffold(
+        body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 120,
@@ -14,6 +15,7 @@ void main() {
           SliverList(delegate: SliverChildBuilderDelegate(
             (_, i) => ListTile(title: Text('Item $i')), childCount: 50)),
         ],
+      ),
       ),
     ));
     expect(find.text('Marketplace'), findsOneWidget);
