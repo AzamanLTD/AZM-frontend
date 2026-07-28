@@ -75,6 +75,7 @@ class _MarketplaceHomeScreenState
     extends ConsumerState<MarketplaceHomeScreen> {
   final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  double _scrollOffset = 0;
   Timer? _debounce;
 
   // Category filter — wire value string (null = All)
@@ -108,6 +109,11 @@ class _MarketplaceHomeScreenState
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    _scrollCtrl.addListener(() {
+      if (_scrollCtrl.hasClients) {
+        setState(() => _scrollOffset = _scrollCtrl.offset);
+      }
+    });
     _searchFocusNode.addListener(() {
       if (mounted) setState(() => _searchFocused = _searchFocusNode.hasFocus);
     });
@@ -298,6 +304,9 @@ class _MarketplaceHomeScreenState
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // Scroll-driven gradient (0 at top → full when scrolled 120px)
+    final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
+
     return Scaffold(
       backgroundColor: colors.background,
       floatingActionButton: _businessFab(colors),
@@ -306,7 +315,33 @@ class _MarketplaceHomeScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _header(colors),
+            // ── Phase 3.4: Collapsible gradient behind header ───────────────
+            Stack(
+              children: [
+                // Gradient that fades in as user scrolls
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: expandRatio,
+                      duration: const Duration(milliseconds: 100),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              colors.accent.withOpacity(0.08),
+                              colors.background,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                _header(colors),
+              ],
+            ),
             const SizedBox(height: 10),
             // Tapping anywhere below the header (category strip, results bar,
             // or the list/map itself) retracts the search field if it's open —

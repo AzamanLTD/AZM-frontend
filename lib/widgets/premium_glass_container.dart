@@ -73,8 +73,7 @@ class PremiumGlassContainer extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
               border: border ??
                   Border.all(
-                    color: (isDark ? Colors.white : Colors.black)
-                        .withOpacity(0.06),
+                    color: Colors.white.withOpacity(isDark ? 0.06 : 0.12),
                     width: 0.5,
                   ),
               gradient: gradient,

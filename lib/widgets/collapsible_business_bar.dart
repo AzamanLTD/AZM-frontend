@@ -657,20 +657,23 @@ class CollapsibleBusinessBar extends ConsumerWidget {
 
   Widget _logo(AzamanColors colors, BusinessCategory cat,
       {required double size}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.24),
-      child: business.logoUrl != null && business.logoUrl!.isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: business.logoUrl!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              placeholder: (_, __) =>
-                  _logoPlaceholder(colors, cat, size: size),
-              errorWidget: (_, __, ___) =>
-                  _logoPlaceholder(colors, cat, size: size),
-            )
-          : _logoPlaceholder(colors, cat, size: size),
+    return Hero(
+      tag: 'biz-logo-${business.id}',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.24),
+        child: business.logoUrl != null && business.logoUrl!.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: business.logoUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                placeholder: (_, __) =>
+                    _logoPlaceholder(colors, cat, size: size),
+                errorWidget: (_, __, ___) =>
+                    _logoPlaceholder(colors, cat, size: size),
+              )
+            : _logoPlaceholder(colors, cat, size: size),
+      ),
     );
   }
 

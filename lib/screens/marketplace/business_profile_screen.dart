@@ -1021,7 +1021,9 @@ class _BusinessProfileScreenState
             ? business.logoUrl
             : null);
 
-    return SizedBox(
+    return Hero(
+      tag: 'biz-logo-${business.id}',
+      child: SizedBox(
       height: 280,
       width: double.infinity,
       child: Stack(
@@ -1111,6 +1113,7 @@ class _BusinessProfileScreenState
           ),
         ],
       ),
+    ),
     );
   }
 

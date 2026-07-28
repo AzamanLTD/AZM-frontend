@@ -179,7 +179,12 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            // Telegram uses a fast, lightly-bouncing scroll with momentum.
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            // Keyboard-dismiss on drag (Telegram behavior)
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             itemCount: widget.messages.length,
             itemBuilder: (context, i) {

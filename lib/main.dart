@@ -212,6 +212,18 @@ Future<void> _bootstrap() async {
     );
   };
 
+  // ── 5. IMMERSIVE EDGE-TO-EDGE ────────────────────────────────────────────
+  // Remove the Android status-bar/nav-bar tint so content flows edge-to-edge.
+  // Each Scaffold already sets transparent backgrounds via ThemedAppBackdrop.
+  await SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.edgeToEdge,
+  );
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+  ));
+
   // ── 4. ZONE GUARD for async errors outside Flutter ───────────────────────
   await runZonedGuarded<Future<void>>(
     () async {
