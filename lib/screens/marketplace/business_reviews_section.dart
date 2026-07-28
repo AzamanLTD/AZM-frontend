@@ -21,10 +21,10 @@ class BusinessReviewsSection extends StatelessWidget {
 
   Widget _buildReviewsSection(BusinessProfile business, AzamanColors colors) {
     final reviews = business.reviews;
-    final avg = business.rating;
+    final avg = business.averageRating;
     final count = business.reviewCount;
 
-    if (reviews == null || reviews.isEmpty) {
+    if (reviews.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -123,7 +123,7 @@ class BusinessReviewsSection extends StatelessWidget {
               CircleAvatar(
                 radius: 14,
                 backgroundColor: colors.accent.withOpacity(0.1),
-                child: Text(r.authorName.isNotEmpty ? r.authorName[0].toUpperCase() : '?',
+                child: Text(r.reviewerUsername.isNotEmpty ? r.reviewerUsername[0].toUpperCase() : '?',
                     style: TextStyle(fontSize: 11, color: colors.accent, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
@@ -131,17 +131,16 @@ class BusinessReviewsSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.authorName, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(r.reviewerUsername, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                     Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star : Icons.star_border, size: 12, color: Colors.amber))),
                   ],
                 ),
               ),
-              if (r.date != null)
-                Text(_formatDate(r.date!), style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+              Text(_formatDate(r.createdAt), style: TextStyle(color: colors.textTertiary, fontSize: 10)),
             ],
           ),
           const SizedBox(height: 6),
-          Text(r.text, style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4)),
+          Text(r.comment ?? '', style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4)),
         ],
       ),
     );

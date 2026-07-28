@@ -51,6 +51,12 @@ DateTime _toDateOr0(dynamic v) =>
 List<String> _toStringList(dynamic v) =>
     v is List ? v.map((e) => e.toString()).toList() : const [];
 
+List<T> _list<T>(dynamic raw, T Function(Map<String, dynamic>) fromJson) =>
+    (raw as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(fromJson)
+        .toList();
+
 extension _Let<T> on T {
   R let<R>(R Function(T) block) => block(this);
 }
@@ -454,6 +460,8 @@ class BusinessProfile {
   final int userId;
   final double totalVolume;
   final double averageRating;
+  final int reviewCount;
+  final List<BusinessReview> reviews;
   // Marketplace hierarchy additions (2026-06-24)
   final String? subcategory;
   final int? priceRange;
@@ -506,6 +514,8 @@ class BusinessProfile {
     required this.userId,
     required this.totalVolume,
     required this.averageRating,
+    this.reviewCount = 0,
+    this.reviews = const [],
     this.subcategory,
     this.priceRange,
     this.amenities = const [],
@@ -560,6 +570,10 @@ class BusinessProfile {
       userId: _toInt(user['id']),
       totalVolume: _toDouble(json['totalVolume']),
       averageRating: _toDouble(json['averageRating']),
+      reviewCount: _toInt(json['reviewCount']),
+      reviews: json['reviews'] is List
+          ? _list(json['reviews'], BusinessReview.fromJson)
+          : [],
       subcategory: json['subcategory'] as String?,
       priceRange: _toInt(json['priceRange']).let((v) => v == 0 ? null : v),
       amenities: _toStringList(json['amenities']),
