@@ -359,7 +359,7 @@ class Reservation {
     this.escrowId,
     this.metadata,
     this.businessName,
-    this.businessLogoUrl,
+    this.businessLogoUrl = "",
     this.businessBizId,
   });
 
@@ -890,7 +890,7 @@ class BusinessInvoice {
     this.voidedAt,
     this.businessName,
     this.businessBizId,
-    this.businessLogoUrl,
+    this.businessLogoUrl = "",
     this.locationLabel,
     this.locationAddress,
     this.tableLabel,
@@ -1291,4 +1291,120 @@ class BusinessAdPostModel {
     caption: j['caption'], imageUrl: j['imageUrl'],
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
   );
+}
+
+// =============================================================================
+// LOYALTY PROGRAM MODELS
+//
+// Square-style loyalty: stamp cards, points, tier discounts, cashback.
+// Reference: Square Loyalty, Starbucks Rewards, Punchh
+// =============================================================================
+
+enum LoyaltyType {
+  stampCard,
+  pointsPerVisit,
+  tierDiscount,
+  cashback,
+}
+
+class BusinessLoyaltyProgram {
+  final String id;
+  final String businessProfileId;
+  final LoyaltyType type;
+  final int stampsRequired;       // e.g., 10 stamps = 1 free coffee
+  final String rewardDescription; // "Free coffee" / "20% off"
+  final int validityDays;         // Stamps expire after N days
+  final bool isActive;
+
+  const BusinessLoyaltyProgram({
+    required this.id,
+    required this.businessProfileId,
+    required this.type,
+    this.stampsRequired = 10,
+    this.rewardDescription = '',
+    this.validityDays = 90,
+    this.isActive = true,
+  });
+
+  factory BusinessLoyaltyProgram.fromJson(Map<String, dynamic> json) {
+    return BusinessLoyaltyProgram(
+      id: json['id']?.toString() ?? '',
+      businessProfileId: json['businessProfileId']?.toString() ?? '',
+      type: LoyaltyType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => LoyaltyType.stampCard,
+      ),
+      stampsRequired: (json['stampsRequired'] as num?)?.toInt() ?? 10,
+      rewardDescription: json['rewardDescription']?.toString() ?? '',
+      validityDays: (json['validityDays'] as num?)?.toInt() ?? 90,
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'businessProfileId': businessProfileId,
+    'type': type.name,
+    'stampsRequired': stampsRequired,
+    'rewardDescription': rewardDescription,
+    'validityDays': validityDays,
+    'isActive': isActive,
+  };
+}
+
+class LoyaltyStamp {
+  final String id;
+  final String programId;
+  final String userId;
+  final DateTime earnedAt;
+  final String orderId;
+
+  const LoyaltyStamp({
+    required this.id,
+    required this.programId,
+    required this.userId,
+    required this.earnedAt,
+    required this.orderId,
+  });
+
+  factory LoyaltyStamp.fromJson(Map<String, dynamic> json) {
+    return LoyaltyStamp(
+      id: json['id']?.toString() ?? '',
+      programId: json['programId']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
+      earnedAt: json['earnedAt'] != null
+          ? DateTime.tryParse(json['earnedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      orderId: json['orderId']?.toString() ?? '',
+    );
+  }
+}
+
+/// User's loyalty card for a specific business — their collected stamps.
+class UserLoyaltyCard {
+  final String programId;
+  final String businessName;
+  final String businessLogoUrl;
+  final LoyaltyType type;
+  final int stampsCollected;
+  final int stampsRequired;
+  final String rewardDescription;
+  final DateTime? lastStampAt;
+  final List<LoyaltyStamp> history;
+
+  const UserLoyaltyCard({
+    required this.programId,
+    required this.businessName,
+    this.businessLogoUrl = "",
+    required this.type,
+    this.stampsCollected = 0,
+    this.stampsRequired = 10,
+    this.rewardDescription = '',
+    this.lastStampAt,
+    this.history = const [],
+  });
+
+  int get stampsRemaining => (stampsRequired - stampsCollected).clamp(0, stampsRequired);
+  double get progress => stampsRequired > 0 ? (stampsCollected / stampsRequired).clamp(0.0, 1.0) : 0.0;
+  bool get isComplete => stampsCollected >= stampsRequired;
 }

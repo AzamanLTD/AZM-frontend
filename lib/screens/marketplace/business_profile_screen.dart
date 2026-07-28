@@ -38,6 +38,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/loyalty_stamp_card.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
@@ -1477,7 +1478,29 @@ class _BusinessProfileScreenState
         _hoursOverview(colors),
         const SizedBox(height: 16),
         _products(business, colors),
+        const SizedBox(height: 16),
+        _loyaltySection(business, colors),
       ],
+    );
+  }
+
+  // ── Loyalty Card Section ───────────────────────────────────────────────────
+  Widget _loyaltySection(BusinessProfile business, AzamanColors colors) {
+    // Sample loyalty card — in production, this would be fetched from the API
+    final card = UserLoyaltyCard(
+      programId: business.bizId,
+      businessName: business.businessName,
+      type: LoyaltyType.stampCard,
+      stampsCollected: 7,
+      stampsRequired: 10,
+      rewardDescription: 'Free coffee',
+    );
+
+    return LoyaltyStampCard(
+      card: card,
+      onTap: () {
+        // Future: open loyalty history screen
+      },
     );
   }
 
