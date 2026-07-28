@@ -123,6 +123,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               userId: 0,
               totalVolume: 0,
               averageRating: 0,
+              reviews: const [],
+              reviewCount: 0,
               amenities: [],
               cuisineTypes: [],
               username: '',

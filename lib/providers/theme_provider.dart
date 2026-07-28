@@ -366,6 +366,11 @@ class AzamanColors {
     required this.scaffoldBackground,
     required this.border,
   });
+
+  // Aliases used by business_reviews_section.dart
+  Color get commentPrimary => textPrimary;
+  Color get commentSecondary => textSecondary;
+  Color get commentTertiary => textTertiary;
 }
 
 

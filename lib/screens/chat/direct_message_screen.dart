@@ -233,6 +233,13 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
           initAspectRatio: CropAspectRatioPreset.original,
           lockAspectRatio: false,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.ratio3x2,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9,
+          ],
         ),
         IOSUiSettings(
           title: 'Crop Photo',

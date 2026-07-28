@@ -388,7 +388,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         final cryptoMsg = ChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
           localId: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
-          senderId: auth.user?.id.toString() ?? '',
+          senderId: ref.read(authProvider).user?.id.toString() ?? '',
           isMe: true,
           text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
           kind: isRequest ? MessageKind.transferRequest : MessageKind.transaction,
@@ -421,7 +421,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         final cryptoMsg = ChatMessage(
           id: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
           localId: 'crypto_${DateTime.now().microsecondsSinceEpoch}',
-          senderId: auth.user?.id.toString() ?? '',
+          senderId: ref.read(authProvider).user?.id.toString() ?? '',
           isMe: true,
           text: isRequest ? 'Requested $amount USDC' : 'Sent $amount USDC',
           kind: isRequest ? MessageKind.transferRequest : MessageKind.transaction,
@@ -451,7 +451,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     final msg = ChatMessage(
       id: tempId,
       localId: tempId,
-      senderId: auth.user?.id.toString() ?? '',
+      senderId: ref.read(authProvider).user?.id.toString() ?? '',
       isMe: true,
       text: text,
       mediaUrl: mediaUrl,
@@ -491,7 +491,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
             _messages[idx] = ChatMessage(
               id: data['message']?['id']?.toString() ?? tempId,
               localId: tempId,
-              senderId: auth.user?.id.toString() ?? '',
+              senderId: ref.read(authProvider).user?.id.toString() ?? '',
               isMe: true,
               text: data['message']?['text']?.toString() ?? text,
               mediaUrl: data['message']?['mediaUrl']?.toString(),
