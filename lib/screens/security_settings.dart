@@ -43,6 +43,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   bool _biometricAvailable = false;
   bool _loadingBiometric = false;
 
+  // Session management
+  List<Map<String, dynamic>> _sessions = [];
+  bool _loadingSessions = false;
+  bool _loadingExport = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +59,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     //   if (user != null) setState(() => _twoFactorEnabled = user.isTwoFactorEnabled);
     // });
     _loadBiometricState();
+    _loadSessions();
   }
 
   Future<void> _loadBiometricState() async {
@@ -342,6 +348,144 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   }
 
   @override
+
+  // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
+  Future<void> _loadSessions() async {
+    setState(() => _loadingSessions = true);
+    try {
+      final res = await apiClient.get('/security/sessions');
+      final data = jsonDecode(res.body);
+      setState(() => _sessions = List<Map<String, dynamic>>.from(data['sessions'] ?? []));
+    } catch (e) {
+      debugPrint('[Security] session load error: $e');
+    } finally {
+      setState(() => _loadingSessions = false);
+    }
+  }
+
+  Future<void> _revokeSession(String sessionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ref.watch(themeProvider).colors.card,
+        title: Text('Revoke Session?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
+        content: Text('This will sign out that device immediately.',
+            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Revoke', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await apiClient.post('/security/sessions/$sessionId/revoke', {});
+      AzamanHaptics.confirm();
+      _loadSessions();
+    } catch (e) {
+      debugPrint('[Security] revoke session error: $e');
+    }
+  }
+
+  Future<void> _revokeAllSessions() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ref.watch(themeProvider).colors.card,
+        title: Text('Sign Out Everywhere?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
+        content: Text('This will sign out ALL devices including this one. You\'ll need to log in again.',
+            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sign Out All', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await apiClient.post('/security/sessions/revoke-all', {});
+      AzamanHaptics.confirm();
+      _loadSessions();
+    } catch (e) {
+      debugPrint('[Security] revoke all error: $e');
+    }
+  }
+
+  // ── GDPR DATA EXPORT ───────────────────────────────────────────────────────
+  Future<void> _exportData() async {
+    setState(() => _loadingExport = true);
+    try {
+      final res = await apiClient.get('/security/data-export');
+      final data = jsonDecode(res.body);
+
+      // Show summary dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: ref.watch(themeProvider).colors.card,
+            title: Text('Your Data Export', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Text('Here\'s a summary of your data:', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+                  const SizedBox(height: 12),
+                  ...(data['summary'] as List<dynamic>?)?.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(item['table'] ?? '', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary, fontSize: 13)),
+                        Text('${item['count']} records', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  )) ?? [],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Copy full JSON to clipboard
+                  Clipboard.setData(ClipboardData(text: JsonEncoder.withIndent('  ').convert(data)));
+                  AzamanHaptics.confirm();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Data copied to clipboard', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+                  );
+                },
+                child: Text('Copy Full JSON', style: TextStyle(color: ref.watch(themeProvider).colors.accent)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Security] data export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+        );
+      }
+    } finally {
+      setState(() => _loadingExport = false);
+    }
+  }
+
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
@@ -603,8 +747,187 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               ],
             ],
           ),
+          const SizedBox(height: 28),
+
+          // ── ACTIVE SESSIONS ──────────────────────────────────────────────────
+          _sectionHeader('Active Sessions', colors),
+          _buildCard(
+            colors,
+            children: [
+              if (_loadingSessions)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_sessions.isEmpty) ...[
+                _infoRow(colors, icon: Icons.devices, text: 'No active sessions found. Pull to refresh.'),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _loadSessions,
+                  child: Text('Refresh', style: TextStyle(color: colors.accent)),
+                ),
+              ] else ...[
+                ..._sessions.map((s) => _sessionTile(colors, s)),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _revokeAllSessions,
+                    icon: Icon(Icons.logout, color: colors.danger, size: 18),
+                    label: Text('Sign Out All Devices', style: TextStyle(color: colors.danger)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: colors.danger.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          // ── PRIVACY & DATA (GDPR) ────────────────────────────────────────────
+          _sectionHeader('Privacy & Data', colors),
+          _buildCard(
+            colors,
+            children: [
+              _actionRow(
+                colors,
+                icon: Icons.download_outlined,
+                title: 'Export My Data',
+                subtitle: 'Download all your data (GDPR)',
+                onTap: _loadingExport ? null : _exportData,
+                isLoading: _loadingExport,
+              ),
+              Divider(color: colors.divider, height: 1),
+              _infoRow(
+                colors,
+                icon: Icons.shield_outlined,
+                text: 'Your data is portable. Export includes your profile, transactions, trades, messages, and more.',
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _sessionTile(AzamanColors colors, Map<String, dynamic> session) {
+    final isCurrent = session['isCurrent'] == true;
+    final device = session['device'] ?? 'Unknown device';
+    final ip = session['ip'] ?? '';
+    final created = session['createdAt'] ?? '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: isCurrent ? colors.success.withValues(alpha: 0.1) : colors.accentSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isCurrent ? Icons.phone_iphone : Icons.devices,
+              color: isCurrent ? colors.success : colors.accent,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      device.length > 30 ? '${device.substring(0, 30)}...' : device,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                    ),
+                    if (isCurrent) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.success.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text('This device', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.success)),
+                      ),
+                    ],
+                  ],
+                ),
+                if (ip.isNotEmpty)
+                  Text(ip, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                if (created.isNotEmpty)
+                  Text(created, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+              ],
+            ),
+          ),
+          if (!isCurrent)
+            IconButton(
+              icon: Icon(Icons.close, color: colors.danger, size: 20),
+              onPressed: () => _revokeSession(session['id']?.toString() ?? ''),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionRow(
+    AzamanColors colors, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+    bool isLoading = false,
+  }) {
+    return InkWell(
+      onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: isLoading
+                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent))
+                : Icon(icon, color: colors.accent, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(AzamanColors colors, {required IconData icon, required String text}) {
+    return Row(
+      children: [
+        Icon(icon, color: colors.textTertiary, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: colors.textTertiary),
+          ),
+        ),
+      ],
     );
   }
 
