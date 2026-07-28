@@ -51,6 +51,7 @@ import 'package:azaman/screens/storefront_discovery_screen.dart';
 import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/screens/universal_search_screen.dart';
 import 'package:azaman/screens/spending_insights_screen.dart';
+import 'package:azaman/screens/round_up_settings_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
@@ -480,6 +481,11 @@ final GoRouter appRouter = GoRouter(
       path: '/spending-insights',
       name: 'spending-insights',
       builder: (context, state) => const SpendingInsightsScreen(),
+    ),
+    GoRoute(
+      path: '/round-up',
+      name: 'round-up-savings',
+      builder: (context, state) => const RoundUpSettingsScreen(),
     ),
   ],
 );
