@@ -11,6 +11,8 @@ import 'package:azaman/providers/story_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
+import 'package:azaman/screens/story_camera_screen.dart';
+import 'package:azaman/screens/story_editor_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 class PersonalChat {
@@ -103,13 +105,27 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   }
 
   Future<void> _pickAndCreateStory() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null && mounted) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => StoryCreationScreen(mediaFile: File(image.path), isVideo: false),
-      ));
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StoryCameraScreen(
+          onCaptured: (File mediaFile, bool isVideo, StoryFilter filter) {
+            Navigator.pushReplacement(context, MaterialPageRoute(
+              builder: (_) => StoryEditorScreen(
+                mediaFile: mediaFile,
+                isVideo: isVideo,
+                initialFilter: filter,
+                onPublish: (File file, bool isVid) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(
+                    builder: (_) => StoryCreationScreen(mediaFile: file, isVideo: isVid),
+                  ));
+                },
+              ),
+            ));
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchChats() async {
