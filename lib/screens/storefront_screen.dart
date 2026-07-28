@@ -184,21 +184,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
                   productsAsync: productsAsync,
                   colors: colors,
                   onOrder: (product) {
-                    // Build a minimal BusinessProfile from the render response
-                    final biz = BusinessProfile(
-                      id: widget.businessProfileId,
-                      bizId: '',
-                      userId: 0,
-                      businessName: response.business?.name ?? widget.businessName ?? 'Business',
-                      category: response.business?.category ?? 'OTHER',
-                      description: null,
-                      logoUrl: response.business?.logoUrl,
-                      coverPhotoUrl: response.business?.coverPhotoUrl,
-                      isVerified: false,
-                      averageRating: response.business?.averageRating ?? 0.0,
-                      reviewCount: 0,
-                    );
-                    _openOrderSheet(business: biz, product: product);
+                    _openOrderSheet(product);
                   },
                   onTrackProductTap: (productId) {
                     StorefrontTrackingService.instance.trackEvent(

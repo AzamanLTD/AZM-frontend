@@ -138,9 +138,11 @@ class _TripCard extends ConsumerWidget {
                       children: List.generate((constraints.maxWidth / 6).floor(), (i) =>
                           Expanded(child: Container(
                             height: 2, margin: const EdgeInsets.only(right: 2),
-                            color: i < (constraints.maxWidth / 6).floor() * 0.7
-                                ? colors.accent.withOpacity(0.4) : colors.accent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(1),
+                            decoration: BoxDecoration(
+                              color: i < (constraints.maxWidth / 6).floor() * 0.7
+                                  ? colors.accent.withOpacity(0.4) : colors.accent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(1),
+                            ),
                           ))),
                     )),
                   ),

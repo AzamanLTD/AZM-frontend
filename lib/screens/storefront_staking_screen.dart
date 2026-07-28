@@ -89,7 +89,7 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final eligibility = ref.watch(storefrontEligibilityProvider);
+    final eligibility = ref.watch(storefrontEligibilityProvider).valueOrNull;
     final stakes = ref.watch(stakesProvider);
 
     return Scaffold(
@@ -370,7 +370,7 @@ class _TierLadder extends StatelessWidget {
           Text('Tier Ladder', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ..._tiers.map((tier) {
-            final unlocked = currentStake >= tier['min'] as int;
+            final unlocked = currentStake >= (tier['min'] as int);
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(

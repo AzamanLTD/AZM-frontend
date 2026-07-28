@@ -250,7 +250,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
   Widget _QtyButton({required IconData icon, required VoidCallback onTap}) {
     final colors = ref.read(themeProvider).colors;
     return GestureDetector(
-      onTap: () { AzamanHaptics.selection(); onTap(); },
+      onTap: () { AzamanHaptics.nav(); onTap(); },
       child: Container(
         width: 44, height: 44,
         margin: const EdgeInsets.symmetric(horizontal: 4),

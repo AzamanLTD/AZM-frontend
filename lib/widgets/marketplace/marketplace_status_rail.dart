@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class MarketplaceCollapsedAvatars extends ConsumerWidget {
   final VoidCallback onTap;

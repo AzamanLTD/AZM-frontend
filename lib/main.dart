@@ -225,7 +225,7 @@ Future<void> _bootstrap() async {
   ));
 
   // ── 4. ZONE GUARD for async errors outside Flutter ───────────────────────
-  await runZonedGuarded<Future<void>>(
+  runZonedGuarded<Future<void>>(
     () async {
       if (!kIsWeb) {
         try {
@@ -257,7 +257,7 @@ Future<void> _bootstrap() async {
     (Object error, StackTrace stack) {
       debugPrint('[AZM-ZONE] Uncaught async error: $error\n$stack');
     },
-  ) ?? runApp(const ProviderScope(child: AzamanApp()));
+  );
 }
 
 /// ValueNotifier holding the last framework error, for optional display.

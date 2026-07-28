@@ -6,8 +6,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:azaman_frontend/storefront/core/storefront_theme_resolver.dart';
-import 'package:azaman_frontend/storefront/models/storefront_models.dart';
+import 'package:azaman/storefront/core/storefront_theme_resolver.dart';
+import 'package:azaman/storefront/models/storefront_models.dart';
 
 void main() {
   group('StorefrontThemeResolver — Color Parsing', () {

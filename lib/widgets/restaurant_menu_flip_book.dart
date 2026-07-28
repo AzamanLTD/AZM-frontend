@@ -220,7 +220,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
           ),
           const SizedBox(height: 8),
           Text(
-            '$' + '{allProducts.length} dishes',
+            '${allProducts.length} dishes',
             style: TextStyle(
               color: colors.textTertiary,
               fontSize: 11,

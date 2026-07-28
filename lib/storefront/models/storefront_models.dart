@@ -84,7 +84,7 @@ class ThemeTokenSet {
   final String? textPrimary;
   final String? textSecondary;
   final String? textMuted;
-  final String accent;
+  final String? accent;
   final String? accentHover;
   final String? success;
   final String? warning;
@@ -99,7 +99,7 @@ class ThemeTokenSet {
     this.textPrimary,
     this.textSecondary,
     this.textMuted,
-    required this.accent,
+    this.accent,
     this.accentHover,
     this.success,
     this.warning,

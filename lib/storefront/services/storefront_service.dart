@@ -225,12 +225,12 @@ class StorefrontService {
   }) async {
     final response = await _apiClient.post(
       '/storefront/$businessProfileId/order',
-      body: jsonEncode({
+      {
         'productId': productId,
         'quantity': quantity,
         if (customerNotes != null) 'customerNotes': customerNotes,
         if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
-      }),
+      },
     );
     return _parseResponse(response) as Map<String, dynamic>;
   }

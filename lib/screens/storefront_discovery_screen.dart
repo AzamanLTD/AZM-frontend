@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../storefront/providers/storefront_provider.dart';
 import '../storefront/services/storefront_tracking_service.dart';
@@ -290,7 +291,8 @@ class _StorefrontCard extends StatelessWidget {
     final reviewCount = business['reviewCount'] as int? ?? 0;
     final description = business['description'] as String?;
     final tileCount = data['tileCount'] as int? ?? 0;
-    final accent = theme['accent'] as String? ?? colors.accent.toHex();
+    final accent = theme['accent'] as String? ?? 
+        '#${colors.accent.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
 
     return GestureDetector(
       onTap: onTap,

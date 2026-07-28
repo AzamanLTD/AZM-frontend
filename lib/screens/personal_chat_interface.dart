@@ -358,8 +358,9 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       duration: const Duration(seconds: 1),
     ));
 
+    final auth = ref.read(authProvider);
+
     try {
-      final auth = ref.read(authProvider);
       final token = auth.user?.token;
       if (token == null) return;
 

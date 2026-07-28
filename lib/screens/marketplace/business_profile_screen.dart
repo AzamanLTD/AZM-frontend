@@ -35,7 +35,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:animations/animations.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
