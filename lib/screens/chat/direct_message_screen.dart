@@ -35,6 +35,9 @@ import 'package:azaman/models/chat_theme_model.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
 import 'package:azaman/widgets/sticker_sheet.dart';
 import 'package:azaman/screens/call/call_screen.dart';
+import 'package:azaman/screens/chat/message_search_screen.dart';
+import 'package:azaman/screens/chat/forward_dialog.dart';
+import 'package:azaman/services/message_action_service.dart';
 
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
@@ -564,6 +567,19 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                     peerAvatar: null,
                     isVideoCall: true,
                     isCaller: true,
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.search_rounded, color: colors.glow),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MessageSearchScreen(
+                    conversationContext: 'direct',
                   ),
                 ),
               );
@@ -1107,6 +1123,120 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     );
   }
 
+  void _showMessageContextMenu(ChatMessage msg, AzamanColors colors) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)),
+              )),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Icon(Icons.star_rounded, color: colors.glow),
+                title: Text('Star'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _toggleStar(msg);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.push_pin_rounded, color: colors.glow),
+                title: Text('Pin'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _togglePin(msg);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.forward_rounded, color: colors.glow),
+                title: Text('Forward'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _forwardMessage(msg);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.copy_rounded, color: colors.glow),
+                title: Text('Copy'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Clipboard.setData(ClipboardData(text: msg.content ?? ''));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copied to clipboard'), duration: Duration(seconds: 1)),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteMessage(msg);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleStar(ChatMessage msg) async {
+    try {
+      await MessageActionService.toggleStar(context: 'direct', messageId: msg.id);
+      setState(() => msg.isStarred = !(msg.isStarred ?? false));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to star message')),
+        );
+      }
+    }
+  }
+
+  void _togglePin(ChatMessage msg) async {
+    try {
+      await MessageActionService.togglePin(context: 'direct', messageId: msg.id);
+      setState(() => msg.isPinned = !(msg.isPinned ?? false));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg.isPinned == true ? 'Message pinned' : 'Message unpinned'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to pin message')),
+        );
+      }
+    }
+  }
+
+  void _forwardMessage(ChatMessage msg) async {
+    final success = await ForwardDialog.show(
+      context: context,
+      messageId: msg.id,
+      fromContext: 'direct',
+    );
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message forwarded'), duration: Duration(seconds: 1)),
+      );
+    }
+  }
+
   void _showReactionPicker(ChatMessage msg, AzamanColors colors) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet(
@@ -1174,7 +1304,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     final textColor = isMe ? Colors.black : colors.textPrimary;
 
     return GestureDetector(
-      onLongPress: () => _showReactionPicker(msg, colors),
+      onLongPress: () => _showMessageContextMenu(msg, colors),
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(

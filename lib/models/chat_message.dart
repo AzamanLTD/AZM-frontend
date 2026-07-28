@@ -60,6 +60,8 @@ class ChatMessage {
   // ── Reactions ─────────────────────────────────────────────────────────
   // Map<emoji, List<userId>>  — server sends {"❤️": [1, 2], "👍": [3]}
   Map<String, List<int>> reactions;
+  bool? isStarred;
+  bool? isPinned;
 
   // ── Context-specific ──────────────────────────────────────────────────
   // For transaction messages (money transfer cards)
@@ -114,6 +116,8 @@ class ChatMessage {
     this.isEdited = false,
     this.editedContent,
     this.reactions = const {},
+    this.isStarred,
+    this.isPinned,
     this.amount,
     this.currency,
     this.stickerAssetPath,
@@ -174,6 +178,8 @@ class ChatMessage {
       isDeleted:        json['deletedAt'] != null,
       isEdited:         json['editedAt'] != null,
       reactions:        parsedReactions,
+      isStarred:        isStarred,
+      isPinned:         isPinned,
       // Peer-transfer amount/currency live under metadata, not top-level —
       // fall back there so the transfer card always has a number to show.
       amount:           (json['amount'] as num?)?.toDouble()
@@ -300,7 +306,7 @@ class ChatMessage {
     MessageStatus? status, String? mediaUrl, String? mediaType,
     int? mediaDuration, List<int>? waveformPeaks, Map<String,dynamic>? linkPreview,
     String? replyToId, String? replyToText, String? replyToSenderName,
-    bool? isDeleted, bool? isEdited, Map<String,List<int>>? reactions,
+    bool? isDeleted, bool? isEdited, Map<String,List<int>>? reactions, bool? isStarred, bool? isPinned,
     Map<String,dynamic>? metadata,
     int? disappearAfterSeconds,
     DateTime? expiresAt,
@@ -326,6 +332,8 @@ class ChatMessage {
       isDeleted:         isDeleted ?? this.isDeleted,
       isEdited:          isEdited ?? this.isEdited,
       reactions:         reactions ?? this.reactions,
+      isStarred:        isStarred ?? this.isStarred,
+      isPinned:         isPinned ?? this.isPinned,
       metadata:          metadata ?? this.metadata,
       mediaSize:         this.mediaSize,
       mediaMimeType:     this.mediaMimeType,
