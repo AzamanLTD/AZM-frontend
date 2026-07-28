@@ -6,6 +6,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 
@@ -34,6 +35,9 @@ class _State extends ConsumerState<NotificationOverlay>
   late Animation<double> _bobAnim;
   int _tab = 0;
   double _drag = 0;
+  bool _quietHoursEnabled = false;
+  TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _quietEnd = const TimeOfDay(hour: 7, minute: 0);
 
   @override
   void initState() {
@@ -49,6 +53,64 @@ class _State extends ConsumerState<NotificationOverlay>
       ..repeat(reverse: true);
     _bobAnim = Tween<double>(begin: 0, end: 5).animate(
         CurvedAnimation(parent: _bobCtrl, curve: Curves.easeInOut));
+    _loadQuietHours();
+  }
+
+  Future<void> _loadQuietHours() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _quietHoursEnabled = prefs.getBool('quiet_hours_enabled') ?? false;
+      final startHour = prefs.getInt('quiet_start_hour') ?? 22;
+      final startMin = prefs.getInt('quiet_start_min') ?? 0;
+      final endHour = prefs.getInt('quiet_end_hour') ?? 7;
+      final endMin = prefs.getInt('quiet_end_min') ?? 0;
+      _quietStart = TimeOfDay(hour: startHour, minute: startMin);
+      _quietEnd = TimeOfDay(hour: endHour, minute: endMin);
+    });
+  }
+
+  Future<void> _saveQuietHours() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('quiet_hours_enabled', _quietHoursEnabled);
+    await prefs.setInt('quiet_start_hour', _quietStart.hour);
+    await prefs.setInt('quiet_start_min', _quietStart.minute);
+    await prefs.setInt('quiet_end_hour', _quietEnd.hour);
+    await prefs.setInt('quiet_end_min', _quietEnd.minute);
+  }
+
+  bool _isCurrentlyQuietHours() {
+    if (!_quietHoursEnabled) return false;
+    final now = TimeOfDay.now();
+    final nowMin = now.hour * 60 + now.minute;
+    final startMin = _quietStart.hour * 60 + _quietStart.minute;
+    final endMin = _quietEnd.hour * 60 + _quietEnd.minute;
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin < endMin;
+    } else {
+      // Spans midnight (e.g., 22:00 - 07:00)
+      return nowMin >= startMin || nowMin < endMin;
+    }
+  }
+
+  void _showQuietHoursSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _QuietHoursSheet(
+        enabled: _quietHoursEnabled,
+        start: _quietStart,
+        end: _quietEnd,
+        onChanged: (enabled, start, end) {
+          setState(() {
+            _quietHoursEnabled = enabled;
+            _quietStart = start;
+            _quietEnd = end;
+          });
+          _saveQuietHours();
+        },
+      ),
+    );
   }
 
   @override
@@ -296,6 +358,42 @@ class _State extends ConsumerState<NotificationOverlay>
                                     fontWeight: FontWeight.w700,
                                     decoration: TextDecoration.none)),
                                 const Spacer(),
+                                // Quiet hours indicator
+                                if (_quietHoursEnabled)
+                                  GestureDetector(
+                                    onTap: _showQuietHoursSheet,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      margin: const EdgeInsets.only(right: 8),
+                                      decoration: BoxDecoration(
+                                          color: _isCurrentlyQuietHours()
+                                              ? colors.accent.withValues(alpha: 0.15)
+                                              : colors.softSurface,
+                                          borderRadius: BorderRadius.circular(20)),
+                                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                        Icon(HugeIconsSolid.moon01, size: 13,
+                                            color: _isCurrentlyQuietHours() ? colors.accent : colors.textTertiary),
+                                        const SizedBox(width: 5),
+                                        Text(_isCurrentlyQuietHours() ? 'Quiet' : 'Quiet hrs',
+                                            style: TextStyle(
+                                                color: _isCurrentlyQuietHours() ? colors.accent : colors.textTertiary,
+                                                fontSize: 11, fontWeight: FontWeight.w600,
+                                                decoration: TextDecoration.none)),
+                                      ]),
+                                    ),
+                                  ),
+                                // Settings gear
+                                GestureDetector(
+                                  onTap: _showQuietHoursSheet,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                        color: colors.softSurface,
+                                        borderRadius: BorderRadius.circular(20)),
+                                    child: Icon(HugeIconsSolid.settings02, size: 15, color: colors.textSecondary),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () {
                                     HapticFeedback.lightImpact();
@@ -350,21 +448,7 @@ class _State extends ConsumerState<NotificationOverlay>
                                   _tab == 0 ? 'No unread notifications' : 'Nothing here',
                                   style: TextStyle(color: colors.textTertiary, fontSize: 13,
                                       decoration: TextDecoration.none)))
-                                  : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                itemCount: filtered.length,
-                                itemBuilder: (_, i) {
-                                  final n = filtered[i];
-                                  return _SlideRevealNotification(
-                                    key: ValueKey(n.id),
-                                    notification: n,
-                                    colors: colors,
-                                    onMarkRead: () => ref.read(notificationProvider.notifier).markAsRead(n.id),
-                                    onDelete: () => ref.read(notificationProvider.notifier).deleteNotification(n.id),
-                                    onSnooze: () {},
-                                  );
-                                },
-                              ),
+                                  : _buildGroupedList(filtered, colors),
                             ),
                             AnimatedBuilder(
                               animation: _bobAnim,
@@ -389,6 +473,67 @@ class _State extends ConsumerState<NotificationOverlay>
         },
       ),
     ]);
+  }
+
+  // ── Date-grouped notification list ──────────────────────────────────────────
+  Widget _buildGroupedList(List<AppNotification> items, AzamanColors colors) {
+    final groups = <String, List<AppNotification>>{};
+    final now = DateTime.now();
+    for (final n in items) {
+      final diff = now.difference(n.createdAt);
+      String label;
+      if (diff.inHours < 24 && now.day == n.createdAt.day) {
+        label = 'Today';
+      } else if (diff.inHours < 48) {
+        label = 'Yesterday';
+      } else if (diff.inDays < 7) {
+        label = 'This Week';
+      } else if (diff.inDays < 30) {
+        label = 'This Month';
+      } else {
+        label = 'Earlier';
+      }
+      groups.putIfAbsent(label, () => []).add(n);
+    }
+
+    final sectionOrder = ['Today', 'Yesterday', 'This Week', 'This Month', 'Earlier'];
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: groups.length,
+      itemBuilder: (_, sectionIdx) {
+        final label = sectionOrder[sectionIdx];
+        final sectionItems = groups[label];
+        if (sectionItems == null || sectionItems.isEmpty) return const SizedBox();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 6, left: 4),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            ...sectionItems.map((n) => _SlideRevealNotification(
+              key: ValueKey(n.id),
+              notification: n,
+              colors: colors,
+              onMarkRead: () => ref.read(notificationProvider.notifier).markAsRead(n.id),
+              onDelete: () => ref.read(notificationProvider.notifier).deleteNotification(n.id),
+              onSnooze: () {},
+            )),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -545,5 +690,199 @@ class _SlideState extends State<_SlideRevealNotification>
     if (d.inMinutes < 60) return '${d.inMinutes}m ago';
     if (d.inHours   < 24) return '${d.inHours}h ago';
     return '${d.inDays}d ago';
+  }
+}
+
+
+// ── Quiet Hours Bottom Sheet ─────────────────────────────────────────────────
+
+class _QuietHoursSheet extends ConsumerStatefulWidget {
+  final bool enabled;
+  final TimeOfDay start;
+  final TimeOfDay end;
+  final void Function(bool enabled, TimeOfDay start, TimeOfDay end) onChanged;
+
+  const _QuietHoursSheet({
+    required this.enabled,
+    required this.start,
+    required this.end,
+    required this.onChanged,
+  });
+
+  @override
+  ConsumerState<_QuietHoursSheet> createState() => _QuietHoursSheetState();
+}
+
+class _QuietHoursSheetState extends ConsumerState<_QuietHoursSheet> {
+  late bool _enabled;
+  late TimeOfDay _start;
+  late TimeOfDay _end;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.enabled;
+    _start = widget.start;
+    _end = widget.end;
+  }
+
+  String _formatTime(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:${t.minute.toString().padLeft(2, '0')} $period';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: colors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Icon(HugeIconsSolid.moon01, size: 22, color: colors.accent),
+              const SizedBox(width: 10),
+              Text('Quiet Hours',
+                  style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Suppress non-urgent notifications during your quiet hours. Security alerts will still come through.',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          // Enable toggle
+          Row(
+            children: [
+              Expanded(
+                child: Text('Enable Quiet Hours',
+                    style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+              ),
+              Switch.adaptive(
+                value: _enabled,
+                activeColor: colors.accent,
+                onChanged: (v) => setState(() => _enabled = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_enabled) ...[
+            // Start time
+              GestureDetector(
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: _start,
+                  builder: (_, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: Theme.of(context).colorScheme.copyWith(
+                        primary: colors.accent,
+                      ),
+                    ),
+                    child: child ?? const SizedBox(),
+                  ),
+                );
+                if (picked != null) setState(() => _start = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.border, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Icon(HugeIconsSolid.moon02, size: 20, color: colors.accent),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Start', style: TextStyle(color: colors.textPrimary, fontSize: 15))),
+                    Text(_formatTime(_start),
+                        style: TextStyle(color: colors.accent, fontSize: 15, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: colors.textTertiary),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // End time
+            GestureDetector(
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: _end,
+                  builder: (_, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: Theme.of(context).colorScheme.copyWith(
+                        primary: colors.accent,
+                      ),
+                    ),
+                    child: child ?? const SizedBox(),
+                  ),
+                );
+                if (picked != null) setState(() => _end = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.border, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Icon(HugeIconsSolid.sunrise, size: 20, color: colors.accent),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('End', style: TextStyle(color: colors.textPrimary, fontSize: 15))),
+                    Text(_formatTime(_end),
+                        style: TextStyle(color: colors.accent, fontSize: 15, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: colors.textTertiary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          // Save button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: () {
+                widget.onChanged(_enabled, _start, _end);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
   }
 }
