@@ -16,9 +16,9 @@ class TradeDisclaimer extends ConsumerWidget {
       margin: compact ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 4, 16, 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.1),
+        color: colors.warning.withValues(alpha: 0.1),
         border: Border(
-          bottom: BorderSide(color: colors.warning.withOpacity(0.25)),
+          bottom: BorderSide(color: colors.warning.withValues(alpha: 0.25)),
         ),
       ),
       child: Row(

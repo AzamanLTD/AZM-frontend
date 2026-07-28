@@ -387,12 +387,12 @@ class _BusinessRegisterScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: selected
-                      ? cat.color.withOpacity(0.12)
+                      ? cat.color.withValues(alpha: 0.12)
                       : colors.card,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: selected
-                        ? cat.color.withOpacity(0.5)
+                        ? cat.color.withValues(alpha: 0.5)
                         : colors.divider,
                     width: selected ? 1.5 : 1,
                   ),

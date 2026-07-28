@@ -107,7 +107,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: colors.accent.withOpacity(0.15),
+                backgroundColor: colors.accent.withValues(alpha: 0.15),
                 child: Text(
                   username.isNotEmpty ? username[0].toUpperCase() : '?',
                   style: TextStyle(
@@ -296,10 +296,10 @@ class _TrustBreakdownSheet extends ConsumerWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.08),
+                color: colors.accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
                 border:
-                    Border.all(color: colors.accent.withOpacity(0.25)),
+                    Border.all(color: colors.accent.withValues(alpha: 0.25)),
               ),
               child: Row(
                 children: [
@@ -366,7 +366,7 @@ class _CategoryRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: iconTint.withOpacity(0.12),
+              color: iconTint.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(9),
             ),
             child: Icon(icon, color: iconTint, size: 17),

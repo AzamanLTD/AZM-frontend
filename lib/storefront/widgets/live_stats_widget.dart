@@ -41,9 +41,9 @@ class LiveStatsWidget extends StatelessWidget {
         Text(stat.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
         const SizedBox(height: 2),
         Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(stat.icon, size: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+          Icon(stat.icon, size: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
           const SizedBox(width: 3),
-          Text(stat.label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
+          Text(stat.label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
         ]),
       ],
     );

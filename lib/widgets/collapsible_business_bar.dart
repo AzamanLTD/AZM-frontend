@@ -413,7 +413,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
           boxShadow: [
             BoxShadow(
               color: Colors.black
-                  .withOpacity(colors.isDark ? 0.28 : 0.07),
+                  .withValues(alpha: colors.isDark ? 0.28 : 0.07),
               blurRadius: 18,
               offset: const Offset(0, 6),
             ),
@@ -498,7 +498,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                         height: 32,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withValues(alpha: 0.45),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -640,7 +640,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
       child: PremiumGlassContainer(
         blur: 8, opacity: accent ? 0.12 : 0.04, borderRadius: 12,
         padding: const EdgeInsets.symmetric(vertical: 10), enableShadow: false,
-        border: Border.all(color: accent ? colors.accent.withOpacity(0.4) : colors.divider, width: 0.5),
+        border: Border.all(color: accent ? colors.accent.withValues(alpha: 0.4) : colors.divider, width: 0.5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -683,7 +683,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: cat.color.withOpacity(0.10),
+        color: cat.color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(size * 0.24),
       ),
       child: Icon(cat.icon, size: size * 0.46, color: cat.color),
@@ -692,10 +692,10 @@ class CollapsibleBusinessBar extends ConsumerWidget {
 
   Widget _coverPlaceholder(AzamanColors colors, BusinessCategory cat) {
     return Container(
-      color: cat.color.withOpacity(0.07),
+      color: cat.color.withValues(alpha: 0.07),
       child: Center(
         child: Icon(cat.icon,
-            size: 52, color: cat.color.withOpacity(0.25)),
+            size: 52, color: cat.color.withValues(alpha: 0.25)),
       ),
     );
   }
@@ -807,7 +807,7 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: _isFollowing
-              ? Colors.black.withOpacity(0.45)
+              ? Colors.black.withValues(alpha: 0.45)
               : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: _isFollowing
@@ -912,7 +912,7 @@ class _ExpandableProfilePic extends StatelessWidget {
                   fit: BoxFit.cover,
                 )
               : Container(
-                  color: cat.color.withOpacity(0.10),
+                  color: cat.color.withValues(alpha: 0.10),
                   child: Icon(cat.icon, size: width * 0.4, color: cat.color),
                 ),
         ),
@@ -961,7 +961,7 @@ class _ExpandedAvatar extends StatelessWidget {
                 border: Border.all(color: colors.card, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -1024,7 +1024,7 @@ class _ExpandedAvatar extends StatelessWidget {
   }
 
   Widget _placeholder() => Container(
-        color: cat.color.withOpacity(0.12),
+        color: cat.color.withValues(alpha: 0.12),
         child:
             Center(child: Icon(cat.icon, size: 24, color: cat.color)),
       );

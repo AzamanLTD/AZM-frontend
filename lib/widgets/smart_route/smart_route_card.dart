@@ -70,10 +70,10 @@ class SmartRouteCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
-            color: colors.card.withOpacity(0.55),
+            color: colors.card.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: accent.withOpacity(0.20),
+              color: accent.withValues(alpha: 0.20),
               width: 0.8,
             ),
           ),
@@ -83,7 +83,7 @@ class SmartRouteCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.12),
+                  color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(_icon, color: accent, size: 16),
@@ -151,9 +151,9 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Text(
         label,

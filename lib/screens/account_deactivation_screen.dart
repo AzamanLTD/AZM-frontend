@@ -166,9 +166,9 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.06),
+              color: colors.danger.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.danger.withOpacity(0.2)),
+              border: Border.all(color: colors.danger.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
@@ -268,7 +268,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _isRecording ? colors.danger.withOpacity(0.5) : colors.divider,
+          color: _isRecording ? colors.danger.withValues(alpha: 0.5) : colors.divider,
         ),
       ),
       child: Column(
@@ -289,7 +289,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                     boxShadow: _isRecording
                         ? [
                             BoxShadow(
-                              color: colors.danger.withOpacity(0.4),
+                              color: colors.danger.withValues(alpha: 0.4),
                               blurRadius: 16,
                               spreadRadius: 2,
                             ),
@@ -297,7 +297,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                         : _hasRecording
                             ? [
                                 BoxShadow(
-                                  color: colors.success.withOpacity(0.3),
+                                  color: colors.success.withValues(alpha: 0.3),
                                   blurRadius: 12,
                                   spreadRadius: 1,
                                 ),
@@ -404,7 +404,7 @@ class _WaveformPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.7)
+      ..color = color.withValues(alpha: 0.7)
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 

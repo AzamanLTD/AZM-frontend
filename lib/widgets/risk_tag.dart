@@ -33,15 +33,15 @@ class RiskTag extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: rc.withOpacity(0.08),
+        color: rc.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: rc.withOpacity(0.35),
+          color: rc.withValues(alpha: 0.35),
           width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: rc.withOpacity(0.06),
+            color: rc.withValues(alpha: 0.06),
             blurRadius: 6,
             spreadRadius: -1,
           ),
@@ -57,7 +57,7 @@ class RiskTag extends ConsumerWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: rc.withOpacity(0.5),
+                  color: rc.withValues(alpha: 0.5),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),

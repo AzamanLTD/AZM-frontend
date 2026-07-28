@@ -89,7 +89,7 @@ class PublicProfileModal extends ConsumerWidget {
         width: 36,
         height: 4,
         decoration: BoxDecoration(
-          color: colors.textTertiary.withOpacity(0.3),
+          color: colors.textTertiary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -106,10 +106,10 @@ class PublicProfileModal extends ConsumerWidget {
             height: 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: colors.accent.withOpacity(0.3), width: 2.5),
+              border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2.5),
               boxShadow: [
                 BoxShadow(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   blurRadius: 20,
                   spreadRadius: -2,
                 ),
@@ -188,7 +188,7 @@ class PublicProfileModal extends ConsumerWidget {
               Icon(
                 Icons.emoji_events_outlined,
                 size: 32,
-                color: colors.textTertiary.withOpacity(0.4),
+                color: colors.textTertiary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 8),
               Text(
@@ -266,7 +266,7 @@ class PublicProfileModal extends ConsumerWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: badge.color.withOpacity(0.12),
+              color: badge.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(

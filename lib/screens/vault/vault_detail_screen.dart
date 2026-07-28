@@ -182,7 +182,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                     style: TextStyle(color: colors.danger, fontWeight: FontWeight.w800),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.danger.withOpacity(0.30)),
+                    side: BorderSide(color: colors.danger.withValues(alpha: 0.30)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -217,12 +217,12 @@ class _Hero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.accent.withOpacity(0.18),
-            colors.accentSecondary.withOpacity(0.05),
+            colors.accent.withValues(alpha: 0.18),
+            colors.accentSecondary.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.accent.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,7 +441,7 @@ class _DepositTile extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: _color.withOpacity(0.10),
+              color: _color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(_icon, color: _color, size: 14),

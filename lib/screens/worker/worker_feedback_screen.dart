@@ -87,7 +87,7 @@ class WorkerFeedbackScreen extends ConsumerWidget {
                       Wrap(spacing: 6, children: f.tags.map((t) =>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                           child: Text(t, style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w500)),
                         )).toList()),
                     ],

@@ -297,7 +297,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
         ),
       ),
     );
@@ -398,9 +398,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.4), width: 1.2),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 22),
@@ -448,7 +448,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         : (_username.isNotEmpty ? _username[0].toUpperCase() : 'A');
     return Container(
       width: 88, height: 88,
-      color: colors.accent.withOpacity(0.15),
+      color: colors.accent.withValues(alpha: 0.15),
       child: Center(child: Text(initial, style: TextStyle(
         color: colors.accent, fontSize: 32,
         fontWeight: FontWeight.w800))),
@@ -484,7 +484,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.45),
+                      color: Colors.black.withValues(alpha: 0.45),
                     ),
                     child: Center(
                       child: SizedBox(
@@ -567,8 +567,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: badgeColor.withOpacity(0.08),
-        border: Border.all(color: badgeColor.withOpacity(0.25)),
+        color: badgeColor.withValues(alpha: 0.08),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

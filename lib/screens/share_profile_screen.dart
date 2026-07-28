@@ -68,9 +68,9 @@ class ShareProfileScreen extends ConsumerWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: colors.accent.withOpacity(0.3), width: 2),
+                  border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2),
                 ),
                 child: Center(
                   child: Text(
@@ -116,7 +116,7 @@ class ShareProfileScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.accent.withOpacity(0.08),
+                      color: colors.accent.withValues(alpha: 0.08),
                       blurRadius: 30,
                       spreadRadius: 0,
                       offset: const Offset(0, 8),
@@ -170,7 +170,7 @@ class ShareProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                    side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -223,9 +223,9 @@ class ShareProfileScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.06),
+                  color: colors.accent.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.accent.withOpacity(0.15)),
+                  border: Border.all(color: colors.accent.withValues(alpha: 0.15)),
                 ),
                 child: Row(
                   children: [

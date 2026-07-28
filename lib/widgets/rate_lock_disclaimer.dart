@@ -55,9 +55,9 @@ class _RateLockDisclaimerState extends ConsumerState<RateLockDisclaimer> {
       margin: widget.compact ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 4, 16, 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.25))),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25))),
       child: Row(children: [
         Icon(Icons.lock_outline, color: colors.accent, size: widget.compact ? 14 : 16),
         const SizedBox(width: 10),
@@ -70,7 +70,7 @@ class _RateLockDisclaimerState extends ConsumerState<RateLockDisclaimer> {
                 fontSize: widget.compact ? 10 : 12,
                 fontWeight: FontWeight.w800)),
           Text("Rate frozen for this trade.",
-            style: TextStyle(color: colors.accent.withOpacity(0.75),
+            style: TextStyle(color: colors.accent.withValues(alpha: 0.75),
               fontSize: 10, height: 1.4)),
         ])),
         if (widget.lockExpiresAt != null && _timeStr.isNotEmpty) ...[
@@ -78,7 +78,7 @@ class _RateLockDisclaimerState extends ConsumerState<RateLockDisclaimer> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.15),
+              color: colors.accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8)),
             child: Text(_timeStr, style: TextStyle(
               color: colors.accent, fontSize: 12,

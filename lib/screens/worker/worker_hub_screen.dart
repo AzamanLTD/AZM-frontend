@@ -100,11 +100,11 @@ class _SalaryCountdownCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors.accent.withOpacity(0.15), colors.accent.withOpacity(0.03)],
+          colors: [colors.accent.withValues(alpha: 0.15), colors.accent.withValues(alpha: 0.03)],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.accent.withOpacity(0.2), width: 1),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _NextShiftCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12),
+              color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.schedule, color: colors.accent, size: 22),
           ),
@@ -201,15 +201,15 @@ class _ActiveShiftCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.success.withOpacity(0.2), width: 1),
+        color: colors.success.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.success.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         children: [
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: colors.success.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
+              color: colors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.play_arrow, color: colors.success, size: 22),
           ),
@@ -252,7 +252,7 @@ class _EwaCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: colors.accentSecondary.withOpacity(0.1), borderRadius: BorderRadius.circular(12),
+              color: colors.accentSecondary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.bolt, color: colors.accentSecondary, size: 22),
           ),
@@ -360,7 +360,7 @@ class _TeamOnDutyCard extends StatelessWidget {
               children: [
                 Container(
                   width: 28, height: 28,
-                  decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Center(child: Text(m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
                       style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700))),
                 ),

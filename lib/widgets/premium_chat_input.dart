@@ -165,7 +165,7 @@ class _State extends ConsumerState<PremiumChatInput> {
               margin: const EdgeInsets.symmetric(horizontal: 10),
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               decoration: BoxDecoration(
-                color: c.accent.withOpacity(0.08),
+                color: c.accent.withValues(alpha: 0.08),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 border: Border(left: BorderSide(color: c.accent, width: 3))),
               child: Row(children: [
@@ -359,7 +359,7 @@ class _SheetBtn extends StatelessWidget {
         Container(
           width: 56, height: 56,
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.1), shape: BoxShape.circle),
+            color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Icon(icon, size: 26, color: colors.accent)),
         const SizedBox(height: 8),
         Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11)),

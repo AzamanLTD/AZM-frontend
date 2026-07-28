@@ -76,7 +76,7 @@ class _PayrollTile extends StatelessWidget {
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                 child: Text(record.status.name.toUpperCase(),
                     style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700)),
               ),

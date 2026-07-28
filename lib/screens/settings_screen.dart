@@ -415,7 +415,7 @@ class SettingsScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side:
-                        BorderSide(color: colors.danger.withOpacity(0.25)),
+                        BorderSide(color: colors.danger.withValues(alpha: 0.25)),
                   ),
                   elevation: 0,
                 ),
@@ -811,9 +811,9 @@ class _GradientRingPainter extends CustomPainter {
       startAngle: 0.0,
       endAngle: 2 * 3.14159 * 0.75, // 3/4 circle
       colors: [
-        color.withOpacity(0.0),
-        color.withOpacity(0.3),
-        color.withOpacity(0.8),
+        color.withValues(alpha: 0.0),
+        color.withValues(alpha: 0.3),
+        color.withValues(alpha: 0.8),
       ],
       stops: const [0.0, 0.5, 1.0],
     );

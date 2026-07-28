@@ -177,7 +177,7 @@ class _CategoryDrilldownScreenState
     final c = gradients[category] ?? [colors.accent, colors.accentSecondary];
     return DecoratedBox(
       decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: c)),
-      child: Center(child: Icon(Icons.storefront_outlined, size: 32, color: Colors.white.withOpacity(0.3))),
+      child: Center(child: Icon(Icons.storefront_outlined, size: 32, color: Colors.white.withValues(alpha: 0.3))),
     );
   }
 
@@ -245,7 +245,7 @@ class _CategoryDrilldownScreenState
               : null,
           gradient: sub.imageUrl == null
               ? LinearGradient(
-                  colors: [colors.accent.withOpacity(0.3), colors.card],
+                  colors: [colors.accent.withValues(alpha: 0.3), colors.card],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -272,7 +272,7 @@ class _CategoryDrilldownScreenState
                       horizontal: 6, vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.8),
+                      color: colors.accent.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -389,7 +389,7 @@ class _CategoryDrilldownScreenState
       child: Container(
         decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.divider, width: 0.5),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

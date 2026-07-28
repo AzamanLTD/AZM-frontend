@@ -182,7 +182,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: colors.accentSurface,
                             shape: BoxShape.circle,
-                            border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.5),
+                            border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 1.5),
                           ),
                           child: Icon(Icons.explore_rounded, color: colors.accent, size: 26),
                         ),
@@ -285,7 +285,7 @@ class _StackedSquircles extends StatelessWidget {
       return Container(
         color: colors.softSurface,
         alignment: Alignment.center,
-        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withOpacity(0.4), size: 14),
+        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withValues(alpha: 0.4), size: 14),
       );
     }
     return Container(

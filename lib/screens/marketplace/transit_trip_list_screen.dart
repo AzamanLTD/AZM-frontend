@@ -140,7 +140,7 @@ class _TripCard extends ConsumerWidget {
                             height: 2, margin: const EdgeInsets.only(right: 2),
                             decoration: BoxDecoration(
                               color: i < (constraints.maxWidth / 6).floor() * 0.7
-                                  ? colors.accent.withOpacity(0.4) : colors.accent.withOpacity(0.15),
+                                  ? colors.accent.withValues(alpha: 0.4) : colors.accent.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(1),
                             ),
                           ))),
@@ -170,7 +170,7 @@ class _TripCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.1),
+                    color: colors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text((trip.vehicleType ?? 'Vehicle').toUpperCase(),

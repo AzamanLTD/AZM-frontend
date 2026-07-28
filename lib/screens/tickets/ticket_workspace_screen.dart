@@ -722,9 +722,9 @@ class _PresenceBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.10),
+        color: colors.accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -854,7 +854,7 @@ class _Bubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? colors.accent.withOpacity(0.16) : colors.card,
+          color: isMe ? colors.accent.withValues(alpha: 0.16) : colors.card,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -863,7 +863,7 @@ class _Bubble extends StatelessWidget {
           ),
           border: Border.all(
             color: isMe
-                ? colors.accent.withOpacity(0.25)
+                ? colors.accent.withValues(alpha: 0.25)
                 : colors.divider,
           ),
         ),

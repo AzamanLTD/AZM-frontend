@@ -286,13 +286,13 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
               margin: const EdgeInsets.only(right: 4),
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent.withOpacity(0.12),
+                  backgroundColor: colors.accent.withValues(alpha: 0.12),
                   foregroundColor: colors.accent,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: colors.accent.withOpacity(0.3)),
+                    side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
                   ),
                 ),
                 icon: const Icon(Icons.auto_awesome, size: 14),
@@ -495,7 +495,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -506,7 +506,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: Icon(Icons.storefront_outlined, color: colors.accent, size: 20),
               ),
               const SizedBox(width: 12),
@@ -522,7 +522,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                     child: Text("PENDING", style: TextStyle(color: colors.accent, fontSize: 9, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 4),
@@ -535,7 +535,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colors.background.withOpacity(0.5),
+                color: colors.background.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
               ),
               child: Column(
@@ -580,7 +580,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.danger.withOpacity(0.15),
+                            backgroundColor: colors.danger.withValues(alpha: 0.15),
                             foregroundColor: colors.danger,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -595,7 +595,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.success.withOpacity(0.15),
+                            backgroundColor: colors.success.withValues(alpha: 0.15),
                             foregroundColor: colors.success,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -704,7 +704,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.warning.withOpacity(0.3)),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -715,7 +715,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: colors.warning.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: Icon(Icons.manage_search, color: colors.warning, size: 20),
               ),
               const SizedBox(width: 12),
@@ -728,7 +728,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: colors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                 child: Text("PENDING", style: TextStyle(color: colors.warning, fontSize: 9, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -737,7 +737,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colors.background.withOpacity(0.5),
+                color: colors.background.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
               ),
               child: Column(
@@ -772,7 +772,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.danger.withOpacity(0.15),
+                            backgroundColor: colors.danger.withValues(alpha: 0.15),
                             foregroundColor: colors.danger,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -787,7 +787,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.success.withOpacity(0.15),
+                            backgroundColor: colors.success.withValues(alpha: 0.15),
                             foregroundColor: colors.success,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -845,7 +845,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: imageUrl != null ? colors.accent.withOpacity(0.3) : colors.divider),
+          border: Border.all(color: imageUrl != null ? colors.accent.withValues(alpha: 0.3) : colors.divider),
         ),
         child: imageUrl != null
             ? ClipRRect(
@@ -862,7 +862,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       bottom: 0, left: 0, right: 0,
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        color: colors.background.withOpacity(0.7),
+                        color: colors.background.withValues(alpha: 0.7),
                         child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ),
@@ -968,11 +968,11 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: highlight.withOpacity(0.2)),
+        border: Border.all(color: highlight.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: highlight.withOpacity(0.8), size: 20),
+          Icon(icon, color: highlight.withValues(alpha: 0.8), size: 20),
           const SizedBox(height: 10),
           Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 5),
@@ -991,7 +991,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cardColor.withOpacity(0.3)),
+        border: Border.all(color: cardColor.withValues(alpha: 0.3)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -1003,7 +1003,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: cardColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                 child: Text("Trade #${trade['id']}", style: TextStyle(color: cardColor, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
               Text("${trade['amountFiat']} GHS", style: TextStyle(color: colors.warning, fontWeight: FontWeight.bold, fontSize: 14)),
@@ -1023,7 +1023,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: colors.background.withOpacity(0.5),
+                color: colors.background.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
               ),
               child: Column(
@@ -1066,7 +1066,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: colors.danger.withOpacity(0.2), foregroundColor: colors.danger, elevation: 0),
+                            style: ElevatedButton.styleFrom(backgroundColor: colors.danger.withValues(alpha: 0.2), foregroundColor: colors.danger, elevation: 0),
                             onPressed: () => _actionDialog(trade, "Vendor", colors),
                             child: const Text("Rule for Vendor"),
                           ),
@@ -1074,7 +1074,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: colors.success.withOpacity(0.2), foregroundColor: colors.success, elevation: 0),
+                            style: ElevatedButton.styleFrom(backgroundColor: colors.success.withValues(alpha: 0.2), foregroundColor: colors.success, elevation: 0),
                             onPressed: () => _actionDialog(trade, "Buyer", colors),
                             child: const Text("Rule for Buyer"),
                           ),
@@ -1384,8 +1384,8 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
-              border: Border(bottom: BorderSide(color: colors.danger.withOpacity(0.3))),
+              color: colors.danger.withValues(alpha: 0.1),
+              border: Border(bottom: BorderSide(color: colors.danger.withValues(alpha: 0.3))),
             ),
             child: Row(
               children: [

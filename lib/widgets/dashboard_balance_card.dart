@@ -131,13 +131,13 @@ class _BlackCardShellState extends State<_BlackCardShell>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.55),
+            color: Colors.black.withValues(alpha: 0.55),
             blurRadius: 28,
             spreadRadius: -4,
             offset: const Offset(0, 14),
           ),
           BoxShadow(
-            color: widget.colors.glow.withOpacity(0.05),
+            color: widget.colors.glow.withValues(alpha: 0.05),
             blurRadius: 32,
             spreadRadius: -10,
             offset: const Offset(0, 4),
@@ -162,7 +162,7 @@ class _BlackCardShellState extends State<_BlackCardShell>
                 stops: [0.0, 0.55, 1.0],
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 width: 1.0,
               ),
             ),
@@ -178,9 +178,9 @@ class _BlackCardShellState extends State<_BlackCardShell>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white.withOpacity(0.0),
-                          Colors.white.withOpacity(0.16),
-                          Colors.white.withOpacity(0.0),
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.16),
+                          Colors.white.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -231,11 +231,11 @@ class _TitaniumSweep extends StatelessWidget {
           begin: Alignment(t - 0.4, -1.0),
           end: Alignment(t + 0.4, 1.0),
           colors: [
-            Colors.white.withOpacity(0.00),
-            Colors.white.withOpacity(0.03),
-            Colors.white.withOpacity(0.05),
-            Colors.white.withOpacity(0.03),
-            Colors.white.withOpacity(0.00),
+            Colors.white.withValues(alpha: 0.00),
+            Colors.white.withValues(alpha: 0.03),
+            Colors.white.withValues(alpha: 0.05),
+            Colors.white.withValues(alpha: 0.03),
+            Colors.white.withValues(alpha: 0.00),
           ],
           stops: const [0.0, 0.42, 0.50, 0.58, 1.0],
         ),
@@ -313,7 +313,7 @@ class _CardIdentityHeader extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.96),
+            color: Colors.white.withValues(alpha: 0.96),
             fontSize: 13,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.3,
@@ -325,7 +325,7 @@ class _CardIdentityHeader extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.45),
+            color: Colors.white.withValues(alpha: 0.45),
             fontSize: 9.5,
             fontWeight: FontWeight.w500,
             letterSpacing: 1.0,
@@ -350,9 +350,9 @@ class _UsdcPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         border: Border.all(
-          color: Colors.white.withOpacity(0.10),
+          color: Colors.white.withValues(alpha: 0.10),
           width: 0.8,
         ),
       ),
@@ -367,7 +367,7 @@ class _UsdcPill extends StatelessWidget {
               color: colors.success,
               boxShadow: [
                 BoxShadow(
-                  color: colors.success.withOpacity(0.7),
+                  color: colors.success.withValues(alpha: 0.7),
                   blurRadius: 6,
                 ),
               ],
@@ -415,7 +415,7 @@ class _BalanceDisplay extends ConsumerWidget {
             Text(
               (label ?? 'Total Portfolio Value').toUpperCase(),
               style: TextStyle(
-                color: Colors.white.withOpacity(0.50),
+                color: Colors.white.withValues(alpha: 0.50),
                 fontSize: 9.5,
                 letterSpacing: 1.6,
                 fontWeight: FontWeight.w600,
@@ -435,7 +435,7 @@ class _BalanceDisplay extends ConsumerWidget {
                   isVisible
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: Colors.white.withOpacity(0.50),
+                  color: Colors.white.withValues(alpha: 0.50),
                   size: 13,
                 ),
               ),
@@ -451,7 +451,7 @@ class _BalanceDisplay extends ConsumerWidget {
               child: Text(
                 'GH₵',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.65),
+                  color: Colors.white.withValues(alpha: 0.65),
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -569,9 +569,9 @@ class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         border: Border.all(
-          color: Colors.white.withOpacity(0.10),
+          color: Colors.white.withValues(alpha: 0.10),
           width: 0.8,
         ),
       ),
@@ -595,19 +595,19 @@ class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
           Container(
             width: 1,
             height: 8,
-            color: Colors.white.withOpacity(0.10),
+            color: Colors.white.withValues(alpha: 0.10),
           ),
           const SizedBox(width: 8),
           Icon(
             Icons.refresh,
             size: 10,
-            color: Colors.white.withOpacity(0.55),
+            color: Colors.white.withValues(alpha: 0.55),
           ),
           const SizedBox(width: 4),
           Text(
             _fmt(_secondsRemaining),
             style: TextStyle(
-              color: Colors.white.withOpacity(0.78),
+              color: Colors.white.withValues(alpha: 0.78),
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -658,10 +658,10 @@ class _LivePulseDotState extends State<_LivePulseDot>
         height: 6,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: widget.color.withOpacity(0.45 + 0.55 * _ctrl.value),
+          color: widget.color.withValues(alpha: 0.45 + 0.55 * _ctrl.value),
           boxShadow: [
             BoxShadow(
-              color: widget.color.withOpacity(0.45 * _ctrl.value),
+              color: widget.color.withValues(alpha: 0.45 * _ctrl.value),
               blurRadius: 5,
             ),
           ],

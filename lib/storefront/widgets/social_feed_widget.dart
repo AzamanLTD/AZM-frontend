@@ -39,7 +39,7 @@ class SocialFeedWidget extends StatelessWidget {
             itemBuilder: (ctx, i) => Container(
               width: 90,
               decoration: BoxDecoration(
-                color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 28, color: Theme.of(ctx).colorScheme.primary),

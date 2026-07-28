@@ -16,7 +16,7 @@ class ChatDateHeader extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: colors.softSurface.withOpacity(0.85),
+            color: colors.softSurface.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(

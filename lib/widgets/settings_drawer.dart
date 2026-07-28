@@ -91,7 +91,7 @@ class SettingsDrawer extends ConsumerWidget {
               // but contrast stays AA-compliant against the foreground.
               Positioned.fill(
                 child: ColoredBox(
-                  color: colors.background.withOpacity(0.72),
+                  color: colors.background.withValues(alpha: 0.72),
                 ),
               ),
               const Positioned.fill(child: _EclipseGlow()),
@@ -120,7 +120,7 @@ class SettingsDrawer extends ConsumerWidget {
 
                 const SizedBox(height: 10),
                 Divider(
-                  color: colors.divider.withOpacity(0.4),
+                  color: colors.divider.withValues(alpha: 0.4),
                   thickness: 1,
                   indent: 24,
                   endIndent: 24,
@@ -180,7 +180,7 @@ class SettingsDrawer extends ConsumerWidget {
                                 // card above: a fixed white tint is invisible
                                 // against the near-white light background.
                                 color: colors.isDark
-                                    ? Colors.white.withOpacity(0.025)
+                                    ? Colors.white.withValues(alpha: 0.025)
                                     : colors.softSurface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: colors.divider),
@@ -368,17 +368,17 @@ class SettingsDrawer extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color.alphaBlend(sheenColor.withOpacity(colors.isDark ? 0.06 : 0.03), colors.card),
-            Color.alphaBlend(sheenColor.withOpacity(colors.isDark ? 0.015 : 0.0), colors.card),
+            Color.alphaBlend(sheenColor.withValues(alpha: colors.isDark ? 0.06 : 0.03), colors.card),
+            Color.alphaBlend(sheenColor.withValues(alpha: colors.isDark ? 0.015 : 0.0), colors.card),
           ],
         ),
         border: Border.all(
-          color: colors.isDark ? Colors.white.withOpacity(0.08) : colors.border,
+          color: colors.isDark ? Colors.white.withValues(alpha: 0.08) : colors.border,
           width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(colors.isDark ? 0.35 : 0.08),
+            color: Colors.black.withValues(alpha: colors.isDark ? 0.35 : 0.08),
             blurRadius: 18,
             spreadRadius: -4,
             offset: const Offset(0, 8),
@@ -400,12 +400,12 @@ class SettingsDrawer extends ConsumerWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      colors.accent.withOpacity(0.35),
-                      colors.accent.withOpacity(0.10),
+                      colors.accent.withValues(alpha: 0.35),
+                      colors.accent.withValues(alpha: 0.10),
                     ],
                   ),
                   border: Border.all(
-                    color: colors.accent.withOpacity(0.45),
+                    color: colors.accent.withValues(alpha: 0.45),
                     width: 1.0,
                   ),
                 ),
@@ -499,7 +499,7 @@ class SettingsDrawer extends ConsumerWidget {
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _copyAzamanId(context, user.azamanId!),
-                        child: Icon(Icons.copy_rounded, size: 13, color: colors.textTertiary.withOpacity(0.7)),
+                        child: Icon(Icons.copy_rounded, size: 13, color: colors.textTertiary.withValues(alpha: 0.7)),
                       ),
                     ],
                   ],
@@ -554,10 +554,10 @@ class SettingsDrawer extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: tint.withOpacity(0.14),
+        color: tint.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: tint.withOpacity(0.55),
+          color: tint.withValues(alpha: 0.55),
           width: 0.8,
         ),
       ),
@@ -614,12 +614,12 @@ class SettingsDrawer extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: colors.danger.withOpacity(0.05),
+          color: colors.danger.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.danger.withOpacity(0.4)),
+          border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: colors.danger.withOpacity(0.08),
+              color: colors.danger.withValues(alpha: 0.08),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -630,9 +630,9 @@ class SettingsDrawer extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.15),
+                color: colors.danger.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withOpacity(0.5)),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.5)),
               ),
               child: Icon(Icons.shield_outlined, color: colors.danger, size: 24),
             ),
@@ -653,7 +653,7 @@ class SettingsDrawer extends ConsumerWidget {
                   Text(
                     'System overrides & resolutions',
                     style: TextStyle(
-                      color: colors.danger.withOpacity(0.8),
+                      color: colors.danger.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),
                   ),
@@ -707,7 +707,7 @@ class SettingsDrawer extends ConsumerWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.10),
+                color: iconColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: iconColor, size: 16),
@@ -953,7 +953,7 @@ class SettingsDrawer extends ConsumerWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: colors.textSecondary.withOpacity(0.06),
+            color: colors.textSecondary.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -1043,7 +1043,7 @@ class _EclipseGlow extends ConsumerWidget {
           // Base is the scaffold background with a touch deeper to read
           // as a true "eclipse" silhouette behind the soft halo.
           color: Color.alphaBlend(
-            Colors.black.withOpacity(0.18),
+            Colors.black.withValues(alpha: 0.18),
             colors.background,
           ),
           gradient: RadialGradient(
@@ -1052,8 +1052,8 @@ class _EclipseGlow extends ConsumerWidget {
             center: const Alignment(-0.15, -0.85),
             radius: 1.15,
             colors: [
-              colors.accent.withOpacity(0.14),
-              colors.accent.withOpacity(0.04),
+              colors.accent.withValues(alpha: 0.14),
+              colors.accent.withValues(alpha: 0.04),
               Colors.transparent,
             ],
             stops: const [0.0, 0.35, 1.0],
@@ -1135,7 +1135,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: colors.textSecondary.withOpacity(0.06),
+                  color: colors.textSecondary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -1180,7 +1180,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
             .shimmer(
               delay: 80.ms,
               duration: 900.ms,
-              color: colors.accent.withOpacity(0.18),
+              color: colors.accent.withValues(alpha: 0.18),
             ),
       ),
     );
@@ -1209,11 +1209,11 @@ class _WorkerCard extends ConsumerWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [colors.accentSecondary.withOpacity(0.08), colors.accentSecondary.withOpacity(0.02)],
+              colors: [colors.accentSecondary.withValues(alpha: 0.08), colors.accentSecondary.withValues(alpha: 0.02)],
               begin: Alignment.topLeft, end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.accentSecondary.withOpacity(0.15), width: 1),
+            border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.15), width: 1),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
@@ -1229,7 +1229,7 @@ class _WorkerCard extends ConsumerWidget {
                   Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
-                      color: colors.accentSecondary.withOpacity(0.1),
+                      color: colors.accentSecondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(Icons.badge, color: colors.accentSecondary, size: 20),

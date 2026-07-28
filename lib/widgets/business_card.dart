@@ -218,9 +218,9 @@ class BusinessCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.12),
+        color: colors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: colors.success.withOpacity(0.3))),
+        border: Border.all(color: colors.success.withValues(alpha: 0.3))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.shield_outlined, size: 10, color: colors.success),
         const SizedBox(width: 3),

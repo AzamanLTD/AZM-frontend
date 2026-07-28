@@ -237,10 +237,10 @@ class _TierCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [tierColor.withOpacity(0.15), tierColor.withOpacity(0.05)],
+          colors: [tierColor.withValues(alpha: 0.15), tierColor.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tierColor.withOpacity(0.3)),
+        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -325,13 +325,13 @@ class _StakeItem extends StatelessWidget {
           else if (canUnstake)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: colors.success.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
               child: Text('Ready to claim', style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.w600)),
             )
           else
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: colors.warning.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
               child: Text('Cooldown', style: TextStyle(color: colors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
             ),
         ],

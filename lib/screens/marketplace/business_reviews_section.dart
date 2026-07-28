@@ -122,7 +122,7 @@ class BusinessReviewsSection extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: colors.accent.withOpacity(0.1),
+                backgroundColor: colors.accent.withValues(alpha: 0.1),
                 child: Text(r.reviewerUsername.isNotEmpty ? r.reviewerUsername[0].toUpperCase() : '?',
                     style: TextStyle(fontSize: 11, color: colors.accent, fontWeight: FontWeight.bold)),
               ),

@@ -213,12 +213,12 @@ class _Hero extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withOpacity(0.18),
-            colors.accent.withOpacity(0.05),
+            color.withValues(alpha: 0.18),
+            colors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,10 +240,10 @@ class _Hero extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.10),
+                  color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
                   border:
-                      Border.all(color: color.withOpacity(0.30), width: 0.7),
+                      Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
                 ),
                 child: Text(
                   label,
@@ -290,9 +290,9 @@ class _FrozenBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.08),
+        color: colors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.danger.withOpacity(0.30)),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
@@ -413,8 +413,8 @@ class _UpcomingCycleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: ready
-              ? colors.success.withOpacity(0.30)
-              : colors.warning.withOpacity(0.30),
+              ? colors.success.withValues(alpha: 0.30)
+              : colors.warning.withValues(alpha: 0.30),
           width: 0.7,
         ),
       ),
@@ -468,10 +468,10 @@ class _UpcomingCycleCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.10),
+                color: colors.success.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: colors.success.withOpacity(0.30), width: 0.7),
+                    color: colors.success.withValues(alpha: 0.30), width: 0.7),
               ),
               child: Row(
                 children: [
@@ -632,7 +632,7 @@ class _MembersRoster extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: colors.accent.withOpacity(0.15),
+                      backgroundColor: colors.accent.withValues(alpha: 0.15),
                       child: Text(
                         m.displayName.isEmpty
                             ? '?'
@@ -669,7 +669,7 @@ class _MembersRoster extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 5, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: colors.accent.withOpacity(0.15),
+                                    color: colors.accent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -702,10 +702,10 @@ class _MembersRoster extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.10),
+                        color: statusColor.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                            color: statusColor.withOpacity(0.30),
+                            color: statusColor.withValues(alpha: 0.30),
                             width: 0.7),
                       ),
                       child: Text(
@@ -788,7 +788,7 @@ class _CycleSchedule extends StatelessWidget {
                       width: 30,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.10),
+                        color: colors.accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
@@ -828,10 +828,10 @@ class _CycleSchedule extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.10),
+                        color: color.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                            color: color.withOpacity(0.30), width: 0.7),
+                            color: color.withValues(alpha: 0.30), width: 0.7),
                       ),
                       child: Text(
                         label,
@@ -1061,10 +1061,10 @@ class _SusuPayoutTimeline extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [
-              colors.accent.withOpacity(0.15),
-              colors.accent.withOpacity(0.05)]),
+              colors.accent.withValues(alpha: 0.15),
+              colors.accent.withValues(alpha: 0.05)]),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.accent.withOpacity(0.25)),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
           ),
           child: Row(children: [
             Icon(Icons.event_available_outlined, color: colors.accent, size: 24),
@@ -1114,7 +1114,7 @@ class _SusuPayoutTimeline extends StatelessWidget {
             return Container(
               width: 52, margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
-                color: color.withOpacity(isDone || isMe ? 0.15 : 1.0),
+                color: color.withValues(alpha: isDone || isMe ? 0.15 : 1.0),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isNext ? colors.accent : colors.divider,

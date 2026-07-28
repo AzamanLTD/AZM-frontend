@@ -123,7 +123,7 @@ class HologramBalanceCard extends ConsumerWidget {
                   Text(
                     ghsFirst ? '${totalUsdc.toStringAsFixed(2)} USDC' : 'GH₵ ${fmtGhs(ghsVal)}',
                     style: TextStyle(
-                      color: colors.textSecondary.withOpacity(0.75),
+                      color: colors.textSecondary.withValues(alpha: 0.75),
                       fontSize: 13,
                     ),
                   ),

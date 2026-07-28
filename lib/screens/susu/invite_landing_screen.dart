@@ -162,13 +162,13 @@ class _PreviewBody extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                colors.warning.withOpacity(0.18),
-                colors.accent.withOpacity(0.05),
+                colors.warning.withValues(alpha: 0.18),
+                colors.accent.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(18),
             border:
-                Border.all(color: colors.warning.withOpacity(0.30), width: 0.8),
+                Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

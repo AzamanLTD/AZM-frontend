@@ -54,10 +54,10 @@ class VaultProgressCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
-              color: colors.card.withOpacity(0.55),
+              color: colors.card.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: accent.withOpacity(0.20),
+                color: accent.withValues(alpha: 0.20),
                 width: 0.8,
               ),
             ),
@@ -73,13 +73,13 @@ class VaultProgressCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            accent.withOpacity(0.25),
-                            accent.withOpacity(0.10),
+                            accent.withValues(alpha: 0.25),
+                            accent.withValues(alpha: 0.10),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: accent.withOpacity(0.35),
+                          color: accent.withValues(alpha: 0.35),
                           width: 0.8,
                         ),
                       ),
@@ -217,8 +217,8 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: color.withOpacity(0.10),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        color: color.withValues(alpha: 0.10),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Text(
         label,
@@ -245,7 +245,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

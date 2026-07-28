@@ -897,7 +897,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                                   color: isSelected ? colors.accent : colors.card,
                                   borderRadius: BorderRadius.circular(22),
                                   border: Border.all(
-                                    color: isSelected ? colors.accent : colors.accent.withOpacity(0.3)),
+                                    color: isSelected ? colors.accent : colors.accent.withValues(alpha: 0.3)),
                                 ),
                                 child: Text("GH₵ $amt",
                                   style: TextStyle(
@@ -1749,7 +1749,7 @@ class _PulsingDotsState extends State<_PulsingDots>
           width: 10,
           height: 10 + (_ctrls[i].value * 10),
           decoration: BoxDecoration(
-            color: widget.color.withOpacity(0.4 + _ctrls[i].value * 0.6),
+            color: widget.color.withValues(alpha: 0.4 + _ctrls[i].value * 0.6),
             borderRadius: BorderRadius.circular(5),
           ),
         ),

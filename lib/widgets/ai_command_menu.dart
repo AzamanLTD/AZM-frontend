@@ -123,7 +123,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
         width: 36,
         height: 4,
         decoration: BoxDecoration(
-          color: colors.textTertiary.withOpacity(0.3),
+          color: colors.textTertiary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -137,7 +137,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: colors.accent.withOpacity(0.15)),
+            bottom: BorderSide(color: colors.accent.withValues(alpha: 0.15)),
           ),
         ),
         child: Row(
@@ -147,8 +147,8 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    colors.accent.withOpacity(0.2),
-                    colors.accent.withOpacity(0.05),
+                    colors.accent.withValues(alpha: 0.2),
+                    colors.accent.withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -213,7 +213,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cloud_outlined, color: colors.danger.withOpacity(0.5), size: 48),
+          Icon(Icons.cloud_outlined, color: colors.danger.withValues(alpha: 0.5), size: 48),
           const SizedBox(height: 12),
           Text(
             _error!,
@@ -247,7 +247,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.psychology_outlined, color: colors.textTertiary.withOpacity(0.3), size: 48),
+            Icon(Icons.psychology_outlined, color: colors.textTertiary.withValues(alpha: 0.3), size: 48),
             const SizedBox(height: 12),
             Text(
               'No AI capabilities reported',
@@ -277,7 +277,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isActive
-                  ? color.withOpacity(0.4)
+                  ? color.withValues(alpha: 0.4)
                   : colors.divider,
             ),
           ),
@@ -306,7 +306,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(icon, color: color, size: 22),

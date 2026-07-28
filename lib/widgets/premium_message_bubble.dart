@@ -72,7 +72,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
   Widget _statusTick(AzamanColors c) {
     switch (widget.message.status) {
       case MessageStatus.sending:
-        return Icon(Icons.access_time_rounded, size: 12, color: c.textTertiary.withOpacity(0.5));
+        return Icon(Icons.access_time_rounded, size: 12, color: c.textTertiary.withValues(alpha: 0.5));
       case MessageStatus.sent:
         return Icon(HugeIconsSolid.checkmarkCircle01, size: 12, color: c.textTertiary);
       case MessageStatus.delivered:
@@ -104,11 +104,11 @@ class _State extends ConsumerState<PremiumMessageBubble>
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
         color: _isMe
-          ? Colors.white.withOpacity(0.15)
-          : c.accent.withOpacity(0.08),
+          ? Colors.white.withValues(alpha: 0.15)
+          : c.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border(left: BorderSide(
-          color: _isMe ? Colors.white.withOpacity(0.6) : c.accent,
+          color: _isMe ? Colors.white.withValues(alpha: 0.6) : c.accent,
           width: 3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -120,7 +120,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
         Text(msg.replyToText ?? '',
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: _isMe ? Colors.white.withOpacity(0.75) : c.textSecondary,
+            color: _isMe ? Colors.white.withValues(alpha: 0.75) : c.textSecondary,
             fontSize: 11)),
       ]),
     );
@@ -145,11 +145,11 @@ class _State extends ConsumerState<PremiumMessageBubble>
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
                 color: iMine
-                  ? c.accent.withOpacity(0.18)
+                  ? c.accent.withValues(alpha: 0.18)
                   : c.softSurface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: iMine ? c.accent.withOpacity(0.5) : c.divider,
+                  color: iMine ? c.accent.withValues(alpha: 0.5) : c.divider,
                   width: 0.8)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(e.key, style: const TextStyle(fontSize: 13)),
@@ -411,7 +411,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
                             bottomRight: Radius.circular(_isMe ? 4 : 18),
                           ),
                           boxShadow: [BoxShadow(
-                            color: Colors.black.withOpacity(
+                            color: Colors.black.withValues(alpha: 
                               c.isDark ? 0.3 : 0.06),
                             blurRadius: 8, offset: const Offset(0,2))],
                         ),
@@ -453,7 +453,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                     Icon(Icons.timer_outlined,
                                         size: 11,
                                         color: _isMe
-                                            ? Colors.white.withOpacity(0.5)
+                                            ? Colors.white.withValues(alpha: 0.5)
                                             : c.textTertiary),
                                     const SizedBox(width: 3),
                                   ],
@@ -463,7 +463,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                       child: Text('edited',
                                         style: TextStyle(
                                           color: _isMe
-                                            ? Colors.white.withOpacity(0.6)
+                                            ? Colors.white.withValues(alpha: 0.6)
                                             : c.textTertiary,
                                           fontSize: 10,
                                           fontStyle: FontStyle.italic)),
@@ -471,7 +471,7 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                   Text(_fmtTime(msg.timestamp),
                                     style: TextStyle(
                                       color: _isMe
-                                        ? Colors.white.withOpacity(0.65)
+                                        ? Colors.white.withValues(alpha: 0.65)
                                         : c.textTertiary,
                                       fontSize: 10)),
                                   if (_isMe) ...[
@@ -514,7 +514,7 @@ class _AvatarChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 14,
-      backgroundColor: colors.accent.withOpacity(0.2),
+      backgroundColor: colors.accent.withValues(alpha: 0.2),
       backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
         ? NetworkImage(avatarUrl!) : null,
       child: avatarUrl == null || avatarUrl!.isEmpty
@@ -572,7 +572,7 @@ class _ContextMenuSheet extends StatelessWidget {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: message.reactions[e]?.isNotEmpty == true
-                  ? colors.accent.withOpacity(0.1) : Colors.transparent,
+                  ? colors.accent.withValues(alpha: 0.1) : Colors.transparent,
                 shape: BoxShape.circle),
               child: Text(e, style: const TextStyle(fontSize: 24)),
             ),

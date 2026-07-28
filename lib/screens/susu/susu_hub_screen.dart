@@ -256,7 +256,7 @@ class _SusuTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: row.status == SusuStatus.frozenDispute
-                  ? colors.danger.withOpacity(0.40)
+                  ? colors.danger.withValues(alpha: 0.40)
                   : colors.divider,
               width: 0.7,
             ),
@@ -282,10 +282,10 @@ class _SusuTile extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.10),
+                      color: statusColor.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                          color: statusColor.withOpacity(0.30), width: 0.7),
+                          color: statusColor.withValues(alpha: 0.30), width: 0.7),
                     ),
                     child: Text(
                       statusLabel,
@@ -313,10 +313,10 @@ class _SusuTile extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.10),
+                        color: colors.accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                            color: colors.accent.withOpacity(0.30),
+                            color: colors.accent.withValues(alpha: 0.30),
                             width: 0.7),
                       ),
                       child: Text(
@@ -387,7 +387,7 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
         Icon(Icons.account_balance_outlined,
-            size: 56, color: colors.warning.withOpacity(0.30)),
+            size: 56, color: colors.warning.withValues(alpha: 0.30)),
         const SizedBox(height: 14),
         Text(
           'No Susus yet',

@@ -328,7 +328,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 13,
-                                      backgroundColor: colors.accent.withOpacity(0.15),
+                                      backgroundColor: colors.accent.withValues(alpha: 0.15),
                                       child: Text((m.username ?? '?').substring(0, 1).toUpperCase(), style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w800)),
                                     ),
                                     const SizedBox(width: 10),
@@ -337,7 +337,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                                     if (m.role == 'ADMIN')
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(color: colors.warning.withOpacity(0.10), borderRadius: BorderRadius.circular(4)),
+                                        decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(4)),
                                         child: Text('ADMIN', style: TextStyle(color: colors.warning, fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                                       ),
                                   ],
@@ -427,9 +427,9 @@ class _SusuEventCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 32),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: colors.accent.withOpacity(0.08),
+          color: colors.accent.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.accent.withOpacity(0.2))),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.2))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(icon, style: const TextStyle(fontSize: 18)),
           const SizedBox(width: 8),
@@ -463,7 +463,7 @@ class _SusuBanner extends ConsumerWidget {
           );
         },
         child: Container(
-          color: colors.accent.withOpacity(0.1),
+          color: colors.accent.withValues(alpha: 0.1),
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           child: Row(
             children: [

@@ -168,7 +168,7 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
             const SizedBox(width: 12),
             Expanded(flex: 2, child: GestureDetector(onTap: _apply, child: Container(height: 48,
               decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))]),
+                boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 4))]),
               child: Center(child: Text('Apply Filters', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.background)))))),
           ]),
         ],

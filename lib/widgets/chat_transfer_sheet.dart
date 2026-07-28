@@ -90,7 +90,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -113,14 +113,14 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color.alphaBlend(_cardGold.withOpacity(0.16), _gradTopBase),
+                              Color.alphaBlend(_cardGold.withValues(alpha: 0.16), _gradTopBase),
                               _gradBottom,
                             ],
                           ),
-                          border: Border.all(color: _cardGold.withOpacity(0.22), width: 1),
+                          border: Border.all(color: _cardGold.withValues(alpha: 0.22), width: 1),
                           boxShadow: [
                             BoxShadow(
-                              color: _cardGold.withOpacity(0.14),
+                              color: _cardGold.withValues(alpha: 0.14),
                               blurRadius: 28,
                               spreadRadius: -6,
                               offset: const Offset(0, 14),
@@ -137,7 +137,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                         height: 200,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _cardGold.withOpacity(0.04), width: 1),
+                          border: Border.all(color: _cardGold.withValues(alpha: 0.04), width: 1),
                         ),
                       ),
                     ),
@@ -149,7 +149,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                         height: 260,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _cardGold.withOpacity(0.03), width: 1.5),
+                          border: Border.all(color: _cardGold.withValues(alpha: 0.03), width: 1.5),
                         ),
                       ),
                     ),
@@ -173,8 +173,8 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                                   borderRadius: BorderRadius.circular(4),
                                   gradient: LinearGradient(
                                     colors: [
-                                      _cardGold.withOpacity(0.85),
-                                      _cardGold.withOpacity(0.45),
+                                      _cardGold.withValues(alpha: 0.85),
+                                      _cardGold.withValues(alpha: 0.45),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -192,7 +192,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                                 child: Text(
                                   'USDC',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.65),
+                                    color: Colors.white.withValues(alpha: 0.65),
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -224,7 +224,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                               Text(
                                 _isRequest ? 'Requesting from ${widget.contactName}' : 'Sending to ${widget.contactName}',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -233,7 +233,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                                 Text(
                                   'Bal: \$${balance.toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    color: amount > balance ? Colors.redAccent : Colors.white.withOpacity(0.5),
+                                    color: amount > balance ? Colors.redAccent : Colors.white.withValues(alpha: 0.5),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -279,14 +279,14 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
-                  color: canProceed ? _cardGold : Colors.white.withOpacity(0.05),
+                  color: canProceed ? _cardGold : Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   _isRequest ? 'Request \$${amount.toStringAsFixed(2)}' : 'Send \$${amount.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: canProceed ? const Color(0xFF0E1116) : Colors.white.withOpacity(0.3),
+                    color: canProceed ? const Color(0xFF0E1116) : Colors.white.withValues(alpha: 0.3),
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -312,9 +312,9 @@ class _ModeToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -339,13 +339,13 @@ class _TogglePill extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.15) : Colors.transparent,
+        color: isActive ? Colors.white.withValues(alpha: 0.15) : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
+          color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -372,11 +372,11 @@ class _KeypadRow extends StatelessWidget {
             height: 50,
             alignment: Alignment.center,
             child: k == '<'
-                ? Icon(HugeIconsStroke.arrowLeft01, color: Colors.white.withOpacity(0.8), size: 24)
+                ? Icon(HugeIconsStroke.arrowLeft01, color: Colors.white.withValues(alpha: 0.8), size: 24)
                 : Text(
                     k,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 28,
                       fontWeight: FontWeight.w500,
                     ),

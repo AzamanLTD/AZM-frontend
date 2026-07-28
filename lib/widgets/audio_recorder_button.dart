@@ -333,7 +333,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
             width: _recording && !_locked ? widget.size * 1.5 : widget.size,
             height: _recording && !_locked ? widget.size * 1.5 : widget.size,
             decoration: BoxDecoration(
-              color: _locked ? colors.accent : colors.accent.withOpacity(widget.disabled ? 0.05 : 0.12),
+              color: _locked ? colors.accent : colors.accent.withValues(alpha: widget.disabled ? 0.05 : 0.12),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -343,7 +343,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
               child: Icon(
                 _locked ? HugeIconsSolid.sent : Icons.mic_rounded,
                 key: ValueKey(_locked),
-                color: _locked ? Colors.white : colors.accent.withOpacity(widget.disabled ? 0.4 : 1.0),
+                color: _locked ? Colors.white : colors.accent.withValues(alpha: widget.disabled ? 0.4 : 1.0),
                 size: _recording && !_locked ? 28 : 20,
               ),
             ),
@@ -502,7 +502,7 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
                             height: h,
                             margin: const EdgeInsets.only(left: 2.5),
                             decoration: BoxDecoration(
-                              color: isCancelling ? widget.colors.danger.withOpacity(0.5) : widget.colors.accent.withOpacity(0.8),
+                              color: isCancelling ? widget.colors.danger.withValues(alpha: 0.5) : widget.colors.accent.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(1.5),
                             ),
                           );
@@ -546,7 +546,7 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
               height: 30,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: widget.colors.danger.withOpacity(0.12),
+                color: widget.colors.danger.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.close_rounded, color: widget.colors.danger, size: 16),

@@ -254,7 +254,7 @@ class _List extends StatelessWidget {
               OutlinedButton(
                 onPressed: onRetry,
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                  side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                 ),
                 child: Text('Retry',
                     style: TextStyle(color: colors.accent)),
@@ -339,7 +339,7 @@ class _TicketTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.10),
+                color: colors.accent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Icons.confirmation_number_outlined,
@@ -369,7 +369,7 @@ class _TicketTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _statusColor.withOpacity(0.14),
+                          color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

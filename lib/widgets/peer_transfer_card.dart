@@ -83,7 +83,7 @@ class PeerTransferCard extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: (isDeclined ? Colors.black : skin.colors.last).withOpacity(0.35),
+                  color: (isDeclined ? Colors.black : skin.colors.last).withValues(alpha: 0.35),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -99,14 +99,14 @@ class PeerTransferCard extends StatelessWidget {
                       isDeclined
                           ? Icons.close_rounded
                           : (isRequest ? Icons.request_page_rounded : Icons.arrow_upward_rounded),
-                      color: skin.textColor.withOpacity(0.85),
+                      color: skin.textColor.withValues(alpha: 0.85),
                       size: 14,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       isDeclined ? 'Transfer declined' : headline,
                       style: TextStyle(
-                        color: skin.textColor.withOpacity(0.85),
+                        color: skin.textColor.withValues(alpha: 0.85),
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -131,7 +131,7 @@ class PeerTransferCard extends StatelessWidget {
                     Text(
                       currency,
                       style: TextStyle(
-                        color: skin.textColor.withOpacity(0.75),
+                        color: skin.textColor.withValues(alpha: 0.75),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -143,7 +143,7 @@ class PeerTransferCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,

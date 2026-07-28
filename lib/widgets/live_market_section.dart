@@ -290,7 +290,7 @@ class _CurrencyBadge extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: colors.divider.withOpacity(0.3),
+            color: colors.divider.withValues(alpha: 0.3),
           ),
           child: Text(
             flag,
@@ -356,7 +356,7 @@ class _Sparkline extends StatelessWidget {
             dotData: FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: lineColor.withOpacity(0.10),
+              color: lineColor.withValues(alpha: 0.10),
             ),
           ),
         ],
@@ -412,7 +412,7 @@ class _RateAlertRow extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.15),
+                      color: colors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -481,9 +481,9 @@ class _AlertChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.08),
+        color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: chipColor.withOpacity(0.25)),
+        border: Border.all(color: chipColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

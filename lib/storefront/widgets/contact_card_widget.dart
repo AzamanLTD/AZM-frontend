@@ -47,7 +47,7 @@ class ContactCardWidget extends StatelessWidget {
         avatar: Icon(icon, size: 16, color: Theme.of(ctx).colorScheme.primary),
         label: Text(label, style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurface)),
         onPressed: () => _launchUrl(url),
-        backgroundColor: Theme.of(ctx).colorScheme.primary.withOpacity(0.08),
+        backgroundColor: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.08),
         side: BorderSide.none,
       );
     });

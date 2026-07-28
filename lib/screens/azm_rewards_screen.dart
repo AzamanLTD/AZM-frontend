@@ -109,13 +109,13 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: [
-                            colors.accent.withOpacity(0.15),
-                            colors.accentSecondary.withOpacity(0.08)]),
+                            colors.accent.withValues(alpha: 0.15),
+                            colors.accentSecondary.withValues(alpha: 0.08)]),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colors.accent.withOpacity(0.3))),
+                          border: Border.all(color: colors.accent.withValues(alpha: 0.3))),
                         child: Row(children: [
                           Container(width: 44, height: 44,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent.withOpacity(0.15)),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent.withValues(alpha: 0.15)),
                             child: Icon(Icons.campaign_outlined, color: colors.accent, size: 22)),
                           const SizedBox(width: 14),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -196,12 +196,12 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.accent.withOpacity(0.15),
-            colors.accent.withOpacity(0.05),
+            colors.accent.withValues(alpha: 0.15),
+            colors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -236,7 +236,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -259,7 +259,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
 
           if (summary != null) ...[
             const SizedBox(height: 16),
-            Divider(color: colors.accent.withOpacity(0.2)),
+            Divider(color: colors.accent.withValues(alpha: 0.2)),
             const SizedBox(height: 12),
 
             // Stats row
@@ -335,7 +335,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: entry.isMe ? colors.accent.withOpacity(0.08) : null,
+        color: entry.isMe ? colors.accent.withValues(alpha: 0.08) : null,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -496,7 +496,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.divider.withOpacity(0.5)),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [

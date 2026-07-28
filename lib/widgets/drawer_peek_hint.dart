@@ -112,14 +112,14 @@ class _DrawerPeekHintState extends State<DrawerPeekHint>
                 width: 22,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.85),
+                  color: accent.withValues(alpha: 0.85),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(14),
                     bottomLeft: Radius.circular(14),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: accent.withOpacity(0.35 * (0.4 + pull)),
+                      color: accent.withValues(alpha: 0.35 * (0.4 + pull)),
                       blurRadius: 12,
                       spreadRadius: 1,
                     ),

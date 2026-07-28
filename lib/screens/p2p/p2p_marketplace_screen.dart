@@ -231,14 +231,14 @@ class _CashBalanceCard extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color.alphaBlend(_cardAccent.withOpacity(0.16), _gradTopBase),
+                    Color.alphaBlend(_cardAccent.withValues(alpha: 0.16), _gradTopBase),
                     _gradBottom,
                   ],
                 ),
-                border: Border.all(color: _cardAccent.withOpacity(0.22), width: 1),
+                border: Border.all(color: _cardAccent.withValues(alpha: 0.22), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: _cardAccent.withOpacity(0.14),
+                    color: _cardAccent.withValues(alpha: 0.14),
                     blurRadius: 28,
                     spreadRadius: -6,
                     offset: const Offset(0, 14),
@@ -257,7 +257,7 @@ class _CashBalanceCard extends ConsumerWidget {
                 height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: _cardAccent.withOpacity(0.10), width: 22),
+                  border: Border.all(color: _cardAccent.withValues(alpha: 0.10), width: 22),
                 ),
               ),
             ),
@@ -267,7 +267,7 @@ class _CashBalanceCard extends ConsumerWidget {
           // needs to soften for the Light theme.
           Positioned.fill(
             child: IgnorePointer(
-              child: _CardSheen(color: Colors.white.withOpacity(0.05)),
+              child: _CardSheen(color: Colors.white.withValues(alpha: 0.05)),
             ),
           ),
           Padding(
@@ -286,8 +286,8 @@ class _CashBalanceCard extends ConsumerWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            _cardAccent.withOpacity(0.85),
-                            _cardAccent.withOpacity(0.45),
+                            _cardAccent.withValues(alpha: 0.85),
+                            _cardAccent.withValues(alpha: 0.45),
                           ],
                         ),
                       ),
@@ -296,7 +296,7 @@ class _CashBalanceCard extends ConsumerWidget {
                     Text(
                       'Cash Balance',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.92),
+                        color: Colors.white.withValues(alpha: 0.92),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.1,
@@ -306,7 +306,7 @@ class _CashBalanceCard extends ConsumerWidget {
                     Text(
                       'AZAMAN',
                       style: TextStyle(
-                        color: _cardAccent.withOpacity(0.85),
+                        color: _cardAccent.withValues(alpha: 0.85),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 2.2,
@@ -323,7 +323,7 @@ class _CashBalanceCard extends ConsumerWidget {
                       child: Text(
                         'GH₵',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
@@ -438,7 +438,7 @@ class _BalancePillState extends State<_BalancePill> {
   @override
   Widget build(BuildContext context) {
     final c = widget.colors;
-    final bgColor = widget.onDarkCard ? Colors.white.withOpacity(0.14) : c.surface;
+    final bgColor = widget.onDarkCard ? Colors.white.withValues(alpha: 0.14) : c.surface;
     final textColor = widget.onDarkCard ? Colors.white : c.textPrimary;
 
     return GestureDetector(
@@ -458,7 +458,7 @@ class _BalancePillState extends State<_BalancePill> {
             color: bgColor,
             borderRadius: BorderRadius.circular(26),
             border: widget.onDarkCard
-                ? Border.all(color: Colors.white.withOpacity(0.16))
+                ? Border.all(color: Colors.white.withValues(alpha: 0.16))
                 : null,
           ),
           child: Text(
@@ -659,14 +659,14 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              colors.accent.withOpacity(0.13),
-              const Color(0xFFD4AF37).withOpacity(0.07),
+              colors.accent.withValues(alpha: 0.13),
+              const Color(0xFFD4AF37).withValues(alpha: 0.07),
             ],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.accent.withOpacity(0.22)),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.22)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -674,7 +674,7 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
               width: 26, height: 26,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD4AF37).withOpacity(0.16),
+                color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
               ),
               child: const Center(
                 child: Icon(HugeIconsSolid.flash, size: 13, color: Color(0xFFD4AF37)),
@@ -701,7 +701,7 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
               borderRadius: BorderRadius.circular(3),
               child: LinearProgressIndicator(
                 value: _anim.value.clamp(0.0, 1.0),
-                backgroundColor: colors.divider.withOpacity(0.4),
+                backgroundColor: colors.divider.withValues(alpha: 0.4),
                 valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
                 minHeight: 5,
               ),

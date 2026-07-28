@@ -144,7 +144,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                               ...tags.take(2).map((t) => Container(
                                 margin: const EdgeInsets.only(right: 4),
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                                 child: Text(t, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.accent)),
                               )),
                             ],
@@ -177,7 +177,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                     child: Row(
                       children: [
                         Text('Total: ', style: TextStyle(fontSize: 13, color: colors.textSecondary)),

@@ -109,10 +109,10 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withValues(alpha: 0.5),
                     Colors.transparent,
                     Colors.transparent,
-                    Colors.black.withOpacity(0.4)
+                    Colors.black.withValues(alpha: 0.4)
                   ],
                   stops: const [0.0, 0.15, 0.85, 1.0],
                 ),

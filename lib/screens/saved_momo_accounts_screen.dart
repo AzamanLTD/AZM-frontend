@@ -136,7 +136,7 @@ class _MomoTile extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: colors.card.withOpacity(0.85),
+        color: colors.card.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colors.divider, width: 0.7),
       ),
@@ -146,7 +146,7 @@ class _MomoTile extends ConsumerWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: pcolor.withOpacity(0.12),
+              color: pcolor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.smartphone_outlined, color: pcolor, size: 16),
@@ -189,7 +189,7 @@ class _MomoTile extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, color: colors.danger.withOpacity(0.8), size: 18),
+            icon: Icon(Icons.delete_outline, color: colors.danger.withValues(alpha: 0.8), size: 18),
             onPressed: () async {
               HapticFeedback.mediumImpact();
               final ok = await showDialog<bool>(
@@ -326,7 +326,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
       decoration: BoxDecoration(
         color: colors.background,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: colors.glow.withOpacity(0.18))),
+        border: Border(top: BorderSide(color: colors.glow.withValues(alpha: 0.18))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -359,7 +359,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
                   .map((p) => ChoiceChip(
                         selected: _provider == p,
                         label: Text(p),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() {
                           _provider = p;
                           _verifiedName = null;
@@ -413,9 +413,9 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.success.withOpacity(0.08),
+                  color: colors.success.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.success.withOpacity(0.30)),
+                  border: Border.all(color: colors.success.withValues(alpha: 0.30)),
                 ),
                 child: Row(
                   children: [
@@ -468,9 +468,9 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.06),
+                color: colors.warning.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.warning.withOpacity(0.20)),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.20)),
               ),
               child: Row(
                 children: [
@@ -512,7 +512,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
                   foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                  disabledBackgroundColor: colors.accent.withOpacity(0.30),
+                  disabledBackgroundColor: colors.accent.withValues(alpha: 0.30),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,

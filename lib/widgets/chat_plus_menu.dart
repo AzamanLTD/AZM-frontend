@@ -114,7 +114,7 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
               onTap: _close,
               child: FadeTransition(
                 opacity: _controller,
-                child: Container(color: Colors.black.withOpacity(0.16)),
+                child: Container(color: Colors.black.withValues(alpha: 0.16)),
               ),
             ),
           ),
@@ -253,7 +253,7 @@ class _StaggeredBubble extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: colors.surface.withOpacity(0.92),
+                color: colors.surface.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: colors.divider),
               ),
@@ -270,7 +270,7 @@ class _StaggeredBubble extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: colors.surface,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: ClipOval(

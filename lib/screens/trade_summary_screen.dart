@@ -163,7 +163,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           width: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: colors.success.withOpacity(0.1),
+            color: colors.success.withValues(alpha: 0.1),
             border: Border.all(color: colors.success, width: 2),
           ),
           child: Icon(Icons.check_circle_outline, color: colors.success, size: 50),
@@ -243,7 +243,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _isPositive == true ? colors.success.withOpacity(0.2) : colors.background,
+                      color: _isPositive == true ? colors.success.withValues(alpha: 0.2) : colors.background,
                       border: Border.all(color: _isPositive == true ? colors.success : colors.divider),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -268,7 +268,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _isPositive == false ? colors.danger.withOpacity(0.2) : colors.background,
+                      color: _isPositive == false ? colors.danger.withValues(alpha: 0.2) : colors.background,
                       border: Border.all(color: _isPositive == false ? colors.danger : colors.divider),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -339,9 +339,9 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.05),
+        color: colors.success.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.success.withOpacity(0.3)),
+        border: Border.all(color: colors.success.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -387,7 +387,7 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: colors.accent.withOpacity(0.4)),
+          side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),

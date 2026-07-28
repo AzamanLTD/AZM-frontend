@@ -224,7 +224,7 @@ class _UserLocalPaymentMethodsScreenState
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: _typeColor(type, colors).withOpacity(0.15),
+            backgroundColor: _typeColor(type, colors).withValues(alpha: 0.15),
             child: Icon(_typeIcon(type),
                 color: _typeColor(type, colors), size: 22),
           ),
@@ -384,7 +384,7 @@ class _UserLocalPaymentMethodsScreenState
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: sel
-                                ? _typeColor(t, colors).withOpacity(0.15)
+                                ? _typeColor(t, colors).withValues(alpha: 0.15)
                                 : colors.surface,
                             border: Border.all(
                                 color: sel

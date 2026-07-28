@@ -429,7 +429,7 @@ class _WalletTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -677,7 +677,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                   style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: colors.background.withOpacity(0.6),
+                    fillColor: colors.background.withValues(alpha: 0.6),
                     hintText: 'Password',
                     hintStyle: TextStyle(color: colors.textTertiary),
                     border: OutlineInputBorder(
@@ -751,7 +751,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                 Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.12),
+                    color: colors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(Icons.account_balance_wallet_outlined,
@@ -845,7 +845,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? colors.accent.withOpacity(0.15) : colors.card,
+          color: selected ? colors.accent.withValues(alpha: 0.15) : colors.card,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? colors.accent : colors.divider,
@@ -886,7 +886,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: selected ? c.withOpacity(0.13) : colors.softSurface,
+                    color: selected ? c.withValues(alpha: 0.13) : colors.softSurface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected ? c : colors.divider,
@@ -985,9 +985,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colors.success.withOpacity(0.08),
+            color: colors.success.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.success.withOpacity(0.30)),
+            border: Border.all(color: colors.success.withValues(alpha: 0.30)),
           ),
           child: Row(
             children: [

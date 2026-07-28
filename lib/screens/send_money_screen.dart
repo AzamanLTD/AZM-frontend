@@ -172,7 +172,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              BorderSide(color: colors.accent.withOpacity(0.5))),
+                              BorderSide(color: colors.accent.withValues(alpha: 0.5))),
                     ),
                     onSubmitted: (_) => _lookupRecipient(),
                   ),
@@ -211,7 +211,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       color: colors.card,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                          color: colors.accent.withOpacity(0.3))),
+                          color: colors.accent.withValues(alpha: 0.3))),
                   child: Row(children: [
                     CircleAvatar(
                       radius: 20,
@@ -284,7 +284,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: colors.accent.withOpacity(0.5))),
+                          BorderSide(color: colors.accent.withValues(alpha: 0.5))),
                 ),
               ),
               const SizedBox(height: 14),
@@ -312,7 +312,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: colors.danger.withOpacity(0.08),
+                      color: colors.danger.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10)),
                   child: Row(children: [
                     Icon(HugeIconsSolid.alertCircle,
@@ -330,7 +330,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: colors.success.withOpacity(0.08),
+                      color: colors.success.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10)),
                   child: Row(children: [
                     Icon(HugeIconsSolid.checkmarkCircle01,

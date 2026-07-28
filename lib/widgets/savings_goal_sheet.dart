@@ -252,7 +252,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.savings_outlined,
@@ -401,7 +401,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.08),
+                color: colors.success.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -439,7 +439,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -733,14 +733,14 @@ class _ActionTile extends ConsumerWidget {
           decoration: BoxDecoration(
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: fg.withOpacity(0.16)),
+            border: Border.all(color: fg.withValues(alpha: 0.16)),
           ),
           child: Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: fg.withOpacity(0.12),
+                  color: fg.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: fg, size: 22),

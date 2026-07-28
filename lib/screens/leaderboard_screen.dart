@@ -207,7 +207,7 @@ class _RankCard extends StatelessWidget {
     switch (entry.rank) {
       case 1:
         borderColor = const Color(0xFFFFD700);
-        glowColor = const Color(0xFFFFD700).withOpacity(0.25);
+        glowColor = const Color(0xFFFFD700).withValues(alpha: 0.25);
         leading = _PodiumBadge(
           rank: 1,
           icon: Icons.emoji_events_outlined,
@@ -216,7 +216,7 @@ class _RankCard extends StatelessWidget {
         );
       case 2:
         borderColor = const Color(0xFFC0C0C0);
-        glowColor = const Color(0xFFC0C0C0).withOpacity(0.2);
+        glowColor = const Color(0xFFC0C0C0).withValues(alpha: 0.2);
         leading = _PodiumBadge(
           rank: 2,
           icon: Icons.emoji_events_outlined,
@@ -225,7 +225,7 @@ class _RankCard extends StatelessWidget {
         );
       case 3:
         borderColor = const Color(0xFFCD7F32);
-        glowColor = const Color(0xFFCD7F32).withOpacity(0.2);
+        glowColor = const Color(0xFFCD7F32).withValues(alpha: 0.2);
         leading = _PodiumBadge(
           rank: 3,
           icon: Icons.emoji_events_outlined,
@@ -257,16 +257,16 @@ class _RankCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isYou
-            ? colors.accent.withOpacity(0.07)
+            ? colors.accent.withValues(alpha: 0.07)
             : isPodium
                 ? colors.surface
                 : colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isYou
-              ? colors.accent.withOpacity(0.5)
+              ? colors.accent.withValues(alpha: 0.5)
               : isPodium
-                  ? borderColor.withOpacity(0.5)
+                  ? borderColor.withValues(alpha: 0.5)
                   : colors.divider,
           width: isYou || isPodium ? 1.5 : 1,
         ),
@@ -310,7 +310,7 @@ class _RankCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
-                            color: colors.accent.withOpacity(0.15),
+                            color: colors.accent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -329,7 +329,7 @@ class _RankCard extends StatelessWidget {
                         Icon(
                           Icons.check_circle_outline,
                           size: 14,
-                          color: colors.accent.withOpacity(0.7),
+                          color: colors.accent.withValues(alpha: 0.7),
                         ),
                       ],
                     ],
@@ -442,14 +442,14 @@ class _PodiumBadge extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withOpacity(0.2),
-            color.withOpacity(0.05),
+            color.withValues(alpha: 0.2),
+            color.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -492,9 +492,9 @@ class _MyRankBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -513,7 +513,7 @@ class _MyRankBanner extends StatelessWidget {
           Text(
             'Keep trading!',
             style: TextStyle(
-              color: colors.accent.withOpacity(0.6),
+              color: colors.accent.withValues(alpha: 0.6),
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
@@ -567,7 +567,7 @@ class _SkeletonCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.divider.withOpacity(0.5),
+                color: colors.divider.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -581,7 +581,7 @@ class _SkeletonCard extends StatelessWidget {
                     width: 100,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: colors.divider.withOpacity(0.5),
+                      color: colors.divider.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -590,7 +590,7 @@ class _SkeletonCard extends StatelessWidget {
                     width: 60,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: colors.divider.withOpacity(0.3),
+                      color: colors.divider.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -605,7 +605,7 @@ class _SkeletonCard extends StatelessWidget {
                   width: 50,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: colors.divider.withOpacity(0.5),
+                    color: colors.divider.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -614,7 +614,7 @@ class _SkeletonCard extends StatelessWidget {
                   width: 35,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: colors.divider.withOpacity(0.3),
+                    color: colors.divider.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -648,7 +648,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.analytics_outlined,
               size: 56,
-              color: colors.textTertiary.withOpacity(0.5),
+              color: colors.textTertiary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -711,7 +711,7 @@ class _ErrorState extends StatelessWidget {
             Icon(
               Icons.wifi,
               size: 48,
-              color: colors.textTertiary.withOpacity(0.5),
+              color: colors.textTertiary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(

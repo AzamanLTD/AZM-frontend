@@ -82,7 +82,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.15),
+                color: colors.success.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.group_outlined, color: colors.success, size: 18),
@@ -186,11 +186,11 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color.withOpacity(0.8), size: 18),
+          Icon(icon, color: color.withValues(alpha: 0.8), size: 18),
           const SizedBox(height: 8),
           Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
@@ -261,7 +261,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: roleColor.withOpacity(0.12),
+                    color: roleColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
@@ -287,7 +287,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: roleColor.withOpacity(0.12),
+                              color: roleColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(role, style: TextStyle(color: roleColor, fontSize: 8, fontWeight: FontWeight.bold)),

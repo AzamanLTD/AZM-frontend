@@ -121,7 +121,7 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _imageFile != null ? colors.accent : colors.textTertiary.withOpacity(0.3)),
+                      border: Border.all(color: _imageFile != null ? colors.accent : colors.textTertiary.withValues(alpha: 0.3)),
                     ),
                     child: _imageFile == null
                         ? Center(child: Icon(Icons.camera_alt_outlined, color: colors.accent, size: 40))

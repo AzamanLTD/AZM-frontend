@@ -62,22 +62,22 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: colors.accent.withOpacity(_glowAnimation.value),
+              color: colors.accent.withValues(alpha: _glowAnimation.value),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: colors.accent.withOpacity(_glowAnimation.value * 0.15),
+                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.15),
                 blurRadius: 18 * _glowAnimation.value,
                 spreadRadius: 0,
               ),
               BoxShadow(
-                color: colors.accent.withOpacity(_glowAnimation.value * 0.08),
+                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.08),
                 blurRadius: 40 * _glowAnimation.value,
                 spreadRadius: -2,
               ),
               BoxShadow(
-                color: colors.accent.withOpacity(_glowAnimation.value * 0.04),
+                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.04),
                 blurRadius: 60 * _glowAnimation.value,
                 spreadRadius: -6,
               ),
@@ -115,7 +115,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.10),
+            color: colors.accent.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -138,7 +138,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.12),
+            color: colors.accent.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -168,7 +168,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.08),
+              color: colors.accent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
@@ -186,7 +186,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.background.withOpacity(0.4),
+        color: colors.background.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.divider),
       ),
@@ -216,7 +216,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.08),
+        color: colors.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -275,7 +275,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: colors.background.withOpacity(0.3),
+        color: colors.background.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

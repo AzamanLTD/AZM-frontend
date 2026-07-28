@@ -45,7 +45,7 @@ class ForceUpdateScreen extends ConsumerWidget {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.1),
+                    color: colors.accent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

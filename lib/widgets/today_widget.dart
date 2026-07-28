@@ -256,7 +256,7 @@ class _StatTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: accent.withOpacity(0.18)),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +271,7 @@ class _StatTile extends StatelessWidget {
                   height: 32,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
+                    color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: accent, size: 18),
@@ -401,7 +401,7 @@ class _PendingWithdrawalsSheet {
                             height: 36,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: colors.warning.withOpacity(0.12),
+                              color: colors.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
@@ -444,7 +444,7 @@ class _PendingWithdrawalsSheet {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: colors.warning.withOpacity(0.12),
+                              color: colors.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(

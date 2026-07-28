@@ -25,7 +25,7 @@ class PromotedAdBadge extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFB800).withOpacity(0.45),
+            color: const Color(0xFFFFB800).withValues(alpha: 0.45),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -49,7 +49,7 @@ class PromotedAdBadge extends StatelessWidget {
       ),
     ).animate(onPlay: (c) => c.repeat()).shimmer(
           duration: 2200.ms,
-          color: Colors.white.withOpacity(0.40),
+          color: Colors.white.withValues(alpha: 0.40),
         );
   }
 }

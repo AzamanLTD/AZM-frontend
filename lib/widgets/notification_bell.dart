@@ -68,7 +68,7 @@ class NotificationBell extends ConsumerWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.danger.withOpacity(0.4 * value),
+                              color: colors.danger.withValues(alpha: 0.4 * value),
                               blurRadius: 6 * value,
                               spreadRadius: 1 * value,
                             ),

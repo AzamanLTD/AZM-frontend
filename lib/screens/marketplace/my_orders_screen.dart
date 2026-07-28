@@ -177,7 +177,7 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(children: [
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
                 child: Text(order.status.label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor))),
               const SizedBox(width: 8),
               Text(_fmtDate(order.createdAt), style: TextStyle(fontSize: 10.5, color: colors.textTertiary)),

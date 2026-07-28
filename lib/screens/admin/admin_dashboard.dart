@@ -153,7 +153,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.radar, color: colors.accent, size: 18),
@@ -339,10 +339,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accentColor.withOpacity(0.25)),
+          border: Border.all(color: accentColor.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.06),
+              color: accentColor.withValues(alpha: 0.06),
               blurRadius: 20,
               spreadRadius: -2,
             ),
@@ -355,7 +355,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.12),
+                color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: accentColor, size: 22),
@@ -542,7 +542,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -627,11 +627,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: (isOnline ? colors.success : colors.danger)
-                      .withOpacity(0.15),
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: (isOnline ? colors.success : colors.danger)
-                        .withOpacity(0.4),
+                        .withValues(alpha: 0.4),
                   ),
                 ),
                 child: Row(
@@ -812,14 +812,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              colors.danger.withOpacity(0.8),
+              colors.danger.withValues(alpha: 0.8),
               colors.danger,
             ],
           ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: colors.danger.withOpacity(0.3),
+              color: colors.danger.withValues(alpha: 0.3),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),

@@ -72,7 +72,7 @@ class _ShiftTile extends StatelessWidget {
         children: [
           Container(
             width: 48, height: 48,
-            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(Icons.schedule, color: statusColor, size: 22),
           ),
           const SizedBox(width: 12),
@@ -91,7 +91,7 @@ class _ShiftTile extends StatelessWidget {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
             child: Text(shift.status.name.toUpperCase(),
                 style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700)),
           ),

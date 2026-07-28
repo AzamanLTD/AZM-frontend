@@ -149,7 +149,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: colors.accent.withOpacity(0.1),
+                          color: colors.accent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -276,7 +276,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                             foregroundColor:
                                 colors.isDark ? Colors.black : Colors.white,
                             disabledBackgroundColor:
-                                colors.accent.withOpacity(0.3),
+                                colors.accent.withValues(alpha: 0.3),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -398,7 +398,7 @@ class _DirectionChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? colors.accent.withOpacity(0.12)
+                ? colors.accent.withValues(alpha: 0.12)
                 : colors.background,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
@@ -450,14 +450,14 @@ class _AlertTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isTriggered ? colors.card.withOpacity(0.5) : colors.card,
+        color: isTriggered ? colors.card.withValues(alpha: 0.5) : colors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isTriggered
-              ? colors.divider.withOpacity(0.5)
+              ? colors.divider.withValues(alpha: 0.5)
               : alert.direction == 'ABOVE'
-                  ? colors.success.withOpacity(0.3)
-                  : colors.danger.withOpacity(0.3),
+                  ? colors.success.withValues(alpha: 0.3)
+                  : colors.danger.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -470,7 +470,7 @@ class _AlertTile extends StatelessWidget {
               color: (alert.direction == 'ABOVE'
                       ? colors.success
                       : colors.danger)
-                  .withOpacity(isTriggered ? 0.05 : 0.1),
+                  .withValues(alpha: isTriggered ? 0.05 : 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -511,7 +511,7 @@ class _AlertTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: colors.success.withOpacity(0.1),
+                          color: colors.success.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

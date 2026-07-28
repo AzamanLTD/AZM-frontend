@@ -166,7 +166,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.account_balance_outlined, color: colors.accent, size: 18),
@@ -275,7 +275,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _receiptImage == null
-                              ? colors.accent.withOpacity(0.5)
+                              ? colors.accent.withValues(alpha: 0.5)
                               : colors.accent,
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: colors.divider,
@@ -361,7 +361,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
           },
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: colors.textTertiary.withOpacity(0.5)),
+            hintStyle: TextStyle(color: colors.textTertiary.withValues(alpha: 0.5)),
             prefixText: '$prefix ',
             prefixStyle: TextStyle(
               color: colors.accent,
@@ -377,11 +377,11 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.danger.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.danger.withValues(alpha: 0.5)),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -402,12 +402,12 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
         decoration: BoxDecoration(
           color: _receiptImage == null
               ? colors.card
-              : colors.card.withOpacity(0.8),
+              : colors.card.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: _receiptImage == null
-                ? colors.accent.withOpacity(0.3)
-                : colors.success.withOpacity(0.6),
+                ? colors.accent.withValues(alpha: 0.3)
+                : colors.success.withValues(alpha: 0.6),
             width: _receiptImage == null ? 1.5 : 2.5,
           ),
         ),
@@ -418,7 +418,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.12),
+                      color: colors.accent.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -485,7 +485,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: colors.success.withOpacity(0.9),
+                        color: colors.success.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(

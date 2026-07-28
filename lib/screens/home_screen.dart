@@ -408,7 +408,7 @@ class _ActionPills extends ConsumerWidget {
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .shimmer(
             duration: 2000.ms,
-            color: colors.accent.withOpacity(0.1),
+            color: colors.accent.withValues(alpha: 0.1),
           ),
           const SizedBox(height: 6),
           Text(
@@ -480,7 +480,7 @@ class _NewWalletCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.softSurface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: colors.accent.withOpacity(0.3), width: 1.2),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 1.2),
         ),
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -492,7 +492,7 @@ class _NewWalletCard extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
               ),
               child: Icon(Icons.add, size: 20, color: colors.accent),
             ),
@@ -509,7 +509,7 @@ class _NewWalletCard extends StatelessWidget {
       .animate(onPlay: (c) => c.repeat(reverse: true))
       .shimmer(
         duration: 3000.ms,
-        color: colors.accent.withOpacity(0.05),
+        color: colors.accent.withValues(alpha: 0.05),
       ),
     );
   }
@@ -538,7 +538,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: colors.accent.withOpacity(0.2),
+              color: colors.accent.withValues(alpha: 0.2),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -554,7 +554,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
               ),
               child: const Icon(Icons.storefront_rounded,
                   size: 20, color: Colors.white),
@@ -565,7 +565,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
                 fontWeight: FontWeight.w800)),
             const SizedBox(height: 2),
             Text("Explore businesses",
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11)),
           ],
         ),
       ),

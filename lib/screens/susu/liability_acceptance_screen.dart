@@ -190,10 +190,10 @@ class _ContractBody extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors.warning.withOpacity(0.10),
+              color: colors.warning.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
               border:
-                  Border.all(color: colors.warning.withOpacity(0.30), width: 0.7),
+                  Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.7),
             ),
             child: Row(
               children: [
@@ -217,10 +217,10 @@ class _ContractBody extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(16, 14, 16, 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colors.danger.withOpacity(0.06),
+            color: colors.danger.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
             border:
-                Border.all(color: colors.danger.withOpacity(0.30), width: 0.7),
+                Border.all(color: colors.danger.withValues(alpha: 0.30), width: 0.7),
           ),
           child: Row(
             children: [
@@ -334,7 +334,7 @@ class _ContractBody extends StatelessWidget {
                     backgroundColor: colors.warning,
                     foregroundColor: Colors.black,
                     disabledBackgroundColor:
-                        colors.warning.withOpacity(0.30),
+                        colors.warning.withValues(alpha: 0.30),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),

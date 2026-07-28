@@ -304,7 +304,7 @@ class _StorefrontCard extends StatelessWidget {
           border: Border.all(color: colors.divider),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -381,7 +381,7 @@ class _StorefrontCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.1),
+                      color: colors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -424,8 +424,8 @@ class _CoverFallback extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withOpacity(0.3),
-            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withOpacity(0.1),
+            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withValues(alpha: 0.3),
+            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withValues(alpha: 0.1),
           ],
         ),
       ),

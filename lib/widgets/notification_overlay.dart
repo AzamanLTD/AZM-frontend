@@ -107,7 +107,7 @@ class _State extends ConsumerState<NotificationOverlay>
                   Container(
                     width: 44, height: 44,
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.12),
+                      color: colors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(Icons.storefront_rounded,
@@ -280,8 +280,8 @@ class _State extends ConsumerState<NotificationOverlay>
                       child: Container(
                         decoration: BoxDecoration(
                             color: colors.isDark
-                                ? Colors.black.withOpacity(0.75)
-                                : Colors.white.withOpacity(0.72),
+                                ? Colors.black.withValues(alpha: 0.75)
+                                : Colors.white.withValues(alpha: 0.72),
                             borderRadius: const BorderRadius.vertical(
                                 bottom: Radius.circular(24))),
                         child: Column(
@@ -373,7 +373,7 @@ class _State extends ConsumerState<NotificationOverlay>
                                 child: Center(child: Container(
                                     width: 100, height: 5,
                                     decoration: BoxDecoration(
-                                        color: colors.textTertiary.withOpacity(0.35),
+                                        color: colors.textTertiary.withValues(alpha: 0.35),
                                         borderRadius: BorderRadius.circular(3)))),
                               ),
                             ),
@@ -493,9 +493,9 @@ class _SlideState extends State<_SlideRevealNotification>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: n.isRead ? c.card : c.accent.withOpacity(0.07),
+                      color: n.isRead ? c.card : c.accent.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: c.divider.withOpacity(0.5))),
+                      border: Border.all(color: c.divider.withValues(alpha: 0.5))),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Container(width: 6, height: 6, margin: const EdgeInsets.only(top: 5),
                         decoration: BoxDecoration(
@@ -528,9 +528,9 @@ class _SlideState extends State<_SlideRevealNotification>
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-            color: color.withOpacity(0.14),
+            color: color.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.3))),
+            border: Border.all(color: color.withValues(alpha: 0.3))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),

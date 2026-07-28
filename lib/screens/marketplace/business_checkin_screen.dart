@@ -89,7 +89,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
+              color: colors.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(checkInState.error!,
@@ -122,7 +122,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
             ),
             // Dark overlay with transparent center frame
             ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.5), BlendMode.srcOver),
+              colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.srcOver),
               child: Center(child: Container(width: 240, height: 240,
                 decoration: BoxDecoration(border: Border.all(color: colors.accent, width: 2), borderRadius: BorderRadius.circular(20)))),
             ),
@@ -132,7 +132,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
               top: scanLineY,
               child: Container(height: 2, decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [Colors.transparent, colors.accent, Colors.transparent]),
-                boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.5), blurRadius: 8)])),
+                boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.5), blurRadius: 8)])),
             ),
             // Corner brackets
             ..._buildCornerBrackets(colors, context),
@@ -389,7 +389,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.1),
+                  color: colors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text('Ref: ${result.reservationRef}',
@@ -440,7 +440,7 @@ class _ModeTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? colors.accent.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? colors.accent.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

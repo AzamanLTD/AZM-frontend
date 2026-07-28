@@ -154,7 +154,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   // --- Render 3-state ticks ---
   Widget _statusTicks(String? status, AzamanColors colors) {
     if (status == 'sending') {
-      return Icon(Icons.access_time, size: 13, color: colors.textTertiary.withOpacity(0.6));
+      return Icon(Icons.access_time, size: 13, color: colors.textTertiary.withValues(alpha: 0.6));
     }
     if (status == 'failed') {
       return Icon(Icons.error_outline, size: 13, color: colors.danger);
@@ -365,14 +365,14 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: accentColor.withOpacity(0.10),
+          color: accentColor.withValues(alpha: 0.10),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(14),
             topRight: const Radius.circular(14),
             bottomLeft: Radius.circular(isMe ? 14 : 4),
             bottomRight: Radius.circular(isMe ? 4 : 14),
           ),
-          border: Border.all(color: accentColor.withOpacity(0.4)),
+          border: Border.all(color: accentColor.withValues(alpha: 0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,8 +555,8 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     final String timeStr = _formatTime(msg['time'] ?? msg['createdAt']);
 
     final Color baseColor = part == 3 ? colors.danger : colors.warning;
-    final Color bgColor = baseColor.withOpacity(0.15);
-    final Color borderColor = baseColor.withOpacity(0.7);
+    final Color bgColor = baseColor.withValues(alpha: 0.15);
+    final Color borderColor = baseColor.withValues(alpha: 0.7);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -603,7 +603,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 6),
           Text(
             timeStr,
-            style: TextStyle(color: baseColor.withOpacity(0.6), fontSize: 10),
+            style: TextStyle(color: baseColor.withValues(alpha: 0.6), fontSize: 10),
           ),
         ],
       ),
@@ -835,7 +835,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       margin: const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.12),
+        color: colors.danger.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.danger, width: 1.5),
       ),
@@ -856,7 +856,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           ),
           const SizedBox(height: 6),
           Text(_formatTime(msg['time'] ?? msg['createdAt']),
-              style: TextStyle(color: colors.danger.withOpacity(0.6), fontSize: 10)),
+              style: TextStyle(color: colors.danger.withValues(alpha: 0.6), fontSize: 10)),
         ],
       ),
     );
@@ -868,9 +868,9 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Text(
         msg['text'] ?? '',
@@ -1186,7 +1186,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _hasText ? accentColor : accentColor.withOpacity(0.3),
+              color: _hasText ? accentColor : accentColor.withValues(alpha: 0.3),
             ),
             child: IconButton(
               icon: widget.isUploading
@@ -1240,7 +1240,7 @@ class _SheetAction extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1281,7 +1281,7 @@ class _AttachButton extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
           ),
           child: Icon(icon, color: color, size: 19),
         ),
@@ -1331,9 +1331,9 @@ class VendorPayeeDetails extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

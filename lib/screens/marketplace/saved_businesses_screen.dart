@@ -107,7 +107,7 @@ class _SavedBusinessesScreenState
                     }
                     return Dismissible(
                       key: ValueKey(bizId), direction: DismissDirection.up,
-                      background: Container(decoration: BoxDecoration(color: colors.danger.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                      background: Container(decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
                         child: const Align(alignment: Alignment.topCenter, child: Padding(padding: EdgeInsets.only(top: 12), child: Icon(Icons.delete_outline_rounded, color: Colors.red)))),
                       onDismissed: (_) {
                         AzamanHaptics.toggle();
@@ -121,7 +121,7 @@ class _SavedBusinessesScreenState
                             Expanded(flex: 3, child: Center(
                               child: b.logoUrl != null
                                 ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(b.logoUrl!, fit: BoxFit.cover, width: double.infinity))
-                                : Container(decoration: BoxDecoration(color: colors.accent.withOpacity(0.1), shape: BoxShape.circle), padding: const EdgeInsets.all(16),
+                                : Container(decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle), padding: const EdgeInsets.all(16),
                                     child: Icon(Icons.storefront_outlined, size: 28, color: colors.accent)),
                             )),
                             const SizedBox(height: 8),

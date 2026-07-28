@@ -201,7 +201,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                               animation: _progress, 
                               builder: (_, __) => LinearProgressIndicator(
                                 value: i < _storyIndex ? 1 : (i == _storyIndex ? _progress.value : 0),
-                                backgroundColor: Colors.white.withOpacity(0.2),
+                                backgroundColor: Colors.white.withValues(alpha: 0.2),
                                 valueColor: AlwaysStoppedAnimation(_story.boosted ? Colors.amberAccent : Colors.white),
                                 minHeight: 3
                               )
@@ -220,12 +220,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                       const SizedBox(width: 10),
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(_group.authorUsername, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                        Text('${_storyIndex + 1} of ${_group.stories.length}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
+                        Text('${_storyIndex + 1} of ${_group.stories.length}', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.w500)),
                       ]),
                       if (_story.boosted) ...[
                         const SizedBox(width: 8),
                         Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.amberAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                          decoration: BoxDecoration(color: Colors.amberAccent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                           child: const Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.bolt, color: Colors.amberAccent, size: 12), SizedBox(width: 2),
                             Text('BOOSTED', style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.w800)),
@@ -266,13 +266,13 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1), 
+                              color: Colors.white.withValues(alpha: 0.1), 
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.5)
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.camera_alt_outlined, color: Colors.white.withOpacity(0.6), size: 20),
+                                Icon(Icons.camera_alt_outlined, color: Colors.white.withValues(alpha: 0.6), size: 20),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: TextField(
@@ -280,14 +280,14 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                                     style: const TextStyle(color: Colors.white, fontSize: 14),
                                     decoration: InputDecoration(
                                       hintText: 'Reply to story...',
-                                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
+                                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
                                       border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(vertical: 12)
                                     ),
                                     onSubmitted: (msg) => _sendReply(),
                                   )
                                 ),
-                                Icon(Icons.emoji_emotions_outlined, color: Colors.white.withOpacity(0.6), size: 20),
+                                Icon(Icons.emoji_emotions_outlined, color: Colors.white.withValues(alpha: 0.6), size: 20),
                               ]
                             )
                           )
@@ -301,9 +301,9 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                             decoration: BoxDecoration(
                               color: _replyController.text.isNotEmpty
                                 ? Colors.white
-                                : Colors.white.withOpacity(0.1),
+                                : Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5)
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.5)
                             ),
                             alignment: Alignment.center,
                             child: _replySending
@@ -311,7 +311,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                               : Icon(Icons.send,
                                   color: _replyController.text.isNotEmpty
                                     ? Colors.black
-                                    : Colors.white.withOpacity(0.7),
+                                    : Colors.white.withValues(alpha: 0.7),
                                   size: 18),
                           )
                         ),

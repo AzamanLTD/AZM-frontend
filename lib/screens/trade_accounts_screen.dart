@@ -145,7 +145,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
           // Method icon
           CircleAvatar(
             radius: 22,
-            backgroundColor: colors.accent.withOpacity(0.12),
+            backgroundColor: colors.accent.withValues(alpha: 0.12),
             child: Icon(
               _iconForMethod(account.methodType),
               color: colors.accent,
@@ -174,7 +174,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.12),
+                        color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -781,7 +781,7 @@ class _AddTradeAccountSheetState
                                   TextStyle(color: c.textTertiary, fontSize: 13),
                               hintText: required ? 'Required' : 'Optional',
                               hintStyle: TextStyle(
-                                  color: c.textTertiary.withOpacity(0.5),
+                                  color: c.textTertiary.withValues(alpha: 0.5),
                                   fontSize: 12),
                               filled: true,
                               fillColor: c.surface,
@@ -806,10 +806,10 @@ class _AddTradeAccountSheetState
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: c.accent.withOpacity(0.06),
+                          color: c.accent.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: c.accent.withOpacity(0.15)),
+                              color: c.accent.withValues(alpha: 0.15)),
                         ),
                         child: Row(
                           children: [
@@ -855,7 +855,7 @@ class _AddTradeAccountSheetState
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: _screenshot != null
-                                  ? c.success.withOpacity(0.5)
+                                  ? c.success.withValues(alpha: 0.5)
                                   : c.divider,
                             ),
                           ),
@@ -868,7 +868,7 @@ class _AddTradeAccountSheetState
                                   color: (_screenshot != null
                                           ? c.success
                                           : c.accent)
-                                      .withOpacity(0.12),
+                                      .withValues(alpha: 0.12),
                                   borderRadius:
                                       BorderRadius.circular(12),
                                 ),

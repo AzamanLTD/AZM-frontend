@@ -325,7 +325,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.1),
+                color: colors.success.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.check_circle_outline, color: colors.success, size: 48),
@@ -599,9 +599,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colors.warning.withOpacity(0.08),
+            color: colors.warning.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.warning.withOpacity(0.2)),
+            border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
@@ -757,7 +757,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           decoration: BoxDecoration(
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.accent.withOpacity(0.2)),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,7 +786,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                   icon: Icon(Icons.add, color: colors.accent, size: 18),
                   label: Text('Add', style: TextStyle(color: colors.accent)),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                    side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -810,9 +810,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.06),
+            color: colors.accent.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.accent.withOpacity(0.2)),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
           ),
           child: Column(
             children: [
@@ -946,7 +946,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -983,7 +983,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: file != null ? colors.success.withOpacity(0.4) : colors.divider,
+            color: file != null ? colors.success.withValues(alpha: 0.4) : colors.divider,
           ),
         ),
         child: file == null
@@ -1049,10 +1049,10 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: value ? colors.success.withOpacity(0.05) : colors.card,
+        color: value ? colors.success.withValues(alpha: 0.05) : colors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: value ? colors.success.withOpacity(0.3) : colors.divider,
+          color: value ? colors.success.withValues(alpha: 0.3) : colors.divider,
         ),
       ),
       child: CheckboxListTile(

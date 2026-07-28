@@ -190,7 +190,7 @@ class _ProofOfResidencyScreenState
                         backgroundColor: colors.warning,
                         foregroundColor: Colors.black,
                         disabledBackgroundColor:
-                            colors.warning.withOpacity(0.30),
+                            colors.warning.withValues(alpha: 0.30),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -255,9 +255,9 @@ class _StatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: tint.withOpacity(0.08),
+        color: tint.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tint.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: tint.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +392,7 @@ class _UploadArea extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: has ? colors.success.withOpacity(0.40) : colors.divider,
+            color: has ? colors.success.withValues(alpha: 0.40) : colors.divider,
             width: 0.9,
           ),
         ),

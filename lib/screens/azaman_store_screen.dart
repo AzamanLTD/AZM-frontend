@@ -44,7 +44,7 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [colors.accent, colors.accent.withOpacity(0.6)],
+                  colors: [colors.accent, colors.accent.withValues(alpha: 0.6)],
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -282,7 +282,7 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.1),
+            color: colors.accent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: colors.accent),
@@ -328,7 +328,7 @@ class _SkinTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: isEquipped ? Border.all(color: Colors.white, width: 2) : null,
           boxShadow: [
-            BoxShadow(color: def.colors.last.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 6)),
+            BoxShadow(color: def.colors.last.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 6)),
           ],
         ),
         padding: const EdgeInsets.all(14),
@@ -343,7 +343,7 @@ class _SkinTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   skin.owned ? (isEquipped ? 'Equipped' : 'Owned — tap to equip') : '${skin.cost.toStringAsFixed(0)} AZM',
-                  style: TextStyle(color: def.textColor.withOpacity(0.85), fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: def.textColor.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -356,7 +356,7 @@ class _SkinTile extends StatelessWidget {
             if (isPending)
               Positioned.fill(
                 child: Container(
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.25), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(16)),
                   child: Center(
                     child: SizedBox(
                       width: 20, height: 20,

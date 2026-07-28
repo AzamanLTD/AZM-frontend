@@ -347,7 +347,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                           vertical: 14, horizontal: 16),
                       decoration: BoxDecoration(
                         color: verificationScreenshot != null
-                            ? colors.success.withOpacity(0.1)
+                            ? colors.success.withValues(alpha: 0.1)
                             : colors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -535,7 +535,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: !isWeb3
-                                  ? colors.accent.withOpacity(0.15)
+                                  ? colors.accent.withValues(alpha: 0.15)
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
@@ -574,7 +574,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: isWeb3
-                                  ? colors.accent.withOpacity(0.15)
+                                  ? colors.accent.withValues(alpha: 0.15)
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
@@ -831,7 +831,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
             decoration: BoxDecoration(
               color: colors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: gold.withOpacity(0.2)),
+              border: Border.all(color: gold.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -875,9 +875,9 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
               margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.08),
+                color: colors.warning.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.warning.withOpacity(0.2)),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -1044,8 +1044,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
           CircleAvatar(
             radius: 22,
             backgroundColor: isCrypto
-                ? colors.accent.withOpacity(0.15)
-                : colors.success.withOpacity(0.15),
+                ? colors.accent.withValues(alpha: 0.15)
+                : colors.success.withValues(alpha: 0.15),
             child: Icon(
               isCrypto ? Icons.language : Icons.account_balance_outlined,
               color: isCrypto ? colors.accent : colors.success,

@@ -101,7 +101,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
               hintStyle: const TextStyle(color: Colors.white24),
               suffixText: "USD",
               suffixStyle: TextStyle(color: colors.accentSecondary),
-              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
             ),
           ),
           
@@ -112,7 +112,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _alternativeVendor != null ? Colors.blue.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                  color: _alternativeVendor != null ? Colors.blue.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

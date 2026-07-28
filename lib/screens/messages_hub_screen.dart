@@ -812,7 +812,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         padding: const EdgeInsets.only(left: 20),
         margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.85),
+          color: Colors.green.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -862,14 +862,14 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: hasUnread
-                ? (isMentioned ? colors.warning.withOpacity(0.08) : colors.accent.withOpacity(0.06))
+                ? (isMentioned ? colors.warning.withValues(alpha: 0.08) : colors.accent.withValues(alpha: 0.06))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             // FIX (2026-07-06): group chat rows already draw a subtle
             // divider border between rows (see _GroupTile) -- personal
             // chat rows had none at all and relied only on a 4px margin
             // gap, so the list read as a single un-separated block.
-            border: Border.all(color: colors.divider.withOpacity(0.6), width: 0.7),
+            border: Border.all(color: colors.divider.withValues(alpha: 0.6), width: 0.7),
           ),
           child: Row(
             children: [

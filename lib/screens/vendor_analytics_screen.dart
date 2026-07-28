@@ -463,7 +463,7 @@ class _VolumeChart extends ConsumerWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: colors.accent.withOpacity(0.08),
+                      color: colors.accent.withValues(alpha: 0.08),
                     ),
                   ),
                 ],

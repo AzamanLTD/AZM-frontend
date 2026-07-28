@@ -192,11 +192,11 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? statusColor.withOpacity(0.3) : colors.divider,
+            color: isActive ? statusColor.withValues(alpha: 0.3) : colors.divider,
             width: isActive ? 1.2 : 0.8,
           ),
           boxShadow: isActive
-              ? [BoxShadow(color: statusColor.withOpacity(0.08), blurRadius: 12)]
+              ? [BoxShadow(color: statusColor.withValues(alpha: 0.08), blurRadius: 12)]
               : null,
         ),
         child: Row(
@@ -205,7 +205,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
+                color: statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(statusIcon, color: statusColor, size: 20),
@@ -235,7 +235,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -298,7 +298,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 56, color: colors.textTertiary.withOpacity(0.3)),
+          Icon(icon, size: 56, color: colors.textTertiary.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
           Text(title, style: TextStyle(color: colors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),

@@ -1829,14 +1829,14 @@ class _MomoAccountPicker extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? c.withOpacity(0.10) : colors.softSurface,
+          color: selected ? c.withValues(alpha: 0.10) : colors.softSurface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? c.withOpacity(0.70) : colors.divider,
+            color: selected ? c.withValues(alpha: 0.70) : colors.divider,
             width: selected ? 1.8 : 1.0,
           ),
           boxShadow: selected
-            ? [BoxShadow(color: c.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 3))]
+            ? [BoxShadow(color: c.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))]
             : const [],
         ),
         child: Row(
@@ -1845,7 +1845,7 @@ class _MomoAccountPicker extends StatelessWidget {
             Container(
               width: 38, height: 38,
               decoration: BoxDecoration(
-                color: c.withOpacity(0.15),
+                color: c.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
@@ -1881,7 +1881,7 @@ class _MomoAccountPicker extends StatelessWidget {
               child: Icon(
                 selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
                 key: ValueKey(selected),
-                color: selected ? c : colors.textTertiary.withOpacity(0.5),
+                color: selected ? c : colors.textTertiary.withValues(alpha: 0.5),
                 size: 22,
               ),
             ),

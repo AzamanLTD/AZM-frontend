@@ -83,10 +83,10 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [colors.accent.withOpacity(0.15), colors.accentSecondary.withOpacity(0.05)],
+                  colors: [colors.accent.withValues(alpha: 0.15), colors.accentSecondary.withValues(alpha: 0.05)],
                 ),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: colors.accent.withOpacity(0.3)),
+                border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
@@ -126,7 +126,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                     decoration: BoxDecoration(
                       color: colors.background,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.accent.withOpacity(0.4)),
+                      border: Border.all(color: colors.accent.withValues(alpha: 0.4)),
                     ),
                     child: Text(
                       hasCode ? referralCode : 'No code yet',
@@ -154,7 +154,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                           icon: Icon(Icons.copy_outlined, size: 16, color: colors.accent),
                           label: Text('Copy', style: TextStyle(color: colors.accent)),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                            side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
@@ -222,7 +222,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
           Container(
             width: 28, height: 28,
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.12),
+              color: colors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(

@@ -20,7 +20,7 @@ class ChatUnreadBadge extends ConsumerWidget {
         color: colors.accent,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: colors.accent.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 1)),
+          BoxShadow(color: colors.accent.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 1)),
         ],
       ),
       child: Center(

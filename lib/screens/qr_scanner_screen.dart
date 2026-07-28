@@ -163,7 +163,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Center(

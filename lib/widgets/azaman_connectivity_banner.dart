@@ -152,7 +152,7 @@ class _BannerStrip extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: bgColor.withOpacity(0.35),
+              color: bgColor.withValues(alpha: 0.35),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),

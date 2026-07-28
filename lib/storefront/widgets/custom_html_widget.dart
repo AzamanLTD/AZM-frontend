@@ -19,7 +19,7 @@ class CustomHtmlWidget extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: html.isEmpty
-          ? Text('Custom HTML content will appear here', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)))
+          ? Text('Custom HTML content will appear here', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)))
           : Text(html, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface)),
     );
   }

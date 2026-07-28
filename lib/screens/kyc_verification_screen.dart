@@ -230,7 +230,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, color: statusColor, size: 56),
             ),
             const SizedBox(height: 24),
@@ -269,8 +269,8 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.05),
-                border: Border.all(color: colors.danger.withOpacity(0.2)),
+                color: colors.danger.withValues(alpha: 0.05),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.2)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -294,8 +294,8 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: colors.success.withOpacity(0.05),
-              border: Border.all(color: colors.success.withOpacity(0.2)),
+              color: colors.success.withValues(alpha: 0.05),
+              border: Border.all(color: colors.success.withValues(alpha: 0.2)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -377,7 +377,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
         hintText: hint,
         hintStyle: TextStyle(color: colors.textTertiary),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.accent.withOpacity(0.5))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5))),
       ),
     );
   }
@@ -432,7 +432,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                   fit: StackFit.expand,
                   children: [
                     Image.file(image, fit: BoxFit.cover),
-                    Container(color: colors.background.withOpacity(0.3)),
+                    Container(color: colors.background.withValues(alpha: 0.3)),
                     Center(child: Icon(Icons.check_circle_outline, color: colors.success, size: 35)),
                   ],
                 ),
@@ -440,7 +440,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.camera_alt_outlined, color: colors.accent.withOpacity(0.7), size: 30),
+                  Icon(Icons.camera_alt_outlined, color: colors.accent.withValues(alpha: 0.7), size: 30),
                   const SizedBox(height: 10),
                   Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
@@ -458,7 +458,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: colors.success.withOpacity(0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(Icons.how_to_reg_outlined, color: colors.success, size: 56),
             ),
             const SizedBox(height: 24),

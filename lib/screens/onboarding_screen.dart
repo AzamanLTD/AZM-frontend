@@ -184,7 +184,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
                     foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    disabledBackgroundColor: colors.accent.withOpacity(0.4),
+                    disabledBackgroundColor: colors.accent.withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -270,15 +270,15 @@ class _OnboardingPage extends StatelessWidget {
                     width: 120, height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: colors.accent.withOpacity(0.08),
+                      color: colors.accent.withValues(alpha: 0.08),
                       boxShadow: [
                         BoxShadow(
-                          color: colors.glow.withOpacity(0.2),
+                          color: colors.glow.withValues(alpha: 0.2),
                           blurRadius: 40,
                           spreadRadius: 4,
                         ),
                         BoxShadow(
-                          color: colors.glow.withOpacity(0.1),
+                          color: colors.glow.withValues(alpha: 0.1),
                           blurRadius: 80,
                           spreadRadius: 8,
                         ),
@@ -341,11 +341,11 @@ class _DotIndicator extends StatelessWidget {
       height: 8,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: isActive ? colors.accent : colors.textTertiary.withOpacity(0.3),
+        color: isActive ? colors.accent : colors.textTertiary.withValues(alpha: 0.3),
         boxShadow: isActive
             ? [
                 BoxShadow(
-                  color: colors.glow.withOpacity(0.3),
+                  color: colors.glow.withValues(alpha: 0.3),
                   blurRadius: 8,
                   spreadRadius: 1,
                 ),

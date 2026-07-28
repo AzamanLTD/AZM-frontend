@@ -117,7 +117,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                         color: colors.card,
                         borderRadius: BorderRadius.circular(20),
                         border:
-                            Border.all(color: colors.accent.withOpacity(0.2)),
+                            Border.all(color: colors.accent.withValues(alpha: 0.2)),
                       ),
                       child: Column(
                         children: [
@@ -131,7 +131,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.5)),
                               Icon(Icons.shield_outlined,
-                                  color: colors.accent.withOpacity(0.5),
+                                  color: colors.accent.withValues(alpha: 0.5),
                                   size: 18),
                             ],
                           ),
@@ -160,10 +160,10 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: colors.warning.withOpacity(0.08),
+                          color: colors.warning.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: colors.warning.withOpacity(0.2)),
+                              color: colors.warning.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           children: [
@@ -187,7 +187,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                           color: colors.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: colors.accent.withOpacity(0.3)),
+                              color: colors.accent.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           children: [
@@ -275,10 +275,10 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colors.warning.withOpacity(0.06),
+                          color: colors.warning.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: colors.warning.withOpacity(0.15)),
+                              color: colors.warning.withValues(alpha: 0.15)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

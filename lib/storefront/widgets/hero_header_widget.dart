@@ -55,8 +55,8 @@ class HeroHeaderWidget extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(overlayOpacity),
-                    Colors.black.withOpacity(overlayOpacity * 1.5),
+                    Colors.black.withValues(alpha: overlayOpacity),
+                    Colors.black.withValues(alpha: overlayOpacity * 1.5),
                   ],
                 ),
               ),
@@ -72,7 +72,7 @@ class HeroHeaderWidget extends StatelessWidget {
                   if (subtitle != null && subtitle.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
+                      child: Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
                     ),
                 ],
               ),
@@ -90,7 +90,7 @@ class HeroHeaderWidget extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [accent.withOpacity(0.7), accent.withOpacity(0.4)],
+          colors: [accent.withValues(alpha: 0.7), accent.withValues(alpha: 0.4)],
         ),
       ),
     );

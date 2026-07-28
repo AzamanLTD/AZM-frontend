@@ -186,9 +186,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                       colors: [
-                        Colors.black.withOpacity(0.3),
+                        Colors.black.withValues(alpha: 0.3),
                         Colors.black,
-                        Colors.black.withOpacity(0.3),
+                        Colors.black.withValues(alpha: 0.3),
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ).createShader(bounds);
@@ -205,7 +205,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 )
                 .animate(onPlay: (c) => c.repeat())
                 .fadeIn(duration: 400.ms, delay: 400.ms)
-                .shimmer(duration: 2000.ms, color: const Color(0xFFD4AF37).withOpacity(0.4)),
+                .shimmer(duration: 2000.ms, color: const Color(0xFFD4AF37).withValues(alpha: 0.4)),
               ],
             ),
           ),

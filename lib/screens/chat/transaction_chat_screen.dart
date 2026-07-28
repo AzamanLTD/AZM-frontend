@@ -231,7 +231,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: chatState.isActive ? colors.success.withOpacity(0.15) : colors.danger.withOpacity(0.15),
+              color: chatState.isActive ? colors.success.withValues(alpha: 0.15) : colors.danger.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: chatState.isActive ? colors.success : colors.danger,
@@ -306,9 +306,9 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.08),
+        color: colors.warning.withValues(alpha: 0.08),
         border: Border(
-          bottom: BorderSide(color: colors.warning.withOpacity(0.3), width: 1),
+          bottom: BorderSide(color: colors.warning.withValues(alpha: 0.3), width: 1),
         ),
       ),
       child: Row(
@@ -368,9 +368,9 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.card.withOpacity(0.5),
+        color: colors.card.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.divider.withOpacity(0.5)),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -400,7 +400,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: colors.warning.withOpacity(0.15),
+          color: colors.warning.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.warning, width: 1.5),
         ),
@@ -428,9 +428,9 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.12),
+        color: colors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.success.withOpacity(0.5)),
+        border: Border.all(color: colors.success.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -472,7 +472,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: isMe ? colors.glow.withOpacity(0.2) : Colors.black26,
+              color: isMe ? colors.glow.withValues(alpha: 0.2) : Colors.black26,
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -508,9 +508,9 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.surface.withOpacity(0.95),
+        color: colors.surface.withValues(alpha: 0.95),
         border: Border(
-          top: BorderSide(color: colors.divider.withOpacity(0.5)),
+          top: BorderSide(color: colors.divider.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(
@@ -542,17 +542,17 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              colors.accentSecondary.withOpacity(0.2),
-              colors.accentSecondary.withOpacity(0.08),
+              colors.accentSecondary.withValues(alpha: 0.2),
+              colors.accentSecondary.withValues(alpha: 0.08),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.accentSecondary.withOpacity(0.4), width: 1.5),
+          border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.4), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: colors.accentSecondary.withOpacity(0.15),
+              color: colors.accentSecondary.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -611,7 +611,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
               decoration: BoxDecoration(
                 gradient: chatState.isActive
                     ? LinearGradient(
-                        colors: [colors.glow, colors.glow.withOpacity(0.8)],
+                        colors: [colors.glow, colors.glow.withValues(alpha: 0.8)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
@@ -621,7 +621,7 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
                 boxShadow: chatState.isActive
                     ? [
                         BoxShadow(
-                          color: colors.glow.withOpacity(0.4),
+                          color: colors.glow.withValues(alpha: 0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -672,12 +672,12 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
             gradient: LinearGradient(
               colors: isLowTime
                   ? [
-                      colors.danger.withOpacity(0.25),
-                      colors.danger.withOpacity(0.15),
+                      colors.danger.withValues(alpha: 0.25),
+                      colors.danger.withValues(alpha: 0.15),
                     ]
                   : [
-                      colors.card.withOpacity(0.7),
-                      colors.card.withOpacity(0.5),
+                      colors.card.withValues(alpha: 0.7),
+                      colors.card.withValues(alpha: 0.5),
                     ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -685,15 +685,15 @@ class _TransactionChatScreenState extends ConsumerState<TransactionChatScreen> {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isLowTime
-                  ? colors.danger.withOpacity(0.6)
-                  : colors.glow.withOpacity(0.3),
+                  ? colors.danger.withValues(alpha: 0.6)
+                  : colors.glow.withValues(alpha: 0.3),
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
                 color: isLowTime
-                    ? colors.danger.withOpacity(0.3)
-                    : colors.glow.withOpacity(0.2),
+                    ? colors.danger.withValues(alpha: 0.3)
+                    : colors.glow.withValues(alpha: 0.2),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),

@@ -160,7 +160,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -475,7 +475,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: colors.glow.withOpacity(0.2),
+                backgroundColor: colors.glow.withValues(alpha: 0.2),
                 radius: 18,
                 child: Text(
                   widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
@@ -854,9 +854,9 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.card.withOpacity(0.5),
+        color: colors.card.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.divider.withOpacity(0.5)),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -894,8 +894,8 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                colors.glow.withOpacity(0.85),
-                colors.accent.withOpacity(0.7),
+                colors.glow.withValues(alpha: 0.85),
+                colors.accent.withValues(alpha: 0.7),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -906,7 +906,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
             borderRadius: BorderRadius.circular(20),
             child: ShaderMask(
               shaderCallback: (bounds) => LinearGradient(
-                colors: [Colors.white.withOpacity(0.3), Colors.transparent],
+                colors: [Colors.white.withValues(alpha: 0.3), Colors.transparent],
                 stops: const [0.0, 0.1],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
@@ -953,7 +953,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                         Text(
                           '${msg.isMe ? "To" : "From"}: $contact',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 10,
                           ),
                         ),
@@ -964,7 +964,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.3),
+                            color: Colors.green.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(
@@ -1007,7 +1007,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: colors.textTertiary.withOpacity(0.3),
+                  color: colors.textTertiary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1100,7 +1100,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: msg.reactions[e]?.isNotEmpty == true
-                        ? colors.accent.withOpacity(0.1) : Colors.transparent,
+                        ? colors.accent.withValues(alpha: 0.1) : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
                     child: Text(e, style: const TextStyle(fontSize: 24)),
@@ -1155,7 +1155,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
             border: isMe ? null : Border.all(color: colors.divider),
             boxShadow: [
               BoxShadow(
-                color: isMe ? colors.glow.withOpacity(0.2) : Colors.black26,
+                color: isMe ? colors.glow.withValues(alpha: 0.2) : Colors.black26,
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -1205,10 +1205,10 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                            color: iMine ? colors.accent.withOpacity(0.18) : colors.surface,
+                            color: iMine ? colors.accent.withValues(alpha: 0.18) : colors.surface,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: iMine ? colors.accent.withOpacity(0.5) : colors.divider,
+                              color: iMine ? colors.accent.withValues(alpha: 0.5) : colors.divider,
                               width: 0.8)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Text(e.key, style: const TextStyle(fontSize: 13)),
@@ -1265,7 +1265,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.1),
+        color: colors.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border(left: BorderSide(color: colors.accent, width: 3)),
       ),
@@ -1342,14 +1342,14 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [colors.glow, colors.glow.withOpacity(0.8)],
+                  colors: [colors.glow, colors.glow.withValues(alpha: 0.8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: colors.glow.withOpacity(0.4),
+                    color: colors.glow.withValues(alpha: 0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -1440,15 +1440,15 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  colors.surface.withOpacity(0.95),
-                  colors.card.withOpacity(0.9),
+                  colors.surface.withValues(alpha: 0.95),
+                  colors.card.withValues(alpha: 0.9),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               border: Border.all(
-                color: colors.glow.withOpacity(0.2),
+                color: colors.glow.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -1461,7 +1461,7 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colors.textTertiary.withOpacity(0.3),
+                    color: colors.textTertiary.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1492,10 +1492,10 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
-                    color: colors.background.withOpacity(0.8),
+                    color: colors.background.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: colors.glow.withOpacity(0.3),
+                      color: colors.glow.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
@@ -1557,7 +1557,7 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: isValid ? 8 : 0,
-                        shadowColor: colors.glow.withOpacity(0.5),
+                        shadowColor: colors.glow.withValues(alpha: 0.5),
                       ),
                       child: Text(
                         'Send ${isValid ? "${amount!.toStringAsFixed(2)} $_currency" : ""}',
@@ -1603,10 +1603,10 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
         width: 80,
         height: 64,
         decoration: BoxDecoration(
-          color: colors.card.withOpacity(0.6),
+          color: colors.card.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: colors.divider.withOpacity(0.3),
+            color: colors.divider.withValues(alpha: 0.3),
             width: 1,
           ),
         ),

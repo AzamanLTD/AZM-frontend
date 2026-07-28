@@ -171,7 +171,7 @@ class ThemeProvider with ChangeNotifier {
           return c.textTertiary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return c.success.withOpacity(0.3);
+          if (states.contains(WidgetState.selected)) return c.success.withValues(alpha: 0.3);
           return c.divider;
         }),
       ),
@@ -193,7 +193,7 @@ class ThemeProvider with ChangeNotifier {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: c.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: c.accent.withValues(alpha: 0.5)),
         ),
       ),
       colorScheme: ColorScheme(
@@ -267,10 +267,10 @@ class ThemeProvider with ChangeNotifier {
           surface: const Color(0xFF151A20),
           card: const Color(0xFF1D232B),
           softSurface: const Color(0xFF11151B),
-          divider: Colors.white.withOpacity(0.07),
+          divider: Colors.white.withValues(alpha: 0.07),
           accent: const Color(0xFFE3BE58),
           accentSecondary: const Color(0xFFF4B93D),
-          accentSurface: const Color(0xFFE3BE58).withOpacity(0.10),
+          accentSurface: const Color(0xFFE3BE58).withValues(alpha: 0.10),
           success: const Color(0xFF1CDB94),
           danger: const Color(0xFFFF5C72),
           warning: const Color(0xFFFFA726),
@@ -279,7 +279,7 @@ class ThemeProvider with ChangeNotifier {
           textTertiary: Colors.white38,
           glow: const Color(0xFFF5D580),
           scaffoldBackground: const Color(0xFF0A0D11),
-          border: Colors.white.withOpacity(0.08),
+          border: Colors.white.withValues(alpha: 0.08),
         );
 
       case AzamanTheme.midnight:
@@ -293,19 +293,19 @@ class ThemeProvider with ChangeNotifier {
           surface: const Color(0xFF0A0612),
           card: const Color(0xFF0F0820),
           softSurface: const Color(0xFF0A0614),
-          divider: const Color(0xFFBB86FC).withOpacity(0.08),
+          divider: const Color(0xFFBB86FC).withValues(alpha: 0.08),
           accent: const Color(0xFFBB86FC),
           accentSecondary: const Color(0xFFE040FB),
-          accentSurface: const Color(0xFFBB86FC).withOpacity(0.06),
+          accentSurface: const Color(0xFFBB86FC).withValues(alpha: 0.06),
           success: const Color(0xFF69F0AE),
           danger: const Color(0xFFFF5252),
           warning: const Color(0xFFFFAB40),
           textPrimary: const Color(0xFFF3E5F5),
           textSecondary: const Color(0xFFCE93D8),
-          textTertiary: const Color(0xFF9C27B0).withOpacity(0.55),
+          textTertiary: const Color(0xFF9C27B0).withValues(alpha: 0.55),
           glow: const Color(0xFFBB86FC),
           scaffoldBackground: const Color(0xFF000000),
-          border: const Color(0xFFBB86FC).withOpacity(0.08),
+          border: const Color(0xFFBB86FC).withValues(alpha: 0.08),
         );
     }
   }

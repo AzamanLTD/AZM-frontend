@@ -102,7 +102,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.15),
+                color: colors.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.account_balance_outlined, color: colors.warning, size: 18),
@@ -214,11 +214,11 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color.withOpacity(0.8), size: 18),
+          Icon(icon, color: color.withValues(alpha: 0.8), size: 18),
           const SizedBox(height: 8),
           Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -260,7 +260,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
           decoration: BoxDecoration(
             color: colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: r.color.withOpacity(0.25)),
+            border: Border.all(color: r.color.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +271,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: r.color.withOpacity(0.12),
+                      color: r.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(r.icon, color: r.color, size: 14),
@@ -317,13 +317,13 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
               height: 28,
               child: Row(
                 children: [
-                  if (hotPct > 0) Expanded(flex: hotPct.round().clamp(1, 100), child: Container(color: colors.warning.withOpacity(0.7),
+                  if (hotPct > 0) Expanded(flex: hotPct.round().clamp(1, 100), child: Container(color: colors.warning.withValues(alpha: 0.7),
                       child: Center(child: Text('${hotPct.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold))))),
-                  if (cryptoPct > 0) Expanded(flex: cryptoPct.round().clamp(1, 100), child: Container(color: colors.accent.withOpacity(0.6),
+                  if (cryptoPct > 0) Expanded(flex: cryptoPct.round().clamp(1, 100), child: Container(color: colors.accent.withValues(alpha: 0.6),
                       child: Center(child: Text('${cryptoPct.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold))))),
-                  if (fiatPct > 0) Expanded(flex: fiatPct.round().clamp(1, 100), child: Container(color: colors.success.withOpacity(0.6),
+                  if (fiatPct > 0) Expanded(flex: fiatPct.round().clamp(1, 100), child: Container(color: colors.success.withValues(alpha: 0.6),
                       child: Center(child: Text('${fiatPct.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold))))),
-                  if (profitPct > 0) Expanded(flex: profitPct.round().clamp(1, 100), child: Container(color: const Color(0xFF8B5CF6).withOpacity(0.6),
+                  if (profitPct > 0) Expanded(flex: profitPct.round().clamp(1, 100), child: Container(color: const Color(0xFF8B5CF6).withValues(alpha: 0.6),
                       child: Center(child: Text('${profitPct.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold))))),
                 ],
               ),
@@ -361,9 +361,9 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
         boxShadow: [
-          BoxShadow(color: colors.accent.withOpacity(0.05), blurRadius: 20, spreadRadius: -4),
+          BoxShadow(color: colors.accent.withValues(alpha: 0.05), blurRadius: 20, spreadRadius: -4),
         ],
       ),
       child: Row(
@@ -371,7 +371,7 @@ class _VolumeDashboardState extends ConsumerState<VolumeDashboard> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.12),
+              color: colors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.diamond_outlined, color: colors.accent, size: 24),

@@ -185,7 +185,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     ),
                     boxShadow: isSelected ? [
                       BoxShadow(
-                        color: colors.accent.withOpacity(0.12),
+                        color: colors.accent.withValues(alpha: 0.12),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -225,7 +225,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                                   margin: const EdgeInsets.only(right: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: colors.accent.withOpacity(0.08),
+                                    color: colors.accent.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(room.category!,
@@ -320,7 +320,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.04),
+                      color: colors.accent.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

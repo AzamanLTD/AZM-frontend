@@ -71,7 +71,7 @@ class AzamanEmptyState extends ConsumerWidget {
             padding: EdgeInsets.all(compact ? 16 : 20),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: colors.accent.withOpacity(0.06),
+              color: colors.accent.withValues(alpha: 0.06),
             ),
             child: Icon(
               icon,
@@ -116,7 +116,7 @@ class AzamanEmptyState extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: colors.accent.withOpacity(0.3)),
+                  side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
                 ),
               ),
               child: Text(

@@ -52,10 +52,10 @@ class _DraggableTimerPillState extends State<DraggableTimerPill> {
           decoration: BoxDecoration(
             color: widget.colors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: accent.withOpacity(0.6), width: 1.5),
+            border: Border.all(color: accent.withValues(alpha: 0.6), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.25),
+                color: accent.withValues(alpha: 0.25),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

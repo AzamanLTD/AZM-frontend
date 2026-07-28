@@ -51,7 +51,7 @@ class _TypingState extends ConsumerState<TypingBubble>
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   width: 7, height: 7,
                   decoration: BoxDecoration(
-                    color: c.textTertiary.withOpacity(0.5),
+                    color: c.textTertiary.withValues(alpha: 0.5),
                     shape: BoxShape.circle)),
               );
             });

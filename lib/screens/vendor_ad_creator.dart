@@ -289,7 +289,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           decoration: BoxDecoration(
             color: ref.read(themeProvider).colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withOpacity(0.3)),
+            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,9 +305,9 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: ref.read(themeProvider).colors.accent,
-                  inactiveTrackColor: ref.read(themeProvider).colors.accent.withOpacity(0.2),
+                  inactiveTrackColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.2),
                   thumbColor: ref.read(themeProvider).colors.accent,
-                  overlayColor: ref.read(themeProvider).colors.accent.withOpacity(0.1),
+                  overlayColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.1),
                   trackHeight: 4,
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
                 ),
@@ -337,7 +337,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           decoration: BoxDecoration(
             color: ref.read(themeProvider).colors.card, 
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withOpacity(0.3))
+            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3))
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +365,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   const Text("Trades < \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: const Text("60% Admin / 40% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
                   )
                 ],
@@ -377,7 +377,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   const Text("Trades > \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: const Text("50% Admin / 50% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
                   )
                 ],
@@ -421,7 +421,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           Container(
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFF6465D).withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withOpacity(0.3))),
+            decoration: BoxDecoration(color: const Color(0xFFF6465D).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withValues(alpha: 0.3))),
             child: const Row(
               children: [
                 Icon(Icons.error_outline, color: Color(0xFFF6465D), size: 16),
@@ -502,7 +502,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
-                  color: isSelected ? ref.read(themeProvider).colors.accent.withOpacity(0.1) : ref.read(themeProvider).colors.card,
+                  color: isSelected ? ref.read(themeProvider).colors.accent.withValues(alpha: 0.1) : ref.read(themeProvider).colors.card,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: isSelected ? ref.read(themeProvider).colors.accent : Colors.transparent, width: 1.5),
                 ),

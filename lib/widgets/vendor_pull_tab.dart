@@ -267,7 +267,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.2),
+                color: colors.accent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -285,7 +285,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.accent.withOpacity(0.3)),
+          side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
         ),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
         duration: _pullTimeoutDuration,
@@ -319,18 +319,18 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
     final tabBgColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withOpacity(0.2)
+            ? colors.accent.withValues(alpha: 0.2)
             : (_hasHitLimit && !isVendor)
-                ? colors.danger.withOpacity(0.15)
-                : colors.surface.withOpacity(0.95);
+                ? colors.danger.withValues(alpha: 0.15)
+                : colors.surface.withValues(alpha: 0.95);
 
     final tabBorderColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withOpacity(0.7)
+            ? colors.accent.withValues(alpha: 0.7)
             : (_hasHitLimit && !isVendor)
-                ? colors.danger.withOpacity(0.6)
-                : colors.accent.withOpacity(0.4);
+                ? colors.danger.withValues(alpha: 0.6)
+                : colors.accent.withValues(alpha: 0.4);
 
     final tabTextColor = _hasPassedThreshold
         ? (colors.isDark ? Colors.black : Colors.white)
@@ -370,12 +370,12 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              colors.accent.withOpacity(0.0),
+                              colors.accent.withValues(alpha: 0.0),
                               (_hasHitLimit && !isVendor)
                                   ? (_pullCount >= 2
-                                      ? colors.accent.withOpacity(progress * 0.7)
-                                      : colors.danger.withOpacity(progress * 0.5))
-                                  : colors.accent.withOpacity(progress * 0.5),
+                                      ? colors.accent.withValues(alpha: progress * 0.7)
+                                      : colors.danger.withValues(alpha: progress * 0.5))
+                                  : colors.accent.withValues(alpha: progress * 0.5),
                             ],
                           ),
                         ),
@@ -482,8 +482,8 @@ class _RibbonPainter extends CustomPainter {
         colors: [
           background,
           Color.alphaBlend(
-            background.withOpacity(0.6),
-            border.withOpacity(0.18),
+            background.withValues(alpha: 0.6),
+            border.withValues(alpha: 0.18),
           ),
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
@@ -498,7 +498,7 @@ class _RibbonPainter extends CustomPainter {
 
     // Soft drop shadow under the ribbon — single offset blur
     final shadowPaint = Paint()
-      ..color = border.withOpacity(0.12)
+      ..color = border.withValues(alpha: 0.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.save();
     canvas.translate(0, 1.5);
@@ -606,7 +606,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.1),
+                      color: colors.accent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.storefront_outlined,
@@ -677,9 +677,9 @@ class _VendorRequirementSheet extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.06),
+                      color: colors.accent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.accent.withOpacity(0.2)),
+                      border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       children: [
@@ -705,7 +705,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                           ),
                         ),
                         Icon(Icons.arrow_forward,
-                            color: colors.accent.withOpacity(0.5), size: 14),
+                            color: colors.accent.withValues(alpha: 0.5), size: 14),
                       ],
                     ),
                   ),
@@ -725,7 +725,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colors.surface.withOpacity(0.5),
+                    color: colors.surface.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: colors.divider),
                   ),
@@ -787,7 +787,7 @@ class _VendorRequirementSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.1),
+              color: colors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: colors.accent, size: 18),

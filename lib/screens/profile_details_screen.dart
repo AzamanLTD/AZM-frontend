@@ -247,11 +247,11 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: cardColor.withOpacity(0.3)),
+          border: Border.all(color: cardColor.withValues(alpha: 0.3)),
           boxShadow: isClickable
               ? [
                   BoxShadow(
-                    color: cardColor.withOpacity(0.05),
+                    color: cardColor.withValues(alpha: 0.05),
                     blurRadius: 10,
                     spreadRadius: 1,
                   )
@@ -288,7 +288,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
             if (isClickable)
               Icon(
                 Icons.arrow_forward,
-                color: iconColor.withOpacity(0.7),
+                color: iconColor.withValues(alpha: 0.7),
                 size: 14,
               ),
           ],

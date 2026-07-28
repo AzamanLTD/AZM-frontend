@@ -581,7 +581,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           // Banner for ticket presence
           if (_ticketPresenceTicketId != null)
             Container(
-              color: c.accent.withOpacity(0.1),
+              color: c.accent.withValues(alpha: 0.1),
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               child: Row(
                 children: [

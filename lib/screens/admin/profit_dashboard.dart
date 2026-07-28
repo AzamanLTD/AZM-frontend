@@ -136,7 +136,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.analytics_outlined, color: colors.accent, size: 18),
@@ -223,7 +223,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 80),
-        Icon(Icons.cloud_outlined, size: 56, color: colors.danger.withOpacity(0.6)),
+        Icon(Icons.cloud_outlined, size: 56, color: colors.danger.withValues(alpha: 0.6)),
         const SizedBox(height: 16),
         Text(
           'Failed to load data',
@@ -316,11 +316,11 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color.withOpacity(0.8), size: 18),
+          Icon(icon, color: color.withValues(alpha: 0.8), size: 18),
           const SizedBox(height: 8),
           Text(
             value,
@@ -485,7 +485,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
             getTouchedSpotIndicator: (data, spots) {
               return spots.map((spot) {
                 return TouchedSpotIndicatorData(
-                  FlLine(color: colors.accent.withOpacity(0.3), strokeWidth: 1),
+                  FlLine(color: colors.accent.withValues(alpha: 0.3), strokeWidth: 1),
                   FlDotData(
                     show: true,
                     getDotPainter: (s, percent, bar, index) {
@@ -516,8 +516,8 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    colors.accent.withOpacity(0.20),
-                    colors.accent.withOpacity(0.02),
+                    colors.accent.withValues(alpha: 0.20),
+                    colors.accent.withValues(alpha: 0.02),
                   ],
                 ),
               ),
@@ -600,7 +600,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: barColor.withOpacity(0.15),
+                            color: barColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -679,7 +679,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
           decoration: BoxDecoration(
             color: colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: pool.color.withOpacity(0.25)),
+            border: Border.all(color: pool.color.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,7 +690,7 @@ class _ProfitDashboardState extends ConsumerState<ProfitDashboard> {
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: pool.color.withOpacity(0.12),
+                      color: pool.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(pool.icon, color: pool.color, size: 14),

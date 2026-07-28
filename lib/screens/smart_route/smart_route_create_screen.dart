@@ -109,9 +109,9 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
               margin: const EdgeInsets.only(bottom: 20),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.08),
+                color: colors.accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: colors.accent.withOpacity(0.2)),
+                border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
               ),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Icon(Icons.bolt_outlined, size: 18, color: colors.accent),
@@ -142,7 +142,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                   .map((p) => ChoiceChip(
                         selected: _action == p.$1,
                         label: Text(p.$2),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() => _action = p.$1),
                         labelStyle: TextStyle(
                           color: _action == p.$1 ? colors.accent : colors.textSecondary,
@@ -171,7 +171,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                   .map((f) => ChoiceChip(
                         selected: _frequency == f,
                         label: Text(f),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() => _frequency = f),
                         labelStyle: TextStyle(
                           color: _frequency == f ? colors.accent : colors.textSecondary,
@@ -203,7 +203,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                     .map((p) => ChoiceChip(
                           selected: _momoProvider == p,
                           label: Text(p),
-                          selectedColor: colors.accent.withOpacity(0.20),
+                          selectedColor: colors.accent.withValues(alpha: 0.20),
                           onSelected: (_) => setState(() => _momoProvider = p),
                           labelStyle: TextStyle(
                             color: _momoProvider == p ? colors.accent : colors.textSecondary,

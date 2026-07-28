@@ -483,7 +483,7 @@ class _BusinessProfileScreenState
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.16),
+                            color: Colors.white.withValues(alpha: 0.16),
                           ),
                           child: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 17),
                         ),
@@ -498,7 +498,7 @@ class _BusinessProfileScreenState
                             decoration: BoxDecoration(
                               color: _isFollowing ? colors.accentSurface : colors.accent,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: _isFollowing ? colors.accent.withOpacity(0.3) : Colors.transparent),
+                              border: Border.all(color: _isFollowing ? colors.accent.withValues(alpha: 0.3) : Colors.transparent),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -705,7 +705,7 @@ class _BusinessProfileScreenState
           color: colors.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: colors.divider),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 24, offset: const Offset(0, 10))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 24, offset: const Offset(0, 10))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,7 +951,7 @@ class _BusinessProfileScreenState
             border: primary ? null : Border.all(color: colors.divider),
             boxShadow: [
               BoxShadow(
-                color: (primary ? colors.accent : Colors.black).withOpacity(primary ? 0.35 : 0.14),
+                color: (primary ? colors.accent : Colors.black).withValues(alpha: primary ? 0.35 : 0.14),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -974,7 +974,7 @@ class _BusinessProfileScreenState
           shape: BoxShape.circle,
           color: colors.card,
           border: Border.all(color: colors.divider),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 16, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 16, offset: const Offset(0, 6))],
         ),
         alignment: Alignment.center,
         child: Text(emoji, style: const TextStyle(fontSize: 18)),
@@ -1125,13 +1125,13 @@ class _BusinessProfileScreenState
           end: Alignment.bottomRight,
           colors: [
             colors.accent,
-            colors.accent.withOpacity(0.55),
+            colors.accent.withValues(alpha: 0.55),
           ],
         ),
       ),
       child: Center(
         child: Icon(Icons.storefront_outlined,
-            size: 72, color: Colors.white.withOpacity(0.35)),
+            size: 72, color: Colors.white.withValues(alpha: 0.35)),
       ),
     );
   }
@@ -1148,7 +1148,7 @@ class _BusinessProfileScreenState
         height: 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.35),
+          color: Colors.black.withValues(alpha: 0.35),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color ?? Colors.white, size: 20),

@@ -256,13 +256,13 @@ class _Hero extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF6C63FF).withOpacity(0.18),
-                const Color(0xFF00E5FF).withOpacity(0.05),
+                const Color(0xFF6C63FF).withValues(alpha: 0.18),
+                const Color(0xFF00E5FF).withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF6C63FF).withOpacity(0.30),
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.30),
               width: 0.8,
             ),
           ),
@@ -282,9 +282,9 @@ class _Hero extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: colors.success.withOpacity(0.10),
+                      color: colors.success.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: colors.success.withOpacity(0.30), width: 0.7),
+                      border: Border.all(color: colors.success.withValues(alpha: 0.30), width: 0.7),
                     ),
                     child: Text(
                       status,
@@ -366,9 +366,9 @@ class _MyBidCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.30)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [

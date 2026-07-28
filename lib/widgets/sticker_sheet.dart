@@ -65,7 +65,7 @@ class _StickerSheetState extends State<StickerSheet>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: colors.textTertiary.withOpacity(0.3),
+                color: colors.textTertiary.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

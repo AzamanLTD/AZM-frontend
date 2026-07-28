@@ -66,7 +66,7 @@ class _TeamTile extends StatelessWidget {
           Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: (isOnDuty ? colors.success : colors.accent).withOpacity(0.1),
+              color: (isOnDuty ? colors.success : colors.accent).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(child: Text(member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',

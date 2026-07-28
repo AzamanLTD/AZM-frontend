@@ -72,7 +72,7 @@ class BookingSuccessSheet extends ConsumerWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: colors.success.withOpacity(0.12),
+                  color: colors.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.check_circle_rounded,

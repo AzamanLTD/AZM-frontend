@@ -105,7 +105,7 @@ class _ThemePreviewCard extends StatelessWidget {
             colors: [
               colors.background,
               Color.alphaBlend(
-                colors.accent.withOpacity(colors.isDark ? 0.10 : 0.05),
+                colors.accent.withValues(alpha: colors.isDark ? 0.10 : 0.05),
                 colors.background,
               ),
             ],
@@ -114,13 +114,13 @@ class _ThemePreviewCard extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? colors.accent
-                : Colors.white.withOpacity(colors.isDark ? 0.06 : 0.0),
+                : Colors.white.withValues(alpha: colors.isDark ? 0.06 : 0.0),
             width: isSelected ? 2.0 : 0.8,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: colors.accent.withOpacity(0.30),
+                    color: colors.accent.withValues(alpha: 0.30),
                     blurRadius: 22,
                     spreadRadius: -4,
                   ),
@@ -138,7 +138,7 @@ class _ThemePreviewCard extends StatelessWidget {
                       center: const Alignment(-0.85, -0.95),
                       radius: 1.4,
                       colors: [
-                        colors.glow.withOpacity(colors.isDark ? 0.18 : 0.10),
+                        colors.glow.withValues(alpha: colors.isDark ? 0.18 : 0.10),
                         Colors.transparent,
                       ],
                     ),
@@ -157,7 +157,7 @@ class _ThemePreviewCard extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: colors.accent.withOpacity(0.15),
+                          color: colors.accent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,

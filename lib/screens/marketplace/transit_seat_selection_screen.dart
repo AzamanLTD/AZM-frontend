@@ -229,7 +229,7 @@ class _TransitSeatSelectionScreenState
                             ? [
                                 BoxShadow(
                                     color:
-                                        colors.accent.withOpacity(0.25),
+                                        colors.accent.withValues(alpha: 0.25),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4))
                               ]
@@ -489,7 +489,7 @@ class _SeatMapGrid extends StatelessWidget {
                 label: hasTiers ? 'Economy' : 'Available',
                 colors: colors),
             _legendItem(
-                color: _kSelectedPurple.withOpacity(0.8),
+                color: _kSelectedPurple.withValues(alpha: 0.8),
                 label: 'Selected',
                 colors: colors),
             _legendItem(
@@ -591,7 +591,7 @@ class _SeatWidget extends StatelessWidget {
       // Selected: unbooked seat + purple tint overlay
       seatImage = ColorFiltered(
         colorFilter: ColorFilter.mode(
-          _kSelectedPurple.withOpacity(0.50),
+          _kSelectedPurple.withValues(alpha: 0.50),
           BlendMode.srcATop,
         ),
         child: Image.asset(
@@ -605,7 +605,7 @@ class _SeatWidget extends StatelessWidget {
       // Blocked: unbooked seat, heavily dimmed + red tint
       seatImage = ColorFiltered(
         colorFilter: ColorFilter.mode(
-          Colors.red.withOpacity(0.55),
+          Colors.red.withValues(alpha: 0.55),
           BlendMode.srcATop,
         ),
         child: Opacity(
@@ -669,7 +669,7 @@ class _SeatWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: _kSelectedPurple.withOpacity(0.40),
+              color: _kSelectedPurple.withValues(alpha: 0.40),
               blurRadius: 14,
               spreadRadius: 2,
             ),

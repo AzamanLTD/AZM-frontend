@@ -345,9 +345,9 @@ class _IdentityTier extends StatelessWidget {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          colors.accent.withOpacity(0.2),
-          colors.card.withOpacity(0.05),
-          colors.accent.withOpacity(0.05),
+          colors.accent.withValues(alpha: 0.2),
+          colors.card.withValues(alpha: 0.05),
+          colors.accent.withValues(alpha: 0.05),
         ],
       ),
       child: Column(
@@ -509,12 +509,12 @@ class _StatPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: highlight
-            ? colors.accent.withOpacity(0.06)
+            ? colors.accent.withValues(alpha: 0.06)
             : colors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: highlight
-              ? colors.accent.withOpacity(0.30)
+              ? colors.accent.withValues(alpha: 0.30)
               : colors.divider,
         ),
       ),
@@ -669,7 +669,7 @@ class _MediaTile extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
+                    color: Colors.black.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.play_circle_outline,
@@ -684,7 +684,7 @@ class _MediaTile extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.9),
+                    color: colors.accent.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -779,7 +779,7 @@ class _DocLinkRow extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
@@ -840,7 +840,7 @@ class _DocLinkRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.12),
+                color: colors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(_iconForMime(item.mediaMimeType),
@@ -1032,7 +1032,7 @@ class _TicketRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.confirmation_number_outlined,
@@ -1061,7 +1061,7 @@ class _TicketRow extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _statusColor.withOpacity(0.14),
+                          color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -1223,7 +1223,7 @@ class _ReceiptRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: (isSent ? colors.warning : colors.success).withOpacity(0.12),
+              color: (isSent ? colors.warning : colors.success).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -1256,7 +1256,7 @@ class _ReceiptRow extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _statusColor.withOpacity(0.14),
+                        color: _statusColor.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1408,7 +1408,7 @@ class _ErrorRetry extends StatelessWidget {
             OutlinedButton(
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
               ),
               child: Text('Retry', style: TextStyle(color: colors.accent)),
             ),
@@ -1443,7 +1443,7 @@ class _CountedTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
+                color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1483,7 +1483,7 @@ class _LoadMoreButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: colors.accent.withOpacity(0.4)),
+          side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),

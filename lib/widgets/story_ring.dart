@@ -127,7 +127,7 @@ class _StoryRingPainter extends CustomPainter {
     // Glow bloom layer
     if (glow) {
       final glowPaint = Paint()
-        ..color = ringColor.withOpacity(0.25)
+        ..color = ringColor.withValues(alpha: 0.25)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth + 6
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);

@@ -428,7 +428,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                     counterText: '',
                     hintText: '000000',
                     hintStyle: TextStyle(
-                      color: colors.textTertiary.withOpacity(0.4),
+                      color: colors.textTertiary.withValues(alpha: 0.4),
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 12,
@@ -442,7 +442,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                        color: colors.accent.withOpacity(0.5),
+                        color: colors.accent.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -554,7 +554,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: colors.success.withOpacity(0.12),
+                        color: colors.success.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -723,7 +723,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
         ),
         suffixIcon: IconButton(
           icon: Icon(

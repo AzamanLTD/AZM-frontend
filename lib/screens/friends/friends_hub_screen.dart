@@ -365,7 +365,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       decoration: BoxDecoration(
                         color: colors.softSurface,
                         shape: BoxShape.circle,
-                        border: Border.all(color: colors.textTertiary.withOpacity(0.08), width: 0.5),
+                        border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
                       ),
                       alignment: Alignment.center,
                       child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
@@ -382,7 +382,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           decoration: BoxDecoration(
                             color: colors.softSurface,
                             shape: BoxShape.circle,
-                            border: Border.all(color: colors.textTertiary.withOpacity(0.08), width: 0.5),
+                            border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
                           ),
                           alignment: Alignment.center,
                           child: Icon(Icons.person_add_rounded, color: colors.textPrimary, size: 20),
@@ -402,7 +402,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                         color: _isSearching ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _isSearching ? colors.accent.withOpacity(0.2) : colors.textTertiary.withOpacity(0.08),
+                          color: _isSearching ? colors.accent.withValues(alpha: 0.2) : colors.textTertiary.withValues(alpha: 0.08),
                           width: 0.5),
                       ),
                       alignment: Alignment.center,
@@ -829,7 +829,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   colors: [
                     Colors.transparent,
                     (colors.isDark ? Colors.black : Colors.black)
-                        .withOpacity(colors.isDark ? 0.35 : 0.07),
+                        .withValues(alpha: colors.isDark ? 0.35 : 0.07),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.5, 1.0],
@@ -1077,7 +1077,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: colors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                     child: Text('@You', style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
                 ],

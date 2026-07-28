@@ -153,7 +153,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
         border: Border.all(color: colors.divider, width: 0.6),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -355,7 +355,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.1),
+                        color: colors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text('Popular',
@@ -406,7 +406,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
         behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _poppedItem = null),
         child: Container(
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           child: Center(
             child: GestureDetector(
               // Absorb taps on the card itself so tapping the button/card
@@ -423,7 +423,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.35),
+                          color: Colors.black.withValues(alpha: 0.35),
                           blurRadius: 30,
                           offset: const Offset(0, 12),
                         ),

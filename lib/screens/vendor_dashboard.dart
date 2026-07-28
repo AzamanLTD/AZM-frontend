@@ -314,7 +314,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: azamanGold.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                                    decoration: BoxDecoration(color: azamanGold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
                                     child: Text("$adCount", style: TextStyle(fontSize: 10, color: azamanGold, fontWeight: FontWeight.bold)),
                                   )
                                 ]
@@ -565,8 +565,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(colors: [Colors.white.withOpacity(0.05), Colors.transparent]),
-        border: Border.all(color: gold.withOpacity(0.3)),
+        gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent]),
+        border: Border.all(color: gold.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +575,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("VENDOR TRADING OVERVIEW", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-              Icon(Icons.shield_outlined, color: gold.withOpacity(0.5), size: 18),
+              Icon(Icons.shield_outlined, color: gold.withValues(alpha: 0.5), size: 18),
             ],
           ),
           const SizedBox(height: 10),
@@ -636,7 +636,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: gold.withOpacity(0.4)),
+                      border: Border.all(color: gold.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -657,7 +657,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF02C076).withOpacity(0.4)),
+                      border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.4)),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -721,7 +721,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.15),
+                          color: accentColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -816,9 +816,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                           child: Container(
                             height: 56,
                             decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.15),
+                              color: accentColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: accentColor.withOpacity(0.3)),
+                              border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                             ),
                             child: Stack(
                               children: [
@@ -830,7 +830,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                       width: confirmDragX + thumbSize,
                                       height: 56,
                                       decoration: BoxDecoration(
-                                        color: accentColor.withOpacity(0.2),
+                                        color: accentColor.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(28),
                                       ),
                                     ),
@@ -840,7 +840,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                 Center(
                                   child: Text(
                                     'Slide to confirm transfer',
-                                    style: TextStyle(color: accentColor.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(color: accentColor.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                                 // Thumb
@@ -853,7 +853,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                     decoration: BoxDecoration(
                                       color: accentColor,
                                       borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [BoxShadow(color: accentColor.withOpacity(0.4), blurRadius: 8)],
+                                      boxShadow: [BoxShadow(color: accentColor.withValues(alpha: 0.4), blurRadius: 8)],
                                     ),
                                     child: const Icon(Icons.arrow_forward, color: Colors.white, size: 22),
                                   ),
@@ -869,7 +869,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       height: 56,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: colors.divider.withOpacity(0.3),
+                        color: colors.divider.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Center(
@@ -936,7 +936,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF02C076).withOpacity(0.15),
+                  color: const Color(0xFF02C076).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check_circle_outline, color: Color(0xFF02C076), size: 48),
@@ -1023,12 +1023,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         decoration: BoxDecoration(
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: gold.withOpacity(0.3)), 
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))]
+          border: Border.all(color: gold.withValues(alpha: 0.3)), 
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5))]
         ),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: gold.withOpacity(0.1), child: Icon(Icons.notifications_outlined, color: gold, size: 20)),
+            CircleAvatar(backgroundColor: gold.withValues(alpha: 0.1), child: Icon(Icons.notifications_outlined, color: gold, size: 20)),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
@@ -1108,23 +1108,23 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? gold.withOpacity(0.35) : Colors.white.withOpacity(0.05),
+            color: isActive ? gold.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.05),
             width: isActive ? 1.2 : 0.5,
           ),
           boxShadow: [
             if (isActive)
               BoxShadow(
-                color: gold.withOpacity(0.06),
+                color: gold.withValues(alpha: 0.06),
                 blurRadius: 16,
                 spreadRadius: -2,
               ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.35),
+              color: Colors.black.withValues(alpha: 0.35),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 1,
               offset: const Offset(0, 0),
             ),
@@ -1142,9 +1142,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.15),
+                        color: typeColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: typeColor.withOpacity(0.3)),
+                        border: Border.all(color: typeColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         isBuy ? "BUY" : "SELL",
@@ -1165,8 +1165,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? const Color(0xFF02C076).withOpacity(0.1)
-                            : Colors.white.withOpacity(0.03),
+                            ? const Color(0xFF02C076).withValues(alpha: 0.1)
+                            : Colors.white.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1208,9 +1208,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.04)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
               ),
               child: Column(
                 children: [
@@ -1231,7 +1231,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.note_outlined, color: gold.withOpacity(0.5), size: 14),
+                  Icon(Icons.note_outlined, color: gold.withValues(alpha: 0.5), size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1288,9 +1288,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF02C076).withOpacity(0.1),
+          color: const Color(0xFF02C076).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF02C076).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1330,9 +1330,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: gold.withOpacity(0.06),
+          color: gold.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: gold.withOpacity(0.25)),
+          border: Border.all(color: gold.withValues(alpha: 0.25)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1352,7 +1352,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             Text(
               'from 15 AZM',
               style: TextStyle(
-                color: gold.withOpacity(0.6),
+                color: gold.withValues(alpha: 0.6),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -1401,9 +1401,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               icon: const Icon(Icons.add),
               label: const Text("CREATE NEW AD"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: gold.withOpacity(0.1),
+                backgroundColor: gold.withValues(alpha: 0.1),
                 foregroundColor: gold,
-                side: BorderSide(color: gold.withOpacity(0.5)),
+                side: BorderSide(color: gold.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -1554,7 +1554,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: widget.gold.withOpacity(0.1),
+                  color: widget.gold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1596,15 +1596,15 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? widget.gold.withOpacity(0.08)
-                      : Colors.white.withOpacity(canAfford ? 0.03 : 0.01),
+                      ? widget.gold.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: canAfford ? 0.03 : 0.01),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? widget.gold
                         : canAfford
                             ? Colors.white12
-                            : Colors.white.withOpacity(0.04),
+                            : Colors.white.withValues(alpha: 0.04),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -1638,7 +1638,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? widget.gold.withOpacity(0.15)
+                            ? widget.gold.withValues(alpha: 0.15)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -1748,7 +1748,7 @@ class TechBackground extends StatelessWidget {
 class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.02)..strokeWidth = 0.5;
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.02)..strokeWidth = 0.5;
     for (double i = 0; i < size.width; i += 40) { canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint); }
     for (double i = 0; i < size.height; i += 40) { canvas.drawLine(Offset(0, i), Offset(size.width, i), paint); }
   }

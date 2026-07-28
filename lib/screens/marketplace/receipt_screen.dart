@@ -134,7 +134,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: colors.success.withOpacity(0.12),
+                  color: colors.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.check_circle_outline,

@@ -71,7 +71,7 @@ class _SkeletonBlockState extends ConsumerState<SkeletonBlock>
                 colors: [
                   colors.card,
                   colors.surface,
-                  colors.divider.withOpacity(0.35),
+                  colors.divider.withValues(alpha: 0.35),
                   colors.surface,
                   colors.card,
                 ],

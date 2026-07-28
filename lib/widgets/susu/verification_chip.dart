@@ -38,9 +38,9 @@ class VerificationChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: color.withOpacity(0.40), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.40), width: 0.7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

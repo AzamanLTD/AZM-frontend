@@ -94,9 +94,9 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.15 * expandPercent),
-                    Colors.black.withOpacity(0.05),
-                    isDark ? Colors.black.withOpacity(0.6) : Colors.black.withOpacity(0.3),
+                    Colors.black.withValues(alpha: 0.15 * expandPercent),
+                    Colors.black.withValues(alpha: 0.05),
+                    isDark ? Colors.black.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
@@ -117,10 +117,10 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
                 child: Container(
                   decoration: BoxDecoration(
                     color: (isDark ? Colors.black : Colors.white)
-                        .withOpacity(0.4 * compactTitleOpacity),
+                        .withValues(alpha: 0.4 * compactTitleOpacity),
                     border: Border(
                       bottom: BorderSide(
-                        color: Colors.white.withOpacity(0.06 * compactTitleOpacity),
+                        color: Colors.white.withValues(alpha: 0.06 * compactTitleOpacity),
                       ),
                     ),
                   ),
@@ -176,16 +176,16 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
                       fontSize: 26 * (0.6 + 0.4 * expandPercent),
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.8, height: 1.1,
-                      shadows: [Shadow(color: Colors.black.withOpacity(0.4), blurRadius: 12)],
+                      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12)],
                     ),
                     maxLines: 2, overflow: TextOverflow.ellipsis,
                   ).animate().fadeIn(duration: 300.ms),
                   if (subtitle != null) ...[
                     const SizedBox(height: 4),
                     Text(subtitle!, style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 13, fontWeight: FontWeight.w500,
-                      shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)],
+                      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)],
                     )).animate().fadeIn(delay: 100.ms, duration: 300.ms),
                   ],
                 ],
@@ -203,12 +203,12 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
           colors: accentColor != null
-              ? [accentColor!, accentColor!.withOpacity(0.5)]
+              ? [accentColor!, accentColor!.withValues(alpha: 0.5)]
               : [(isDark ? const Color(0xFF1E2329) : const Color(0xFFD4AF37)),
                  (isDark ? const Color(0xFF0B0E11) : const Color(0xFFF0B90B))],
         ),
       ),
-      child: Center(child: Icon(Icons.storefront_outlined, size: 64, color: Colors.white.withOpacity(0.3))),
+      child: Center(child: Icon(Icons.storefront_outlined, size: 64, color: Colors.white.withValues(alpha: 0.3))),
     );
   }
 

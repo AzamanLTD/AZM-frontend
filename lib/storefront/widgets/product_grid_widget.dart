@@ -79,7 +79,7 @@ class _ProductCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
                 child: Container(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                   child: Icon(Icons.restaurant, size: 40, color: Theme.of(context).colorScheme.primary),
                 ),
               ),

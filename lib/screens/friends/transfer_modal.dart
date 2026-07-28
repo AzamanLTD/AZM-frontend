@@ -159,7 +159,7 @@ class _TransferModalState extends ConsumerState<TransferModal> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.success.withOpacity(0.15),
+                  color: colors.success.withValues(alpha: 0.15),
                 ),
                 child: Icon(
                   Icons.check_circle_outline,
@@ -314,9 +314,9 @@ class _TransferModalState extends ConsumerState<TransferModal> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.1),
+                color: colors.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withOpacity(0.3)),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [

@@ -42,7 +42,7 @@ class PremiumBottomNav extends ConsumerWidget {
           borderRadius: BorderRadius.circular(31),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(colors.isDark ? 0.45 : 0.13),
+              color: Colors.black.withValues(alpha: colors.isDark ? 0.45 : 0.13),
               blurRadius: 24,
               offset: const Offset(0, 6),
             ),

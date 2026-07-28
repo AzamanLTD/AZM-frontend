@@ -76,11 +76,11 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [colors.accentSecondary.withOpacity(0.15), colors.accentSecondary.withOpacity(0.03)],
+                    colors: [colors.accentSecondary.withValues(alpha: 0.15), colors.accentSecondary.withValues(alpha: 0.03)],
                     begin: Alignment.topLeft, end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.accentSecondary.withOpacity(0.2), width: 1),
+                  border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.2), width: 1),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

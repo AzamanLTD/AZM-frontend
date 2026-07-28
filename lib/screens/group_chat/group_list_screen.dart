@@ -132,7 +132,7 @@ class _GroupTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: colors.card.withOpacity(0.55),
+              color: colors.card.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.divider, width: 0.7),
             ),
@@ -145,8 +145,8 @@ class _GroupTile extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        colors.accent.withOpacity(0.30),
-                        colors.accent.withOpacity(0.10),
+                        colors.accent.withValues(alpha: 0.30),
+                        colors.accent.withValues(alpha: 0.10),
                       ],
                     ),
                   ),
@@ -234,9 +234,9 @@ class _SusuChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

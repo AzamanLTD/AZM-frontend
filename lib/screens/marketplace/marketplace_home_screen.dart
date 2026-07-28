@@ -330,7 +330,7 @@ class _MarketplaceHomeScreenState
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              colors.accent.withOpacity(0.08),
+                              colors.accent.withValues(alpha: 0.08),
                               colors.background,
                             ],
                           ),
@@ -583,7 +583,7 @@ class _MarketplaceHomeScreenState
                               width: 1.4,
                             ),
                             boxShadow: _searchFocused
-                                ? [BoxShadow(color: colors.accent.withOpacity(0.18), blurRadius: 14, offset: const Offset(0, 3))]
+                                ? [BoxShadow(color: colors.accent.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 3))]
                                 : null,
                           ),
                           child: PremiumGlassContainer(
@@ -742,7 +742,7 @@ class _MarketplaceHomeScreenState
                 border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
                 boxShadow: [
                   BoxShadow(
-                    color: isActive ? colors.accent.withOpacity(0.18) : Colors.black.withOpacity(0.06),
+                    color: isActive ? colors.accent.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.06),
                     blurRadius: isActive ? 8 : 4,
                     offset: const Offset(0, 2),
                   ),
@@ -900,10 +900,10 @@ class _MarketplaceHomeScreenState
             child: Container(
               padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
               decoration: BoxDecoration(
-                color: cat.color.withOpacity(0.09),
+                color: cat.color.withValues(alpha: 0.09),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: cat.color.withOpacity(0.3), width: 1),
+                    color: cat.color.withValues(alpha: 0.3), width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -920,7 +920,7 @@ class _MarketplaceHomeScreenState
                   ),
                   const SizedBox(width: 6),
                   Icon(Icons.close_rounded,
-                      size: 13, color: cat.color.withOpacity(0.6)),
+                      size: 13, color: cat.color.withValues(alpha: 0.6)),
                 ],
               ),
             ),
@@ -1467,7 +1467,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 14, offset: const Offset(0, 6)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
           ],
         ),
         clipBehavior: Clip.antiAlias,
@@ -1484,17 +1484,17 @@ class _FeaturedBusinessCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: coverUrl,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: cat.color.withOpacity(0.15)),
-                          errorWidget: (_, __, ___) => Container(color: cat.color.withOpacity(0.15)),
+                          placeholder: (_, __) => Container(color: cat.color.withValues(alpha: 0.15)),
+                          errorWidget: (_, __, ___) => Container(color: cat.color.withValues(alpha: 0.15)),
                         )
                       : Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: [cat.color, cat.color.withOpacity(0.5)],
+                              colors: [cat.color, cat.color.withValues(alpha: 0.5)],
                             ),
                           ),
-                          child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withOpacity(0.5))),
+                          child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withValues(alpha: 0.5))),
                         ),
                 ),
                 // Name + rating (indented to make room for the overlapping avatar)
@@ -1534,7 +1534,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.card,
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 2))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
                 child: ClipPath(
                   clipper: ShapeBorderClipper(
@@ -1545,7 +1545,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                   child: business.logoUrl != null
                       ? CachedNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
                       : Container(
-                          color: cat.color.withOpacity(0.2),
+                          color: cat.color.withValues(alpha: 0.2),
                           child: Icon(cat.icon, size: 20, color: cat.color),
                         ),
                 ),

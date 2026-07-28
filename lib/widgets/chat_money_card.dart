@@ -117,13 +117,13 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
   Widget _applySkinAnimation(Widget child) {
     switch (widget.skinId) {
       case 'gold':
-        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2000.ms, color: _textColor.withOpacity(0.3)).blurXY(begin: 0, end: 0.5, duration: 1000.ms).then().blurXY(begin: 0.5, end: 0);
+        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2000.ms, color: _textColor.withValues(alpha: 0.3)).blurXY(begin: 0, end: 0.5, duration: 1000.ms).then().blurXY(begin: 0.5, end: 0);
       case 'midnight':
-        return child.animate(onPlay: (c) => c.repeat(reverse: true)).tint(color: Colors.blueAccent.withOpacity(0.2), duration: 4000.ms);
+        return child.animate(onPlay: (c) => c.repeat(reverse: true)).tint(color: Colors.blueAccent.withValues(alpha: 0.2), duration: 4000.ms);
       case 'emerald':
-        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2500.ms, color: Colors.greenAccent.withOpacity(0.4), angle: math.pi / 2);
+        return child.animate(onPlay: (c) => c.repeat()).shimmer(duration: 2500.ms, color: Colors.greenAccent.withValues(alpha: 0.4), angle: math.pi / 2);
       case 'sunset':
-        return child.animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 3000.ms, color: _textColor.withOpacity(0.2), angle: 0);
+        return child.animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 3000.ms, color: _textColor.withValues(alpha: 0.2), angle: 0);
       case 'classic':
       default:
         // Already uses the AnimatedBuilder sheen inside the stack

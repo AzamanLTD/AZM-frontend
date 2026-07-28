@@ -530,19 +530,19 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         child: Container(
           height: MediaQuery.of(ctx).size.height * 0.85,
           decoration: BoxDecoration(
-            color: colors.isDark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.90),
+            color: colors.isDark ? Colors.black.withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.90),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.textTertiary.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.textTertiary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 24),
               
               // Profile Circle
               CircleAvatar(
                 radius: 46,
-                backgroundColor: colors.accent.withOpacity(0.12),
+                backgroundColor: colors.accent.withValues(alpha: 0.12),
                 child: Text(
                   _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?',
                   style: TextStyle(color: colors.accent, fontSize: 36, fontWeight: FontWeight.bold),
@@ -654,7 +654,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.textTertiary.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
+              Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.textTertiary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 24),
               Text('Edit nickname', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 19, letterSpacing: -0.4)),
               const SizedBox(height: 6),
@@ -860,7 +860,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
               onTap: _showEscrowInstructions,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: colors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                 child: Row(
                   children: [
                     Icon(Icons.confirmation_number_outlined, color: colors.accent, size: 12),
@@ -998,7 +998,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: colors.softSurface.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: colors.softSurface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
           child: Text(_formatDateHeader(dt), style: TextStyle(color: colors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
         ),
       ),
@@ -1009,7 +1009,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
     final bool isMe = msg.isMe;
     final bubbleColor = isMe ? colors.accent : colors.softSurface;
     final textColor = isMe ? (colors.isDark ? Colors.black : Colors.white) : colors.textPrimary;
-    final metaColor = isMe ? (colors.isDark ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.7)) : colors.textTertiary;
+    final metaColor = isMe ? (colors.isDark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.7)) : colors.textTertiary;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -1035,7 +1035,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                 margin: const EdgeInsets.only(bottom: 6),
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: (isMe ? Colors.black : Colors.white).withOpacity(0.12),
+                  color: (isMe ? Colors.black : Colors.white).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                   border: Border(left: BorderSide(color: isMe ? Colors.white : colors.accent, width: 3)),
                 ),
@@ -1044,7 +1044,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                   children: [
                     Text(msg.replyToSenderName ?? 'Reply', style: TextStyle(color: isMe ? Colors.white : colors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
-                    Text(msg.replyToText ?? '', style: TextStyle(color: textColor.withOpacity(0.85), fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(msg.replyToText ?? '', style: TextStyle(color: textColor.withValues(alpha: 0.85), fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -1069,7 +1069,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.accent.withOpacity(0.35), width: 1.5),
+                      border: Border.all(color: colors.accent.withValues(alpha: 0.35), width: 1.5),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(13),
@@ -1099,7 +1099,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.52),
+                        color: Colors.black.withValues(alpha: 0.52),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -1243,7 +1243,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
       );
     }
     if (status == MessageStatus.sent) {
-      return Icon(Icons.check, color: colors.isDark ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.7), size: 11);
+      return Icon(Icons.check, color: colors.isDark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.7), size: 11);
     }
     if (status == MessageStatus.read) {
       return Icon(Icons.done_all, color: colors.isDark ? Colors.black : Colors.white, size: 12);
@@ -1308,7 +1308,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                 child: Container(
                   width: 38, height: 38,
                   decoration: BoxDecoration(
-                    color: _plusMenuOpen ? colors.accent.withOpacity(0.12) : colors.softSurface,
+                    color: _plusMenuOpen ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
@@ -1535,12 +1535,12 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         height: 60,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.12), color.withOpacity(0.05)],
+            colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.05)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1812,7 +1812,7 @@ class _SlantedMediaStackState extends State<_SlantedMediaStack> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
                 ],
               ),
               child: ClipRRect(
@@ -1935,7 +1935,7 @@ class _AudioPlayerBubbleState extends State<_AudioPlayerBubble> {
           child: Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: textColor.withOpacity(0.15),
+              color: textColor.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: _loading
@@ -1957,7 +1957,7 @@ class _AudioPlayerBubbleState extends State<_AudioPlayerBubble> {
                   Container(
                     height: 3,
                     decoration: BoxDecoration(
-                      color: textColor.withOpacity(0.15),
+                      color: textColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(1.5),
                     ),
                   ),
@@ -1976,7 +1976,7 @@ class _AudioPlayerBubbleState extends State<_AudioPlayerBubble> {
               const SizedBox(height: 4),
               Text(
                 _duration != null ? _formatDuration(_position) + ' / ' + _formatDuration(_duration!) : '0:00',
-                style: TextStyle(color: textColor.withOpacity(0.65), fontSize: 9.5, fontWeight: FontWeight.w600),
+                style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 9.5, fontWeight: FontWeight.w600),
               ),
             ],
           ),

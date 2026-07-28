@@ -258,7 +258,7 @@ class _VideoBubble extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.play_circle_outline,
@@ -272,7 +272,7 @@ class _VideoBubble extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -447,7 +447,7 @@ class _AudioBubbleState extends State<_AudioBubble> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.15),
+                color: accent.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -504,7 +504,7 @@ class _AudioBubbleState extends State<_AudioBubble> {
           Text(
             label,
             style: TextStyle(
-              color: accent.withOpacity(0.85),
+              color: accent.withValues(alpha: 0.85),
               fontSize: 11,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -577,7 +577,7 @@ class _Waveform extends StatelessWidget {
             decoration: BoxDecoration(
               color: filled
                   ? color
-                  : color.withOpacity(0.4),
+                  : color.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(barWidth / 2),
             ),
           );
@@ -619,7 +619,7 @@ class _DocumentBubble extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(_iconForMime(payload.mimeType),

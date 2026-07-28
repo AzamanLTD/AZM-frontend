@@ -1042,8 +1042,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.15),
-        border: Border(bottom: BorderSide(color: colors.danger.withOpacity(0.4), width: 1)),
+        color: colors.danger.withValues(alpha: 0.15),
+        border: Border(bottom: BorderSide(color: colors.danger.withValues(alpha: 0.4), width: 1)),
       ),
       child: Row(
         children: [
@@ -1070,7 +1070,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.1),
+                color: colors.danger.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.shield_outlined, color: colors.danger, size: 60),
@@ -1114,8 +1114,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.1),
-            border: Border(bottom: BorderSide(color: colors.accent.withOpacity(0.3))),
+            color: colors.accent.withValues(alpha: 0.1),
+            border: Border(bottom: BorderSide(color: colors.accent.withValues(alpha: 0.3))),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1244,7 +1244,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: colors.card,
-        border: Border(bottom: BorderSide(color: (_isDisputed ? colors.danger : colors.accent).withOpacity(0.1), width: 1)),
+        border: Border(bottom: BorderSide(color: (_isDisputed ? colors.danger : colors.accent).withValues(alpha: 0.1), width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1354,8 +1354,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
         Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.05),
-            border: Border.all(color: colors.accent.withOpacity(0.3)),
+            color: colors.accent.withValues(alpha: 0.05),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1392,7 +1392,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
+              color: colors.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -1435,7 +1435,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.background,
-        border: Border(top: BorderSide(color: colors.divider.withOpacity(0.3))),
+        border: Border(top: BorderSide(color: colors.divider.withValues(alpha: 0.3))),
       ),
       child: Row(
         children: [
@@ -1586,9 +1586,9 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: colors.success.withOpacity(0.9),
+                    color: colors.success.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: colors.success.withOpacity(0.4), blurRadius: 12)],
+                    boxShadow: [BoxShadow(color: colors.success.withValues(alpha: 0.4), blurRadius: 12)],
                   ),
                   child: Text(
                     '+${widget.addedMinutes}m',
@@ -1613,7 +1613,7 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: colors.success.withOpacity(0.3),
+                      color: colors.success.withValues(alpha: 0.3),
                     ),
                     child: Center(
                       child: Container(
@@ -1621,7 +1621,7 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
                         height: 16,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colors.success.withOpacity(0.6),
+                          color: colors.success.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -1710,7 +1710,7 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colors.textTertiary.withOpacity(0.4),
+                    color: colors.textTertiary.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1782,9 +1782,9 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.warning.withOpacity(0.08),
+                  color: colors.warning.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.warning.withOpacity(0.2)),
+                  border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

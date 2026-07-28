@@ -193,9 +193,9 @@ class _ChangePasswordScreenState
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.10),
+                color: colors.danger.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.danger.withOpacity(0.45)),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.45)),
               ),
               child: Text(
                 _error!,
@@ -297,7 +297,7 @@ class _ChangePasswordScreenState
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
         ),
       ),
     );

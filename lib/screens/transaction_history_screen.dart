@@ -217,10 +217,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           height: 38,
                           decoration: BoxDecoration(
                             color: txn.category == 'WITHDRAWAL'
-                                ? colors.danger.withOpacity(0.1)
+                                ? colors.danger.withValues(alpha: 0.1)
                                 : txn.category == 'TRANSFER'
-                                    ? colors.accent.withOpacity(0.1)
-                                    : colors.success.withOpacity(0.1),
+                                    ? colors.accent.withValues(alpha: 0.1)
+                                    : colors.success.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -278,7 +278,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: colors.success.withOpacity(0.1),
+                                color: colors.success.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(5),
                               ),
                               child: Text(
@@ -449,7 +449,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
           mainAxisSize: MainAxisSize.min,
           children: [
             Center(child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: colors.textTertiary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: colors.textTertiary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
             )),
             const SizedBox(height: 20),
             Text('Azaman', style: TextStyle(color: colors.accent, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -457,7 +457,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: txn.category == 'WITHDRAWAL' ? colors.danger.withOpacity(0.15) : colors.success.withOpacity(0.15),
+                color: txn.category == 'WITHDRAWAL' ? colors.danger.withValues(alpha: 0.15) : colors.success.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

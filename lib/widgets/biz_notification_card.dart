@@ -39,7 +39,7 @@ class BizNotificationCard extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         enableShadow: false,
         border: Border.all(
-          color: notification.isRead ? colors.divider : tint.withOpacity(0.2),
+          color: notification.isRead ? colors.divider : tint.withValues(alpha: 0.2),
           width: notification.isRead ? 0.5 : 1,
         ),
         child: Row(
@@ -49,10 +49,10 @@ class BizNotificationCard extends ConsumerWidget {
               width: 40, height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: tint.withOpacity(0.12),
+                color: tint.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(11),
                 boxShadow: notification.isRead ? null : [
-                  BoxShadow(color: tint.withOpacity(0.1), blurRadius: 8),
+                  BoxShadow(color: tint.withValues(alpha: 0.1), blurRadius: 8),
                 ],
               ),
               child: Icon(icon, color: tint, size: 18),
@@ -85,7 +85,7 @@ class BizNotificationCard extends ConsumerWidget {
                             color: colors.accent,
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(color: colors.accent.withOpacity(0.4), blurRadius: 4),
+                              BoxShadow(color: colors.accent.withValues(alpha: 0.4), blurRadius: 4),
                             ],
                           ),
                         ),

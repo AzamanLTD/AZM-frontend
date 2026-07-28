@@ -49,7 +49,7 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
                 width: 40, height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: cs.outline.withOpacity(0.3),
+                  color: cs.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

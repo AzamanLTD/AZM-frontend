@@ -64,7 +64,7 @@ class _AnimatedCounterWidgetState extends State<AnimatedCounterWidget>
             ),
           ),
           if (label.isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 2), child: Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)))),
+            Padding(padding: const EdgeInsets.only(top: 2), child: Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)))),
         ],
       ),
     );

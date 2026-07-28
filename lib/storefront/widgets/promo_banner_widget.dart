@@ -19,8 +19,8 @@ class PromoBannerWidget extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: backgroundColor != null
-              ? [_parseColor(backgroundColor), _parseColor(backgroundColor).withOpacity(0.8)]
-              : [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary.withOpacity(0.8)],
+              ? [_parseColor(backgroundColor), _parseColor(backgroundColor).withValues(alpha: 0.8)]
+              : [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary.withValues(alpha: 0.8)],
         ),
         borderRadius: BorderRadius.circular(12),
       ),

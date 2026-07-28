@@ -200,7 +200,7 @@ class SlideToConfirmState extends State<SlideToConfirm>
               color: widget.backgroundColor,
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: widget.thumbColor.withOpacity(0.2),
+                color: widget.thumbColor.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -217,8 +217,8 @@ class SlideToConfirmState extends State<SlideToConfirm>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              widget.thumbColor.withOpacity(0.1),
-                              widget.thumbColor.withOpacity(0.3 * progress),
+                              widget.thumbColor.withValues(alpha: 0.1),
+                              widget.thumbColor.withValues(alpha: 0.3 * progress),
                             ],
                           ),
                         ),
@@ -234,7 +234,7 @@ class SlideToConfirmState extends State<SlideToConfirm>
                     child: Text(
                       widget.text,
                       style: TextStyle(
-                        color: widget.thumbColor.withOpacity(0.8),
+                        color: widget.thumbColor.withValues(alpha: 0.8),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -260,7 +260,7 @@ class SlideToConfirmState extends State<SlideToConfirm>
                         color: widget.thumbColor,
                         boxShadow: [
                           BoxShadow(
-                            color: widget.thumbColor.withOpacity(0.4),
+                            color: widget.thumbColor.withValues(alpha: 0.4),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),

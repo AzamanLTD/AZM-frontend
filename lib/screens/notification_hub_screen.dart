@@ -90,7 +90,7 @@ class _NotificationHubScreenState
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.3)),
-              backgroundColor: colors.surface.withOpacity(0.7),
+              backgroundColor: colors.surface.withValues(alpha: 0.7),
               elevation: 0,
               iconTheme: IconThemeData(color: colors.textPrimary),
               actions: [
@@ -212,7 +212,7 @@ class _NotificationHubScreenState
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.white.withOpacity(0.3) : colors.accent.withOpacity(0.15),
+                        color: isSelected ? Colors.white.withValues(alpha: 0.3) : colors.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text('${tab.$2}',
@@ -346,7 +346,7 @@ class _NotificationHubScreenState
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: colors.danger.withOpacity(0.1),
+          color: colors.danger.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(Icons.delete_outline_rounded, color: colors.danger, size: 22),
@@ -371,7 +371,7 @@ class _NotificationHubScreenState
           margin: const EdgeInsets.only(bottom: 8),
           enableShadow: false,
           border: Border.all(
-            color: notif.isRead ? colors.divider : colors.accent.withOpacity(0.15),
+            color: notif.isRead ? colors.divider : colors.accent.withValues(alpha: 0.15),
             width: notif.isRead ? 0.5 : 1,
           ),
           child: Row(
@@ -381,10 +381,10 @@ class _NotificationHubScreenState
                 width: 40, height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: style.color.withOpacity(0.12),
+                  color: style.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(11),
                   boxShadow: notif.isRead ? null : [
-                    BoxShadow(color: style.color.withOpacity(0.1), blurRadius: 8),
+                    BoxShadow(color: style.color.withValues(alpha: 0.1), blurRadius: 8),
                   ],
                 ),
                 child: Icon(style.icon, color: style.color, size: 18),
@@ -418,7 +418,7 @@ class _NotificationHubScreenState
                               color: colors.accent,
                               shape: BoxShape.circle,
                               boxShadow: [
-                                BoxShadow(color: colors.accent.withOpacity(0.4), blurRadius: 4),
+                                BoxShadow(color: colors.accent.withValues(alpha: 0.4), blurRadius: 4),
                               ],
                             ),
                           ),
@@ -646,7 +646,7 @@ class _TabBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(

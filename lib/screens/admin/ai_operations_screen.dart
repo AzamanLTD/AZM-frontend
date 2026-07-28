@@ -174,7 +174,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 18),
@@ -304,7 +304,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: highlight.withOpacity(0.2)),
+        border: Border.all(color: highlight.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,14 +354,14 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.warning.withOpacity(0.2)),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colors.warning.withOpacity(0.1),
+              color: colors.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(Icons.refresh, color: colors.warning, size: 18),
@@ -453,7 +453,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.celebration_outlined, color: colors.success.withOpacity(0.4), size: 40),
+          Icon(Icons.celebration_outlined, color: colors.success.withValues(alpha: 0.4), size: 40),
           const SizedBox(height: 12),
           Text(
             'No discount candidates right now',
@@ -481,7 +481,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.2)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -493,7 +493,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: colors.success.withOpacity(0.1),
+                    color: colors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -526,7 +526,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.1),
+                    color: colors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -644,7 +644,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
               height: 44,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.success.withOpacity(0.15),
+                  backgroundColor: colors.success.withValues(alpha: 0.15),
                   foregroundColor: colors.success,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -719,7 +719,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.danger.withOpacity(0.2)),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [

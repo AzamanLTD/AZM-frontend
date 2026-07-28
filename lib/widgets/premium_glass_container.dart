@@ -55,7 +55,7 @@ class PremiumGlassContainer extends StatelessWidget {
         boxShadow: enableShadow
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -69,11 +69,11 @@ class PremiumGlassContainer extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: tint.withOpacity(opacity),
+              color: tint.withValues(alpha: opacity),
               borderRadius: BorderRadius.circular(borderRadius),
               border: border ??
                   Border.all(
-                    color: Colors.white.withOpacity(isDark ? 0.06 : 0.12),
+                    color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.12),
                     width: 0.5,
                   ),
               gradient: gradient,

@@ -152,7 +152,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.15),
+                color: colors.danger.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.visibility_outlined, color: colors.danger, size: 18),
@@ -216,7 +216,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
+              color: colors.danger.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.visibility_outlined, color: colors.danger, size: 52),
@@ -252,7 +252,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
               ),
             ),
             keyboardType: TextInputType.number,
@@ -291,7 +291,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: accent.withOpacity(0.08),
+      color: accent.withValues(alpha: 0.08),
       child: Row(
         children: [
           Icon(

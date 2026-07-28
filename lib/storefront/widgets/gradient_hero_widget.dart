@@ -58,13 +58,13 @@ class _GradientHeroWidgetState extends State<GradientHeroWidget>
             ),
             child: Stack(
               children: [
-                Positioned.fill(child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.3)])))),
+                Positioned.fill(child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.3)])))),
                 Positioned(left: 24, right: 24, bottom: 28, child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (title.isNotEmpty) Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                    if (subtitle.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 16))),
+                    if (subtitle.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 16))),
                   ],
                 )),
               ],

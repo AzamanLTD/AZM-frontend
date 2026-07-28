@@ -198,7 +198,7 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                     selected: sel,
                     label: Text(f.label),
                     onSelected: (_) => setState(() => _frequency = f),
-                    selectedColor: colors.warning.withOpacity(0.20),
+                    selectedColor: colors.warning.withValues(alpha: 0.20),
                     labelStyle: TextStyle(
                       color: sel ? colors.warning : colors.textSecondary,
                       fontSize: 11,
@@ -219,7 +219,7 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                     selected: sel,
                     label: Text(e.value),
                     onSelected: (_) => setState(() => _windowHours = e.key),
-                    selectedColor: colors.accent.withOpacity(0.20),
+                    selectedColor: colors.accent.withValues(alpha: 0.20),
                     labelStyle: TextStyle(
                       color: sel ? colors.accent : colors.textSecondary,
                       fontSize: 11,
@@ -306,9 +306,9 @@ class _PoolPreview extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.06),
+        color: colors.accent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.accent.withOpacity(0.18), width: 0.7),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.18), width: 0.7),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

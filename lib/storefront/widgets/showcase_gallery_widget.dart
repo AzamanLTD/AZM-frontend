@@ -29,7 +29,7 @@ class ShowcaseGalleryWidget extends StatelessWidget {
               width: 140,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
-                color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.image, size: 36, color: Theme.of(ctx).colorScheme.primary),

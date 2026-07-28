@@ -39,7 +39,7 @@ class ThemedAppBackdrop extends ConsumerWidget {
           colors: [
             colors.background,
             Color.alphaBlend(
-              colors.accent.withOpacity(colors.isDark ? 0.06 : 0.030),
+              colors.accent.withValues(alpha: colors.isDark ? 0.06 : 0.030),
               colors.background,
             ),
           ],
@@ -56,8 +56,8 @@ class ThemedAppBackdrop extends ConsumerWidget {
                   center: const Alignment(-0.85, -0.95),
                   radius: 1.4,
                   colors: [
-                    colors.glow.withOpacity(colors.isDark ? 0.20 : 0.10),
-                    colors.glow.withOpacity(colors.isDark ? 0.06 : 0.04),
+                    colors.glow.withValues(alpha: colors.isDark ? 0.20 : 0.10),
+                    colors.glow.withValues(alpha: colors.isDark ? 0.06 : 0.04),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.35, 1.0],
@@ -73,7 +73,7 @@ class ThemedAppBackdrop extends ConsumerWidget {
                   center: const Alignment(0.95, 1.0),
                   radius: 1.2,
                   colors: [
-                    colors.accentSecondary.withOpacity(colors.isDark ? 0.12 : 0.06),
+                    colors.accentSecondary.withValues(alpha: colors.isDark ? 0.12 : 0.06),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 1.0],
@@ -90,8 +90,8 @@ class ThemedAppBackdrop extends ConsumerWidget {
                     center: Alignment.center,
                     radius: 1.4,
                     colors: [
-                      colors.surface.withOpacity(0.80),
-                      colors.surface.withOpacity(0.0),
+                      colors.surface.withValues(alpha: 0.80),
+                      colors.surface.withValues(alpha: 0.0),
                     ],
                     stops: const [0.0, 0.7],
                   ),

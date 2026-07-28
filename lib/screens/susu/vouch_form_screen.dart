@@ -91,9 +91,9 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: colors.warning.withOpacity(0.08),
+              color: colors.warning.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.warning.withOpacity(0.30)),
+              border: Border.all(color: colors.warning.withValues(alpha: 0.30)),
             ),
             child: Row(
               children: [

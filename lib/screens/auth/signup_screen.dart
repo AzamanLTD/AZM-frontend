@@ -223,9 +223,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: colors.danger.withOpacity(0.1),
+                    color: colors.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colors.danger.withOpacity(0.4)),
+                    border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _errorMessage!,
@@ -249,7 +249,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -270,7 +270,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -292,7 +292,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                   helperText: 'Minimum 8 characters, 1 uppercase & 1 number',
                   helperStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
@@ -317,7 +317,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -389,7 +389,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 icon: Icons.apple,
                 iconColor: Colors.white,
                 bgColor: Colors.black,
-                borderColor: Colors.white.withOpacity(0.15),
+                borderColor: Colors.white.withValues(alpha: 0.15),
                 onTap: () => _signUpWithSso(SsoProvider.apple),
               ),
               const SizedBox(height: 12),

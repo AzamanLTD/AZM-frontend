@@ -41,7 +41,7 @@ class ReviewCarouselWidget extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text('Great experience!', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(ctx).colorScheme.onSurface)),
                   const SizedBox(height: 4),
-                  Text('Lorem ipsum dolor sit amet, consectetur adipiscing elit.', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.6))),
+                  Text('Lorem ipsum dolor sit amet, consectetur adipiscing elit.', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6))),
                 ],
               ),
             ),

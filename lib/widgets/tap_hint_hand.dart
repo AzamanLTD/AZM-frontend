@@ -217,7 +217,7 @@ class _HandPainter extends CustomPainter {
     // Glow circle at fingertip
     if (glowOpacity > 0) {
       final glowPaint = Paint()
-        ..color = accentColor.withOpacity(glowOpacity * 0.3)
+        ..color = accentColor.withValues(alpha: glowOpacity * 0.3)
         ..style = PaintingStyle.fill
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawCircle(Offset(w * 0.35, h * 0.18), 10, glowPaint);

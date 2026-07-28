@@ -129,7 +129,7 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.1),
+                color: colors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -147,7 +147,7 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: colors.accent.withOpacity(0.15 * _pulseAnimation.value), blurRadius: 30 * _pulseAnimation.value, spreadRadius: 5 * _pulseAnimation.value)],
+                  boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.15 * _pulseAnimation.value), blurRadius: 30 * _pulseAnimation.value, spreadRadius: 5 * _pulseAnimation.value)],
                 ),
                 child: PremiumGlassContainer(
                   blur: 20, opacity: 0.08, borderRadius: 20, padding: const EdgeInsets.all(16),

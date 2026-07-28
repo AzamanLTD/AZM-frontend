@@ -90,7 +90,7 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
                   .map((f) => ChoiceChip(
                         selected: _frequency == f,
                         label: Text(f),
-                        selectedColor: colors.warning.withOpacity(0.20),
+                        selectedColor: colors.warning.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() => _frequency = f),
                         labelStyle: TextStyle(
                           color: _frequency == f ? colors.warning : colors.textSecondary,
@@ -138,9 +138,9 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.08),
+                color: colors.warning.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.warning.withOpacity(0.30)),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.30)),
               ),
               child: Row(
                 children: [
