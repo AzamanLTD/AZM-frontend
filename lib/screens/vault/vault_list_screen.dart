@@ -20,6 +20,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_create_screen.dart';
 import 'package:azaman/screens/vault/vault_detail_screen.dart';
+import 'package:azaman/screens/vault/shared_vault_screen.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
 
 
@@ -51,6 +52,15 @@ class VaultListScreen extends ConsumerWidget {
             letterSpacing: 0.3,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.groups, color: colors.textPrimary, size: 20),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const SharedVaultScreen(),
+            )),
+            tooltip: 'Shared Vaults',
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: colors.accent,
