@@ -152,7 +152,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                       icon: v.yieldEnabled ? Icons.flash_on : Icons.flash_off,
                       label: v.yieldEnabled ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%' : 'DeFi Yield',
                       onTap: () => Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => VaultYieldScreen(vault: v),
+                        builder: (_) => VaultYieldScreen(vault: v, vaultId: v.id),
                       )),
                       colors: colors,
                     ),

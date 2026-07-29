@@ -115,7 +115,7 @@ class VaultYieldInfo {
 class VaultYieldScreen extends ConsumerStatefulWidget {
   final String vaultId;
   final Vault? vault;
-  const VaultYieldScreen({super.key, this.vault, this.vaultId = ''});
+  const VaultYieldScreen({super.key, this.vault, required this.vaultId});
 
   @override
   ConsumerState<VaultYieldScreen> createState() => _VaultYieldScreenState();
@@ -125,11 +125,33 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   bool _busy = false;
   String? _selectedStrategy;
 
+  Vault? get _vault => widget.vault ?? ref.read(vaultsProvider).whenOrNull(
+        data: (list) => list.where((v) => v.id == widget.vaultId).firstOrNull,
+      );
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final strategies = ref.watch(yieldStrategiesProvider);
-    final yieldInfo = ref.watch(vaultYieldEarningsProvider(widget.vault.id));
+
+    // If vault not passed directly, try to load it from the vaults list
+    final vault = widget.vault ?? ref.watch(vaultsProvider).whenOrNull(
+          data: (list) => list.where((v) => v.id == widget.vaultId).firstOrNull,
+        );
+    if (vault == null) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          backgroundColor: colors.card,
+          title: Text('DeFi Yield', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+          iconTheme: IconThemeData(color: colors.textPrimary),
+          elevation: 0,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final yieldInfo = ref.watch(vaultYieldEarningsProvider(vault.id));
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -143,18 +165,18 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // ── Current yield status card ──
-          _YieldStatusCard(vault: widget.vault, yieldInfo: yieldInfo, colors: colors),
+          _YieldStatusCard(vault: vault, yieldInfo: yieldInfo, colors: colors),
 
           const SizedBox(height: 16),
 
           // ── Earnings breakdown ──
-          if (widget.vault.yieldEnabled) ...[
-            _EarningsBreakdown(yieldInfo: yieldInfo, vault: widget.vault, colors: colors),
+          if (vault.yieldEnabled) ...[
+            _EarningsBreakdown(yieldInfo: yieldInfo, vault: vault, colors: colors),
             const SizedBox(height: 16),
           ],
 
           // ── Strategy picker ──
-          if (!widget.vault.yieldEnabled) ...[
+          if (!vault.yieldEnabled) ...[
             Text('Choose a yield strategy',
                 style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
@@ -185,7 +207,7 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
             const SizedBox(height: 8),
             _ToggleRow(
               label: 'Auto-compound',
-              value: widget.vault.yieldAutoCompound,
+              value: vault.yieldAutoCompound,
               colors: colors,
               onTap: () => _toggleAutoCompound(colors),
             ),
@@ -240,7 +262,7 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   Future<void> _enableYield(AzamanColors colors) async {
     setState(() => _busy = true);
     try {
-      final res = await apiClient.post('/vaults/${widget.vault.id}/yield/enable', {
+      final res = await apiClient.post('/vaults/${_vault!.id}/yield/enable', {
         'strategy': _selectedStrategy,
       });
       if (res.statusCode != 200) {
@@ -248,8 +270,8 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
         throw Exception(msg);
       }
       ref.invalidate(vaultsProvider);
-      ref.invalidate(vaultYieldEarningsProvider(widget.vault.id));
-      ref.invalidate(vaultDetailProvider(widget.vault.id));
+      ref.invalidate(vaultYieldEarningsProvider(_vault!.id));
+      ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Yield enabled!', style: TextStyle(color: Colors.white)),
@@ -268,10 +290,10 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   Future<void> _disableYield(AzamanColors colors) async {
     setState(() => _busy = true);
     try {
-      await apiClient.post('/vaults/${widget.vault.id}/yield/disable', {});
+      await apiClient.post('/vaults/${_vault!.id}/yield/disable', {});
       ref.invalidate(vaultsProvider);
-      ref.invalidate(vaultYieldEarningsProvider(widget.vault.id));
-      ref.invalidate(vaultDetailProvider(widget.vault.id));
+      ref.invalidate(vaultYieldEarningsProvider(_vault!.id));
+      ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Yield disabled', style: TextStyle(color: Colors.white)),
@@ -290,14 +312,14 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   Future<void> _compoundNow(AzamanColors colors) async {
     setState(() => _busy = true);
     try {
-      final res = await apiClient.post('/vaults/${widget.vault.id}/yield/compound', {});
+      final res = await apiClient.post('/vaults/${_vault!.id}/yield/compound', {});
       if (res.statusCode != 200) {
         final msg = jsonDecode(res.body)['message'] ?? 'Compounding failed';
         throw Exception(msg);
       }
       ref.invalidate(vaultsProvider);
-      ref.invalidate(vaultYieldEarningsProvider(widget.vault.id));
-      ref.invalidate(vaultDetailProvider(widget.vault.id));
+      ref.invalidate(vaultYieldEarningsProvider(_vault!.id));
+      ref.invalidate(vaultDetailProvider(_vault!.id));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final earned = (body['earned'] as num?)?.toDouble() ?? 0;
       if (mounted) {
@@ -321,10 +343,10 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   Future<void> _toggleAutoCompound(AzamanColors colors) async {
     setState(() => _busy = true);
     try {
-      await apiClient.post('/vaults/${widget.vault.id}/yield/toggle-auto', {});
+      await apiClient.post('/vaults/${_vault!.id}/yield/toggle-auto', {});
       ref.invalidate(vaultsProvider);
-      ref.invalidate(vaultYieldEarningsProvider(widget.vault.id));
-      ref.invalidate(vaultDetailProvider(widget.vault.id));
+      ref.invalidate(vaultYieldEarningsProvider(_vault!.id));
+      ref.invalidate(vaultDetailProvider(_vault!.id));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -338,8 +360,7 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
 class _YieldStatusCard extends StatelessWidget {
-  final String vaultId;
-  final Vault? vault;
+  final Vault vault;
   final AsyncValue<VaultYieldInfo> yieldInfo;
   final AzamanColors colors;
 
@@ -411,8 +432,7 @@ class _YieldStatusCard extends StatelessWidget {
 
 class _EarningsBreakdown extends StatelessWidget {
   final AsyncValue<VaultYieldInfo> yieldInfo;
-  final String vaultId;
-  final Vault? vault;
+  final Vault vault;
   final AzamanColors colors;
 
   const _EarningsBreakdown({required this.yieldInfo, required this.vault, required this.colors});

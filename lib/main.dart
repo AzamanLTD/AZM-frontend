@@ -48,6 +48,8 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
+import 'package:azaman/screens/vault/vault_list_screen.dart';
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 
 
 // =============================================================================
@@ -312,7 +314,6 @@ class AzamanApp extends ConsumerWidget {
 }
 
 // =============================================================================
-import 'package:azaman/screens/vault/vault_list_screen.dart';
 
 // MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Vault | Market)
 //

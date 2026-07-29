@@ -51,7 +51,7 @@ class RoundUpService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyEnabled, enabled);
     try {
-      await apiClient.put('/round-up', jsonEncode({'enabled': enabled}));
+      await apiClient.put('/round-up', {'enabled': enabled});
     } catch (_) {}
   }
 
@@ -66,7 +66,7 @@ class RoundUpService {
     if (targetVaultId != null) body['targetVaultId'] = targetVaultId;
     if (multiplier != null) body['multiplier'] = multiplier;
     try {
-      await apiClient.put('/round-up', jsonEncode(body));
+      await apiClient.put('/round-up', body);
     } catch (_) {}
   }
 
@@ -83,7 +83,7 @@ class RoundUpService {
   /// Process a round-up for a transaction (server-side deposits into vault)
   static Future<double> processRoundUp(double amountUsdc) async {
     try {
-      final res = await apiClient.post('/round-up/process', jsonEncode({'amountUsdc': amountUsdc}));
+      final res = await apiClient.post('/round-up/process', {'amountUsdc': amountUsdc});
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final roundUp = (body['roundUpAmount'] ?? 0).toDouble();

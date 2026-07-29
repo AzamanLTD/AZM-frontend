@@ -21,6 +21,8 @@
 // notificationService.sendNotification calls.
 // =============================================================================
 
+import 'dart:io';
+import 'package:azaman/screens/story_camera_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -515,14 +517,29 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/story-camera',
       name: 'story-camera',
-      builder: (context, state) => const StoryCameraScreen(),
+      builder: (context, state) => StoryCameraScreen(
+        onCaptured: (mediaFile, isVideo, filter) {
+          context.pushNamed('story-editor', extra: {
+            'mediaFile': mediaFile,
+            'isVideo': isVideo,
+            'filter': filter,
+          });
+        },
+      ),
     ),
     GoRoute(
       path: '/story-editor',
       name: 'story-editor',
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
-        return StoryEditorScreen();
+        return StoryEditorScreen(
+          mediaFile: extra['mediaFile'] as File,
+          isVideo: extra['isVideo'] as bool? ?? false,
+          initialFilter: extra['filter'] as StoryFilter? ?? StoryFilter.none,
+          onPublish: (mediaFile, isVideo) {
+            context.pop();
+          },
+        );
       },
     ),
     GoRoute(
@@ -570,26 +587,6 @@ final GoRouter appRouter = GoRouter(
         );
       },
     ),
-  ],
-);
-
-class _DisputeScreen extends ConsumerWidget {
-  final String disputeId;
-
-  const _DisputeScreen({required this.disputeId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider.select((t) => t.colors));
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text('Dispute #$disputeId',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16)),
-        backgroundColor: colors.surface,
-        iconTheme: IconThemeData(color: colors.textPrimary),
-      ),
-
     GoRoute(
       path: '/chat/:conversationId/search',
       name: 'message-search',
@@ -624,8 +621,33 @@ class _DisputeScreen extends ConsumerWidget {
     GoRoute(
       path: '/story-create',
       name: 'story-creation',
-      builder: (context, state) => const StoryCreationScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return StoryCreationScreen(
+          mediaFile: extra['mediaFile'] as File,
+          isVideo: extra['isVideo'] as bool? ?? false,
+        );
+      },
     ),
+  ],
+);
+
+class _DisputeScreen extends ConsumerWidget {
+  final String disputeId;
+
+  const _DisputeScreen({required this.disputeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        title: Text('Dispute #$disputeId',
+            style: TextStyle(color: colors.textPrimary, fontSize: 16)),
+        backgroundColor: colors.surface,
+        iconTheme: IconThemeData(color: colors.textPrimary),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

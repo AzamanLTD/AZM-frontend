@@ -8,6 +8,7 @@
 //   • Per-channel toggles (push, in-app, email)
 // =============================================================================
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -77,7 +78,8 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   Future<void> _loadPreferences() async {
     try {
       final res = await ApiClient().get('/api/users/me/notification-preferences');
-      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? {};
       setState(() {
         _pushEnabled = data['pushEnabled'] as bool? ?? true;
         _inAppEnabled = data['inAppEnabled'] as bool? ?? true;
@@ -114,7 +116,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ApiClient().put('/api/users/me/notification-preferences', data: {
+      await ApiClient().put('/api/users/me/notification-preferences', {
         'pushEnabled': _pushEnabled,
         'inAppEnabled': _inAppEnabled,
         'emailEnabled': _emailEnabled,
@@ -125,7 +127,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
         'bypassQuiet': _bypassQuiet,
       });
       if (mounted) {
-        AzamanHaptics.success();
+        AzamanHaptics.commit();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Notification preferences saved'), duration: Duration(seconds: 1)),
         );
@@ -173,7 +175,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
           _toggleTile(
             'Push Notifications',
             'Receive notifications on your device',
-            HugeIconsSolid.bell01,
+            HugeIconsSolid.alert01,
             colors,
             _pushEnabled,
             (v) => setState(() => _pushEnabled = v),
@@ -280,8 +282,13 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
     return _card(colors, child: SwitchListTile(
       value: _categoryToggles[cat]!,
       onChanged: (v) => setState(() => _categoryToggles[cat] = v),
-      title: Text(info.$1, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-      leading: Icon(info.$2, color: colors.accent, size: 22),
+      title: Row(
+        children: [
+          Icon(info.$2, color: colors.accent, size: 22),
+          const SizedBox(width: 12),
+          Text(info.$1, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+        ],
+      ),
       activeColor: colors.accent,
     ));
   }
@@ -292,11 +299,16 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
     return _card(colors, child: SwitchListTile(
       value: _bypassQuiet[cat]!,
       onChanged: isLocked ? null : (v) => setState(() => _bypassQuiet[cat] = v),
-      title: Text(info.$1, style: TextStyle(
-        color: isLocked ? colors.textTertiary : colors.textPrimary,
-        fontWeight: FontWeight.w600, fontSize: 14,
-      )),
-      leading: Icon(isLocked ? HugeIconsSolid.lockKey : info.$2, color: colors.accent, size: 20),
+      title: Row(
+        children: [
+          Icon(isLocked ? HugeIconsSolid.lockKey : info.$2, color: colors.accent, size: 20),
+          const SizedBox(width: 12),
+          Text(info.$1, style: TextStyle(
+            color: isLocked ? colors.textTertiary : colors.textPrimary,
+            fontWeight: FontWeight.w600, fontSize: 14,
+          )),
+        ],
+      ),
       activeColor: colors.accent,
     ));
   }
