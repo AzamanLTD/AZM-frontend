@@ -20,7 +20,7 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:math' as _math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -539,7 +539,7 @@ class _RibbonPainter extends CustomPainter {
   double _sin(double r) {
     // Inline tiny Taylor approx not needed — math.sin is fine, but we
     // want zero allocation per frame so use the cached function.
-    return _math.sin(r);
+    return math.sin(r);
   }
 
   @override

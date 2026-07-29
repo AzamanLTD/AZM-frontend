@@ -130,7 +130,7 @@ class _StarredItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isMedia && content.isEmpty)
-            Row(children: [Icon(Icons.image, size: 16), const SizedBox(width: 4), const Text('Photo')])
+            const Row(children: [Icon(Icons.image, size: 16), SizedBox(width: 4), Text('Photo')])
           else
             Text(content, maxLines: 2, overflow: TextOverflow.ellipsis),
           if (groupName != null)

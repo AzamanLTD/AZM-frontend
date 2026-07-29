@@ -183,7 +183,7 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.75),
                                 fontSize: 10,
-                                fontFeatures: [FontFeature.tabularFigures()],
+                                fontFeatures: const [FontFeature.tabularFigures()],
                               ),
                             ),
                           ],

@@ -3,7 +3,6 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,7 +24,7 @@ class WorkerHubScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           dashAsync.valueOrNull?.employee?.businessName ?? 'Workplace',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         backgroundColor: colors.surface,
         elevation: 0,

@@ -44,11 +44,13 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
         final code = data["data"]?["influencerCode"]
                   ?? data["user"]?["influencerCode"]
                   ?? data["influencerCode"];
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _referralCode = (code?.toString() ?? "").isNotEmpty
             ? code.toString() : null;
           _isLoading = false;
         });
+        }
       } else {
         if (mounted) setState(() => _isLoading = false);
       }

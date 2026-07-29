@@ -98,7 +98,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : invoices.isEmpty
-              ? AzamanEmptyState(
+              ? const AzamanEmptyState(
                   icon: Icons.receipt_outlined,
                   title: 'No invoices here',
                   subtitle: 'Invoices from businesses will appear here.',

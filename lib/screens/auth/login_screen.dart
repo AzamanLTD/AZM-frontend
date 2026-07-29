@@ -117,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             : (data['data']?['user'] is Map<String, dynamic>
                 ? data['data']!['user'] as Map<String, dynamic>
                 : <String, dynamic>{});
-        double _d(dynamic v) =>
+        double d(dynamic v) =>
             v is num ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
         
         final loggedInUser = User(
@@ -126,8 +126,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           email: u['email'] ?? '',
           token: rawToken,
           role: u['role'] ?? 'USER', // Backend returns uppercase 'USER' or 'ADMIN'
-          azmBalance: _d(u['azmBalance']),
-          availableBalance: _d(u['availableBalance']),
+          azmBalance: d(u['azmBalance']),
+          availableBalance: d(u['availableBalance']),
         );
 
         final refreshToken = (data['refreshToken'] ?? data['data']?['refreshToken'])?.toString();

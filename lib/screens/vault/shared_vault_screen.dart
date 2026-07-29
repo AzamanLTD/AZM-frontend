@@ -346,7 +346,7 @@ class _SharedVaultCard extends StatelessWidget {
                       color: Colors.green.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('Goal reached!',
+                    child: const Text('Goal reached!',
                       style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.w700)),
                   )
                 else
@@ -407,7 +407,7 @@ class _SharedVaultCard extends StatelessWidget {
                 }),
                 if (vault.members.length > 4)
                   Transform.translate(
-                    offset: Offset(-4 * 14.0, 0),
+                    offset: const Offset(-4 * 14.0, 0),
                     child: CircleAvatar(
                       radius: 13,
                       backgroundColor: colors.divider,
@@ -437,7 +437,7 @@ class _SharedVaultCard extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: Duration(milliseconds: 50));
+    ).animate().fadeIn(duration: 300.ms, delay: const Duration(milliseconds: 50));
   }
 
   String _formatDaysLeft(DateTime date) {
@@ -472,7 +472,9 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
   void dispose() {
     _name.dispose();
     _target.dispose();
-    for (final c in _inviteControllers) c.dispose();
+    for (final c in _inviteControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -956,7 +958,7 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${m.contributedUsdc.toStringAsFixed(2)}',
+                            Text(m.contributedUsdc.toStringAsFixed(2),
                               style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                             Text('${pct.toStringAsFixed(0)}%',
                               style: TextStyle(color: colors.textTertiary, fontSize: 10)),

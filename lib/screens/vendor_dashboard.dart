@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import 'dart:convert'; 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/trade_provider.dart';
@@ -152,7 +151,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     // Phase 15: use a NAMED handler so dispose() can detach only this
     // callback instead of nuking every balance_update listener.
-    final dynamic Function(dynamic) handler = (data) {
+    handler(data) {
       if (!mounted) return null;
       setState(() {
         if (data is Map && data['availableBalance'] != null) {
@@ -166,7 +165,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         }
       });
       return null;
-    };
+    }
     
     _balanceHandler = handler;
     socket.on('balance_update', handler);
@@ -542,7 +541,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 scale: 0.8,
                 child: Switch(
                   value: isOnline, 
-                  activeColor: green, 
+                  activeThumbColor: green, 
                   onChanged: (val) {
                     setState(() => isOnline = val);
                     SocketService.instance.emit('toggle_online', {'isOnline': val});
@@ -1183,7 +1182,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       scale: 0.7,
                       child: Switch(
                         value: isActive,
-                        activeColor: const Color(0xFF02C076),
+                        activeThumbColor: const Color(0xFF02C076),
                         inactiveTrackColor: Colors.white10,
                         onChanged: (_) => _handleAdToggle(adId),
                       ),
@@ -1276,7 +1275,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     if (boostActive) {
       // Show "Boosted" badge with remaining time
-      final expires = DateTime.parse(boostExpiresAt!);
+      final expires = DateTime.parse(boostExpiresAt);
       final remaining = expires.difference(DateTime.now());
       final label = remaining.inHours > 24
           ? '${(remaining.inHours / 24).ceil()}d left'
@@ -1422,7 +1421,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               label: const Text("MANAGE TRADE ACCOUNTS"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white70,
-                side: BorderSide(color: Colors.white24),
+                side: const BorderSide(color: Colors.white24),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),

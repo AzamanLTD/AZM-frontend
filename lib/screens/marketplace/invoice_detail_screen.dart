@@ -415,7 +415,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               AzamanHaptics.toggle();
               setState(() => _coverFee = v);
             },
-            activeColor: colors.success,
+            activeThumbColor: colors.success,
             title: Text('Cover platform fee',
                 style: TextStyle(
                     color: colors.textPrimary,

@@ -27,7 +27,9 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String? imageUrl;
   final String title;
   final String? subtitle;
+  @override
   final double minExtent;
+  @override
   final double maxExtent;
   final List<Widget> actions;
   final Color? accentColor;

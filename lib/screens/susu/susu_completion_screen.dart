@@ -55,7 +55,7 @@ class _SusuCompletionScreenState extends ConsumerState<SusuCompletionScreen>
   late AnimationController _confettiController;
   late AnimationController _scaleController;
   late AnimationController _fadeController;
-  List<_ConfettiParticle> _particles = [];
+  final List<_ConfettiParticle> _particles = [];
   final _random = Random();
 
   @override
@@ -135,8 +135,8 @@ class _SusuCompletionScreenState extends ConsumerState<SusuCompletionScreen>
                       width: 100, height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [const Color(0xFFFFD700), const Color(0xFFF59E0B)],
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFD700), Color(0xFFF59E0B)],
                           begin: Alignment.topLeft, end: Alignment.bottomRight,
                         ),
                         boxShadow: [
@@ -144,7 +144,7 @@ class _SusuCompletionScreenState extends ConsumerState<SusuCompletionScreen>
                               blurRadius: 24, spreadRadius: 4),
                         ],
                       ),
-                      child: Icon(HugeIconsSolid.award01,
+                      child: const Icon(HugeIconsSolid.award01,
                           color: Colors.white, size: 48),
                     ),
                   ),
@@ -230,7 +230,7 @@ class _SusuCompletionScreenState extends ConsumerState<SusuCompletionScreen>
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: const Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ).animate().fadeIn(delay: 700.ms),
@@ -298,7 +298,7 @@ class _MemberPayoutRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: colors.surface, width: 2),
               ),
-              child: Text('#$position', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+              child: Text('#$position', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
             ),
           ),
         ],

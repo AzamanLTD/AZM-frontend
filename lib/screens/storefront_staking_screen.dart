@@ -273,10 +273,10 @@ class _TierCard extends StatelessWidget {
 
   Color _tierColor(String tier) {
     switch (tier) {
-      case 'NITRO_BRONZE': return const Color(0xCD7F32);
-      case 'NITRO_SILVER': return const Color(0xC0C0C0);
-      case 'NITRO_GOLD': return const Color(0xFFD700);
-      default: return const Color(0x6C4FD1);
+      case 'NITRO_BRONZE': return const Color(0x00cd7f32);
+      case 'NITRO_SILVER': return const Color(0x00c0c0c0);
+      case 'NITRO_GOLD': return const Color(0x00ffd700);
+      default: return const Color(0x006c4fd1);
     }
   }
 }

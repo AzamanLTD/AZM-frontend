@@ -580,7 +580,7 @@ class _EscrowToggle extends StatelessWidget {
             Switch(
               value: enabled,
               onChanged: onChanged,
-              activeColor: colors.accent,
+              activeThumbColor: colors.accent,
             ),
           ],
         ),

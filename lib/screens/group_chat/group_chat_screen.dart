@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +33,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
 
-  bool _sending = false;
+  final bool _sending = false;
   String? _myUserId;
   bool _inputHasText = false;
 
@@ -46,8 +45,8 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   ChatMessage? _replyToMessage;
 
   // Plus menu & typing
-  bool _plusMenuOpen = false;
-  bool _isTyping = false;
+  final bool _plusMenuOpen = false;
+  final bool _isTyping = false;
 
 
 

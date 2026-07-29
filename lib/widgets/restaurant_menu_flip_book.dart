@@ -389,7 +389,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
                   ),
                   if (isSpicy) ...[
                     const SizedBox(width: 6),
-                    Text('🌶', style: const TextStyle(fontSize: 10)),
+                    const Text('🌶', style: TextStyle(fontSize: 10)),
                   ],
                 ]),
               ],

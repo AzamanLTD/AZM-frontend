@@ -58,16 +58,20 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
           });
         }
       } else {
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _insightError = 'Failed to load CFO insights';
           _isLoadingInsights = false;
         });
+        }
       }
     } catch (e) {
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _insightError = 'Network error';
         _isLoadingInsights = false;
       });
+      }
     }
   }
 
@@ -91,16 +95,20 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
           });
         }
       } else {
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _candidatesError = 'Failed to load candidates';
           _isLoadingCandidates = false;
         });
+        }
       }
     } catch (e) {
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _candidatesError = 'Network error';
         _isLoadingCandidates = false;
       });
+      }
     }
   }
 
@@ -254,7 +262,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
                 Icons.local_fire_department_outlined,
                 'MATIC Burn',
                 '$maticBurn $maticLabel',
-                '${monthlyBurn} MATIC / mo',
+                '$monthlyBurn MATIC / mo',
                 colors.danger,
                 colors,
               ),
@@ -283,7 +291,7 @@ class _AiOperationsScreenState extends ConsumerState<AiOperationsScreen> {
             Icons.refresh,
             'Next API Renewal',
             renewalDate,
-            '\$${renewalCost} USD',
+            '\$$renewalCost USD',
             colors.warning,
             colors,
           ),

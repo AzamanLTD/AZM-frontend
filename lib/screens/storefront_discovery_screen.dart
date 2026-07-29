@@ -174,7 +174,7 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                   selected: isSelected,
                   onSelected: (_) {
                     setState(() {
-                      _category = isSelected ? null : cat['value'] as String?;
+                      _category = isSelected ? null : cat['value'];
                       _offset = 0;
                       _allResults = [];
                       _hasMore = true;
@@ -369,9 +369,9 @@ class _StorefrontCard extends StatelessWidget {
                             Text(_categoryLabel(category), style: TextStyle(fontSize: 11, color: colors.textSecondary)),
                           ],
                         ),
-                        if (description != null && description!.isNotEmpty) ...[
+                        if (description != null && description.isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(description!, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(description, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
                         ],
                       ],
                     ),

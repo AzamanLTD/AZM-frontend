@@ -266,7 +266,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statColumn(colors, '${summary.totalEarned.toStringAsFixed(0)}', 'Total Earned'),
+                _statColumn(colors, summary.totalEarned.toStringAsFixed(0), 'Total Earned'),
                 _statColumn(colors, '${summary.bySource.length}', 'Sources'),
                 _statColumn(
                   colors,

@@ -394,10 +394,10 @@ class _IdentityTier extends StatelessWidget {
                             ),
                           )
                         else if (profile.friend.kycStatus == 'VERIFIED')
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6),
                             child: Icon(Icons.check_circle_outline,
-                                color: const Color(0xFF22C55E), size: 18),
+                                color: Color(0xFF22C55E), size: 18),
                           ),
                       ],
                     ),

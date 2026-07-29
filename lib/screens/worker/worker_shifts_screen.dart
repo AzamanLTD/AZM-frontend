@@ -15,7 +15,7 @@ class WorkerShiftsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
-        title: Text('My Shifts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('My Shifts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),

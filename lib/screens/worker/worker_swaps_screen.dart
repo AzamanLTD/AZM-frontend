@@ -27,7 +27,7 @@ class WorkerSwapsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
-        title: Text('Open Shift Swaps', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('Open Shift Swaps', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),

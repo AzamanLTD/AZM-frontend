@@ -759,8 +759,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   return;
                 }
 
-                if (_currentStep < 2) setState(() => _currentStep++);
-                else _publishAd();
+                if (_currentStep < 2) {
+                  setState(() => _currentStep++);
+                } else {
+                  _publishAd();
+                }
               },
               child: _isPublishing 
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 

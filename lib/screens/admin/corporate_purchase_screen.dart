@@ -285,7 +285,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                         ),
                         onPressed: (_isUploading) ? null : _submitOtcLog,
                         icon: _isUploading
-                            ? SizedBox(
+                            ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(

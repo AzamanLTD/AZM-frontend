@@ -135,7 +135,7 @@ class _BusinessProductsScreenState
       body: _loading
           ? _shimmerGrid(colors)
           : _products.isEmpty
-              ? AzamanEmptyState(
+              ? const AzamanEmptyState(
                   icon: Icons.shopping_bag_outlined,
                   title: 'No products yet',
                   subtitle: 'This business hasn\'t listed any products.',

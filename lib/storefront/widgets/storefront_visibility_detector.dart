@@ -16,12 +16,12 @@ class StorefrontVisibilityDetector extends StatefulWidget {
   final int widgetIndex;
 
   const StorefrontVisibilityDetector({
-    Key? key,
+    super.key,
     required this.child,
     required this.businessProfileId,
     required this.widgetType,
     required this.widgetIndex,
-  }) : super(key: key);
+  });
 
   @override
   State<StorefrontVisibilityDetector> createState() => _StorefrontVisibilityDetectorState();

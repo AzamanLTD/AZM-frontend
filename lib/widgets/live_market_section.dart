@@ -253,9 +253,9 @@ class _GhsHeroCard extends StatelessWidget {
               ),
             ),
           ] else if (coldLoad) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: const SkeletonBlock(
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: SkeletonBlock(
                 height: 36,
                 width: double.infinity,
                 borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -341,10 +341,10 @@ class _Sparkline extends StatelessWidget {
       LineChartData(
         minY: minY - pad,
         maxY: maxY + pad,
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
-        lineTouchData: LineTouchData(enabled: false),
+        lineTouchData: const LineTouchData(enabled: false),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
@@ -353,7 +353,7 @@ class _Sparkline extends StatelessWidget {
             isStrokeCapRound: true,
             barWidth: 2.0,
             color: lineColor,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
               color: lineColor.withValues(alpha: 0.10),

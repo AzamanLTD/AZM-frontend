@@ -118,7 +118,7 @@ class _LoyaltyCardsScreenState extends ConsumerState<LoyaltyCardsScreen> {
                 if (success && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Reward redeemed! Show this to the business.'),
+                      content: const Text('Reward redeemed! Show this to the business.'),
                       backgroundColor: colors.success,
                     ),
                   );
@@ -300,7 +300,7 @@ class _LoyaltyCard extends StatelessWidget {
                   ] else if (type == 'POINTS') ...[
                     Row(
                       children: [
-                        Text('${pointsBalance.toStringAsFixed(0)}',
+                        Text(pointsBalance.toStringAsFixed(0),
                             style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
                         const SizedBox(width: 6),
                         Text('points', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),

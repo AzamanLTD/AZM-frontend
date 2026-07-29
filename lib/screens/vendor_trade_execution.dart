@@ -36,7 +36,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   bool _isAccepted = false;
   bool _paymentReceived = false;
   bool _isChatOpen = false;
-  bool _userIsTyping = false;
+  final bool _userIsTyping = false;
   bool _isReleasing = false;
   bool _isDisputed = false;
 
@@ -524,7 +524,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.access_time, color: const Color(0xFFFFB800), size: 22),
+                  const Icon(Icons.access_time, color: Color(0xFFFFB800), size: 22),
                   const SizedBox(width: 10),
                   Text('Extend Trade Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],

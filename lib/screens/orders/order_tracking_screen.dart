@@ -368,7 +368,7 @@ class _EtaCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors.accent, colors.accent.withOpacity(0.7)],
+          colors: [colors.accent, colors.accent.withValues(alpha: 0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -392,7 +392,7 @@ class _EtaCard extends StatelessWidget {
                       ? 'Delivered'
                       : hours > 0
                           ? '${hours}h ${remainingMins}m'
-                          : '${remainingMins} min',
+                          : '$remainingMins min',
                   style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
                 ),
                 Text(
@@ -427,7 +427,7 @@ class _DriverInfoCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: colors.accent.withOpacity(0.15),
+            backgroundColor: colors.accent.withValues(alpha: 0.15),
             child: Icon(Icons.person, color: colors.accent),
           ),
           const SizedBox(width: 12),
@@ -487,7 +487,7 @@ class _TimelineTile extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
+                      color: color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 18),

@@ -288,9 +288,9 @@ class _PositionDot extends StatelessWidget {
               ),
             // Crown for position 1
             if (position == 1)
-              Positioned(
+              const Positioned(
                 top: -8, left: 0, right: 0,
-                child: Icon(HugeIconsSolid.crown02, size: 16, color: const Color(0xFFFFD700)),
+                child: Icon(HugeIconsSolid.crown02, size: 16, color: Color(0xFFFFD700)),
               ),
           ],
         ),
@@ -342,7 +342,9 @@ class _MemberRow extends StatelessWidget {
 // ── Math helpers ────────────────────────────────────────────────────────────────
 double _mathCos(double angle) {
   double x = 1.0;
-  for (int i = 0; i < 6; i++) x -= (angle * angle) / (2 * i + 2) / (2 * i + 1) * (i % 2 == 0 ? 1 : -1);
+  for (int i = 0; i < 6; i++) {
+    x -= (angle * angle) / (2 * i + 2) / (2 * i + 1) * (i % 2 == 0 ? 1 : -1);
+  }
   // Simpler: use dart:math
   return _dartCos(angle);
 }
@@ -354,8 +356,12 @@ double _mathSin(double angle) {
 double _dartCos(double angle) {
   // Normalize angle to 0..2PI
   double a = angle;
-  while (a < 0) a += 2 * 3.141592653589793;
-  while (a >= 2 * 3.141592653589793) a -= 2 * 3.141592653589793;
+  while (a < 0) {
+    a += 2 * 3.141592653589793;
+  }
+  while (a >= 2 * 3.141592653589793) {
+    a -= 2 * 3.141592653589793;
+  }
   // Use Taylor series
   double result = 1.0;
   double term = 1.0;

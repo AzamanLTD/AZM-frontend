@@ -9,7 +9,6 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 import 'package:azaman/screens/contacts_screen.dart';
@@ -1411,7 +1410,9 @@ class _GroupBubbleAvatar extends StatelessWidget {
 
   Widget _gradientBubble(String name, double size) {
     int hash = 0;
-    for (int i = 0; i < name.length; i++) hash = (hash * 31 + name.codeUnitAt(i)) & 0x7FFFFFFF;
+    for (int i = 0; i < name.length; i++) {
+      hash = (hash * 31 + name.codeUnitAt(i)) & 0x7FFFFFFF;
+    }
     final hue1 = (hash % 360).toDouble();
     final hue2 = ((hash ~/ 360) % 360).toDouble();
     return Container(

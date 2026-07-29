@@ -66,7 +66,9 @@ class _TransitSeatSelectionScreenState
 
   @override
   void dispose() {
-    for (final c in _passengerNames.values) c.dispose();
+    for (final c in _passengerNames.values) {
+      c.dispose();
+    }
     _transformController.dispose();
     super.dispose();
   }

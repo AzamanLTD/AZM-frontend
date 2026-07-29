@@ -352,7 +352,7 @@ class _ProductCard extends StatelessWidget {
                   children: [
                     Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (description != null && description!.isNotEmpty) ...[
+                    if (description != null && description.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(description, style: TextStyle(fontSize: 11, color: colors.textSecondary),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -384,7 +384,7 @@ class _ProductCard extends StatelessWidget {
                             color: colors.accent,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text('Order', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                          child: const Text('Order', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
                         ),
                       ],
                     ),

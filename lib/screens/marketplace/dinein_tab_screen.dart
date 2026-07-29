@@ -37,8 +37,10 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payment failed: $e')));
+      }
     }
   }
 

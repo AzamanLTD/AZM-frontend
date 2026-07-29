@@ -14,7 +14,6 @@ import 'package:azaman/screens/story_creation_screen.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 import 'package:azaman/screens/story_editor_screen.dart';
 import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 class PersonalChat {
   final String id;
   final String contactId;

@@ -302,7 +302,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       if (txn.counterparty.isNotEmpty)
                         _detailRow(colors, 'Counterparty', txn.counterparty),
                       _detailRow(colors, 'GHS Equivalent', 'GH₵ ${txn.amountGhs.toStringAsFixed(2)}'),
-                      _detailRow(colors, 'Rate', '${txn.rateAtInitiation.toStringAsFixed(2)}'),
+                      _detailRow(colors, 'Rate', txn.rateAtInitiation.toStringAsFixed(2)),
                       _detailRow(colors, 'Settled', _formatDate(txn.createdAt)),
                       const SizedBox(height: 8),
                       Row(
@@ -339,7 +339,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       );
     },
@@ -600,8 +600,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         text: "Azaman Transaction Receipt",
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Share failed: $e")));
+      }
     }
   }
 

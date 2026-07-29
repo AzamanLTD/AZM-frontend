@@ -100,9 +100,11 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
         });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Booking failed: $e')),
       );
+      }
     }
     setState(() => _loading = false);
   }
@@ -114,10 +116,12 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     final business = state.business;
     final products = state.products ?? [];
 
-    if (state.isLoading) return Scaffold(
+    if (state.isLoading) {
+      return Scaffold(
       backgroundColor: colors.background,
       body: const Center(child: CircularProgressIndicator()),
     );
+    }
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -147,11 +151,11 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     if (business?.averageRating != null && business!.averageRating > 0) ...[
                       RatingStars(rating: business.averageRating, size: 14),
                       const SizedBox(width: 4),
-                      Text('${business.averageRating.toStringAsFixed(1)}',
+                      Text(business.averageRating.toStringAsFixed(1),
                         style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     ],
                     const SizedBox(width: 8),
-                    Text('${business?.categoryLabel ?? ""}',
+                    Text(business?.categoryLabel ?? "",
                       style: TextStyle(fontSize: 13, color: colors.textTertiary)),
                   ]),
                 ],
@@ -364,7 +368,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     ),
                     child: _loading
                         ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Confirm Booking', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                        : const Text('Confirm Booking', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ]),

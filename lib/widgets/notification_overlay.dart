@@ -124,7 +124,9 @@ class _State extends ConsumerState<NotificationOverlay>
 
   bool _isSystem(AppNotification n) {
     if (n.category == NotificationCategory.adminSystem ||
-        n.category == NotificationCategory.vendorPriority) return true;
+        n.category == NotificationCategory.vendorPriority) {
+      return true;
+    }
     final t = (n.title + n.body).toLowerCase();
     return t.contains('cfo') || t.contains('balance low') || t.contains('low balance');
   }

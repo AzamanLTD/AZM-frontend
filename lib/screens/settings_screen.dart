@@ -725,7 +725,7 @@ class _ToggleRow extends StatelessWidget {
               AzamanHaptics.toggle();
               onChanged(v);
             },
-            activeColor: colors.success,
+            activeThumbColor: colors.success,
           ),
         ],
       ),

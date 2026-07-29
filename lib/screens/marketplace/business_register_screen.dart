@@ -420,7 +420,7 @@ class _BusinessRegisterScreenState
         const SizedBox(height: 10),
         // Secondary categories — compact dropdown
         DropdownButtonFormField<String>(
-          value: BusinessCategories.secondary.any((c) => c.wire == _category)
+          initialValue: BusinessCategories.secondary.any((c) => c.wire == _category)
               ? _category
               : null,
           isExpanded: true,
@@ -502,7 +502,7 @@ class _BusinessRegisterScreenState
 
   Widget _countryDropdown(AzamanColors colors) {
     return DropdownButtonFormField<String>(
-      value: _country,
+      initialValue: _country,
       isExpanded: true,
       dropdownColor: colors.card,
       decoration: _decoration(colors, 'Country'),

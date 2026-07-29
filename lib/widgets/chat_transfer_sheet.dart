@@ -255,13 +255,13 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Column(
               children: [
-                _KeypadRow(['1', '2', '3'], _onKeypadTap),
+                _KeypadRow(const ['1', '2', '3'], _onKeypadTap),
                 const SizedBox(height: 16),
-                _KeypadRow(['4', '5', '6'], _onKeypadTap),
+                _KeypadRow(const ['4', '5', '6'], _onKeypadTap),
                 const SizedBox(height: 16),
-                _KeypadRow(['7', '8', '9'], _onKeypadTap),
+                _KeypadRow(const ['7', '8', '9'], _onKeypadTap),
                 const SizedBox(height: 16),
-                _KeypadRow(['.', '0', '<'], _onKeypadTap),
+                _KeypadRow(const ['.', '0', '<'], _onKeypadTap),
               ],
             ),
           ),

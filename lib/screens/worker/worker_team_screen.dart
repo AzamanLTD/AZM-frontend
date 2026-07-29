@@ -15,7 +15,7 @@ class WorkerTeamScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
-        title: Text('Team', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('Team', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),

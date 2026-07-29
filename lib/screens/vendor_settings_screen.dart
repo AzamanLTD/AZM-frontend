@@ -216,7 +216,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedMethod,
+                    initialValue: selectedMethod,
                     decoration: InputDecoration(
                       labelText: 'Payment Method',
                       labelStyle: TextStyle(color: colors.textTertiary),
@@ -614,7 +614,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         colors: colors),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: 'TRC20',
+                      initialValue: 'TRC20',
                       decoration: InputDecoration(
                         labelText: 'Network',
                         labelStyle: TextStyle(color: colors.textTertiary),
@@ -641,7 +641,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         keyboardType: TextInputType.number),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: selectedProvider,
+                      initialValue: selectedProvider,
                       decoration: InputDecoration(
                         labelText: 'Provider',
                         labelStyle: TextStyle(color: colors.textTertiary),
@@ -861,7 +861,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   scale: 1.1,
                   child: Switch(
                     value: _isActive,
-                    activeColor: green,
+                    activeThumbColor: green,
                     inactiveTrackColor: Colors.white10,
                     onChanged: _onToggleChanged,
                   ),

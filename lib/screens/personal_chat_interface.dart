@@ -892,7 +892,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                     break;
                   case 'mute':
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${_displayName} muted')),
+                      SnackBar(content: Text('$_displayName muted')),
                     );
                     break;
                   case 'block':
@@ -901,14 +901,14 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                       builder: (_) => AlertDialog(
                         backgroundColor: colors.card,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: Text('Block ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                        title: Text('Block $_displayName?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                         content: Text('They won\'t be able to message you. You can unblock from your settings.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
                           TextButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_displayName} blocked')));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_displayName blocked')));
                             },
                             child: Text('Block', style: TextStyle(color: colors.danger)),
                           ),
@@ -922,7 +922,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                       builder: (_) => AlertDialog(
                         backgroundColor: colors.card,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: Text('Report ${_displayName}?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                        title: Text('Report $_displayName?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                         content: Text('We\'ll review this conversation and take action if guidelines are violated.', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: colors.textTertiary))),
@@ -1120,7 +1120,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
                 TextSpan(
                   children: [
                     TextSpan(
-                      text: msg.text + '   ',
+                      text: '${msg.text}   ',
                       style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500, height: 1.35),
                     ),
                     WidgetSpan(
@@ -1225,7 +1225,7 @@ class _PersonalChatInterfaceState extends ConsumerState<PersonalChatInterface>
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Could not generate receipt: \$e')),
+              const SnackBar(content: Text('Could not generate receipt: \$e')),
             );
           }
         }
@@ -1781,8 +1781,8 @@ class _SlantedMediaStackState extends State<_SlantedMediaStack> {
 
   @override
   Widget build(BuildContext context) {
-    final double maxW = 200.0;
-    final double maxH = 170.0;
+    const double maxW = 200.0;
+    const double maxH = 170.0;
 
     return GestureDetector(
       onTap: _cycleStack,
@@ -1973,7 +1973,7 @@ class _AudioPlayerBubbleState extends State<_AudioPlayerBubble> {
               ),
               const SizedBox(height: 4),
               Text(
-                _duration != null ? _formatDuration(_position) + ' / ' + _formatDuration(_duration!) : '0:00',
+                _duration != null ? '${_formatDuration(_position)} / ${_formatDuration(_duration!)}' : '0:00',
                 style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 9.5, fontWeight: FontWeight.w600),
               ),
             ],

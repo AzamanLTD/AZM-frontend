@@ -188,19 +188,19 @@ Future<void> _bootstrap() async {
   // Replace the default red error screen with a themed fallback that lets
   // the user retry instead of being bounced to home.
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
-      color: const Color(0xFF1A1A2E),
+    return const Material(
+      color: Color(0xFF1A1A2E),
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-              const SizedBox(height: 16),
-              const Text('Something went wrong',
+              Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              SizedBox(height: 16),
+              Text('Something went wrong',
                 style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text('Pull down to refresh, or restart the app.',
                 style: TextStyle(color: Colors.white54, fontSize: 13)),
             ],

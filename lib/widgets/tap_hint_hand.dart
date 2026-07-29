@@ -15,10 +15,8 @@
 // =============================================================================
 
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/animation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// The key used to persist the "has seen tap hint" flag.
@@ -279,12 +277,12 @@ class _HandPainter extends CustomPainter {
 
     // Sleeve/cuff at the bottom (gradient to match app theme)
     final sleevePaint = Paint()
-      ..shader = LinearGradient(
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF6C5FC7),
-          const Color(0xFF4A3F8A),
+          Color(0xFF6C5FC7),
+          Color(0xFF4A3F8A),
         ],
       ).createShader(Rect.fromLTWH(0, h * 0.80, w, h * 0.20));
     final sleevePath = Path();

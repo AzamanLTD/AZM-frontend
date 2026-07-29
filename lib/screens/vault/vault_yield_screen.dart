@@ -274,7 +274,7 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yield enabled!', style: TextStyle(color: Colors.white)),
+          SnackBar(content: const Text('Yield enabled!', style: TextStyle(color: Colors.white)),
               backgroundColor: colors.success),
         );
       }
@@ -296,7 +296,7 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yield disabled', style: TextStyle(color: Colors.white)),
+          SnackBar(content: const Text('Yield disabled', style: TextStyle(color: Colors.white)),
               backgroundColor: colors.danger),
         );
       }
@@ -457,7 +457,7 @@ class _EarningsBreakdown extends StatelessWidget {
             _Row(colors: colors, label: 'Projected to maturity', value: '\$${info.projectedUsdc.toStringAsFixed(2)}'),
             _Row(colors: colors, label: 'Days to maturity', value: '${info.daysToMaturity}'),
             if (info.lastCompoundAt != null)
-              _Row(colors: colors, label: 'Last compound', value: '${info.lastCompoundAt!.toLocal().toString().substring(0, 16)}'),
+              _Row(colors: colors, label: 'Last compound', value: info.lastCompoundAt!.toLocal().toString().substring(0, 16)),
             const Divider(),
             _Row(colors: colors, label: 'Auto-compound', value: info.autoCompound ? 'ON' : 'OFF',
                 valueColor: info.autoCompound ? colors.success : colors.textSecondary),
@@ -512,7 +512,7 @@ class _StrategyCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: riskColor.withOpacity(0.15),
+                    color: riskColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(strategy.riskLevel,

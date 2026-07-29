@@ -14,7 +14,6 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -69,11 +68,10 @@ class _QuickAction {
 
   _QuickAction({
     required this.title,
-    this.subtitle = '',
     required this.icon,
     required this.route,
     this.keywords = const [],
-  });
+  }) : subtitle = '';
 }
 
 final _quickActions = <_QuickAction>[
@@ -372,7 +370,7 @@ class _SearchTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 18, color: iconColor),

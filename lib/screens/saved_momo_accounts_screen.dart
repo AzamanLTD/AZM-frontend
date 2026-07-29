@@ -298,7 +298,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
     try {
       await ref.read(savedMomoProvider.notifier).create(
             nickname: _nickname.text.trim().isEmpty
-                ? '${_provider} ${_msisdn ?? _phone.text.trim()}'
+                ? '$_provider ${_msisdn ?? _phone.text.trim()}'
                 : _nickname.text.trim(),
             provider: _provider,
             phoneNumber: _msisdn ?? _phone.text.trim(),

@@ -195,15 +195,15 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
   Widget _buildQrPlaceholder(String payload, dynamic colors) {
     // Generate a deterministic visual from the payload
     final bytes = utf8.encode(payload);
-    final gridSize = 8;
-    final cellSize = 24.0;
+    const gridSize = 8;
+    const cellSize = 24.0;
 
     return SizedBox(
       width: gridSize * cellSize,
       height: gridSize * cellSize,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: gridSize,
           childAspectRatio: 1,
         ),

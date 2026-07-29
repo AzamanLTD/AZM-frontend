@@ -7,10 +7,10 @@ void main() {
       home: Scaffold(
         body: CustomScrollView(
         slivers: [
-          SliverAppBar(
+          const SliverAppBar(
             expandedHeight: 120,
             pinned: false,
-            flexibleSpace: const FlexibleSpaceBar(title: Text('Marketplace')),
+            flexibleSpace: FlexibleSpaceBar(title: Text('Marketplace')),
           ),
           SliverList(delegate: SliverChildBuilderDelegate(
             (_, i) => ListTile(title: Text('Item $i')), childCount: 50)),

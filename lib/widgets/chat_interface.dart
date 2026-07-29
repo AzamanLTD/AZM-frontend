@@ -938,7 +938,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.network(
-                        mediaUrl!.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
+                        mediaUrl.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
                         height: 180, width: 200, fit: BoxFit.cover,
                         loadingBuilder: (c, child, progress) {
                           if (progress == null) return child;

@@ -36,7 +36,7 @@ class SettingsProvider with ChangeNotifier {
   bool _vendorTagEnabled = false;
 
   // --- HQ SHORTCUTS ---
-  List<HQShortcut> _shortcuts = [
+  final List<HQShortcut> _shortcuts = [
     HQShortcut(id: 'deposit', label: 'Deposit', icon: Icons.account_balance_wallet_outlined, order: 0),
     HQShortcut(id: 'withdraw', label: 'Withdraw', icon: Icons.send_outlined, order: 1),
     HQShortcut(id: 'history', label: 'History', icon: Icons.history, order: 2),

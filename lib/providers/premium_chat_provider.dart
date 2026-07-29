@@ -515,7 +515,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       socket.on(ev, (data) {
         if (data is! Map) return;
         final incoming = ChatMessage.fromJson(
-          Map<String,dynamic>.from(data as Map),
+          Map<String,dynamic>.from(data),
           myUserId: _myUserId,
           initialStatus: MessageStatus.sent,
         );

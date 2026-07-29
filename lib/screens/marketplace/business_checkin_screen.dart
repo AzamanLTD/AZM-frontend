@@ -154,11 +154,11 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
   }
 
   List<Widget> _buildCornerBrackets(dynamic colors, BuildContext context) {
-    final s = 20.0;
-    final t = 4.0;
+    const s = 20.0;
+    const t = 4.0;
     final cx = MediaQuery.of(context).size.width / 2;
     final cy = MediaQuery.of(context).size.height / 2;
-    final w2 = 120.0;
+    const w2 = 120.0;
     
     return [
       Positioned(left: cx - w2, top: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
@@ -360,7 +360,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
             // Checkmark animation
             Container(
               width: 80, height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.green,
                 shape: BoxShape.circle,
               ),

@@ -24,14 +24,14 @@ class PdfReceiptService {
   static const PdfReceiptService instance = PdfReceiptService._();
 
   // ── Brand palette ──────────────────────────────────────────────────────────
-  static final _gold = PdfColor(0.831373, 0.686275, 0.215686);
-  static final _dark = PdfColor(0.054902, 0.066667, 0.086275);
-  static final _darkMid = PdfColor(0.101961, 0.121569, 0.168627);
-  static final _grey = PdfColor(0.541176, 0.560784, 0.619608);
-  static final _white = PdfColors.white;
-  static final _green = PdfColor(0.133333, 0.772549, 0.368627);
-  static final _red = PdfColor(0.937255, 0.266667, 0.266667);
-  static final _amber = PdfColor(0.960784, 0.619608, 0.043137);
+  static const _gold = PdfColor(0.831373, 0.686275, 0.215686);
+  static const _dark = PdfColor(0.054902, 0.066667, 0.086275);
+  static const _darkMid = PdfColor(0.101961, 0.121569, 0.168627);
+  static const _grey = PdfColor(0.541176, 0.560784, 0.619608);
+  static const _white = PdfColors.white;
+  static const _green = PdfColor(0.133333, 0.772549, 0.368627);
+  static const _red = PdfColor(0.937255, 0.266667, 0.266667);
+  static const _amber = PdfColor(0.960784, 0.619608, 0.043137);
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ class PdfReceiptService {
                       .map((m) => pw.Padding(
                             padding: const pw.EdgeInsets.symmetric(vertical: 3),
                             child: pw.Text(m,
-                                style: pw.TextStyle(
+                                style: const pw.TextStyle(
                                   color: _white,
                                   fontSize: 9,
                                 )),
@@ -244,7 +244,7 @@ class PdfReceiptService {
               pw.SizedBox(height: 4),
               pw.Text(
                 'OFFICIAL TRANSACTION RECEIPT',
-                style: pw.TextStyle(color: _grey, fontSize: 9, letterSpacing: 1.5),
+                style: const pw.TextStyle(color: _grey, fontSize: 9, letterSpacing: 1.5),
               ),
             ],
           ),
@@ -300,7 +300,7 @@ class PdfReceiptService {
               width: 120,
               child: pw.Text(
                 label,
-                style: pw.TextStyle(color: _grey, fontSize: 9),
+                style: const pw.TextStyle(color: _grey, fontSize: 9),
               ),
             ),
             pw.Expanded(
@@ -326,11 +326,11 @@ class PdfReceiptService {
             children: [
               pw.Text(
                 'Azaman Financial Services  ·  azaman.app',
-                style: pw.TextStyle(color: _grey, fontSize: 8),
+                style: const pw.TextStyle(color: _grey, fontSize: 8),
               ),
               pw.Text(
                 'Generated ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
-                style: pw.TextStyle(color: _grey, fontSize: 8),
+                style: const pw.TextStyle(color: _grey, fontSize: 8),
               ),
             ],
           ),
@@ -338,7 +338,7 @@ class PdfReceiptService {
           pw.Center(
             child: pw.Text(
               'This is an auto-generated document. Do not alter.',
-              style: pw.TextStyle(color: _grey, fontSize: 7),
+              style: const pw.TextStyle(color: _grey, fontSize: 7),
             ),
           ),
         ],

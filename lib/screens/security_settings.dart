@@ -461,7 +461,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               TextButton(
                 onPressed: () {
                   // Copy full JSON to clipboard
-                  Clipboard.setData(ClipboardData(text: JsonEncoder.withIndent('  ').convert(data)));
+                  Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)));
                   AzamanHaptics.confirm();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -486,6 +486,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
@@ -1005,7 +1006,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: colors.success,
+          activeThumbColor: colors.success,
         ),
       ],
     );

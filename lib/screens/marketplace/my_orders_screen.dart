@@ -101,7 +101,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : orders.isEmpty
-              ? AzamanEmptyState(
+              ? const AzamanEmptyState(
                   icon: Icons.shopping_bag_outlined,
                   title: 'No orders here',
                   subtitle: 'Your marketplace orders will appear here.',

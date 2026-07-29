@@ -56,7 +56,6 @@ import 'package:azaman/screens/spending_insights_screen.dart';
 import 'package:azaman/screens/round_up_settings_screen.dart';
 import 'package:azaman/screens/notification_preferences_screen.dart';
 import 'package:azaman/screens/story_highlights_screen.dart';
-import 'package:azaman/screens/story_camera_screen.dart';
 import 'package:azaman/screens/story_editor_screen.dart';
 import 'package:azaman/screens/close_friends_screen.dart';
 import 'package:azaman/screens/story_analytics_screen.dart';

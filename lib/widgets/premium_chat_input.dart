@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -109,8 +108,10 @@ class _State extends ConsumerState<PremiumChatInput> {
         mediaUrl: r.url, mediaType: 'image',
         messageType: 'IMAGE', mimeType: r.mimeType, size: r.size);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Upload failed. Try again.')));
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -129,8 +130,10 @@ class _State extends ConsumerState<PremiumChatInput> {
         messageType: 'DOCUMENT', mimeType: r.mimeType,
         size: r.size);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Upload failed. Try again.')));
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -289,9 +292,11 @@ class _State extends ConsumerState<PremiumChatInput> {
                               duration: r.duration ?? duration,
                               waveformPeaks: r.waveformPeaks ?? peaks);
                           } catch (e) {
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Voice upload failed.')));
+                            }
                           } finally {
                             if (mounted) setState(() => _isUploading = false);
                           }

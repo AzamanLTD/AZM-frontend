@@ -281,7 +281,7 @@ class _P2PFilterSheetState extends ConsumerState<P2PFilterSheet> {
                     AzamanHaptics.toggle();
                     setState(() => _onlineOnly = v);
                   },
-                  activeColor: colors.accent,
+                  activeThumbColor: colors.accent,
                 ),
               ],
             ),

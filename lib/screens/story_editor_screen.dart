@@ -494,7 +494,7 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Filters', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            const Text('Filters', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             SizedBox(
               height: 80,
@@ -580,7 +580,7 @@ class _ToolButton extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 11,
               fontWeight: FontWeight.w600,

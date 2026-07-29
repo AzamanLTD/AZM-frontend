@@ -66,7 +66,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   ChatMessage? _replyToMessage;
-  bool _partnerIsTyping = false;
+  final bool _partnerIsTyping = false;
   Timer? _typingTimer;
 
   @override
@@ -188,7 +188,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               ),
               itemCount: 7,
               itemBuilder: (ctx, i) {
-                final wallpapers = ChatWallpaper.values;
+                const wallpapers = ChatWallpaper.values;
                 final wp = wallpapers[i];
                 final isSelected = chatTheme.wallpaper == wp;
                 return GestureDetector(
@@ -579,7 +579,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MessageSearchScreen(
+                  builder: (_) => const MessageSearchScreen(
                     conversationContext: 'direct',
                   ),
                 ),
@@ -973,7 +973,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.compare_arrows, color: Colors.white, size: 20),
+                        const Icon(Icons.compare_arrows, color: Colors.white, size: 20),
                         const SizedBox(width: 6),
                         Text(
                           label,
@@ -985,7 +985,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                         ),
                         const Spacer(),
                         Text(
-                          '${msg.amount?.toStringAsFixed(2) ?? '0.00'}',
+                          msg.amount?.toStringAsFixed(2) ?? '0.00',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -1145,7 +1145,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               const SizedBox(height: 16),
               ListTile(
                 leading: Icon(Icons.star_rounded, color: colors.glow),
-                title: Text('Star'),
+                title: const Text('Star'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _toggleStar(msg);
@@ -1153,7 +1153,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.push_pin_rounded, color: colors.glow),
-                title: Text('Pin'),
+                title: const Text('Pin'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _togglePin(msg);
@@ -1161,7 +1161,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.forward_rounded, color: colors.glow),
-                title: Text('Forward'),
+                title: const Text('Forward'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _forwardMessage(msg);
@@ -1169,7 +1169,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.copy_rounded, color: colors.glow),
-                title: Text('Copy'),
+                title: const Text('Copy'),
                 onTap: () {
                   Navigator.pop(ctx);
                   Clipboard.setData(ClipboardData(text: msg.text ?? ''));
@@ -1179,7 +1179,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.delete_outline_rounded, color: Colors.red),
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
                 title: const Text('Delete', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -1421,13 +1421,13 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
   Widget _buildStatusTick(ChatMessage msg, AzamanColors colors) {
     switch (msg.status) {
       case DmMessageStatus.sending:
-        return Icon(Icons.access_time_rounded, size: 12, color: Colors.black54);
+        return const Icon(Icons.access_time_rounded, size: 12, color: Colors.black54);
       case DmMessageStatus.sent:
-        return Icon(Icons.check, size: 14, color: Colors.black54);
+        return const Icon(Icons.check, size: 14, color: Colors.black54);
       case DmMessageStatus.delivered:
         return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.check, size: 14, color: Colors.black54),
-          Transform.translate(offset: const Offset(-4, 0), child: Icon(Icons.check, size: 14, color: Colors.black54)),
+          const Icon(Icons.check, size: 14, color: Colors.black54),
+          Transform.translate(offset: const Offset(-4, 0), child: const Icon(Icons.check, size: 14, color: Colors.black54)),
         ]);
       case DmMessageStatus.read:
         return Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1435,7 +1435,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
           Transform.translate(offset: const Offset(-4, 0), child: Icon(Icons.check, size: 14, color: colors.accent)),
         ]);
       case DmMessageStatus.failed:
-        return Icon(Icons.error_outline, size: 14, color: Colors.red);
+        return const Icon(Icons.error_outline, size: 14, color: Colors.red);
     }
   }
 
@@ -1748,7 +1748,7 @@ class _ValueTransferBottomSheetState extends ConsumerState<_ValueTransferBottomS
                         shadowColor: colors.glow.withValues(alpha: 0.5),
                       ),
                       child: Text(
-                        'Send ${isValid ? "${amount!.toStringAsFixed(2)} $_currency" : ""}',
+                        'Send ${isValid ? "${amount.toStringAsFixed(2)} $_currency" : ""}',
                         style: TextStyle(
                           color: isValid ? Colors.black : colors.textTertiary,
                           fontSize: 16,

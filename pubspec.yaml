@@ -170,6 +170,8 @@ dependencies:
   crypto: ^3.0.7
   hugeicons: ^1.1.7
 
+  uuid: any
+  http_parser: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

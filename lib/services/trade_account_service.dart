@@ -119,77 +119,77 @@ class SupportedMethod {
     // Client-side schema definitions matching backend tradeAccountValidation.js
     switch (type.toUpperCase()) {
       case 'ZELLE':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'ZELLE',
           requiredFields: ['email OR phone'],
           optionalFields: [],
           description: 'Email or phone linked to your Zelle account',
         );
       case 'CASHAPP':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'CASHAPP',
           requiredFields: ['cashtag'],
           optionalFields: [],
           description: '\$Cashtag (e.g., \$YourName)',
         );
       case 'VENMO':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'VENMO',
           requiredFields: ['username OR phone'],
           optionalFields: [],
           description: '@username or phone linked to Venmo',
         );
       case 'PAYPAL':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'PAYPAL',
           requiredFields: ['email'],
           optionalFields: [],
           description: 'Email linked to your PayPal account',
         );
       case 'APPLE_PAY':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'APPLE_PAY',
           requiredFields: ['phone'],
           optionalFields: [],
           description: 'Phone number linked to Apple Pay',
         );
       case 'GOOGLE_PAY':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'GOOGLE_PAY',
           requiredFields: ['email OR phone'],
           optionalFields: [],
           description: 'Email or phone linked to Google Pay',
         );
       case 'WISE':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'WISE',
           requiredFields: ['email'],
           optionalFields: [],
           description: 'Email linked to your Wise account',
         );
       case 'REVOLUT':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'REVOLUT',
           requiredFields: ['username OR phone'],
           optionalFields: [],
           description: '@username or phone linked to Revolut',
         );
       case 'GIFT_CARD':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'GIFT_CARD',
           requiredFields: ['cardType'],
           optionalFields: ['denomination'],
           description: 'Card type (Amazon, iTunes, Steam, etc.)',
         );
       case 'WESTERN_UNION':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'WESTERN_UNION',
           requiredFields: ['fullName', 'country'],
           optionalFields: ['city'],
           description: 'Recipient full name and country',
         );
       case 'WIRE_TRANSFER':
-        return SupportedMethod(
+        return const SupportedMethod(
           type: 'WIRE_TRANSFER',
           requiredFields: ['bankName', 'accountNumber'],
           optionalFields: ['routingNumber', 'swift'],

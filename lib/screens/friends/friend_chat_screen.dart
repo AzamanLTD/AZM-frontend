@@ -33,7 +33,6 @@ import 'package:azaman/widgets/premium_chat_input.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
-import 'package:azaman/widgets/disappearing_message_timer_sheet.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -69,7 +68,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   bool _hasInputText = false;
   // Phase UI-POLISH: while a voice note is uploading we lock the input so
   // a second hold can't kick off a parallel upload.
-  bool _isUploadingAudio = false;
+  final bool _isUploadingAudio = false;
   int _currentPage = 1;
   bool _hasMore = true;
 

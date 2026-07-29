@@ -208,28 +208,28 @@ class _RankCard extends StatelessWidget {
       case 1:
         borderColor = const Color(0xFFFFD700);
         glowColor = const Color(0xFFFFD700).withValues(alpha: 0.25);
-        leading = _PodiumBadge(
+        leading = const _PodiumBadge(
           rank: 1,
           icon: Icons.emoji_events_outlined,
-          color: const Color(0xFFFFD700),
+          color: Color(0xFFFFD700),
           label: 'GOLD',
         );
       case 2:
         borderColor = const Color(0xFFC0C0C0);
         glowColor = const Color(0xFFC0C0C0).withValues(alpha: 0.2);
-        leading = _PodiumBadge(
+        leading = const _PodiumBadge(
           rank: 2,
           icon: Icons.emoji_events_outlined,
-          color: const Color(0xFFC0C0C0),
+          color: Color(0xFFC0C0C0),
           label: 'SILVER',
         );
       case 3:
         borderColor = const Color(0xFFCD7F32);
         glowColor = const Color(0xFFCD7F32).withValues(alpha: 0.2);
-        leading = _PodiumBadge(
+        leading = const _PodiumBadge(
           rank: 3,
           icon: Icons.emoji_events_outlined,
-          color: const Color(0xFFCD7F32),
+          color: Color(0xFFCD7F32),
           label: 'BRONZE',
         );
       default:

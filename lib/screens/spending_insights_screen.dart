@@ -12,7 +12,6 @@
 //            Monzo (Spending Breakdown), YNAB (Budget Goals)
 // =============================================================================
 
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -20,12 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 
 // ── Spending category model ──────────────────────────────────────────────────
 
@@ -336,7 +332,7 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
                           color: cat.color,
                           value: entry.value,
                           title: percentage > 8 ? '${percentage.toStringAsFixed(0)}%' : '',
-                          titleStyle: TextStyle(
+                          titleStyle: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,

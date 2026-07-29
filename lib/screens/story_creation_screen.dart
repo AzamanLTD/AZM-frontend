@@ -129,7 +129,7 @@ class _StoryCreationScreenState extends ConsumerState<StoryCreationScreen> {
                           Switch(
                             value: _linkToStore,
                             onChanged: (v) => setState(() => _linkToStore = v),
-                            activeColor: colors.accent,
+                            activeThumbColor: colors.accent,
                           ),
                         ],
                       ),

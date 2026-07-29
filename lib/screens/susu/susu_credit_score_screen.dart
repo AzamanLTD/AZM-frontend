@@ -21,7 +21,6 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
 
 class SusuCreditScoreScreen extends ConsumerStatefulWidget {
   const SusuCreditScoreScreen({super.key});
@@ -447,24 +446,30 @@ class _SusuCreditScoreScreenState extends ConsumerState<SusuCreditScoreScreen> {
 }
 
 _ScoreTier _getScoreTier(int score) {
-  if (score >= 750) return _ScoreTier(
+  if (score >= 750) {
+    return _ScoreTier(
     label: 'Excellent',
     color: const Color(0xFF00D97E),
     icon: Icons.star,
     description: 'Top-tier reliability — priority payout eligibility',
   );
-  if (score >= 670) return _ScoreTier(
+  }
+  if (score >= 670) {
+    return _ScoreTier(
     label: 'Good',
     color: const Color(0xFF00B4D8),
     icon: Icons.thumb_up,
     description: 'Solid track record — trusted by the community',
   );
-  if (score >= 580) return _ScoreTier(
+  }
+  if (score >= 580) {
+    return _ScoreTier(
     label: 'Fair',
     color: const Color(0xFFFF9500),
     icon: Icons.trending_up,
     description: 'Building trust — complete cycles to improve',
   );
+  }
   return _ScoreTier(
     label: 'Needs Work',
     color: const Color(0xFFFF3B30),

@@ -208,7 +208,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
                 onChanged: (v) => setState(() => _quietHoursEnabled = v),
                 title: Text('Enable Quiet Hours', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
                 subtitle: Text('Mute non-critical notifications during set hours', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-                activeColor: colors.accent,
+                activeThumbColor: colors.accent,
               ),
               if (_quietHoursEnabled) ...[
                 ListTile(
@@ -273,7 +273,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
       title: Text(title, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
       subtitle: Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
       secondary: Icon(icon, color: colors.accent, size: 22),
-      activeColor: colors.accent,
+      activeThumbColor: colors.accent,
     ));
   }
 
@@ -289,7 +289,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
           Text(info.$1, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
         ],
       ),
-      activeColor: colors.accent,
+      activeThumbColor: colors.accent,
     ));
   }
 
@@ -309,7 +309,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
           )),
         ],
       ),
-      activeColor: colors.accent,
+      activeThumbColor: colors.accent,
     ));
   }
 
@@ -320,8 +320,11 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
     );
     if (picked != null) {
       setState(() {
-        if (isStart) _quietStart = picked;
-        else _quietEnd = picked;
+        if (isStart) {
+          _quietStart = picked;
+        } else {
+          _quietEnd = picked;
+        }
       });
     }
   }

@@ -14,12 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
-import 'package:intl/intl.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/round_up_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 
 class RoundUpSettingsScreen extends ConsumerStatefulWidget {
   const RoundUpSettingsScreen({super.key});
@@ -221,17 +219,17 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
 
   Widget _buildHowItWorks(AzamanColors colors) {
     final steps = [
-      _HowStep(
+      const _HowStep(
         icon: HugeIconsSolid.moneySendSquare,
         title: 'Spend as usual',
         description: 'Send money, pay for things, contribute to Susu — all normally.',
       ),
-      _HowStep(
+      const _HowStep(
         icon: HugeIconsSolid.exchange01,
         title: 'We round up',
         description: 'Each transaction rounds up to the nearest dollar automatically.',
       ),
-      _HowStep(
+      const _HowStep(
         icon: HugeIconsSolid.piggyBank,
         title: 'Difference saved',
         description: 'The round-up difference goes into your Round-Up Vault.',

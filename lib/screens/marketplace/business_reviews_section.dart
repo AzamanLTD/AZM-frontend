@@ -89,7 +89,7 @@ class BusinessReviewsSection extends StatelessWidget {
               children: [
                 Text('$star', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
                 const SizedBox(width: 4),
-                Icon(Icons.star, size: 12, color: Colors.amber),
+                const Icon(Icons.star, size: 12, color: Colors.amber),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ClipRRect(

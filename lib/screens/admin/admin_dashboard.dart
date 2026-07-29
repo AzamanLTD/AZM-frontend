@@ -824,12 +824,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
             ),
           ],
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.military_tech_outlined, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            const Text(
+            Icon(Icons.military_tech_outlined, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text(
               'OPEN WAR ROOM',
               style: TextStyle(
                 color: Colors.white,

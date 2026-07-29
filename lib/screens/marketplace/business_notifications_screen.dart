@@ -182,7 +182,7 @@ class _BusinessNotificationsScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? AzamanEmptyState(
+              ? const AzamanEmptyState(
                   icon: Icons.notifications_outlined,
                   title: 'No notifications yet',
                   subtitle: 'Order and payment alerts will appear here.',

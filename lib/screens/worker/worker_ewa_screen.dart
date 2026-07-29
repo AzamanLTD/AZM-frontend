@@ -29,7 +29,7 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
         _amountController.clear();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('EWA withdrawal successful!'), backgroundColor: Colors.green));
+            const SnackBar(content: Text('EWA withdrawal successful!'), backgroundColor: Colors.green));
         }
       } else {
         final body = jsonDecode(res.body);
@@ -41,7 +41,7 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Request failed'), backgroundColor: Colors.red));
+          const SnackBar(content: Text('Request failed'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -56,7 +56,7 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
-        title: Text('Earned Wage Access', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('Earned Wage Access', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
@@ -142,8 +142,8 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           child: _submitting
-                              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                              : Text('Withdraw Now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                              : const Text('Withdraw Now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                         ),
                       ),
                     ],

@@ -57,16 +57,20 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
           });
         }
       } else {
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _error = 'Failed to load capabilities';
           _isLoading = false;
         });
+        }
       }
     } catch (e) {
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _error = 'Network error';
         _isLoading = false;
       });
+      }
     }
   }
 

@@ -30,7 +30,7 @@ class VideoPlayerWidget extends StatelessWidget {
                 children: [
                   Icon(Icons.video_library, size: 40, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
                   const SizedBox(height: 8),
-                  Text('No video configured', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const Text('No video configured', style: TextStyle(color: Colors.white54, fontSize: 12)),
                 ],
               ),
           ],

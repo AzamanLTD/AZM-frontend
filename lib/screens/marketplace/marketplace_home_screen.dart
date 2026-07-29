@@ -264,11 +264,16 @@ class _MarketplaceHomeScreenState
       List<BusinessProfile> input) {
     var list = input.where((b) {
       if (_filters.minRating > 0 &&
-          b.averageRating < _filters.minRating) return false;
-      if ((_filters.verifiedOnly || _verifiedOnly) && !b.isVerified)
+          b.averageRating < _filters.minRating) {
         return false;
+      }
+      if ((_filters.verifiedOnly || _verifiedOnly) && !b.isVerified) {
+        return false;
+      }
       if (_selectedCategory != null &&
-          b.category != _selectedCategory) return false;
+          b.category != _selectedCategory) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -463,7 +468,7 @@ class _MarketplaceHomeScreenState
                         children: [
                           ShaderMask(
                             shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
-                            child: Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
+                            child: const Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
                           ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
                           Text(
                             'Find trusted businesses',
@@ -753,7 +758,7 @@ class _MarketplaceHomeScreenState
                   isAll
                       ? Icon(catItem.$2 as IconData, size: iconSize, color: isActive ? colors.accent : colors.textSecondary)
                       : HugeIcon(icon: catItem.$2, size: iconSize, color: isActive ? colors.accent : colors.textSecondary),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(catItem.$3, style: TextStyle(fontSize: fontSize, fontWeight: isActive || isAll ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
                 ],
               ),
@@ -1251,8 +1256,8 @@ class _MarketplaceHomeScreenState
       return RefreshIndicator(
         color: colors.accent,
         onRefresh: _fireNearby,
-        child: ListView(children: [
-          const SizedBox(height: 60),
+        child: ListView(children: const [
+          SizedBox(height: 60),
           AzamanEmptyState(
             icon: Icons.location_off_outlined,
             title: 'No businesses nearby',

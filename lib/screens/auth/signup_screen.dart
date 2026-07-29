@@ -115,7 +115,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               : (loginData['data']?['user'] is Map<String, dynamic>
                   ? loginData['data']!['user'] as Map<String, dynamic>
                   : <String, dynamic>{});
-          double _d(dynamic v) =>
+          double d(dynamic v) =>
               v is num ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
           
           final newUser = User(
@@ -124,8 +124,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             email: u['email'] ?? '',
             token: rawToken,
             role: u['role'] ?? 'USER',
-            azmBalance: _d(u['azmBalance']),
-            availableBalance: _d(u['availableBalance']),
+            azmBalance: d(u['azmBalance']),
+            availableBalance: d(u['availableBalance']),
           );
 
           final signupRefreshToken = (loginData['refreshToken'] ?? loginData['data']?['refreshToken'])?.toString();
@@ -152,7 +152,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           // Navigate to main app
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => MainWrapper()),
+            MaterialPageRoute(builder: (_) => const MainWrapper()),
           );
         } else {
           // Registration successful but auto-login failed
@@ -471,7 +471,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final colors = ref.read(themeProvider).colors;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => MainWrapper()),
+        MaterialPageRoute(builder: (_) => const MainWrapper()),
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

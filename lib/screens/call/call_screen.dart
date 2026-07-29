@@ -194,7 +194,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   Text(
                     _stateLabel(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 16,
                     ),
                   ),
@@ -291,7 +291,7 @@ class _AvatarRings extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(opacity),
+                      color: Colors.white.withValues(alpha: opacity),
                       width: 2,
                     ),
                   ),
@@ -315,7 +315,7 @@ class _AvatarRings extends StatelessWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6C5CE7).withOpacity(0.4),
+                        color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
                         blurRadius: 30,
                         spreadRadius: 2,
                       ),
@@ -512,7 +512,7 @@ class _ControlButton extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? Colors.white : Colors.white.withOpacity(0.1),
+            color: active ? Colors.white : Colors.white.withValues(alpha: 0.1),
             border: Border.all(color: Colors.white24, width: 1),
           ),
           child: IconButton(
@@ -523,7 +523,7 @@ class _ControlButton extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
         ),
       ],
     );

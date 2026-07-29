@@ -107,7 +107,7 @@ class LoyaltyStampCard extends ConsumerWidget {
                       color: colors.accent,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Ready to redeem!',
                       style: TextStyle(
                         color: Colors.white,

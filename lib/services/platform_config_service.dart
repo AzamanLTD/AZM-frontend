@@ -70,12 +70,12 @@ class PlatformConfig {
 
   @override
   String toString() =>
-      'PlatformConfig(fiatFee=${fiatWithdrawalFeePct}, '
-      'cryptoFee=${cryptoWithdrawalFeePct}, '
-      'p2p=${p2pFeePct}, '
+      'PlatformConfig(fiatFee=$fiatWithdrawalFeePct, '
+      'cryptoFee=$cryptoWithdrawalFeePct, '
+      'p2p=$p2pFeePct, '
       'tier=$tierThreshold, '
-      'vendorSplitUnder=${vendorShareUnder1k}, '
-      'vendorSplitOver=${vendorShareOver1k})';
+      'vendorSplitUnder=$vendorShareUnder1k, '
+      'vendorSplitOver=$vendorShareOver1k)';
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

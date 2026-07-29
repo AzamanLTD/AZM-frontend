@@ -204,8 +204,8 @@ class PublicProfileModal extends ConsumerWidget {
       );
     }
 
-    final int crossAxisCount = 3;
-    final double childAspectRatio = 0.85;
+    const int crossAxisCount = 3;
+    const double childAspectRatio = 0.85;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -235,7 +235,7 @@ class PublicProfileModal extends ConsumerWidget {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,

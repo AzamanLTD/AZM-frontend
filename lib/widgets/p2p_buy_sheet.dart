@@ -69,7 +69,7 @@ class _P2PBuySheetState extends ConsumerState<P2PBuySheet> {
       ),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

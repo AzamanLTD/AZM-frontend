@@ -63,7 +63,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
 
 
   // Step 4: Payment Methods
-  List<Map<String, String>> _paymentMethods = [];
+  final List<Map<String, String>> _paymentMethods = [];
   final _pmTypeCtrl = TextEditingController();
   final _pmDetailsCtrl = TextEditingController();
 
@@ -683,7 +683,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
             'I have traded crypto before',
             style: TextStyle(color: colors.textPrimary, fontSize: 14),
           ),
-          activeColor: colors.accent,
+          activeThumbColor: colors.accent,
           contentPadding: EdgeInsets.zero,
         ),
         if (_hasPreviousExperience) ...[
@@ -961,7 +961,7 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         dropdownColor: colors.card,
         style: TextStyle(color: colors.textPrimary, fontSize: 14),

@@ -495,7 +495,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
   @override
   void dispose() {
-    SocketService.instance.onDepositSuccess((_a, _b, _c, _d) {});
+    SocketService.instance.onDepositSuccess((a, b, c, d) {});
     _amountController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -1661,7 +1661,7 @@ class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
         Text("Add Mobile Money Number", style: TextStyle(color: c.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _provider,
+          initialValue: _provider,
           dropdownColor: c.card,
           decoration: InputDecoration(labelText: "Provider", labelStyle: TextStyle(color: c.textSecondary),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -1734,7 +1734,9 @@ class _PulsingDotsState extends State<_PulsingDots>
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 

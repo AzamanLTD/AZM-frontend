@@ -40,7 +40,7 @@ class VaultProgressCard extends StatelessWidget {
     final isActive = vault.status == 'ACTIVE';
     final remaining = vault.maturityDate.difference(DateTime.now());
     final accent = isActive ? colors.accent : colors.textTertiary;
-    final rate = 0.08;
+    const rate = 0.08;
     final daysTotal = vault.maturityDate.difference(vault.startDate).inDays;
     final projected = vault.targetAmountUsdc * rate * (daysTotal / 365);
 

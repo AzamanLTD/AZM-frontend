@@ -213,27 +213,27 @@ class ThemeProvider with ChangeNotifier {
   static AzamanColors getColors(AzamanTheme theme) {
     switch (theme) {
       case AzamanTheme.light:
-        return AzamanColors(
+        return const AzamanColors(
           isDark: false,
           name: "Light",
           icon: Icons.wb_sunny_outlined,
-          background: const Color(0xFFFAFAFB),
+          background: Color(0xFFFAFAFB),
           surface: Colors.white,
-          card: const Color(0xFFFFFFFF),
-          softSurface: const Color(0xFFF1F1F3),
-          divider: const Color(0xFFE6E6E9),
-          accent: const Color(0xFFB8860B),       // darker gold reads on white
-          accentSecondary: const Color(0xFF8B6914),
-          accentSurface: const Color(0xFFFDF6E3),
-          success: const Color(0xFF018C5C),       // darker green on white
-          danger: const Color(0xFFD32C44),
-          warning: const Color(0xFFC78A00),
-          textPrimary: const Color(0xFF111827),    // near-black, AA contrast on white
-          textSecondary: const Color(0xFF374151),
-          textTertiary: const Color(0xFF6B7280),
-          glow: const Color(0xFFB8860B),
-          scaffoldBackground: const Color(0xFFFAFAFB),
-          border: const Color(0xFFE6E6E9),
+          card: Color(0xFFFFFFFF),
+          softSurface: Color(0xFFF1F1F3),
+          divider: Color(0xFFE6E6E9),
+          accent: Color(0xFFB8860B),       // darker gold reads on white
+          accentSecondary: Color(0xFF8B6914),
+          accentSurface: Color(0xFFFDF6E3),
+          success: Color(0xFF018C5C),       // darker green on white
+          danger: Color(0xFFD32C44),
+          warning: Color(0xFFC78A00),
+          textPrimary: Color(0xFF111827),    // near-black, AA contrast on white
+          textSecondary: Color(0xFF374151),
+          textTertiary: Color(0xFF6B7280),
+          glow: Color(0xFFB8860B),
+          scaffoldBackground: Color(0xFFFAFAFB),
+          border: Color(0xFFE6E6E9),
         );
 
       case AzamanTheme.dark:

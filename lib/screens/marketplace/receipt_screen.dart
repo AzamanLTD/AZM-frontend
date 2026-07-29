@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:qr_flutter/qr_flutter.dart';
@@ -58,7 +57,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
     final inv = widget.invoice;
     final buf = StringBuffer();
     buf.writeln('Azaman Receipt');
-    buf.writeln('${widget.businessName}');
+    buf.writeln(widget.businessName);
     buf.writeln('Ref: ${inv.invoiceRef}');
     buf.writeln('---');
     for (final item in inv.lineItems) {
@@ -198,7 +197,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                       data: _invoiceRef,
                       version: QrVersions.auto,
                       size: 120,
-                      eyeStyle: QrEyeStyle(
+                      eyeStyle: const QrEyeStyle(
                         eyeShape: QrEyeShape.square,
                         color: Colors.black,
                       ),

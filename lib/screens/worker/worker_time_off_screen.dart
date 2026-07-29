@@ -29,13 +29,13 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
         ref.refresh(myTimeOffProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Time off request submitted'), backgroundColor: Colors.green));
+            const SnackBar(content: Text('Time off request submitted'), backgroundColor: Colors.green));
         }
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit request'), backgroundColor: Colors.red));
+          const SnackBar(content: Text('Failed to submit request'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -43,8 +43,8 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
   }
 
   TimeOffType _selectedType = TimeOffType.personal;
-  DateTime _startDate = DateTime.now().add(const Duration(days: 1));
-  DateTime _endDate = DateTime.now().add(const Duration(days: 3));
+  final DateTime _startDate = DateTime.now().add(const Duration(days: 1));
+  final DateTime _endDate = DateTime.now().add(const Duration(days: 3));
   final _reasonController = TextEditingController();
 
   @override
@@ -55,7 +55,7 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
-        title: Text('Time Off', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('Time Off', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
@@ -76,7 +76,7 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
                 const SizedBox(height: 16),
                 // Type dropdown
                 DropdownButtonFormField<TimeOffType>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: InputDecoration(
                     labelText: 'Type',
                     labelStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
@@ -116,8 +116,8 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _submitting
-                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : Text('Submit Request', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : const Text('Submit Request', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   ),
                 ),
               ],

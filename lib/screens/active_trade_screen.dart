@@ -582,7 +582,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.clock01, color: const Color(0xFFFFB800), size: 22),
+                  const Icon(HugeIconsSolid.clock01, color: Color(0xFFFFB800), size: 22),
                   const SizedBox(width: 10),
                   Text('Request More Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
@@ -623,7 +623,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                       });
                       if (response.statusCode == 200 && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: const Text('✓ Request sent to vendor'), backgroundColor: const Color(0xFF02C076)),
+                          const SnackBar(content: Text('✓ Request sent to vendor'), backgroundColor: Color(0xFF02C076)),
                         );
                       }
                     } catch (e) {
@@ -758,15 +758,17 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
         _tradePaymentMethod.split(' - ').last.replaceAll('\$', '');
 
     if (url.isEmpty) {
-      if (_tradePaymentMethod.contains("CashApp"))
-        url = "https://cash.app/\$$handle/${_tradeAmount}";
-      if (_tradePaymentMethod.contains("PayPal"))
-        url = "https://www.paypal.me/$handle/${_tradeAmount}";
+      if (_tradePaymentMethod.contains("CashApp")) {
+        url = "https://cash.app/\$$handle/$_tradeAmount";
+      }
+      if (_tradePaymentMethod.contains("PayPal")) {
+        url = "https://www.paypal.me/$handle/$_tradeAmount";
+      }
     }
 
     if (isSharing) {
       await Share.share(
-          "Please pay \$${_tradeAmount} for Azaman Trade ${widget.orderId}. Method: ${_tradePaymentMethod}");
+          "Please pay \$$_tradeAmount for Azaman Trade ${widget.orderId}. Method: $_tradePaymentMethod");
     } else {
       if (url.isNotEmpty && await canLaunchUrl(Uri.parse(url))) {
         await launchUrl(Uri.parse(url),

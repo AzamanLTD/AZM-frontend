@@ -79,31 +79,31 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
               children: [
                 const SizedBox(height: 8),
 
-                _GreetingHeader().animate().fadeIn(duration: 320.ms),
+                const _GreetingHeader().animate().fadeIn(duration: 320.ms),
 
                 const SizedBox(height: 16),
 
-                _GreetingTitle().animate().fadeIn(delay: 100.ms, duration: 360.ms).slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 360.ms),
+                const _GreetingTitle().animate().fadeIn(delay: 100.ms, duration: 360.ms).slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 360.ms),
 
                 const SizedBox(height: 16),
 
-                _ActionPills().animate().fadeIn(delay: 200.ms, duration: 350.ms).slideY(begin: 0.15, end: 0, delay: 200.ms, duration: 350.ms),
+                const _ActionPills().animate().fadeIn(delay: 200.ms, duration: 350.ms).slideY(begin: 0.15, end: 0, delay: 200.ms, duration: 350.ms),
 
                 const SizedBox(height: 18),
 
-                _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
+                const _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
 
                 const SizedBox(height: 28),
 
-                _SusuShortcutCard().animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 400.ms, duration: 400.ms),
+                const _SusuShortcutCard().animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 400.ms, duration: 400.ms),
 
                 const SizedBox(height: 28),
 
-                RecentActivitySection().animate().fadeIn(delay: 500.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 500.ms, duration: 400.ms),
+                const RecentActivitySection().animate().fadeIn(delay: 500.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 500.ms, duration: 400.ms),
 
                 const SizedBox(height: 28),
 
-                LiveMarketSection().animate().fadeIn(delay: 600.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 600.ms, duration: 400.ms),
+                const LiveMarketSection().animate().fadeIn(delay: 600.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 600.ms, duration: 400.ms),
 
               ],
             ),

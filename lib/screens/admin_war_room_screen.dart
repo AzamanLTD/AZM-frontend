@@ -1053,7 +1053,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                       timeframe: 'active',
                       recommendedAction: 'Review chat logs before enforcing',
                       confidence: 94,
-                      historicalResolutions: [
+                      historicalResolutions: const [
                         {'label': 'Buyer wins — proof provided', 'outcome': 'resolved', 'detail': '2 days ago'},
                         {'label': 'Vendor wins — no payment proof', 'outcome': 'vendor win', 'detail': '5 days ago'},
                         {'label': 'Escrow split — partial delivery', 'outcome': 'split', 'detail': '1 week ago'},
@@ -1153,7 +1153,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                   ),
                   Switch(
                     value: isSplit,
-                    activeColor: colors.accent,
+                    activeThumbColor: colors.accent,
                     onChanged: (v) => setDialogState(() => isSplit = v),
                   ),
                 ],

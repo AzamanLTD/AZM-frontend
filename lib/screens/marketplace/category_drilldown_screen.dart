@@ -203,7 +203,7 @@ class _CategoryDrilldownScreenState
       ),
       data: (subcategories) {
         if (subcategories.isEmpty) {
-          return AzamanEmptyState(
+          return const AzamanEmptyState(
             icon: Icons.grid_view_outlined,
             title: 'No subcategories',
             subtitle: 'No subcategories available for this category yet.',
@@ -252,7 +252,7 @@ class _CategoryDrilldownScreenState
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [Colors.transparent, Colors.black54],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -334,7 +334,7 @@ class _CategoryDrilldownScreenState
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.82),
         itemCount: 6,
-        itemBuilder: (_, __) => PremiumShimmerBox(width: double.infinity, height: double.infinity, radius: 16),
+        itemBuilder: (_, __) => const PremiumShimmerBox(width: double.infinity, height: double.infinity, radius: 16),
       );
     }
 
@@ -396,7 +396,7 @@ class _CategoryDrilldownScreenState
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 child: b.logoUrl != null
                   ? CachedNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity,
-                      placeholder: (_, __) => PremiumShimmerBox(width: double.infinity, height: 100, radius: 0))
+                      placeholder: (_, __) => const PremiumShimmerBox(width: double.infinity, height: 100, radius: 0))
                   : _categoryGradient(b.category, colors),
               ),
             ),

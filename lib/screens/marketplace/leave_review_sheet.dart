@@ -235,7 +235,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                                 }
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Shared as Story!'), backgroundColor: colors.accent),
+                                    SnackBar(content: const Text('Shared as Story!'), backgroundColor: colors.accent),
                                   );
                                   Navigator.pop(context, true);
                                 }
@@ -249,7 +249,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                               }
                             },
                             icon: _sharing
-                                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                                 : Icon(Icons.share, color: colors.accent),
                             label: Text('Share as Story', style: TextStyle(color: colors.accent)),
                           ),

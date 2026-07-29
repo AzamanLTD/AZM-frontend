@@ -220,13 +220,13 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                     elevation: 0,
                   ),
                   child: _submitting
-                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.shopping_bag, size: 18),
+                            const Icon(Icons.shopping_bag, size: 18),
                             const SizedBox(width: 8),
-                            Text('Place Order · \$${_total.toStringAsFixed(2)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            Text('Place Order · \$${_total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                           ],
                         ),
                 ),

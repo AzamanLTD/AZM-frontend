@@ -56,7 +56,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         return;
       }
 
-      final path = '/tmp/azaman_deletion_audio.m4a';
+      const path = '/tmp/azaman_deletion_audio.m4a';
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: path,
@@ -408,7 +408,7 @@ class _WaveformPainter extends CustomPainter {
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
-    final barCount = 32;
+    const barCount = 32;
     final barSpacing = size.width / barCount;
     final barWidth = barSpacing * 0.55;
 

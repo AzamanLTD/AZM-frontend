@@ -475,7 +475,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                                 Icon(Icons.location_on_rounded, size: 10, color: colors.textTertiary),
                                 const SizedBox(width: 3),
                                 Text('${distanceKm!.toStringAsFixed(1)} km',
-                                  style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                                  style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
@@ -579,9 +579,9 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                       ),
                       if (business.averageRating > 0) ...[
                         const SizedBox(width: 10),
-                        Icon(Icons.star_rounded,
+                        const Icon(Icons.star_rounded,
                             size: 13,
-                            color: const Color(0xFFF59E0B)),
+                            color: Color(0xFFF59E0B)),
                         const SizedBox(width: 3),
                         Text(
                           business.averageRating.toStringAsFixed(1),

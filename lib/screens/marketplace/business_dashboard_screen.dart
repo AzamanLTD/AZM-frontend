@@ -167,13 +167,13 @@ class _BusinessDashboardScreenState
           return Row(
             children: [
               Expanded(child: _miniStat(colors, 'Accrued',
-                '${dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0"}', Icons.savings)),
+                dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0", Icons.savings)),
               const SizedBox(width: 8),
               Expanded(child: _miniStat(colors, 'EWA',
-                '${dash.ewaAvailable.toStringAsFixed(0)}', Icons.bolt)),
+                dash.ewaAvailable.toStringAsFixed(0), Icons.bolt)),
               const SizedBox(width: 8),
               Expanded(child: _miniStat(colors, 'Next',
-                dash!.nextShift != null ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
+                dash.nextShift != null ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
             ],
           );
         },
@@ -247,9 +247,9 @@ class _BusinessDashboardScreenState
           Icons.shopping_bag_outlined, colors.accent),
       _StatData('Completed', '${s?.completedOrders ?? 0}',
           Icons.check_circle_outline, colors.success),
-      _StatData('Revenue', '${(s?.totalRevenue ?? 0).toStringAsFixed(2)}',
+      _StatData('Revenue', (s?.totalRevenue ?? 0).toStringAsFixed(2),
           Icons.account_balance_wallet_outlined, colors.success),
-      _StatData('Avg Order', '${(s?.avgOrderValue ?? 0).toStringAsFixed(2)}',
+      _StatData('Avg Order', (s?.avgOrderValue ?? 0).toStringAsFixed(2),
           Icons.show_chart, colors.warning),
     ];
     return GridView.count(

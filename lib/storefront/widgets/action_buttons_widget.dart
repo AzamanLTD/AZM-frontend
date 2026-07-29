@@ -30,7 +30,8 @@ class ActionButtonsWidget extends StatelessWidget {
     final showShare = props['showShare'] ?? true;
 
     final buttons = <Widget>[];
-    if (showOrder) buttons.add(ElevatedButton.icon(
+    if (showOrder) {
+      buttons.add(ElevatedButton.icon(
       onPressed: () {
         _trackCta(context, 'order');
         ScrollToProductsNotification(action: 'order').dispatch(context);
@@ -38,17 +39,23 @@ class ActionButtonsWidget extends StatelessWidget {
       icon: const Icon(Icons.shopping_bag, size: 18),
       label: const Text('Order Now'),
     ));
-    if (showBook) buttons.add(ElevatedButton.icon(
+    }
+    if (showBook) {
+      buttons.add(ElevatedButton.icon(
       onPressed: () => _trackCta(context, 'book'),
       icon: const Icon(Icons.calendar_today, size: 18),
       label: const Text('Book'),
     ));
-    if (showFollow) buttons.add(OutlinedButton.icon(
+    }
+    if (showFollow) {
+      buttons.add(OutlinedButton.icon(
       onPressed: () => _trackCta(context, 'follow'),
       icon: const Icon(Icons.person_add, size: 18),
       label: const Text('Follow'),
     ));
-    if (showShare) buttons.add(OutlinedButton.icon(
+    }
+    if (showShare) {
+      buttons.add(OutlinedButton.icon(
       onPressed: () {
         _trackCta(context, 'share');
         final bizId = StorefrontTrackingScope.of(context);
@@ -59,6 +66,7 @@ class ActionButtonsWidget extends StatelessWidget {
       icon: const Icon(Icons.share, size: 18),
       label: const Text('Share'),
     ));
+    }
 
     return Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: buttons);
   }
