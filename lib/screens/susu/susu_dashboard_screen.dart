@@ -113,6 +113,11 @@ class SusuDashboardScreen extends ConsumerWidget {
                     .animate()
                     .fadeIn(duration: 320.ms)
                     .slideY(begin: 0.05, end: 0),
+                if (susu.status == SusuStatus.completed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _CompletionCelebrationCard(susu: susu, colors: colors),
+                  ),
                 if (susu.status == SusuStatus.frozenDispute)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -312,6 +317,90 @@ class _FrozenBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CompletionCelebrationCard extends StatelessWidget {
+  final SusuDetail susu;
+  final AzamanColors colors;
+  const _CompletionCelebrationCard({required this.susu, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPayout = susu.contributionUsdc * susu.totalCycles;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.accent.withValues(alpha: 0.20),
+            colors.accent.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.celebration, color: colors.accent, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Susu Complete! 🎉',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'This Susu group has completed all ${susu.totalCycles} cycles. '
+            'Total pool: \$${susu.contributionUsdc.toStringAsFixed(2)} × ${susu.totalCycles} = \$${totalPayout.toStringAsFixed(2)}',
+            style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.push('/susu/completion', extra: {
+                  'groupName': susu.name,
+                  'totalContributed': susu.contributionUsdc * susu.totalCycles,
+                  'totalPayout': totalPayout,
+                  'members': susu.members.map((m) => {
+                    'username': m.displayName,
+                    'avatarUrl': m.avatar,
+                    'position': m.cycleSlot ?? 0,
+                    'receivedAmount': susu.contributionUsdc * susu.totalCycles / susu.members.length,
+                  }).toList(),
+                  'currency': 'GHS',
+                });
+              },
+              icon: const Icon(Icons.celebration, size: 18),
+              label: const Text(
+                'View Celebration',
+                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
   }
 }
 
