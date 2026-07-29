@@ -95,6 +95,12 @@ import 'package:azaman/screens/worker/worker_feedback_screen.dart';
 import 'package:azaman/screens/worker/worker_ewa_screen.dart';
 import 'package:azaman/screens/worker/worker_swaps_screen.dart';
 
+import 'package:azaman/screens/chat/message_search_screen.dart';
+import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
+import 'package:azaman/screens/orders/order_tracking_screen.dart';
+import 'package:azaman/screens/vault/vault_yield_screen.dart';
+import 'package:azaman/screens/story_creation_screen.dart';
+
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -583,6 +589,43 @@ class _DisputeScreen extends ConsumerWidget {
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
+
+    GoRoute(
+      path: '/chat/:conversationId/search',
+      name: 'message-search',
+      builder: (context, state) => MessageSearchScreen(
+        conversationId: state.pathParameters['conversationId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/wallet-pass/:passType/:itemId',
+      name: 'wallet-pass',
+      builder: (context, state) => WalletPassScreen(
+        passType: state.pathParameters['passType']!,
+        itemId: state.pathParameters['itemId']!,
+        title: state.uri.queryParameters['title'] ?? '',
+        subtitle: state.uri.queryParameters['subtitle'] ?? '',
+      ),
+    ),
+    GoRoute(
+      path: '/orders/:orderId/tracking',
+      name: 'order-tracking',
+      builder: (context, state) => OrderTrackingScreen(
+        orderId: state.pathParameters['orderId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/vault/:vaultId/yield',
+      name: 'vault-yield',
+      builder: (context, state) => VaultYieldScreen(
+        vaultId: state.pathParameters['vaultId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/story-create',
+      name: 'story-creation',
+      builder: (context, state) => const StoryCreationScreen(),
+    ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

@@ -113,8 +113,9 @@ class VaultYieldInfo {
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 class VaultYieldScreen extends ConsumerStatefulWidget {
-  final Vault vault;
-  const VaultYieldScreen({super.key, required this.vault});
+  final String vaultId;
+  final Vault? vault;
+  const VaultYieldScreen({super.key, this.vault, this.vaultId = ''});
 
   @override
   ConsumerState<VaultYieldScreen> createState() => _VaultYieldScreenState();
@@ -337,7 +338,8 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
 class _YieldStatusCard extends StatelessWidget {
-  final Vault vault;
+  final String vaultId;
+  final Vault? vault;
   final AsyncValue<VaultYieldInfo> yieldInfo;
   final AzamanColors colors;
 
@@ -409,7 +411,8 @@ class _YieldStatusCard extends StatelessWidget {
 
 class _EarningsBreakdown extends StatelessWidget {
   final AsyncValue<VaultYieldInfo> yieldInfo;
-  final Vault vault;
+  final String vaultId;
+  final Vault? vault;
   final AzamanColors colors;
 
   const _EarningsBreakdown({required this.yieldInfo, required this.vault, required this.colors});
