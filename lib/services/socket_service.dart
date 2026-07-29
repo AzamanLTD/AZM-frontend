@@ -402,8 +402,21 @@ class SocketService {
         }
       })
       ..onConnectError((err) {
+        final errStr = err.toString();
         if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connect error: $err');
+        }
+        // Detect auth failures from the server's socketAuth middleware
+        if (errStr.contains('Authentication failed') ||
+            errStr.contains('Token expired') ||
+            errStr.contains('Token superseded') ||
+            errStr.contains('banned') ||
+            errStr.contains('no longer exists')) {
+          debugPrint('[SocketService] Auth-related socket rejection: $errStr');
+          // Stop reconnection attempts for auth failures — the client
+          // must refresh its token before reconnecting. Auto-reconnect
+          // would just hammer the server with bad tokens.
+          _socket?.io.disconnect();
         }
       })
 
@@ -638,6 +651,14 @@ class SocketService {
       })
       ..onConnectError((err) {
           debugPrint('[SocketService] Connect error: $err');
+        final errStr = err.toString();
+        if (errStr.contains('Authentication failed') ||
+            errStr.contains('Token expired') ||
+            errStr.contains('Token superseded') ||
+            errStr.contains('banned') ||
+            errStr.contains('no longer exists')) {
+          _socket?.io.disconnect();
+        }
       })
       ..on('balance_update', (data) {
         try {
@@ -815,6 +836,39 @@ class SocketService {
     _onDepositSuccess = null;
     if (AppConfig.enableNetworkLogs) {
       debugPrint('[SocketService] Disposed');
+    }
+  }
+
+  /// Force a full reconnect — tears down the existing socket and
+  /// re-establishes with a fresh token from secure storage. Called
+  /// when the auth provider refreshes the JWT or when the socket
+  /// auth middleware rejects a stale token.
+  Future<void> forceReconnect() async {
+    debugPrint('[SocketService] forceReconnect — tearing down and reconnecting');
+    // Preserve rooms + user ID across the reconnect
+    final savedRooms = Set<String>.from(_joinedTradeRooms);
+    final savedUserId = _currentUserId;
+
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
+    _connecting = false;
+
+    // Re-init — _connect reads the fresh token from secure storage
+    if (_ref != null) {
+      _connect();
+    } else {
+      // No WidgetRef — use the Ref-less path
+      _connect();
+    }
+
+    // Give it a moment to connect, then rejoin rooms
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (savedUserId != null) {
+      joinUserRoom(savedUserId);
+    }
+    for (final roomId in savedRooms) {
+      _socket?.emit('join_trade', roomId);
     }
   }
 
