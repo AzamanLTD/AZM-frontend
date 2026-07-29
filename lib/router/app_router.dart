@@ -52,6 +52,12 @@ import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/screens/universal_search_screen.dart';
 import 'package:azaman/screens/spending_insights_screen.dart';
 import 'package:azaman/screens/round_up_settings_screen.dart';
+import 'package:azaman/screens/story_highlights_screen.dart';
+import 'package:azaman/screens/close_friends_screen.dart';
+import 'package:azaman/screens/story_analytics_screen.dart';
+import 'package:azaman/screens/loyalty_cards_screen.dart';
+import 'package:azaman/screens/susu/susu_position_picker_screen.dart';
+import 'package:azaman/screens/susu/susu_completion_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
@@ -486,6 +492,56 @@ final GoRouter appRouter = GoRouter(
       path: '/round-up',
       name: 'round-up-savings',
       builder: (context, state) => const RoundUpSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/story-highlights',
+      name: 'story-highlights',
+      builder: (context, state) => const StoryHighlightsScreen(),
+    ),
+    GoRoute(
+      path: '/close-friends',
+      name: 'close-friends',
+      builder: (context, state) => const CloseFriendsScreen(),
+    ),
+    GoRoute(
+      path: '/story-analytics/:businessId',
+      name: 'story-analytics',
+      builder: (context, state) => StoryAnalyticsScreen(
+        businessId: state.pathParameters['businessId']!,
+        businessName: state.uri.queryParameters['name'] ?? 'Business',
+      ),
+    ),
+    GoRoute(
+      path: '/loyalty-cards',
+      name: 'loyalty-cards',
+      builder: (context, state) => const LoyaltyCardsScreen(),
+    ),
+    GoRoute(
+      path: '/susu/position-picker',
+      name: 'susu-position-picker',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return SusuPositionPicker(
+          totalPositions: extra['totalPositions'] as int? ?? 10,
+          selectedPosition: extra['selectedPosition'] as int?,
+          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
+          onPositionSelected: extra['onPositionSelected'] as ValueChanged<int>? ?? (_) {},
+        );
+      },
+    ),
+    GoRoute(
+      path: '/susu/completion',
+      name: 'susu-completion',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return SusuCompletionScreen(
+          groupName: extra['groupName'] as String? ?? 'Susu Group',
+          totalContributed: extra['totalContributed'] as double? ?? 0,
+          totalPayout: extra['totalPayout'] as double? ?? 0,
+          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
+          currency: extra['currency'] as String? ?? 'GHS',
+        );
+      },
     ),
   ],
 );
