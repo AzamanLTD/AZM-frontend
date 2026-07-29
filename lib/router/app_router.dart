@@ -52,7 +52,10 @@ import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/screens/universal_search_screen.dart';
 import 'package:azaman/screens/spending_insights_screen.dart';
 import 'package:azaman/screens/round_up_settings_screen.dart';
+import 'package:azaman/screens/notification_preferences_screen.dart';
 import 'package:azaman/screens/story_highlights_screen.dart';
+import 'package:azaman/screens/story_camera_screen.dart';
+import 'package:azaman/screens/story_editor_screen.dart';
 import 'package:azaman/screens/close_friends_screen.dart';
 import 'package:azaman/screens/story_analytics_screen.dart';
 import 'package:azaman/screens/loyalty_cards_screen.dart';
@@ -504,6 +507,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const CloseFriendsScreen(),
     ),
     GoRoute(
+      path: '/story-camera',
+      name: 'story-camera',
+      builder: (context, state) => const StoryCameraScreen(),
+    ),
+    GoRoute(
+      path: '/story-editor',
+      name: 'story-editor',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return StoryEditorScreen();
+      },
+    ),
+    GoRoute(
       path: '/story-analytics/:businessId',
       name: 'story-analytics',
       builder: (context, state) => StoryAnalyticsScreen(
@@ -515,6 +531,11 @@ final GoRouter appRouter = GoRouter(
       path: '/loyalty-cards',
       name: 'loyalty-cards',
       builder: (context, state) => const LoyaltyCardsScreen(),
+    ),
+    GoRoute(
+      path: '/notification-preferences',
+      name: 'notification-preferences',
+      builder: (context, state) => const NotificationPreferencesScreen(),
     ),
     GoRoute(
       path: '/susu/position-picker',

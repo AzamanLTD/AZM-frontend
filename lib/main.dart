@@ -317,7 +317,9 @@ class AzamanApp extends ConsumerWidget {
 }
 
 // =============================================================================
-// MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Savings | Profile)
+import 'package:azaman/screens/vault/vault_list_screen.dart';
+
+// MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Vault | Market)
 //
 // Phase H review pass: comment was stale ("4-tab Home | P2P | Trades |
 // Profile" referenced the pre-Phase-0 layout). Bottom nav is rendered
@@ -358,6 +360,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       const AzamanHomePage(),
       const FriendsHubScreen(),
       const P2PMarketplaceScreen(),
+      const VaultListScreen(),
+      const MarketplaceHomeScreen(),
     ];
 
     _fadeCtrl = AnimationController(
@@ -544,6 +548,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 _pages[0],
                 _pages[1],
                 _pages[2],
+                _pages[3],
+                _pages[4],
               ],
             ),
           ),
