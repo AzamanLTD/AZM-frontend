@@ -1,6 +1,5 @@
 // lib/providers/premium_chat_provider.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:azaman/models/chat_message.dart';
@@ -96,7 +95,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   }
 
   String get _myUserId =>
-    _ref.read(authProvider).user?.id?.toString() ?? '';
+    _ref.read(authProvider).user?.id.toString() ?? '';
 
   void _init() {
     _joinRoom();

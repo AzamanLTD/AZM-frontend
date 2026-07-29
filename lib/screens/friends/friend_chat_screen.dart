@@ -7,14 +7,11 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:azaman/services/socket_service.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
@@ -23,13 +20,10 @@ import 'package:azaman/screens/chat_profile_screen.dart';
 import 'package:azaman/screens/tickets/ticket_dashboard_screen.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
-import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/friends/transfer_modal.dart';
-import 'package:azaman/widgets/audio_recorder_button.dart';
-import 'package:azaman/widgets/chat_media_bubble.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
 import 'package:azaman/providers/premium_chat_provider.dart';
 import 'package:azaman/models/chat_message.dart';
@@ -524,7 +518,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     final c = ref.watch(themeProvider).colors;
     final params = ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId);
     final chatState = ref.watch(premiumChatProvider(params));
-    final myUserId = int.tryParse(ref.read(authProvider).user?.id?.toString() ?? '0') ?? 0;
+    final myUserId = int.tryParse(ref.read(authProvider).user?.id.toString() ?? '0') ?? 0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,

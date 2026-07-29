@@ -40,7 +40,6 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {

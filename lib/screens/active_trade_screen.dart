@@ -21,7 +21,6 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 
 import 'package:go_router/go_router.dart';
-import 'package:azaman/config.dart';
 import 'package:azaman/screens/trade_summary_screen.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:hugeicons_pro/hugeicons.dart';

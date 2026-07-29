@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/business_provider.dart';

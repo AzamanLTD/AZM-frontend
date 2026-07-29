@@ -14,7 +14,6 @@
 // is defined in main.dart because it must be a top-level annotated
 // function registered before runApp.
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';

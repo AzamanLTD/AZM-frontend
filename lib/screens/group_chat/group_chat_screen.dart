@@ -1,19 +1,10 @@
-import 'dart:async';
-import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:azaman/config.dart';
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:intl/intl.dart' as intl;
-import 'package:record/record.dart';
 
 import 'package:azaman/providers/group_chat_provider.dart';
-import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -23,7 +14,6 @@ import 'package:azaman/widgets/premium_message_bubble.dart';
 import 'package:azaman/widgets/premium_chat_input.dart';
 import 'package:azaman/providers/premium_chat_provider.dart';
 import 'package:azaman/models/chat_message.dart';
-import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/disappearing_message_timer_sheet.dart';
@@ -76,7 +66,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _myUserId = ref.read(authProvider).user?.id?.toString();
+      _myUserId = ref.read(authProvider).user?.id.toString();
     });
   }
 

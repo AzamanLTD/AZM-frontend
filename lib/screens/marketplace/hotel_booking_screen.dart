@@ -11,7 +11,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/rating_stars.dart';

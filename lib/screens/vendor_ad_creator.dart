@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
-import 'package:azaman/providers/trade_account_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/trade_account_service.dart';

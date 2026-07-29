@@ -15,7 +15,6 @@ import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:azaman/widgets/business_card.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
 

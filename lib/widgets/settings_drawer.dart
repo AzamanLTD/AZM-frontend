@@ -46,7 +46,6 @@ import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
-import 'package:azaman/screens/vendor_dashboard.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';

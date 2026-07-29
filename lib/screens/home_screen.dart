@@ -16,13 +16,10 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
-import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
@@ -30,9 +27,6 @@ import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
-import 'package:azaman/widgets/routed_tab_surface.dart';
-import 'package:azaman/screens/universal_search_screen.dart';
-import 'package:azaman/screens/spending_insights_screen.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -98,59 +92,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
                 const SizedBox(height: 18),
 
                 _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
-
-                const SizedBox(height: 28),
-
-                // Spending Insights shortcut
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    context.push('/spending-insights');
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [colors.accent.withValues(alpha: 0.08), colors.accentSecondary.withValues(alpha: 0.04)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: colors.accent.withValues(alpha: 0.15), width: 0.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(
-                            color: colors.accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(HugeIconsSolid.dashboardSquare01, size: 20, color: colors.accent),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Spending Insights',
-                                style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-                              ),
-                              Text(
-                                'Track your spending & set budgets',
-                                style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(HugeIconsSolid.arrowRight01, size: 18, color: colors.accent),
-                      ],
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 350.ms, duration: 350.ms).slideY(begin: 0.1, end: 0, delay: 350.ms, duration: 350.ms),
 
                 const SizedBox(height: 28),
 
@@ -258,36 +199,6 @@ class _GreetingHeader extends ConsumerWidget {
                 duration: 300.ms,
                 curve: Curves.easeOutBack,
               ),
-          const SizedBox(width: 10),
-          // Universal search
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const UniversalSearchScreen(),
-                  transitionsBuilder: (_, anim, __, child) =>
-                      FadeTransition(opacity: anim, child: child),
-                  transitionDuration: 200.ms,
-                ),
-              );
-            },
-            child: PremiumGlassContainer(
-              blur: 8,
-              opacity: 0.06,
-              borderRadius: 20,
-              padding: EdgeInsets.zero,
-              enableShadow: false,
-              child: SizedBox(
-                width: 40, height: 40,
-                child: Center(
-                  child: Icon(HugeIconsSolid.search01, size: 18, color: colors.textSecondary),
-                ),
-              ),
-            ),
-          ),
           const Spacer(),
           GestureDetector(
             behavior: HitTestBehavior.opaque,

@@ -20,14 +20,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 
 // Azaman brand purple — used for SELECTED tint overlay

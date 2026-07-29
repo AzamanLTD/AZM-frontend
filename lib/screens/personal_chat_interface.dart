@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/providers/ticket_provider.dart';
-import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
 import 'package:azaman/widgets/chat_transfer_sheet.dart';
 import 'package:azaman/widgets/active_ticket_hud.dart';
@@ -25,7 +24,6 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/models/chat_message.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 
 class PersonalChatInterface extends ConsumerStatefulWidget {
   final String chatId;

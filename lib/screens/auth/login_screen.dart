@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/sso_service.dart';
 import 'package:azaman/providers/auth_provider.dart';

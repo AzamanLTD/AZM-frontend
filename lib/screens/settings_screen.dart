@@ -36,7 +36,6 @@ import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/screens/account_activity_screen.dart';

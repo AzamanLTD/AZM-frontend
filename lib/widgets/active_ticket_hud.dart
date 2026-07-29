@@ -20,7 +20,6 @@
 // compact bottom-sheet picker instead of jumping straight to one workspace.
 // =============================================================================
 
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

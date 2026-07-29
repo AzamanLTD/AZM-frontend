@@ -7,7 +7,6 @@ import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'vendor_ad_creator.dart';

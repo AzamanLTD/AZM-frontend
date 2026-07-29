@@ -14,10 +14,8 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
-import 'package:azaman/providers/trade_provider.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/azm_reward_provider.dart';
-import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 
 

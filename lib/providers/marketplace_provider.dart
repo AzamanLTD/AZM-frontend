@@ -23,7 +23,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────

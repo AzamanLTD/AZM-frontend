@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:azaman/providers/vendor_analytics_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/services/vendor_analytics_service.dart';
 
 
 // =============================================================================

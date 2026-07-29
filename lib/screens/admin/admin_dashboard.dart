@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/admin/profit_dashboard.dart';
 import 'package:azaman/screens/admin/users_dashboard.dart';

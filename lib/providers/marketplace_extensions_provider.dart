@@ -18,7 +18,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
-import 'package:azaman/providers/marketplace_provider.dart'; // for apiClient
 import 'package:azaman/services/api_client.dart';
 
 // ── Follow State ────────────────────────────────────────────────────────────

@@ -5,7 +5,6 @@
 // storefront widgets. Events are sent as fire-and-forget to avoid blocking UI.
 // =============================================================================
 
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';

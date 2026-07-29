@@ -3,7 +3,6 @@
 // AZAMAN — MARKETPLACE EXTENSIONS MODELS (v2, 2026-07-03)
 // =============================================================================
 
-import 'dart:convert';
 
 // ── FollowState ─────────────────────────────────────────────────────────────
 class FollowState {

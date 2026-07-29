@@ -2,7 +2,6 @@
 // AZAMAN PREMIUM — Unified Chat Message Model
 // Used by: FriendChatScreen, TransactionChatScreen, GroupChatScreen, TicketWorkspaceScreen
 
-import 'dart:convert';
 
 enum MessageStatus { sending, sent, delivered, read, failed }
 

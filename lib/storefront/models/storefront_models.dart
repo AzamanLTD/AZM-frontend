@@ -5,7 +5,6 @@
 // Mirrors the backend Prisma models for themes, widgets, layouts, and stakes.
 // =============================================================================
 
-import 'dart:convert';
 
 // ── Enums ────────────────────────────────────────────────────────────────────
 

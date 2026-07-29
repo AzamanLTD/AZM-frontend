@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/storefront_models.dart';
 import '../services/storefront_tracking_service.dart';
 import '../core/storefront_tracking_scope.dart';
