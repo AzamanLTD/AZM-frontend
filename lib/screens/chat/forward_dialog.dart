@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:azaman/services/api_client.dart';
+import 'dart:convert';
 import 'package:azaman/services/message_action_service.dart';
 
 class ForwardDialog {
@@ -61,12 +62,12 @@ class _ForwardSheetState extends State<_ForwardSheet> {
   void _loadConversations() async {
     try {
       // Load friends
-      final friendsRes = await ApiClient.dio.get('/api/friends');
-      final friends = List<Map<String, dynamic>>.from(friendsRes.data as List? ?? []);
+      final friendsRes = await ApiClient().get('/api/friends');
+      final friends = List<Map<String, dynamic>>.from(jsonDecode(friendsRes.body) as List? ?? []);
 
       // Load groups
-      final groupsRes = await ApiClient.dio.get('/api/groups');
-      final groups = List<Map<String, dynamic>>.from(groupsRes.data as List? ?? []);
+      final groupsRes = await ApiClient().get('/api/groups');
+      final groups = List<Map<String, dynamic>>.from(jsonDecode(groupsRes.body) as List? ?? []);
 
       if (mounted) {
         setState(() {

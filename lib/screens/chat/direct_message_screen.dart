@@ -38,6 +38,7 @@ import 'package:azaman/screens/call/call_screen.dart';
 import 'package:azaman/screens/chat/message_search_screen.dart';
 import 'package:azaman/screens/chat/forward_dialog.dart';
 import 'package:azaman/services/message_action_service.dart';
+import 'package:azaman/services/api_client.dart';
 
 
 class DirectMessageScreen extends ConsumerStatefulWidget {
@@ -1171,7 +1172,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
                 title: Text('Copy'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Clipboard.setData(ClipboardData(text: msg.content ?? ''));
+                  Clipboard.setData(ClipboardData(text: msg.text ?? ''));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Copied to clipboard'), duration: Duration(seconds: 1)),
                   );
@@ -1199,12 +1200,31 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to star message')),
+          SnackBar(content: Text('Failed to toggle star: $e')),
         );
       }
     }
   }
 
+  void _deleteMessage(ChatMessage msg) async {
+    try {
+      await ApiClient().delete('/api/messages/direct/${msg.id}');
+      setState(() {
+        msg.isDeleted = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message deleted'), duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    }
+  }
   void _togglePin(ChatMessage msg) async {
     try {
       await MessageActionService.togglePin(context: 'direct', messageId: msg.id);

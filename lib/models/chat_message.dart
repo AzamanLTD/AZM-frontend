@@ -178,8 +178,8 @@ class ChatMessage {
       isDeleted:        json['deletedAt'] != null,
       isEdited:         json['editedAt'] != null,
       reactions:        parsedReactions,
-      isStarred:        isStarred,
-      isPinned:         isPinned,
+      isStarred:        json['isStarred'] as bool?,
+      isPinned:         json['isPinned'] as bool?,
       // Peer-transfer amount/currency live under metadata, not top-level —
       // fall back there so the transfer card always has a number to show.
       amount:           (json['amount'] as num?)?.toDouble()

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
@@ -271,6 +272,28 @@ class _LoyaltyCard extends StatelessWidget {
                           isRedeemable ? 'Redeem Reward' : '\$stampsCollected / \$stampsRequired stamps',
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
                             color: isRedeemable ? cardColor : Colors.white54),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // ── Phase 3: Apple/Google Wallet Pass ──
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => WalletPassScreen(
+                            passType: 'loyalty',
+                            itemId: card['id'] as String,
+                            title: program['name'] as String? ?? 'Loyalty Card',
+                          ),
+                        )),
+                        icon: const Icon(Icons.wallet, size: 16),
+                        label: const Text('Add to Wallet', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white30),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                     ),

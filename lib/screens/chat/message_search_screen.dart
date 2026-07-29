@@ -257,7 +257,7 @@ class _SearchResultItem extends StatelessWidget {
     switch (type) {
       case 'IMAGE': return Icons.image;
       case 'VIDEO': return Icons.videocam;
-      case 'AUDIO': return Icons.audiobook;
+      case 'AUDIO': return Icons.headphones;
       case 'DOCUMENT': return Icons.description;
       case 'LINK': return Icons.link;
       default: return Icons.attach_file;

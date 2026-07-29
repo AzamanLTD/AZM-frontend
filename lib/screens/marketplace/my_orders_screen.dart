@@ -17,6 +17,7 @@ import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/screens/orders/order_tracking_screen.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -185,7 +186,33 @@ class _OrderCard extends StatelessWidget {
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('\$${order.amountUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: colors.accent)),
-            Icon(Icons.chevron_right_rounded, size: 18, color: colors.textTertiary),
+            if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => OrderTrackingScreen(
+                    orderId: order.id,
+                    orderRef: order.orderRef,
+                  ),
+                )),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delivery_dining, size: 12, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text('Track', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                    ],
+                  ),
+                ),
+              ),
+            ] else
+              Icon(Icons.chevron_right_rounded, size: 18, color: colors.textTertiary),
           ]),
         ]),
       ),

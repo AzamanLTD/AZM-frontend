@@ -117,7 +117,7 @@ class WebRTCService {
 
   /// Initialize WebRTC — call once at app startup
   Future<void> initialize() async {
-    await FlutterWebRTCPlatform.instance.initialize();
+    // WebRTC initialization is automatic in flutter_webrtc ^0.12
   }
 
   /// Set socket reference for signaling
@@ -192,7 +192,7 @@ class WebRTCService {
     final callId = 'call_${DateTime.now().millisecondsSinceEpoch}';
     currentCall = ActiveCall(
       callId: callId,
-      callerId: _socket?.userId ?? 0,
+      callerId: _socket?.userIdInt ?? 0,
       calleeId: calleeId,
       callerName: calleeName,
       callerAvatar: calleeAvatar,
@@ -235,7 +235,7 @@ class WebRTCService {
     currentCall = ActiveCall(
       callId: data['callId'] ?? '',
       callerId: data['callerId'] ?? 0,
-      calleeId: _socket?.userId ?? 0,
+      calleeId: _socket?.userIdInt ?? 0,
       callerName: data['callerName'] ?? 'Unknown',
       callerAvatar: data['callerAvatar'],
       type: data['type'] ?? 'voice',

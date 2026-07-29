@@ -820,6 +820,15 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
   io.Socket? get rawSocket => _socket;
+  
+  /// Public socket getter for WebRTC signaling
+  io.Socket? get socket => _socket;
+  
+  /// Current user ID getter
+  String? get userId => _currentUserId;
+  
+  /// Parsed user ID as int for APIs that need it
+  int get userIdInt => int.tryParse(_currentUserId ?? '0') ?? 0;
 
   // -------------------------------------------------------------------------
   // Helpers

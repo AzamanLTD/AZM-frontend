@@ -10,12 +10,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
+import 'dart:convert';
 import 'package:azaman/screens/call/call_screen.dart';
 
 // Provider for call history
 final callHistoryProvider = FutureProvider<List<dynamic>>((ref) async {
-  final response = await ApiClient.dio.get('/api/calls?limit=50');
-  return response.data['data'] as List<dynamic>;
+  final response = await ApiClient().get('/api/calls?limit=50');
+  return jsonDecode(response.body)['data'] as List<dynamic>;
 });
 
 class CallHistoryScreen extends ConsumerStatefulWidget {

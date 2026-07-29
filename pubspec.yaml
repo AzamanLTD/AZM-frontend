@@ -45,7 +45,8 @@ dependencies:
   # Fixes canLaunchUrl & LaunchMode errors
   url_launcher: ^6.3.0  
   # Fixes Undefined name 'Share' error
-  share_plus: ^12.0.2    
+  share_plus: ^12.0.2
+  google_maps_flutter: ^2.9.0
   # For Binance-style haptic feedback (vibration)
   vibration: ^2.0.1      
   # ----------------------------------------------

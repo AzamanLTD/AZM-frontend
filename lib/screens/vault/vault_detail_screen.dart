@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
+import 'package:azaman/screens/vault/vault_yield_screen.dart';
+import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
@@ -141,6 +143,37 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                   colors: colors,
                 ).animate().fadeIn(delay: 160.ms, duration: 320.ms),
               ],
+              // ── Phase 3: DeFi Yield + Wallet Pass ──
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionChip(
+                      icon: v.yieldEnabled ? Icons.flash_on : Icons.flash_off,
+                      label: v.yieldEnabled ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%' : 'DeFi Yield',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => VaultYieldScreen(vault: v),
+                      )),
+                      colors: colors,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ActionChip(
+                      icon: Icons.wallet,
+                      label: 'Wallet Pass',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => WalletPassScreen(
+                          passType: 'vault',
+                          itemId: v.id,
+                          title: v.name,
+                        ),
+                      )),
+                      colors: colors,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Text(
                 'Recent Deposits',
@@ -483,5 +516,47 @@ class _DepositTile extends StatelessWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     return '${diff.inDays}d';
+  }
+}
+
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final AzamanColors colors;
+
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.divider, width: 0.6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: colors.accent),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(label,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

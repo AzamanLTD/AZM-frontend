@@ -27,6 +27,7 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/disappearing_message_timer_sheet.dart';
+import 'package:azaman/screens/chat/message_search_screen.dart';
 
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -212,6 +213,16 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           },
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.search, size: 20, color: colors.textSecondary),
+            tooltip: 'Search messages',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => MessageSearchScreen(
+                conversationId: widget.groupId,
+                conversationContext: 'group',
+              ),
+            )),
+          ),
           Builder(builder: (ctx) {
             final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
             final chatState = ref.watch(premiumChatProvider(params));
