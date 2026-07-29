@@ -163,7 +163,6 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
 
   Widget _buildTradeCard(Map<String, dynamic> trade, AzamanColors colors, {required bool isActive}) {
     final status = trade['status'] ?? 'UNKNOWN';
-    final amountFiat = (trade['amountFiat'] as num?)?.toDouble() ?? 0;
     final amountCrypto = (trade['amountCrypto'] as num?)?.toDouble() ?? 0;
     final crypto = trade['crypto'] ?? 'USDT';
     final type = trade['type'] ?? 'SELL';

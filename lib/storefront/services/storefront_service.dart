@@ -196,7 +196,6 @@ class StorefrontService {
     if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
     if (category != null) params['category'] = category;
 
-    final queryString = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
     final response = await _apiClient.get('/storefront/discover?\$queryString', requireAuth: false);
     final data = _parseResponse(response) as Map<String, dynamic>;
     return (data['results'] as List).cast<Map<String, dynamic>>();
@@ -249,7 +248,6 @@ class StorefrontService {
       if (status != null) 'status': status,
       if (cursor != null) 'cursor': cursor,
     };
-    final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     final response = await _apiClient.get(
       '/storefront/me/orders?\$query',
     );

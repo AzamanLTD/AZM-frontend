@@ -70,7 +70,6 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         final settingsRes = await apiClient.get('/users/dashboard', requireAuth: true);
         if (settingsRes.statusCode == 200) {
           final settingsBody = jsonDecode(settingsRes.body);
-          final rates = settingsBody['data']?['rates'] ?? {};
           // The dashboard endpoint doesn't expose vendorMinCollateral yet,
           // so we use the fallback. The backend enforces the real value.
         }

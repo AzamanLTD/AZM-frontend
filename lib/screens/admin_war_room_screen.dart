@@ -1278,7 +1278,7 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
 
     // Renamed local from `tradeProvider` to `tp` to avoid shadowing the
     // top-level Riverpod `tradeProvider` symbol.
-    final tp = ref.read(tradeProvider);
+    ref.read(tradeProvider);
     SocketService.instance.rawSocket?.on('new_trade_message', _onNewMessage);
   }
 
@@ -1350,14 +1350,14 @@ class _AdminChatInterceptScreenState extends ConsumerState<_AdminChatInterceptSc
 
   @override
   void dispose() {
-    final tp = ref.read(tradeProvider);
+    ref.read(tradeProvider);
     SocketService.instance.rawSocket?.off('new_trade_message', _onNewMessage);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tp = ref.read(tradeProvider);
+    ref.read(tradeProvider);
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(

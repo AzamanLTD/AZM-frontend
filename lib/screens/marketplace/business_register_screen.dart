@@ -448,7 +448,6 @@ class _BusinessRegisterScreenState
   }
 
   Widget _typeSpecificFields(AzamanColors colors) {
-    final cat = BusinessCategories.fromWire(_category);
 
     // TRANSIT — vehicle & route info
     if (_category == 'LOGISTICS') {

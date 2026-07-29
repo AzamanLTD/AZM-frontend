@@ -125,8 +125,6 @@ class _GreetingHeader extends ConsumerWidget {
 
     // V3 Marketplace Sprint (2026-06-21): owner notification bell — only shown
     // when the signed-in user has a registered business.
-    final hasBiz = ref.watch(myBusinessProvider).profile != null;
-    final bizUnread = ref.watch(bizUnreadCountProvider);
 
     final username = user?.username ?? '';
     final initials = _initials(username);

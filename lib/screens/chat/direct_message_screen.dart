@@ -341,7 +341,7 @@ class _DirectMessageScreenState extends ConsumerState<DirectMessageScreen> {
 
   void _showValueTransferSheet() {
     HapticFeedback.mediumImpact();
-    final colors = ref.read(themeProvider).colors;
+    ref.read(themeProvider).colors;
     
     showModalBottomSheet(
       context: context,

@@ -11,7 +11,6 @@ class ShowcaseGalleryWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = props['title'] as String? ?? 'Gallery';
     final maxItems = props['maxItems'] ?? 8;
-    final autoplay = props['autoplay'] ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

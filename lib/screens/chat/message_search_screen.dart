@@ -172,7 +172,6 @@ class _SearchResultItem extends StatelessWidget {
     final mediaUrl = message['mediaUrl'] as String?;
     final messageType = message['messageType'] as String? ?? 'TEXT';
     final createdAt = DateTime.tryParse(message['createdAt'] as String? ?? '');
-    final contextType = message['context'] as String? ?? 'direct';
     final groupName = message['groupName'] as String?;
     final isStarred = message['isStarred'] as bool? ?? false;
 

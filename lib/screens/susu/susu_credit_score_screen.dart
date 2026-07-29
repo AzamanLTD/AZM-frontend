@@ -34,7 +34,6 @@ class _SusuCreditScoreScreenState extends ConsumerState<SusuCreditScoreScreen> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final susuListAsync = ref.watch(susuListProvider);
-    final auth = ref.watch(authProvider);
 
     final groups = susuListAsync.valueOrNull ?? [];
     final activeGroups = groups.where((g) => g.status == SusuStatus.active).length;

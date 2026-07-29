@@ -15,7 +15,6 @@ class HologramBalanceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final balanceData = ref.watch(balanceDataProvider);
-    final isVisible = ref.watch(balanceVisibleProvider);
     final user = ref.watch(authProvider).user;
 
     final totalUsdc = balanceData.totalBalance;

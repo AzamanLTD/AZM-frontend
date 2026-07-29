@@ -60,7 +60,6 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     // Title opacity: fades in as header collapses
     final compactTitleOpacity = (1.0 - expandPercent).clamp(0.0, 1.0);
-    final expandedTitleOpacity = expandPercent.clamp(0.0, 1.0);
 
     return SizedBox(
       height: maxExtent,

@@ -10,8 +10,6 @@ class VideoPlayerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final videoUrl = props['videoUrl'] as String?;
-    final posterUrl = props['posterUrl'] as String?;
-    final autoplay = props['autoplay'] ?? false;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),

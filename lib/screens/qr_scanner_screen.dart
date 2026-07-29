@@ -145,7 +145,6 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   Future<bool?> _showConfirmSheet(Map<String, dynamic> user, AzamanColors colors) {
     final username = user['username'] ?? 'Unknown';
-    final userId = user['id'];
     final tradesCompleted = user['tradesCompleted'] ?? 0;
 
     return showModalBottomSheet<bool>(

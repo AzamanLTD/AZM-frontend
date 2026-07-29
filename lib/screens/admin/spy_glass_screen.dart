@@ -32,7 +32,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
 
     HapticFeedback.mediumImpact();
 
-    final tp = ref.read(tradeProvider);
+    ref.read(tradeProvider);
     _socket = SocketService.instance.rawSocket;
 
     _socket!.emit('join_admin_spy', tradeId);

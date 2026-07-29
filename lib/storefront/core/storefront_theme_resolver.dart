@@ -30,10 +30,7 @@ class StorefrontThemeResolver {
         isDark ? const Color(0xFFC6BDCF) : const Color(0xFF5D5A66));
     final textMuted = _parseColor(tokens?.textMuted,
         isDark ? const Color(0xFF776589) : const Color(0xFF9A96A3));
-    final success = _parseColor(tokens?.success, const Color(0xFF1FA37A));
-    final warning = _parseColor(tokens?.warning, const Color(0xFFE2A33D));
     final danger = _parseColor(tokens?.danger, const Color(0xFFE15361));
-    final info = _parseColor(tokens?.info, const Color(0xFF3D74DB));
 
     final radiusValue = _parseBorderRadius(theme.borderRadius);
     final spacingScale = theme.spacingScale ?? 1.0;

@@ -123,7 +123,6 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
   }
 
   void _onDragEnd(DragEndDetails _) {
-    final sw = MediaQuery.of(context).size.width;
     if (_passedThreshold) {
       // Commit — navigate
       HapticFeedback.heavyImpact();
@@ -187,7 +186,6 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
     _topOffset ??= mq.size.height * 0.35;
 
     // Tab visual width (flush to right edge, pulled LEFT by _dragX)
-    const tabWidth = 28.0;
 
     return Positioned(
       top: _topOffset,

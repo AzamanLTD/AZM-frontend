@@ -50,7 +50,6 @@ class _StoryCreationScreenState extends ConsumerState<StoryCreationScreen> {
       
       final response = await apiClient.multipart('/stories', request);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = response.body;
         final boostAmount = int.tryParse(_boostAmountController.text) ?? 0;
         
         if (boostAmount > 0) {
