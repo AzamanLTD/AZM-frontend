@@ -96,6 +96,11 @@ class SocketService {
   /// A business order was marked delivered (customer-facing nudge).
   void Function(Map<String, dynamic> data)? _onBusinessOrderDelivered;
 
+  // ── Order tracking (real-time courier location, status, ETA) ──────────────
+  void Function(Map<String, dynamic> data)? _onOrderLocation;
+  void Function(Map<String, dynamic> data)? _onOrderStatus;
+  void Function(Map<String, dynamic> data)? _onOrderEta;
+
   /// Any `escrow_*` / `invoice_paid` event — the second arg is the event name
   /// so a single handler can fan out (the ticket workspace filters by ticket).
   void Function(Map<String, dynamic> data, String eventName)? _onEscrowEvent;
@@ -283,6 +288,7 @@ class SocketService {
 
   /// Track which group chat rooms we've joined to auto-rejoin on network flap
   final Set<String> _joinedGroupRooms = {};
+  final Set<String> _joinedOrderRooms = {};
 
   /// Join a specific trade room. Idempotent — safe to call multiple times.
   void joinTradeRoom(String tradeId) {
@@ -337,6 +343,37 @@ class SocketService {
   void leaveGroupRoom(String groupId, String userId) {
     _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
     _joinedGroupRooms.remove(groupId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Order Tracking Room
+  // -------------------------------------------------------------------------
+
+  void joinOrderRoom(String orderId) {
+    if (_joinedOrderRooms.contains(orderId)) return;
+    _socket?.emit('join_order', {'orderId': orderId});
+    _joinedOrderRooms.add(orderId);
+    if (AppConfig.enableNetworkLogs) {
+      debugPrint('[SocketService] Joined order room: order_$orderId');
+    }
+  }
+
+  void leaveOrderRoom(String orderId) {
+    _socket?.emit('leave_order', {'orderId': orderId});
+    _joinedOrderRooms.remove(orderId);
+  }
+
+  // ── Order tracking callbacks ─────────────────────────────────────────────
+  void onOrderLocation(void Function(Map<String, dynamic>) cb) {
+    _onOrderLocation = cb;
+  }
+
+  void onOrderStatus(void Function(Map<String, dynamic>) cb) {
+    _onOrderStatus = cb;
+  }
+
+  void onOrderEta(void Function(Map<String, dynamic>) cb) {
+    _onOrderEta = cb;
   }
 
   // -------------------------------------------------------------------------
@@ -819,6 +856,7 @@ class SocketService {
     _ref = null;
     _connecting = false;
     _joinedTradeRooms.clear();
+    _joinedOrderRooms.clear();
     // Clear all registered callbacks
     _onAzmReward = null;
     _onAzmSpend = null;
@@ -832,6 +870,9 @@ class SocketService {
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
     _onBusinessOrderDelivered = null;
+    _onOrderLocation = null;
+    _onOrderStatus = null;
+    _onOrderEta = null;
     _onEscrowEvent = null;
     _onDepositSuccess = null;
     if (AppConfig.enableNetworkLogs) {

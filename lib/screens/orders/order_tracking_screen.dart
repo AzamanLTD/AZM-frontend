@@ -16,6 +16,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/socket_service.dart';
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
@@ -131,6 +132,78 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   LatLng? _courierPos;
   LatLng? _deliveryPos;
   CameraPosition? _initialCamera;
+
+  @override
+  void initState() {
+    super.initState();
+    // Join the order's socket room for real-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final socket = ref.read(socketServiceProvider);
+      socket.joinOrderRoom(widget.orderId);
+
+      // Listen for real-time courier location updates
+      socket.onOrderLocation((data) {
+        if (!mounted) return;
+        final lat = (data['latitude'] as num?)?.toDouble();
+        final lng = (data['longitude'] as num?)?.toDouble();
+        final heading = (data['heading'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          setState(() {
+            _courierPos = LatLng(lat, lng);
+            _updateMarkersRealtime(lat, lng, heading ?? 0);
+          });
+          _animateCameraToCourier();
+        }
+      });
+
+      // Listen for status changes — refresh the timeline
+      socket.onOrderStatus((data) {
+        if (!mounted) return;
+        ref.invalidate(orderTimelineProvider(widget.orderId));
+        ref.invalidate(orderTrackingProvider(widget.orderId));
+      });
+
+      // Listen for ETA updates
+      socket.onOrderEta((data) {
+        if (!mounted) return;
+        ref.invalidate(orderTrackingProvider(widget.orderId));
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    // Leave the order room and clear callbacks
+    try {
+      final socket = ref.read(socketServiceProvider);
+      socket.leaveOrderRoom(widget.orderId);
+      socket.onOrderLocation((_) {});
+      socket.onOrderStatus((_) {});
+      socket.onOrderEta((_) {});
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _updateMarkersRealtime(double lat, double lng, double heading) {
+    final markers = <Marker>{..._markers};
+    markers.removeWhere((m) => m.markerId == const MarkerId('courier'));
+    markers.add(Marker(
+      markerId: const MarkerId('courier'),
+      position: LatLng(lat, lng),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      infoWindow: const InfoWindow(title: 'Courier'),
+      rotation: heading,
+    ));
+    _markers = markers;
+  }
+
+  void _animateCameraToCourier() {
+    if (_mapController != null && _courierPos != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLng(_courierPos!),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
