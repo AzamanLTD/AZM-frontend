@@ -18,6 +18,7 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/orders/order_tracking_screen.dart';
+import 'package:azaman/screens/storefront_screen.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -207,6 +208,37 @@ class _OrderCard extends StatelessWidget {
                       Icon(Icons.delivery_dining, size: 12, color: colors.accent),
                       const SizedBox(width: 3),
                       Text('Track', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                    ],
+                  ),
+                ),
+              ),
+            ] else if (order.status == BusinessOrderStatus.completed) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () {
+                  // Reorder: navigate to the business storefront for re-ordering
+                  // The cart system handles adding items from the storefront
+                  if (order.businessProfileId.isNotEmpty) {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => StorefrontScreen(
+                        businessProfileId: order.businessProfileId,
+                        businessName: order.title,
+                      ),
+                    ));
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.replay_rounded, size: 12, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text('Reorder', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
                     ],
                   ),
                 ),

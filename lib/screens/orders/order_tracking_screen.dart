@@ -8,6 +8,7 @@
 // Reference: Uber Eats tracker, DoorDash live map
 // =============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,6 +18,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
+import 'package:azaman/models/business_models.dart';
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
@@ -55,10 +58,12 @@ class OrderTracking {
   final String? driverPhone;
   final String? vehiclePlate;
   final DateTime? lastPingAt;
+  final String? businessProfileId;
 
   OrderTracking({
     required this.id,
     required this.orderId,
+    this.businessProfileId,
     this.courierLatitude,
     this.courierLongitude,
     this.courierHeading,
@@ -91,6 +96,7 @@ class OrderTracking {
         driverName: j['driverName'] as String?,
         driverPhone: j['driverPhone'] as String?,
         vehiclePlate: j['vehiclePlate'] as String?,
+        businessProfileId: j['businessProfileId'] as String?,
         lastPingAt: j['lastPingAt'] != null ? DateTime.tryParse(j['lastPingAt']) : null,
       );
 }
@@ -148,19 +154,36 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         final lng = (data['longitude'] as num?)?.toDouble();
         final heading = (data['heading'] as num?)?.toDouble();
         if (lat != null && lng != null) {
-          setState(() {
-            _courierPos = LatLng(lat, lng);
-            _updateMarkersRealtime(lat, lng, heading ?? 0);
-          });
+          final target = LatLng(lat, lng);
+          if (_courierPos != null) {
+            // Smooth interpolation between old and new position
+            _animateMarkerTo(_courierPos!, target);
+          } else {
+            setState(() {
+              _courierPos = target;
+              _updateMarkersRealtime(lat, lng, heading ?? 0);
+            });
+          }
           _animateCameraToCourier();
         }
       });
 
-      // Listen for status changes — refresh the timeline
+      // Listen for status changes — refresh the timeline + trigger review
       socket.onOrderStatus((data) {
         if (!mounted) return;
         ref.invalidate(orderTimelineProvider(widget.orderId));
         ref.invalidate(orderTrackingProvider(widget.orderId));
+
+        // Auto-trigger review prompt 2s after delivery (matches Uber Eats UX)
+        final status = data['status'] as String? ?? '';
+        if (status == 'delivered' || status == 'completed') {
+          _reviewTriggered = false; // reset so it can fire
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!mounted || _reviewTriggered) return;
+            _reviewTriggered = true;
+            _showReviewPrompt();
+          });
+        }
       });
 
       // Listen for ETA updates
@@ -203,6 +226,57 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         CameraUpdate.newLatLng(_courierPos!),
       );
     }
+  }
+
+  /// Smoothly interpolate the courier marker between position updates
+  /// instead of snapping — this is what makes tracking feel "alive."
+  Future<void> _animateMarkerTo(LatLng from, LatLng to, {Duration duration = const Duration(milliseconds: 900)}) async {
+    const steps = 30;
+    final stepDuration = duration ~/ steps;
+    for (var i = 1; i <= steps; i++) {
+      await Future.delayed(stepDuration);
+      if (!mounted) return;
+      final t = i / steps;
+      final lat = from.latitude + (to.latitude - from.latitude) * t;
+      final lng = from.longitude + (to.longitude - from.longitude) * t;
+      setState(() {
+        _courierPos = LatLng(lat, lng);
+        _markers = {
+          ..._markers.where((m) => m.markerId.value != 'courier'),
+          Marker(
+            markerId: const MarkerId('courier'),
+            position: LatLng(lat, lng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+            infoWindow: const InfoWindow(title: 'Courier'),
+          ),
+        };
+      });
+    }
+  }
+
+  bool _reviewTriggered = false;
+
+  void _showReviewPrompt() {
+    // Fetch the business profile for the review sheet
+    final tracking = ref.read(orderTrackingProvider(widget.orderId));
+    tracking.whenData((track) async {
+      final bizId = track.businessProfileId;
+      if (bizId == null || bizId.isEmpty) return;
+
+      // Try to get the business profile — if we can't, skip silently
+      try {
+        final res = await apiClient.get('/marketplace/business/$bizId');
+        if (res.statusCode != 200 || !mounted) return;
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final bizData = body['business'] as Map<String, dynamic>? ?? body;
+        final biz = BusinessProfile.fromJson(bizData);
+
+        if (!mounted) return;
+        LeaveReviewSheet.show(context, business: biz);
+      } catch (_) {
+        // Silently skip if business profile can't be loaded
+      }
+    });
   }
 
   @override
@@ -422,26 +496,55 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
-class _EtaCard extends StatelessWidget {
+class _EtaCard extends StatefulWidget {
   final DateTime eta;
   final AzamanColors colors;
   const _EtaCard({required this.eta, required this.colors});
 
   @override
+  State<_EtaCard> createState() => _EtaCardState();
+}
+
+class _EtaCardState extends State<_EtaCard> {
+  late Duration _remaining;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _remaining = widget.eta.difference(DateTime.now());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _remaining = widget.eta.difference(DateTime.now());
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final diff = eta.difference(now);
-    final isArrived = diff.isNegative;
-    final mins = diff.inMinutes.abs();
+    final isArrived = _remaining.isNegative;
+    final mins = _remaining.inMinutes.abs();
     final hours = mins ~/ 60;
     final remainingMins = mins % 60;
+    final countdownText = isArrived
+        ? 'Delivered'
+        : hours > 0
+            ? '${hours}h ${remainingMins}m'
+            : '$remainingMins min';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors.accent, colors.accent.withValues(alpha: 0.7)],
+          colors: [widget.colors.accent, widget.colors.accent.withValues(alpha: 0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -457,19 +560,20 @@ class _EtaCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArrived ? 'Arrived' : 'Estimated Arrival',
+                  isArrived ? 'Arrived' : 'Arriving in',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
-                Text(
-                  isArrived
-                      ? 'Delivered'
-                      : hours > 0
-                          ? '${hours}h ${remainingMins}m'
-                          : '$remainingMins min',
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                  child: Text(
+                    countdownText,
+                    key: ValueKey(countdownText),
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                  ),
                 ),
                 Text(
-                  '${eta.toLocal().hour.toString().padLeft(2, '0')}:${eta.toLocal().minute.toString().padLeft(2, '0')}',
+                  '${widget.eta.toLocal().hour.toString().padLeft(2, '0')}:${widget.eta.toLocal().minute.toString().padLeft(2, '0')}',
                   style: const TextStyle(color: Colors.white60, fontSize: 12),
                 ),
               ],
