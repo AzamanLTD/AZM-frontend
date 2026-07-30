@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/personal_chat_interface.dart';
+import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/contacts_screen.dart';
 import 'package:azaman/providers/story_provider.dart';
@@ -163,7 +163,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
       final token = auth.user?.token;
       if (token == null) return;
 
-      final response = await apiClient.get('/chat/personal');
+      final response = await apiClient.get('/friends/chat/conversations');
 
       if (response.statusCode == 200 && mounted) {
         final List data = jsonDecode(response.body)['chats'] ?? [];
@@ -319,16 +319,15 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
       final token = auth.user?.token;
       if (token == null) return;
 
-      final response = await apiClient.post('/chat/personal/start', {'azamanId': azamanId});
+      final response = await apiClient.post('/friends/chat/start', {'azamanId': azamanId});
 
       if (response.statusCode == 200 && mounted) {
         final data = jsonDecode(response.body);
         Navigator.push(context, MaterialPageRoute(
-          builder: (_) => PersonalChatInterface(
-            chatId: data['chatId']?.toString() ?? '',
-            contactId: data['contactId']?.toString() ?? '',
-            contactAzamanId: azamanId,
-            contactName: data['contactName']?.toString() ?? azamanId,
+          builder: (_) => FriendChatScreen(
+            friendshipId: data['chatId']?.toString() ?? '',
+            friendUsername: data['contactName']?.toString() ?? azamanId,
+            friendId: int.tryParse(data['contactId']?.toString() ?? '0') ?? 0,
           ),
         ));
       } else if (mounted) {
@@ -1059,11 +1058,10 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         onTap: () {
           HapticFeedback.selectionClick();
           Navigator.push(context, MaterialPageRoute(
-            builder: (_) => PersonalChatInterface(
-              chatId: chat.id,
-              contactId: chat.contactId,
-              contactAzamanId: chat.contactAzamanId,
-              contactName: chat.contactName,
+            builder: (_) => FriendChatScreen(
+              friendshipId: chat.id,
+              friendUsername: chat.contactName,
+              friendId: int.tryParse(chat.contactId) ?? 0,
             ),
           )).then((_) => _fetchChats());
         },

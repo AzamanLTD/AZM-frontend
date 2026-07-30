@@ -151,7 +151,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final groupAsync = ref.watch(groupDetailProvider(widget.groupId));
-    final messagesAsync = ref.watch(groupMessagesProvider(widget.groupId));
 
     return Scaffold(
       backgroundColor: colors.background,
