@@ -27,6 +27,10 @@ import 'storefront_order_sheet.dart';
 import '../storefront/core/scroll_to_products_notification.dart';
 import '../storefront/widgets/storefront_skeleton.dart';
 import '../providers/theme_provider.dart';
+import '../utils/azaman_haptics.dart';
+import '../providers/cart_provider.dart';
+import '../widgets/floating_cart_bar.dart';
+import 'marketplace/cart_screen.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -115,6 +119,89 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
     }
   }
 
+  void _addToCart(Map<String, dynamic> product) {
+    StorefrontTrackingService.instance.trackEvent(
+      widget.businessProfileId,
+      'cta_click',
+      {'ctaType': 'add_to_cart', 'productId': product['id']},
+    );
+
+    final cart = ref.read(cartProvider);
+    final bizName = widget.businessName ?? 'Business';
+    final bizId = widget.businessProfileId;
+
+    if (cart.businessProfileId != null &&
+        cart.businessProfileId != bizId &&
+        cart.items.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Start new cart?'),
+          content: Text(
+            'Your cart has items from ${cart.businessName ?? 'another business'}. '
+            'Starting a new cart will remove those items.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Keep current cart'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ref.read(cartProvider.notifier).startNewCart(
+                  businessProfileId: bizId,
+                  businessName: bizName,
+                );
+                _doAddToCart(product);
+              },
+              child: const Text('Start new cart'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    _doAddToCart(product);
+  }
+
+  void _doAddToCart(Map<String, dynamic> product) {
+    final bizName = widget.businessName ?? 'Business';
+    final bizId = widget.businessProfileId;
+    final imageUrls = (product['imageUrls'] as List?)?.cast<String>() ?? [];
+
+    final added = ref.read(cartProvider.notifier).addItem(
+      businessProfileId: bizId,
+      businessName: bizName,
+      productId: product['id'] as String,
+      name: product['name'] as String? ?? 'Product',
+      unitPrice: (product['priceUsdc'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+      category: product['category'] as String?,
+    );
+
+    if (!mounted) return;
+
+    if (added) {
+      AzamanHaptics.confirm();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product['name'] ?? 'Item'} added to cart'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _openCart() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -184,7 +271,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
                   productsAsync: productsAsync,
                   colors: colors,
                   onOrder: (product) {
-                    _openOrderSheet(product);
+                    _addToCart(product);
                   },
                   onTrackProductTap: (productId) {
                     StorefrontTrackingService.instance.trackEvent(
@@ -201,6 +288,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
           );
         },
       ),
+      bottomNavigationBar: FloatingCartBar(onTap: _openCart),
     );
   }
 }
@@ -259,7 +347,7 @@ class _ProductsSection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Tap a product to order directly from $businessName',
+                'Add items to your cart, then checkout when ready',
                 style: TextStyle(fontSize: 13, color: colors.textSecondary),
               ),
             ),
@@ -379,12 +467,19 @@ class _ProductCard extends StatelessWidget {
                         ],
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
                             color: colors.accent,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text('Order', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add, size: 14, color: Colors.white),
+                              SizedBox(width: 2),
+                              Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
