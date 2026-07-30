@@ -334,7 +334,7 @@ class _AudioBubble extends StatefulWidget {
   State<_AudioBubble> createState() => _AudioBubbleState();
 }
 
-class _AudioBubbleState extends State<_AudioBubble> {
+class _AudioBubbleState extends State<_AudioBubble> with WidgetsBindingObserver {
   AudioPlayer? _player;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _stateSub;
@@ -343,10 +343,12 @@ class _AudioBubbleState extends State<_AudioBubble> {
   Duration? _duration;
   bool _playing = false;
   bool _loading = false;
+  double _speed = 1.0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final declaredSec = widget.payload.duration;
     if (declaredSec != null && declaredSec > 0) {
       _duration = Duration(seconds: declaredSec);
@@ -354,7 +356,16 @@ class _AudioBubbleState extends State<_AudioBubble> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _playing && _player != null) {
+      _player!.pause();
+      setState(() => _playing = false);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _stateSub?.cancel();
     final p = _player;
@@ -440,6 +451,14 @@ class _AudioBubbleState extends State<_AudioBubble> {
     setState(() => _position = target);
     await _ensurePlayer();
     await _player!.seek(target);
+  }
+
+  void _cycleSpeed() {
+    HapticFeedback.selectionClick();
+    const speeds = [1.0, 1.5, 2.0];
+    final next = speeds[(speeds.indexOf(_speed) + 1) % speeds.length];
+    setState(() => _speed = next);
+    if (_player != null) _player!.setPlaybackRate(next);
   }
 
   @override
@@ -530,6 +549,27 @@ class _AudioBubbleState extends State<_AudioBubble> {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
+          if (_playing || _position > Duration.zero) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: _cycleSpeed,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: accent.withValues(alpha: 0.12),
+                ),
+                child: Text(
+                  '${_speed}x',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
