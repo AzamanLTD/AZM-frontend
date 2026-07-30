@@ -8,6 +8,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:azaman/widgets/message_status_ticks.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 

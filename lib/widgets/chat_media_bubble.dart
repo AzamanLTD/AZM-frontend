@@ -44,6 +44,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
+import 'package:azaman/screens/chat/media_viewer_screen.dart';
 
 
 /// All metadata needed to render a media bubble. Wraps the wire format so
@@ -159,6 +160,26 @@ String _formatDuration(int? seconds) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
+Future<void> _openMediaViewer(BuildContext ctx, ChatMediaPayload p) async {
+  final url = p.url;
+  if (url == null) return;
+  Navigator.of(ctx).push(
+    MaterialPageRoute(
+      builder: (_) => MediaViewerScreen(
+        heroTag: 'media_${url.hashCode}',
+        items: [
+          MediaViewerItem(
+            url: url,
+            type: p.type,
+            caption: p.caption,
+          ),
+        ],
+        initialIndex: 0,
+      ),
+    ),
+  );
+}
+
 Future<void> _openInSystemViewer(BuildContext ctx, ChatMediaPayload p) async {
   final url = p.url;
   if (url == null) return;
@@ -204,7 +225,7 @@ class _ImageBubble extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        _openInSystemViewer(context, payload);
+        _openMediaViewer(context, payload);
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -241,7 +262,7 @@ class _VideoBubble extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        _openInSystemViewer(context, payload);
+        _openMediaViewer(context, payload);
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),

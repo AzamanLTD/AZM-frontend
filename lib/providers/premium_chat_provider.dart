@@ -6,6 +6,7 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/services/chat_media_service.dart';
 import 'dart:convert';
 
 // ── Context descriptor ────────────────────────────────────────────────────
@@ -239,6 +240,65 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       replyToSenderName: replyToSenderName,
       disappearAfterSeconds: disappear,
     );
+
+    // ── Async link preview: detect URLs in text, fetch OG metadata ─────────
+    _maybeFetchLinkPreview(localId, text.trim());
+  }
+
+  /// URL regex — detects http(s) links in text messages.
+  static final _urlRegex = RegExp(
+    r'https?://[\w-]+(\.[\w-]+)+[\w.,@?^=%&:/~+#-]*',
+    caseSensitive: false,
+  );
+
+  /// Detects URLs in the text and fetches a link preview asynchronously.
+  /// Updates the optimistic message in-place when the preview arrives.
+  Future<void> _maybeFetchLinkPreview(String localId, String text) async {
+    final match = _urlRegex.firstMatch(text);
+    if (match == null) return;
+
+    final url = match.group(0)!;
+    final mediaService = ChatMediaService.instance;
+    final preview = await mediaService.fetchLinkPreview(url);
+    if (preview == null || !preview.hasUsefulMetadata) return;
+
+    // Update the message in the list with the link preview
+    final messages = state.messages;
+    final idx = messages.indexWhere((m) => m.localId == localId);
+    if (idx == -1) return; // message was deleted or not found
+
+    final updated = messages[idx].copyWith(
+      kind: MessageKind.link,
+      linkPreview: {
+        'url': preview.url,
+        'title': preview.title,
+        'description': preview.description,
+        'image': preview.image,
+        'favicon': preview.favicon,
+        'siteName': preview.siteName,
+        'status': preview.status,
+      },
+    );
+    state = state.copyWith(messages: [...messages.sublist(0, idx), updated, ...messages.sublist(idx + 1)]);
+
+    // Also persist the link preview to the backend via REST (fire-and-forget)
+    _persistLinkPreview(localId, updated.linkPreview!);
+  }
+
+  /// Persists the link preview to the message on the backend.
+  Future<void> _persistLinkPreview(String localId, Map<String, dynamic> linkPreview) async {
+    try {
+      ChatMessage? msg;
+      for (final m in state.messages) {
+        if (m.localId == localId) { msg = m; break; }
+      }
+      if (msg?.id == null) return;
+      await apiClient.patch('/chat/messages/${msg!.id}/link-preview', body: {
+        'linkPreview': linkPreview,
+      });
+    } catch (_) {
+      // Non-critical — the preview is already shown in the UI.
+    }
   }
 
   Future<void> sendMediaMessage({
