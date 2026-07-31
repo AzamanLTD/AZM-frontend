@@ -234,6 +234,27 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
+  /// Multi-item cart checkout — creates a single BusinessOrder with multiple
+  /// BusinessOrderItem rows via POST /storefront/:businessProfileId/checkout.
+  Future<Map<String, dynamic>> checkoutCart({
+    required String businessProfileId,
+    required List<Map<String, dynamic>> items,
+    String? customerNotes,
+    String? deliveryNotes,
+    String? idempotencyKey,
+  }) async {
+    final response = await _apiClient.post(
+      '/storefront/\$businessProfileId/checkout',
+      {
+        'items': items,
+        if (customerNotes != null) 'customerNotes': customerNotes,
+        if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
+        if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      },
+    );
+    return _parseResponse(response) as Map<String, dynamic>;
+  }
+
 
   // ── Customer Order History ──────────────────────────────────────────────────
 

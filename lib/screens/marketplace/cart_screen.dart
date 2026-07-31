@@ -49,23 +49,32 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     try {
       final service = ref.read(storefrontServiceProvider);
-      final cartItems = cart.items;
 
-      // Place each item as an order (backend currently supports single-item
-      // orders per call — we batch them and present a unified result)
-      final results = await Future.wait(
-        cartItems.map((item) => service.placeStorefrontOrder(
-              businessProfileId: cart.businessProfileId!,
-              productId: item.productId,
-              quantity: item.quantity,
-              customerNotes: [
-                if (item.notes != null && item.notes!.isNotEmpty) item.notes!,
-                if (_orderNotesCtrl.text.trim().isNotEmpty)
-                  'Order notes: ${_orderNotesCtrl.text.trim()}',
-                if (_deliveryAddressCtrl.text.trim().isNotEmpty)
-                  'Delivery: ${_deliveryAddressCtrl.text.trim()}',
-              ].join(' | '),
-            )),
+      // Build combined notes
+      final combinedNotes = [
+        if (_orderNotesCtrl.text.trim().isNotEmpty)
+          'Order notes: ${_orderNotesCtrl.text.trim()}',
+      ].join(' | ');
+
+      final combinedDelivery = [
+        if (_deliveryAddressCtrl.text.trim().isNotEmpty)
+          _deliveryAddressCtrl.text.trim(),
+      ].join(' | ');
+
+      // Use the multi-item checkout endpoint (single BusinessOrder with items)
+      final itemsJson = cart.items.map((item) => {
+        'productId': item.productId,
+        'quantity': item.quantity,
+        if (item.notes != null && item.notes!.isNotEmpty)
+          'notes': item.notes,
+      }).toList();
+
+      final result = await service.checkoutCart(
+        businessProfileId: cart.businessProfileId!,
+        items: itemsJson,
+        customerNotes: combinedNotes.isNotEmpty ? combinedNotes : null,
+        deliveryNotes: combinedDelivery.isNotEmpty ? combinedDelivery : null,
+        idempotencyKey: 'cart_${DateTime.now().millisecondsSinceEpoch}',
       );
 
       // Clear cart on success
@@ -73,7 +82,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
       if (mounted) {
         AzamanHaptics.confirm();
-        _showOrderConfirmation(results.length, cart.businessName);
+        final orderData = result['data']?['order'] as Map<String, dynamic>?;
+        _showOrderConfirmation(
+          cart.items.length,
+          cart.businessName,
+          orderRef: orderData?['orderRef'] as String?,
+        );
         widget.onCheckoutComplete?.call();
       }
     } catch (e) {
@@ -92,7 +106,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  void _showOrderConfirmation(int itemCount, String? businessName) {
+  void _showOrderConfirmation(int itemCount, String? businessName, {String? orderRef}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -131,6 +145,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 color: Colors.grey.shade600,
               ),
             ),
+            if (orderRef != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  orderRef,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
