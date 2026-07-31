@@ -18,6 +18,7 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class SavedBusinessesScreen extends ConsumerStatefulWidget {
   const SavedBusinessesScreen({super.key});
@@ -114,7 +115,7 @@ class _SavedBusinessesScreenState
                         ref.read(savedBusinessesProvider.notifier).remove(bizId);
                       },
                       child: GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BusinessProfileScreen(bizId: bizId))),
+                        onTap: () => pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId)),
                         child: PremiumGlassContainer(
                           blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(12),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

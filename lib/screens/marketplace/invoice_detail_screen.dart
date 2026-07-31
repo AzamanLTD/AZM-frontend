@@ -22,6 +22,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
   final String invoiceId;
@@ -517,14 +518,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           TextButton.icon(
             onPressed: () {
               AzamanHaptics.nav();
-              Navigator.push(
+              pushWithVerticalTransition(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => ReceiptScreen(
-                    invoice: inv,
-                    businessName: inv.businessName ?? 'Business',
-                    businessLogoUrl: inv.businessLogoUrl,
-                  ),
+                ReceiptScreen(
+                  invoice: inv,
+                  businessName: inv.businessName ?? 'Business',
+                  businessLogoUrl: inv.businessLogoUrl,
                 ),
               );
             },

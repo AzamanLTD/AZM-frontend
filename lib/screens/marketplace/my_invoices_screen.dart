@@ -18,6 +18,7 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/staggered_item.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class MyInvoicesScreen extends ConsumerStatefulWidget {
   const MyInvoicesScreen({super.key});
@@ -120,12 +121,10 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
                       invoice: invoices[i],
                       colors: colors,
                       onTap: () async {
-                        await Navigator.push(
+                        await pushWithVerticalTransition(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => InvoiceDetailScreen(
-                                invoiceId: invoices[i].id),
-                          ),
+                          InvoiceDetailScreen(
+                              invoiceId: invoices[i].id),
                         );
                         if (mounted) {
                           ref.read(myInvoicesProvider.notifier).load();

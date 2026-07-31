@@ -22,6 +22,7 @@ import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/staggered_item.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -126,13 +127,11 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                       onTap: () {
                         final tid = orders[i].ticketId;
                         if (tid != null && tid.isNotEmpty) {
-                          Navigator.push(
+                          pushWithVerticalTransition(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => TicketWorkspaceScreen(
-                                ticketId: tid,
-                                friendUsername: orders[i].title,
-                              ),
+                            TicketWorkspaceScreen(
+                              ticketId: tid,
+                              friendUsername: orders[i].title,
                             ),
                           );
                         }
@@ -196,12 +195,12 @@ class _OrderCard extends StatelessWidget {
             if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
               const SizedBox(height: 4),
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => OrderTrackingScreen(
+                onTap: () => pushWithVerticalTransition(context,
+                  OrderTrackingScreen(
                     orderId: order.id,
                     orderRef: order.orderRef,
                   ),
-                )),
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -225,12 +224,12 @@ class _OrderCard extends StatelessWidget {
                   // Reorder: navigate to the business storefront for re-ordering
                   // The cart system handles adding items from the storefront
                   if (order.businessProfileId.isNotEmpty) {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => StorefrontScreen(
+                    pushWithVerticalTransition(context,
+                      StorefrontScreen(
                         businessProfileId: order.businessProfileId,
                         businessName: order.title,
                       ),
-                    ));
+                    );
                   }
                 },
                 child: Container(
