@@ -21,6 +21,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
   final String invoiceId;
@@ -163,7 +164,20 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 fontWeight: FontWeight.w800)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                SkeletonBlock(height: 100, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                const SizedBox(height: 16),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+              ],
+            ),
+          )
           : _invoice == null
               ? Center(
                   child: Text(_error ?? 'Invoice not found',

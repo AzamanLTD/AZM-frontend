@@ -14,6 +14,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 
 class _NavItem {
   final IconData icon, activeIcon;
@@ -93,6 +94,8 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isSelected ? colors.accent : colors.textTertiary;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -100,16 +103,26 @@ class _NavButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _badge(color),
+            // Icon with scale bounce + cross-fade between outline/solid
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 0.92),
+              duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+              curve: Curves.easeOutBack,
+              builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+              child: _badge(context, color),
+            ),
             const SizedBox(height: 4),
-            Text(
-              item.label,
+            // Label with smooth color + weight transition
+            AnimatedDefaultTextStyle(
+              duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+              curve: Curves.easeOut,
               style: TextStyle(
                 color: color,
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 letterSpacing: -0.2,
               ),
+              child: Text(item.label),
             ),
           ],
         ),
@@ -117,8 +130,21 @@ class _NavButton extends StatelessWidget {
     );
   }
 
-  Widget _badge(Color color) {
-    final icon = Icon(isSelected ? item.activeIcon : item.icon, color: color, size: 22);
+  Widget _badge(BuildContext context, Color color) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final icon = AnimatedSwitcher(
+      duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: ScaleTransition(scale: Tween(begin: 0.8, end: 1.0).animate(anim), child: child),
+      ),
+      child: Icon(
+        isSelected ? item.activeIcon : item.icon,
+        color: color,
+        size: 22,
+        key: ValueKey(isSelected),
+      ),
+    );
 
     // Tab 1 (Chat) — unread message count
     if (index == 1) {

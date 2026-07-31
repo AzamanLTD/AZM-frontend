@@ -17,6 +17,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class SavedBusinessesScreen extends ConsumerStatefulWidget {
   const SavedBusinessesScreen({super.key});
@@ -87,7 +88,7 @@ class _SavedBusinessesScreenState
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: colors.accent))
+          ? const SkeletonList(itemHeight: 90, count: 6)
           : saved.isEmpty
               ? const AzamanEmptyState(
                   icon: Icons.bookmark_outline,

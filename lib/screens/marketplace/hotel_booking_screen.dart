@@ -15,6 +15,7 @@ import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class HotelBookingScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -119,7 +120,24 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (state.isLoading) {
       return Scaffold(
       backgroundColor: colors.background,
-      body: const Center(child: CircularProgressIndicator()),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 60),
+            SkeletonBlock(height: 180, width: double.infinity, borderRadius: BorderRadius.circular(20)),
+            const SizedBox(height: 16),
+            SkeletonBlock(height: 20, width: 160, borderRadius: BorderRadius.circular(6)),
+            const SizedBox(height: 8),
+            SkeletonBlock(height: 14, width: 200, borderRadius: BorderRadius.circular(4)),
+            const SizedBox(height: 20),
+            SkeletonBlock(height: 80, width: double.infinity, borderRadius: BorderRadius.circular(14)),
+            const SizedBox(height: 12),
+            SkeletonBlock(height: 80, width: double.infinity, borderRadius: BorderRadius.circular(14)),
+          ],
+        ),
+      ),
     );
     }
 

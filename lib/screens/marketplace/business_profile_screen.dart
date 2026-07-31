@@ -55,6 +55,7 @@ import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
 import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -406,7 +407,43 @@ class _BusinessProfileScreenState
     if (_loading) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: Center(child: CircularProgressIndicator(color: colors.accent)),
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 200,
+              pinned: false,
+              automaticallyImplyLeading: true,
+              backgroundColor: colors.card,
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Business name + category row
+                    SkeletonBlock(height: 24, width: 220, borderRadius: BorderRadius.circular(6)),
+                    const SizedBox(height: 8),
+                    SkeletonBlock(height: 14, width: 140, borderRadius: BorderRadius.circular(4)),
+                    const SizedBox(height: 20),
+                    // Rating row
+                    SkeletonBlock(height: 36, width: double.infinity, borderRadius: BorderRadius.circular(18)),
+                    const SizedBox(height: 20),
+                    // Tab bar placeholder
+                    SkeletonBlock(height: 40, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 16),
+                    // Content cards
+                    SkeletonBlock(height: 80, width: double.infinity, borderRadius: BorderRadius.circular(14)),
+                    const SizedBox(height: 12),
+                    SkeletonBlock(height: 80, width: double.infinity, borderRadius: BorderRadius.circular(14)),
+                    const SizedBox(height: 12),
+                    SkeletonBlock(height: 80, width: double.infinity, borderRadius: BorderRadius.circular(14)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 

@@ -37,6 +37,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -767,7 +768,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                           ),
                           const SizedBox(height: 10),
                           // ── Add Account pill button ──────────────────────
-                          GestureDetector(
+                          ScaleTap(
                             onTap: () {
                               HapticFeedback.selectionClick();
                               AddPayoutSheet.show(
@@ -1469,7 +1470,7 @@ class _SavedAccountTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pcolor = _providerColor();
-    return GestureDetector(
+    return ScaleTap(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),

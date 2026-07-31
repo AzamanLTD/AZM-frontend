@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 /// §37 — BillDetailScreen: Customer confirms a finalized dine-in bill.
 /// Shows line items, subtotal, tax, tip, and grand total.
@@ -94,7 +95,20 @@ class _BillDetailScreenState extends ConsumerState<BillDetailScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  SkeletonBlock(height: 120, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                  const SizedBox(height: 16),
+                  SkeletonBlock(height: 60, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(height: 60, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(height: 60, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                ],
+              ),
+            )
           : _error != null
               ? Center(
                   child: Column(
