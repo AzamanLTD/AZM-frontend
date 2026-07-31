@@ -362,7 +362,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: MotionTokens.standard,
     )..value = 1.0;
     _fadeCtrl.addListener(() {
       if (_fadeCtrl.value >= 0.25 && _displayedIndex != _selectedIndex) {
@@ -378,7 +378,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
     setState(() => _selectedIndex = i);
-    _fadeCtrl.forward(from: 0);
+    // Respect reduced-motion setting — skip the fade, just switch
+    if (MediaQuery.of(context).disableAnimations) {
+      setState(() => _displayedIndex = i);
+    } else {
+      _fadeCtrl.forward(from: 0);
+    }
   }
 
   double get _tabFadeOpacity {

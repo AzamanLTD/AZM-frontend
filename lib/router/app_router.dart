@@ -72,6 +72,7 @@ import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
 // V3 Marketplace Sprint (2026-06-21) — Premium Marketplace surfaces.
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_search_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
@@ -178,7 +179,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       name: 'settings',
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const SettingsScreen(),
+      ),
     ),
     GoRoute(
       path: '/profile/edit',
@@ -198,19 +202,28 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/transactions',
       name: 'transactions',
-      builder: (context, state) => const TransactionHistoryScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const TransactionHistoryScreen(),
+      ),
     ),
 
     // ── Social: friends, messages, referral, leaderboard ────────────────────
     GoRoute(
       path: '/friends',
       name: 'friends',
-      builder: (context, state) => const FriendsHubScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const FriendsHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/messages',
       name: 'messages',
-      builder: (context, state) => const MessagesHubScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const MessagesHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/referral',
@@ -233,12 +246,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       name: 'marketplace',
-      builder: (context, state) => const P2PMarketListScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const P2PMarketListScreen(),
+      ),
     ),
     GoRoute(
       path: '/savings',
       name: 'savings',
-      builder: (context, state) => const SavingsScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const SavingsScreen(),
+      ),
     ),
 
     // ── Deposit (Phase 4 / Susu Sprint, 2026-05-31) ─────────────────────

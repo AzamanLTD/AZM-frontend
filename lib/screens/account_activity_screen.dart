@@ -152,8 +152,31 @@ class _AccountActivityScreenState
 
   Widget _buildBody(AzamanColors colors) {
     if (_entries.isEmpty && _loading) {
-      return Center(
-        child: CircularProgressIndicator(color: colors.accent),
+      // Skeleton loading — matches existing transaction row layout
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 8,
+        itemBuilder: (_, __) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              SkeletonBlock(height: 40, width: 40, borderRadius: BorderRadius.circular(20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBlock(height: 14, width: double.infinity, borderRadius: BorderRadius.circular(4)),
+                    const SizedBox(height: 6),
+                    SkeletonBlock(height: 12, width: 120, borderRadius: BorderRadius.circular(4)),
+                  ],
+                ),
+              ),
+              SkeletonBlock(height: 16, width: 60, borderRadius: BorderRadius.circular(4)),
+            ],
+          ),
+        ),
       );
     }
 
