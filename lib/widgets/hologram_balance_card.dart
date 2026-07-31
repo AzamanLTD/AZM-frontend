@@ -6,6 +6,7 @@ import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/animated_number.dart';
 
 
 class HologramBalanceCard extends ConsumerWidget {
@@ -106,17 +107,28 @@ class HologramBalanceCard extends ConsumerWidget {
                 return '$buf.${parts[1]}';
               }
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  isVisible
-                      ? (ghsFirst ? 'GH₵ ${fmtGhs(ghsVal)}' : '${totalUsdc.toStringAsFixed(2)} USDC')
-                      : '••••••',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+                isVisible
+                    ? AnimatedNumber(
+                        value: ghsFirst ? ghsVal : totalUsdc,
+                        formatter: (v) => ghsFirst
+                            ? 'GH₵ ${fmtGhs(v)}'
+                            : '${v.toStringAsFixed(2)} USDC',
+                        duration: const Duration(milliseconds: 600),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      )
+                    : Text('••••••',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
                 const SizedBox(height: 2),
                 if (isVisible)
                   Text(
