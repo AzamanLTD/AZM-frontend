@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 
 import 'package:azaman/providers/home_summary_provider.dart';
@@ -63,7 +64,7 @@ class RecentActivitySection extends ConsumerWidget {
                   letterSpacing: -0.3,
                 )),
               const Spacer(),
-              GestureDetector(
+              ScaleTap(
                 onTap: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) => const AccountActivityScreen())),
                 child: Text('See All',
@@ -83,8 +84,11 @@ class RecentActivitySection extends ConsumerWidget {
           else
             Column(
               children: [
-                for (final t in txns)
-                  _ActivityRow(colors: colors, txn: t),
+                for (int i = 0; i < txns.length; i++)
+                  _ActivityRow(colors: colors, txn: txns[i])
+                    .animate()
+                    .fadeIn(delay: (80 * i).ms, duration: 280.ms)
+                    .slideY(begin: 0.08, end: 0, delay: (80 * i).ms, duration: 280.ms),
               ],
             ),
         ],
