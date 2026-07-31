@@ -187,17 +187,26 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/profile/edit',
       name: 'profile-edit',
-      builder: (context, state) => const ProfileDetailsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const ProfileDetailsScreen(),
+      ),
     ),
     GoRoute(
       path: '/account/activity',
       name: 'account-activity',
-      builder: (context, state) => const AccountActivityScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const AccountActivityScreen(),
+      ),
     ),
     GoRoute(
       path: '/account/delete',
       name: 'account-delete',
-      builder: (context, state) => const AccountDeactivationScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const AccountDeactivationScreen(),
+      ),
     ),
     GoRoute(
       path: '/transactions',
@@ -228,17 +237,26 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/referral',
       name: 'referral',
-      builder: (context, state) => const ReferralScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const ReferralScreen(),
+      ),
     ),
     GoRoute(
       path: '/leaderboard',
       name: 'leaderboard',
-      builder: (context, state) => const LeaderboardScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const LeaderboardScreen(),
+      ),
     ),
     GoRoute(
       path: '/azm-auction',
       name: 'azm-auction',
-      builder: (context, state) => const AzmAuctionScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const AzmAuctionScreen(),
+      ),
     ),
 
     // ── Marketplace + savings (deep-linkable from FCM "trade match"
@@ -500,37 +518,58 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/discover/storefronts',
       name: 'storefront-discovery',
-      builder: (context, state) => const StorefrontDiscoveryScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StorefrontDiscoveryScreen(),
+      ),
     ),
     GoRoute(
       path: '/my-orders',
       name: 'storefront-order-history',
-      builder: (context, state) => const StorefrontOrderHistoryScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StorefrontOrderHistoryScreen(),
+      ),
     ),
     GoRoute(
       path: '/search',
       name: 'universal-search',
-      builder: (context, state) => const UniversalSearchScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const UniversalSearchScreen(),
+      ),
     ),
     GoRoute(
       path: '/spending-insights',
       name: 'spending-insights',
-      builder: (context, state) => const SpendingInsightsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const SpendingInsightsScreen(),
+      ),
     ),
     GoRoute(
       path: '/round-up',
       name: 'round-up-savings',
-      builder: (context, state) => const RoundUpSettingsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const RoundUpSettingsScreen(),
+      ),
     ),
     GoRoute(
       path: '/story-highlights',
       name: 'story-highlights',
-      builder: (context, state) => const StoryHighlightsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StoryHighlightsScreen(),
+      ),
     ),
     GoRoute(
       path: '/close-friends',
       name: 'close-friends',
-      builder: (context, state) => const CloseFriendsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const CloseFriendsScreen(),
+      ),
     ),
     GoRoute(
       path: '/story-camera',
@@ -571,12 +610,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/loyalty-cards',
       name: 'loyalty-cards',
-      builder: (context, state) => const LoyaltyCardsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const LoyaltyCardsScreen(),
+      ),
     ),
     GoRoute(
       path: '/notification-preferences',
       name: 'notification-preferences',
-      builder: (context, state) => const NotificationPreferencesScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const NotificationPreferencesScreen(),
+      ),
     ),
     GoRoute(
       path: '/susu/position-picker',
