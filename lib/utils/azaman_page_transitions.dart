@@ -1,27 +1,23 @@
 // =============================================================================
-// AZAMAN — PAGE TRANSITIONS  (Phase H)
+// AZAMAN — PAGE TRANSITIONS  (Phase I)
 //
-// Replaces the platform default page transition (slide-from-right on iOS,
-// fade on Android) with a single cohesive slide+fade on every push.
-// Wired into ThemeData via `pageTransitionsTheme` so EVERY existing
-// `Navigator.push(MaterialPageRoute(...))` call across the app picks it
-// up automatically — no migration needed across the screen layer.
+// Global PageTransitionsBuilder wired into ThemeData so EVERY existing
+// `Navigator.push(MaterialPageRoute(...))` call across the app picks up
+// a shared-axis-horizontal style transition automatically — no need to
+// rewrite 100+ call sites.
 //
-// Tuning:
-//   * 240ms duration — slightly faster than the 300ms iOS default so
-//     the app feels responsive without losing the slide intent.
-//   * Sub-2% horizontal slide — the dominant motion is opacity, the
-//     slide is just enough to communicate hierarchy.
-//   * Reverse animation symmetric — pop slides the inbound page back in
-//     from the left so navigation has a direction.
+// The transition:
+//   * Inbound page slides in from the right (6%) + fades in
+//   * Outbound page drifts left (4%) + dims slightly
+//   * 300ms forward, 250ms reverse (asymmetric — pops feel snappier)
+//   * easeOutCubic enter, easeInCubic exit (matches MotionTokens)
 //
-// Why not a custom NavigatorObserver / pageBuilder?
-//   PageTransitionsTheme is the canonical Flutter hook for this exact
-//   thing. Subclassing PageTransitionsBuilder once gets us global
-//   adoption in two lines wired into the existing ThemeData.
+// Respects reduced-motion: if the user has "remove animations" enabled,
+// the page appears instantly with a crossfade only.
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 
 class AzamanPageTransitionsBuilder extends PageTransitionsBuilder {
   const AzamanPageTransitionsBuilder();
@@ -34,25 +30,29 @@ class AzamanPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    // Reduced motion: crossfade only, no slide
+    if (MediaQuery.of(context).disableAnimations) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+
     final curved = CurvedAnimation(
       parent: animation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      curve: MotionTokens.enter,
+      reverseCurve: MotionTokens.exit,
     );
     final secondaryCurved = CurvedAnimation(
       parent: secondaryAnimation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      curve: MotionTokens.enter,
+      reverseCurve: MotionTokens.exit,
     );
 
-    // Inbound page: slide a few percent from the right, fade in.
+    // Inbound page: slide from right, fade in
     final slideIn = Tween<Offset>(
       begin: const Offset(0.06, 0),
       end: Offset.zero,
     ).animate(curved);
 
-    // Outgoing page (under the inbound on push): drift slightly left
-    // and dim. Mirrors iOS's interactive parent-page motion.
+    // Outgoing page: drift left, dim slightly
     final slideOut = Tween<Offset>(
       begin: Offset.zero,
       end: const Offset(-0.04, 0),
