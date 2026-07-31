@@ -56,6 +56,7 @@ import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
 import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -1170,8 +1171,7 @@ class _BusinessProfileScreenState
   }
 
   Widget _circleButton(IconData icon, VoidCallback onTap, {Color? color}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: () {
         AzamanHaptics.nav();
         onTap();
@@ -1299,8 +1299,7 @@ class _BusinessProfileScreenState
       AzamanColors colors, IconData icon, String label, VoidCallback? onTap) {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ScaleTap(
         onTap: onTap,
         child: Row(
           children: [
@@ -1454,7 +1453,7 @@ class _BusinessProfileScreenState
             StackedGalleryCards(urls: loc.galleryUrls, width: 110, height: 80),
           ],
           const SizedBox(height: 10),
-          GestureDetector(
+          ScaleTap(
             onTap: () {
               AzamanHaptics.nav();
               _launch(
