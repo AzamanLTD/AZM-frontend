@@ -41,6 +41,7 @@ import 'package:azaman/widgets/trust_breakdown_sheet.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
@@ -643,10 +644,10 @@ class _MediaTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (item.type == 'IMAGE' && url != null)
-              Image.network(
+              CachedNetworkImage(imageUrl: 
                 _resolve(url),
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorWidget: (_, __, ___) => Container(
                   color: colors.card,
                   alignment: Alignment.center,
                   child: Icon(Icons.image_outlined,

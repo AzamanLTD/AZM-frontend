@@ -32,6 +32,7 @@ import '../providers/cart_provider.dart';
 import '../widgets/floating_cart_bar.dart';
 import 'marketplace/cart_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -423,8 +424,8 @@ class _ProductCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 1.2,
                 child: imageUrl != null
-                    ? Image.network(imageUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _ProductImageFallback(colors: colors))
+                    ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => _ProductImageFallback(colors: colors))
                     : _ProductImageFallback(colors: colors),
               ),
             ),

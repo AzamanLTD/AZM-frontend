@@ -19,6 +19,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SavedBusinessesScreen extends ConsumerStatefulWidget {
   const SavedBusinessesScreen({super.key});
@@ -121,7 +122,7 @@ class _SavedBusinessesScreenState
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Expanded(flex: 3, child: Center(
                               child: b.logoUrl != null
-                                ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(b.logoUrl!, fit: BoxFit.cover, width: double.infinity))
+                                ? ClipRRect(borderRadius: BorderRadius.circular(12), child: CachedNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity))
                                 : Container(decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle), padding: const EdgeInsets.all(16),
                                     child: Icon(Icons.storefront_outlined, size: 28, color: colors.accent)),
                             )),

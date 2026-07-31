@@ -16,6 +16,7 @@ import '../storefront/services/storefront_tracking_service.dart';
 import '../providers/theme_provider.dart';
 import 'storefront_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class StorefrontDiscoveryScreen extends ConsumerStatefulWidget {
   const StorefrontDiscoveryScreen({super.key});
@@ -314,7 +315,7 @@ class _StorefrontCard extends StatelessWidget {
                 height: 120,
                 width: double.infinity,
                 child: coverUrl != null
-                    ? Image.network(coverUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _CoverFallback(accent: accent))
+                    ? CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => _CoverFallback(accent: accent))
                     : _CoverFallback(accent: accent),
               ),
             ),
@@ -337,7 +338,7 @@ class _StorefrontCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: logoUrl != null
-                          ? Image.network(logoUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.store, color: colors.textSecondary, size: 24))
+                          ? CachedNetworkImage(imageUrl: logoUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.store, color: colors.textSecondary, size: 24))
                           : Icon(Icons.store, color: colors.textSecondary, size: 24),
                     ),
                   ),

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storefront/providers/storefront_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class StorefrontOrderHistoryScreen extends ConsumerStatefulWidget {
   const StorefrontOrderHistoryScreen({super.key});
@@ -189,12 +190,12 @@ class _OrderCard extends StatelessWidget {
                   if (business?['logoUrl'] != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
+                      child: CachedNetworkImage(imageUrl: 
                         business!['logoUrl'],
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _logoPlaceholder(context),
+                        errorWidget: (_, __, ___) => _logoPlaceholder(context),
                       ),
                     )
                   else
@@ -231,12 +232,12 @@ class _OrderCard extends StatelessWidget {
                   if (product?['imageUrl'] != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.network(
+                      child: CachedNetworkImage(imageUrl: 
                         product!['imageUrl'],
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _productPlaceholder(context),
+                        errorWidget: (_, __, ___) => _productPlaceholder(context),
                       ),
                     )
                   else

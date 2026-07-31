@@ -12,6 +12,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/chat_plus_menu.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class ChatInterface extends ConsumerStatefulWidget {
@@ -937,17 +938,14 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                       ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
+                      child: CachedNetworkImage(imageUrl: 
                         mediaUrl.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
                         height: 180, width: 200, fit: BoxFit.cover,
-                        loadingBuilder: (c, child, progress) {
-                          if (progress == null) return child;
-                          return Container(
+                        placeholder: (c, url) => Container(
                             height: 180, width: 200, color: colors.background,
                             child: Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2)),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
+                          ),
+                        errorWidget: (context, error, stackTrace) {
                           if (File(mediaUrl).existsSync()) {
                             return Image.file(File(mediaUrl), height: 180, width: 200, fit: BoxFit.cover);
                           }

@@ -12,6 +12,7 @@ import 'package:azaman/widgets/ai_command_menu.dart';
 import 'package:azaman/widgets/ai_dispute_summary.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class AdminWarRoomScreen extends ConsumerStatefulWidget {
@@ -250,7 +251,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
         child: InteractiveViewer(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
+            child: CachedNetworkImage(imageUrl: 
               proofUrl.startsWith('http') ? proofUrl : '${AppConfig.baseUrl}$proofUrl',
               fit: BoxFit.contain,
             ),
@@ -824,8 +825,8 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
             child: InteractiveViewer(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(fullUrl, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
+                child: CachedNetworkImage(imageUrl: fullUrl, fit: BoxFit.contain,
+                  errorWidget: (_, __, ___) => Container(
                     padding: const EdgeInsets.all(40),
                     color: colors.card,
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -853,10 +854,10 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
+                    CachedNetworkImage(imageUrl: 
                       imageUrl.startsWith('http') ? imageUrl : '${AppConfig.baseUrl}$imageUrl',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(child: Icon(Icons.image_outlined, color: colors.textTertiary)),
+                      errorWidget: (_, __, ___) => Center(child: Icon(Icons.image_outlined, color: colors.textTertiary)),
                     ),
                     Positioned(
                       bottom: 0, left: 0, right: 0,

@@ -24,6 +24,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MarketplaceCollapsedAvatars extends ConsumerWidget {
   final VoidCallback onTap;
@@ -268,8 +269,8 @@ class _StackedSquircles extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6.5),
                 child: logoUrl != null && logoUrl.isNotEmpty
-                    ? Image.network(logoUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _initial(name, colors))
+                    ? CachedNetworkImage(imageUrl: logoUrl, fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => _initial(name, colors))
                     : _initial(name, colors),
               ),
             ),

@@ -21,6 +21,7 @@ import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/config.dart';
 
 import 'package:azaman/screens/trade_summary_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class VendorTradeExecution extends ConsumerStatefulWidget {
@@ -422,10 +423,10 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               maxScale: 4,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
+                child: CachedNetworkImage(imageUrl: 
                   _paymentProofUrl!,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
+                  errorWidget: (context, error, stackTrace) {
                     return Container(
                       height: 300, width: double.infinity, color: colors.card,
                       child: Center(

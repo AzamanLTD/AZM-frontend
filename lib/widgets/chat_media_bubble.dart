@@ -45,6 +45,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/screens/chat/media_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 /// All metadata needed to render a media bubble. Wraps the wire format so
@@ -229,18 +230,17 @@ class _ImageBubble extends StatelessWidget {
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(
+        child: CachedNetworkImage(imageUrl: 
           _resolveMediaUrl(payload.url!),
           fit: BoxFit.cover,
           width: 240,
           height: 240,
-          errorBuilder: (_, __, ___) => _ErrorTile(
+          errorWidget: (_, __, ___) => _ErrorTile(
             colors: colors,
             icon: Icons.image_outlined,
             label: 'Image unavailable',
           ),
-          loadingBuilder: (_, child, p) =>
-              p == null ? child : _LoadingTile(colors: colors, height: 240),
+          placeholder: (_, url) => _LoadingTile(colors: colors, height: 240),
         ),
       ),
     );
@@ -810,10 +810,10 @@ class _LinkBubble extends StatelessWidget {
             if (preview.image != null)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
+                child: CachedNetworkImage(imageUrl: 
                   preview.image!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: colors.surface),
+                  errorWidget: (_, __, ___) => Container(color: colors.surface),
                 ),
               ),
             Padding(

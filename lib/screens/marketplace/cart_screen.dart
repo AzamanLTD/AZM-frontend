@@ -16,6 +16,7 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   /// Called after a successful checkout. Typically navigates back to the marketplace.
@@ -498,12 +499,12 @@ class _CartTile extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: item.image_url != null
-                  ? Image.network(
+                  ? CachedNetworkImage(imageUrl: 
                       item.image_url!,
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholderImage(),
+                      errorWidget: (_, __, ___) => _placeholderImage(),
                     )
                   : _placeholderImage(),
             ),

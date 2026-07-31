@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // ── StoryRing ─────────────────────────────────────────────────────────────────
 //
@@ -66,12 +67,12 @@ class StoryRing extends ConsumerWidget {
               ),
             ),
             child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? Image.network(
+                ? CachedNetworkImage(imageUrl: 
                     avatarUrl!,
                     fit: BoxFit.cover,
                     width: size,
                     height: size,
-                    errorBuilder: (_, __, ___) => _placeholder(colors),
+                    errorWidget: (_, __, ___) => _placeholder(colors),
                   )
                 : _placeholder(colors),
           ),
