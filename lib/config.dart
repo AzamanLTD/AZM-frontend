@@ -48,7 +48,7 @@ class AppConfig {
     // Otherwise fall back to environment defaults
     switch (_env) {
       case 'prod':
-        return 'https://azaman-backend-9d3u.onrender.com';
+        return 'https://azm-backend.onrender.com';
       case 'staging':
         return 'https://staging-api.azaman.app';
       case 'dev':
@@ -57,7 +57,7 @@ class AppConfig {
         // and Android Emulator can reach the API out-of-the-box.
         // To run against a local backend on your machine, override with:
         //   flutter run --dart-define=API_HOST=<your-LAN-IP> --dart-define=API_PORT=3000
-        return 'https://azaman-backend-9d3u.onrender.com';
+        return 'https://azm-backend.onrender.com';
     }
   }
 
