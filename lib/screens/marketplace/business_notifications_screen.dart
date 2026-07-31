@@ -17,6 +17,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/biz_notification_card.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class BusinessNotificationsScreen extends ConsumerStatefulWidget {
   const BusinessNotificationsScreen({super.key});
@@ -180,7 +181,7 @@ class _BusinessNotificationsScreenState
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 64, count: 6)
           : _items.isEmpty
               ? const AzamanEmptyState(
                   icon: Icons.notifications_outlined,

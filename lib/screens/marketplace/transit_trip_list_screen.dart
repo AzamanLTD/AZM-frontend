@@ -15,6 +15,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class TransitTripListScreen extends ConsumerWidget {
   final String? businessProfileId;
@@ -34,7 +35,7 @@ class TransitTripListScreen extends ConsumerWidget {
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
       body: tripsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(itemHeight: 80, count: 5),
         error: (err, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

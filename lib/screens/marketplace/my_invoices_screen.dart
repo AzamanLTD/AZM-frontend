@@ -17,6 +17,7 @@ import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class MyInvoicesScreen extends ConsumerStatefulWidget {
   const MyInvoicesScreen({super.key});
@@ -98,7 +99,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
         ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 72, count: 5)
           : invoices.isEmpty
               ? const AzamanEmptyState(
                   icon: Icons.receipt_outlined,

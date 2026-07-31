@@ -27,6 +27,7 @@ import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 // KYB document types (Section 13).
 const _kKybTypes = <String, String>{
@@ -131,7 +132,7 @@ class _BusinessDashboardScreenState
         ],
       ),
       body: _loading || profile == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 90, count: 5)
           : RefreshIndicator(
               onRefresh: _loadDashboard,
               child: ListView(

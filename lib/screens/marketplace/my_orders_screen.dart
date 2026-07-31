@@ -21,6 +21,7 @@ import 'package:azaman/screens/orders/order_tracking_screen.dart';
 import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -102,7 +103,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
         ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 72, count: 5)
           : orders.isEmpty
               ? const AzamanEmptyState(
                   icon: Icons.shopping_bag_outlined,

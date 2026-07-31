@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class DineInTabScreen extends ConsumerStatefulWidget {
   final String tabId;
@@ -58,7 +59,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
           onPressed: () => context.pop()),
       ),
       body: tab == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 100, count: 4)
           : Column(children: [
               // Business info
               Container(

@@ -10,6 +10,7 @@ import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -54,7 +55,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final colors = ref.watch(themeProvider).colors;
 
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return const SkeletonList(itemHeight: 100, count: 4);
     }
 
     return RefreshIndicator(
