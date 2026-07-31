@@ -9,6 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -771,8 +772,7 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
@@ -838,8 +838,7 @@ class _GoalCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.only(right: 20),

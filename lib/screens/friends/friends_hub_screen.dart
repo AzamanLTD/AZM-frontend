@@ -23,6 +23,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -371,7 +372,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ),
                     ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
                   ),
-                  GestureDetector(
+                  ScaleTap(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
                     child: Container(
                       width: 42,
@@ -386,7 +387,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
                     ),
                   ).animate().fadeIn(delay: 60.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
-                  GestureDetector(
+                  ScaleTap(
                     onTap: _openRequestsSheet,
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -408,7 +409,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     ),
                   ).animate().fadeIn(delay: 120.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                   const SizedBox(width: 8),
-                  GestureDetector(
+                  ScaleTap(
                     onTap: _toggleSearch,
                     child: Container(
                       width: 42,
