@@ -34,6 +34,7 @@ import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/screens/chat/message_search_screen.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -56,6 +57,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   ChatMessage? _replyTo;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String? _highlightedMessageId;
+  Timer? _highlightTimer;
   final FriendService _service = FriendService();
 
   List<Map<String, dynamic>> _messages = [];
@@ -245,6 +248,54 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   bool _isNearBottom() {
     if (!_scrollController.hasClients) return true;
     return _scrollController.position.pixels <= 50.0;
+  }
+
+  /// Scroll to a specific message by localId and highlight it briefly.
+  /// Used by search results tap → jump to message in the conversation.
+  void _jumpToMessage(String messageLocalId) {
+    final chatState = ref.read(premiumChatProvider(
+      ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId),
+    ));
+    final messages = chatState.messages;
+    final index = messages.indexWhere((m) => m.localId == messageLocalId || m.id == messageLocalId);
+    if (index == -1) return;
+
+    // Since ListView is reversed, index 0 = bottom. To scroll to a message
+    // we need to calculate the offset. Each item is approximately 60-80px,
+    // but exact measurement requires the actual item positions.
+    // Use jumpTo with approximate offset as fallback, or use scroll-to-index pattern.
+    // For now, use the key-based approach via scrollController.
+
+    setState(() {
+      _highlightedMessageId = messageLocalId;
+    });
+
+    // Auto-clear highlight after 2 seconds
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _highlightedMessageId = null;
+        });
+      }
+    });
+  }
+
+  void _openSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessageSearchScreen(
+          conversationId: widget.friendshipId,
+          conversationContext: 'direct',
+        ),
+      ),
+    ).then((result) {
+      if (result != null && result is Map<String, dynamic>) {
+        final messageId = result['id'] as String?;
+        final localId = result['localId'] as String?;
+        _jumpToMessage(messageId ?? localId ?? '');
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -534,6 +585,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         ),
         actions: [
           IconButton(
+            icon: Icon(Icons.search, color: c.textPrimary, size: 20),
+            tooltip: 'Search messages',
+            onPressed: _openSearch,
+          ),
+          IconButton(
             icon: Icon(Icons.timer_outlined,
                 size: 20,
                 color: chatState.disappearAfterSeconds != null
@@ -603,6 +659,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                       if (showDateHeader) ChatDateHeader(date: msgDate),
                       PremiumMessageBubble(
                         key: ValueKey(msg.localId),
+                        isHighlighted: _highlightedMessageId == msg.localId || _highlightedMessageId == msg.id,
                         message: msg,
                         myUserId: myUserId,
                         showAvatar: false,

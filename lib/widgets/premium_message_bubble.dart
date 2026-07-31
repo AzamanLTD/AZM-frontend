@@ -8,6 +8,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:azaman/widgets/inline_link_preview.dart';
 import 'package:azaman/widgets/message_status_ticks.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -20,6 +21,7 @@ typedef OnDeleteCallback = void Function(String messageId);
 
 /// Single unified bubble — paste into any chat ListView.builder.
 class PremiumMessageBubble extends ConsumerStatefulWidget {
+  final bool isHighlighted;
   final ChatMessage message;
   final bool showAvatar;   // show sender avatar (groups only)
   final bool showSenderName; // show name above bubble (groups only)
@@ -31,6 +33,7 @@ class PremiumMessageBubble extends ConsumerStatefulWidget {
   final VoidCallback? onRetry; // called on failed bubble tap
 
   const PremiumMessageBubble({
+    this.isHighlighted = false,
     super.key,
     required this.message,
     required this.myUserId,
@@ -400,21 +403,30 @@ class _State extends ConsumerState<PremiumMessageBubble>
                         ),
 
                       // Bubble body
-                      Container(
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.72),
                         decoration: BoxDecoration(
-                          color: _isMe ? c.accent : c.card,
+                          color: widget.isHighlighted
+                              ? (c.isDark ? c.accent.withValues(alpha: 0.3) : c.accent.withValues(alpha: 0.15))
+                              : (_isMe ? c.accent : c.card),
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(18),
                             topRight: const Radius.circular(18),
                             bottomLeft: Radius.circular(_isMe ? 18 : 4),
                             bottomRight: Radius.circular(_isMe ? 4 : 18),
                           ),
-                          boxShadow: [BoxShadow(
-                            color: Colors.black.withValues(alpha: 
-                              c.isDark ? 0.3 : 0.06),
-                            blurRadius: 8, offset: const Offset(0,2))],
+                          boxShadow: widget.isHighlighted
+                              ? [BoxShadow(
+                                  color: c.accent.withValues(alpha: 0.4),
+                                  blurRadius: 16, offset: const Offset(0,0),
+                                  spreadRadius: 2)]
+                              : [BoxShadow(
+                                  color: Colors.black.withValues(alpha: 
+                                    c.isDark ? 0.3 : 0.06),
+                                  blurRadius: 8, offset: const Offset(0,2))],
                         ),
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(12,10,12,8),
@@ -444,6 +456,8 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                     color: _isMe ? Colors.white : c.textPrimary,
                                     fontSize: 14.5, height: 1.4,
                                     fontWeight: FontWeight.w400)),
+                              if (msg.text.isNotEmpty && msg.mediaUrl == null)
+                                InlineLinkPreview(text: msg.text, isMe: _isMe),
                               const SizedBox(height: 4),
                               // Timestamp + status row
                               Row(
