@@ -15,6 +15,7 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class MyInvoicesScreen extends ConsumerStatefulWidget {
   const MyInvoicesScreen({super.key});
@@ -103,10 +104,10 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
                   title: 'No invoices here',
                   subtitle: 'Invoices from businesses will appear here.',
                 )
-              : RefreshIndicator(
-                  onRefresh: () =>
+              : AzPullToRefresh(
+        onRefresh: () =>
                       ref.read(myInvoicesProvider.notifier).load(),
-                  child: ListView.separated(
+        child: ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: invoices.length,

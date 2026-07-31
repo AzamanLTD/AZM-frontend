@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:azaman/screens/call/call_screen.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // Provider for call history
 final callHistoryProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -91,9 +92,9 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(callHistoryProvider),
-            child: ListView.builder(
+          return AzPullToRefresh(
+        onRefresh: () async => ref.invalidate(callHistoryProvider),
+        child: ListView.builder(
               itemCount: calls.length,
               itemBuilder: (context, index) {
                 final call = calls[index] as Map<String, dynamic>;

@@ -43,6 +43,7 @@ import 'package:lottie/lottie.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 enum _ViewMode { list, map }
 
@@ -1124,8 +1125,7 @@ class _MarketplaceHomeScreenState
     final results = _applySortFilter(state.results);
 
     if (results.isEmpty) {
-      return RefreshIndicator(
-        color: colors.accent,
+      return AzPullToRefresh(
         onRefresh: _refresh,
         child: ListView(
           children: [
@@ -1157,8 +1157,7 @@ class _MarketplaceHomeScreenState
       );
     }
 
-    return RefreshIndicator(
-      color: colors.accent,
+    return AzPullToRefresh(
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollCtrl,
@@ -1254,8 +1253,7 @@ class _MarketplaceHomeScreenState
 
     final locations = state.locations;
     if (locations.isEmpty) {
-      return RefreshIndicator(
-        color: colors.accent,
+      return AzPullToRefresh(
         onRefresh: _fireNearby,
         child: ListView(children: const [
           SizedBox(height: 60),
@@ -1268,8 +1266,7 @@ class _MarketplaceHomeScreenState
       );
     }
 
-    return RefreshIndicator(
-      color: colors.accent,
+    return AzPullToRefresh(
       onRefresh: _fireNearby,
       child: Column(
         children: [

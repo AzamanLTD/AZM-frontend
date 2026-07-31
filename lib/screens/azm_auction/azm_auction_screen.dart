@@ -21,6 +21,7 @@ import 'package:azaman/providers/azm_auction_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class AzmAuctionScreen extends ConsumerStatefulWidget {
@@ -157,9 +158,7 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
             style: TextStyle(
                 color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
       ),
-      body: RefreshIndicator(
-        color: colors.accent,
-        backgroundColor: colors.card,
+      body: AzPullToRefresh(
         onRefresh: () async {
           ref.invalidate(auctionStateProvider);
           ref.invalidate(myAuctionBidProvider);

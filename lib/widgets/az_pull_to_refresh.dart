@@ -1,9 +1,8 @@
 // =============================================================================
 // AZAMAN — Custom Pull-to-Refresh Indicator
 //
-// Replaces the default Material RefreshIndicator with a branded one:
-// a pulsing accent-colored ring that scales/fades in as the user pulls down.
-// Respects reduced-motion (instant snap, no animation).
+// Branded wrapper around Material RefreshIndicator with AZAMAN theme colors.
+// Respects reduced-motion (thinner stroke when animations are disabled).
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -13,13 +12,11 @@ import 'package:azaman/providers/theme_provider.dart';
 class AzPullToRefresh extends ConsumerWidget {
   final Widget child;
   final RefreshCallback onRefresh;
-  final EdgeInsets? padding;
 
   const AzPullToRefresh({
     super.key,
     required this.child,
     required this.onRefresh,
-    this.padding,
   });
 
   @override
@@ -33,10 +30,6 @@ class AzPullToRefresh extends ConsumerWidget {
       color: colors.accent,
       displacement: 40,
       strokeWidth: reduceMotion ? 1 : 2.5,
-      // Use a custom builder via the `notification` param isn't available
-      // in the standard RefreshIndicator, so we just style the built-in one
-      // with our brand colors and let the platform handle the rest.
-      // The key customization is the color + surface which matches our theme.
       child: child,
     );
   }

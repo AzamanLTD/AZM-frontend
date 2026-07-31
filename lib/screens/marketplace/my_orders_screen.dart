@@ -19,6 +19,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/orders/order_tracking_screen.dart';
 import 'package:azaman/screens/storefront_screen.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -107,10 +108,10 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                   title: 'No orders here',
                   subtitle: 'Your marketplace orders will appear here.',
                 )
-              : RefreshIndicator(
-                  onRefresh: () =>
+              : AzPullToRefresh(
+        onRefresh: () =>
                       ref.read(myOrdersProvider.notifier).load(),
-                  child: ListView.separated(
+        child: ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: orders.length,
