@@ -42,6 +42,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 enum _ViewMode { list, map }
 
@@ -1463,7 +1464,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
     final coverUrl = business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl;
     final cat = BusinessCategories.fromWire(business.category);
 
-    return GestureDetector(
+    return ScaleTap(
       onTap: onTap,
       child: Container(
         width: 280,
@@ -1480,8 +1481,10 @@ class _FeaturedBusinessCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cover image
-                SizedBox(
+                // Cover image — Hero transition to business profile
+                Hero(
+                  tag: 'biz-logo-${business.id}',
+                  child: SizedBox(
                   height: 118,
                   width: double.infinity,
                   child: coverUrl != null
@@ -1500,6 +1503,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                           ),
                           child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withValues(alpha: 0.5))),
                         ),
+                ),
                 ),
                 // Name + rating (indented to make room for the overlapping avatar)
                 Padding(

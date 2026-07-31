@@ -21,6 +21,7 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/tap_hint_hand.dart';
@@ -133,8 +134,7 @@ class _GreetingHeader extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          ScaleTap(
             onTap: () {
               AzamanHaptics.nav();
               Navigator.push(
@@ -142,7 +142,9 @@ class _GreetingHeader extends ConsumerWidget {
                 MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
-            child: Container(
+            child: Hero(
+              tag: 'profile-avatar',
+              child: Container(
               width: 46, height: 46,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -191,6 +193,7 @@ class _GreetingHeader extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
           ).animate().fadeIn(duration: 300.ms).scale(
                 begin: const Offset(0.8, 0.8),
                 end: const Offset(1, 1),
@@ -198,8 +201,7 @@ class _GreetingHeader extends ConsumerWidget {
                 curve: Curves.easeOutBack,
               ),
           const Spacer(),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          ScaleTap(
             onTap: () {
               AzamanHaptics.nav();
               Navigator.push(
@@ -244,8 +246,7 @@ class _GreetingHeader extends ConsumerWidget {
           const SizedBox(width: 10),
           const NotificationBell(),
           const SizedBox(width: 8),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          ScaleTap(
             onTap: () {
               AzamanHaptics.toggle();
               ref.read(balanceVisibleProvider.notifier).state = !isVisible;
@@ -379,8 +380,7 @@ class _ActionPills extends ConsumerWidget {
   }
 
   Widget _buildPill(BuildContext context, AzamanColors colors, _PillData pill) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: () { HapticFeedback.lightImpact(); pill.onTap(); },
       child: Column(
         mainAxisSize: MainAxisSize.min,

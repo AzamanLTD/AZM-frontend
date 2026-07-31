@@ -19,6 +19,9 @@ class MotionTokens {
   static const microInteraction = Duration(milliseconds: 120);
   /// Standard: sheet open, card expand, bottom bar appear — 220ms
   static const standard = Duration(milliseconds: 220);
+  
+  /// Fast — micro-interactions (button press, toggle, tap feedback)
+  static const fast = Duration(milliseconds: 100);
   /// Emphasized: screen transition, hero, page push — 350ms
   static const emphasized = Duration(milliseconds: 350);
   /// Ambient: typing dots, shimmer loop, breathing — 900ms

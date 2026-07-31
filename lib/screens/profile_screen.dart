@@ -460,7 +460,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: [
         GestureDetector(
           onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
-          child: Stack(
+          child: Hero(
+            tag: 'profile-avatar',
+            child: Stack(
             alignment: Alignment.bottomRight,
             children: [
               CircleAvatar(
@@ -513,6 +515,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
             ],
+          ),
           ),
         ),
         const SizedBox(height: 14),
