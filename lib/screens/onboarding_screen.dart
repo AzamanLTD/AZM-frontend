@@ -22,6 +22,7 @@ import 'package:azaman/main.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -94,8 +95,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
     Future.delayed(const Duration(milliseconds: 700), () {
       if (context.mounted) {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)));
+        pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));
       }
     });
   }

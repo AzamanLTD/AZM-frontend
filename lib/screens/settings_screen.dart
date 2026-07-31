@@ -51,6 +51,7 @@ import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class SettingsScreen extends ConsumerWidget {

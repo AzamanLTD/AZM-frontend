@@ -22,6 +22,7 @@ import 'package:azaman/screens/vault/vault_create_screen.dart';
 import 'package:azaman/screens/vault/vault_detail_screen.dart';
 import 'package:azaman/screens/vault/shared_vault_screen.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class VaultListScreen extends ConsumerWidget {

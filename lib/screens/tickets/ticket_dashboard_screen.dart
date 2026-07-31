@@ -15,6 +15,7 @@ import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class TicketDashboardScreen extends ConsumerStatefulWidget {

@@ -24,6 +24,7 @@ import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -373,7 +374,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
                   ),
                   ScaleTap(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                    onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
                     child: Container(
                       width: 42,
                       height: 42,
@@ -779,7 +780,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 .animate().fadeIn(delay: 300.ms, duration: 400.ms),
               const SizedBox(height: 24),
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(24)),
@@ -1335,7 +1336,7 @@ class _GroupChatTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        Navigator.push(context, MaterialPageRoute(builder: (_) => GroupChatScreen(groupId: group.id)));
+        pushWithVerticalTransition(context, GroupChatScreen(groupId: group.id));
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),

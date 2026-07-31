@@ -14,6 +14,7 @@ import 'vendor_trade_execution.dart';
 import 'vendor_settings_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class VendorDashboard extends ConsumerStatefulWidget {
@@ -525,16 +526,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 icon: Icon(Icons.analytics_outlined, color: gold),
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorAnalyticsScreen()));
+                  pushWithVerticalTransition(context, const VendorAnalyticsScreen());
                 },
               ),
               IconButton(
                 icon: Icon(Icons.settings_outlined, color: gold), 
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => VendorSettingsScreen(
-                    pendingTradeCount: pendingTrades.length,
-                  )));
+                  pushWithVerticalTransition(context, VendorSettingsScreen(pendingTradeCount: pendingTrades.length,));
                 },
               ),
               Transform.scale(

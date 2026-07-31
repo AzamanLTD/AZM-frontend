@@ -21,6 +21,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 
@@ -410,8 +411,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             fontWeight: FontWeight.w700))),
         if (!isVerified && !isPending)
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const KycVerificationScreen())),
+            onTap: () => pushWithVerticalTransition(context, const KycVerificationScreen()),
             child: Text("Verify ->",
               style: TextStyle(color: color, fontSize: 12,
                 fontWeight: FontWeight.w800)),

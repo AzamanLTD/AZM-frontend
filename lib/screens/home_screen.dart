@@ -28,6 +28,7 @@ import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -341,17 +342,13 @@ class _ActionPills extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     final pills = [
       _PillData(label: "Add Money", icon: Icons.add,
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)))),
+        onTap: () => pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat))),
       _PillData(label: "Send", icon: Icons.send_outlined,
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const FriendsHubScreen()))),
+        onTap: () => pushWithVerticalTransition(context, const FriendsHubScreen())),
       _PillData(label: "Withdraw", icon: Icons.account_balance_outlined,
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const WithdrawalScreen()))),
+        onTap: () => pushWithVerticalTransition(context, const WithdrawalScreen())),
       _PillData(label: "History", icon: Icons.history,
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const TransactionHistoryScreen()))),
+        onTap: () => pushWithVerticalTransition(context, const TransactionHistoryScreen())),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -467,8 +464,7 @@ class _NewWalletCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const DepositScreen(initialTab: DepositTab.fiat)));
+        pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));
       },
       child: Container(
         decoration: BoxDecoration(
@@ -519,8 +515,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const MarketplaceHomeScreen()));
+        pushWithVerticalTransition(context, const MarketplaceHomeScreen());
       },
       child: Container(
         decoration: BoxDecoration(

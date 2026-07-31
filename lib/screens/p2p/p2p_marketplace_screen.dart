@@ -17,6 +17,7 @@ import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/azm_reward_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class P2PMarketplaceScreen extends ConsumerStatefulWidget {
@@ -647,8 +648,7 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
       behavior: HitTestBehavior.opaque,
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const AzmRewardsScreen()));
+        pushWithVerticalTransition(context, const AzmRewardsScreen());
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),

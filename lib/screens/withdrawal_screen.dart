@@ -39,6 +39,7 @@ import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 // ── Mode / network enums ─────────────────────────────────────────────────────

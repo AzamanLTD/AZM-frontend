@@ -14,6 +14,7 @@ import 'package:azaman/screens/story_creation_screen.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 import 'package:azaman/screens/story_editor_screen.dart';
 import 'dart:io';
+import 'package:azaman/widgets/nav_transitions.dart';
 class PersonalChat {
   final String id;
   final String contactId;
@@ -407,7 +408,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                    onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
                     child: Container(
                       width: 40,
                       height: 40,
