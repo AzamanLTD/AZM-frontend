@@ -26,6 +26,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
+import 'package:azaman/widgets/in_app_push_banner.dart';
 
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
@@ -249,6 +250,29 @@ Future<void> _bootstrap() async {
         Future.delayed(const Duration(milliseconds: 1500), () {
           handleNotificationTap(action: action, actionPayload: actionPayload);
         });
+      };
+
+      // Foreground push: show in-app banner (auto-dismisses after 4s)
+      PushNotificationService.instance.onForegroundMessage = (message) {
+        final notification = message.notification;
+        if (notification == null) return;
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx == null) return;
+        InAppPushBanner.show(
+          ctx,
+          title: notification.title ?? '',
+          body: notification.body ?? '',
+          onTap: () {
+            final data = <String, dynamic>{};
+            message.data.forEach((k, v) => data[k] = v);
+            final action = data['action']?.toString() ?? '';
+            if (action.isNotEmpty) {
+              final payload = <String, dynamic>{};
+              data.forEach((k, v) { if (k != 'action') payload[k] = v; });
+              handleNotificationTap(action: action, actionPayload: payload);
+            }
+          },
+        );
       };
 
       runApp(const ProviderScope(child: AzamanApp()));

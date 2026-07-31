@@ -43,6 +43,7 @@ import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/messages_hub_screen.dart';
+import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
@@ -788,7 +789,6 @@ void handleNotificationTap({
     return;
   }
 
-  Widget? targetScreen;
   switch (action) {
     case 'OPEN_TRADE':
     case 'PING_TOPUP': {
@@ -866,6 +866,34 @@ void handleNotificationTap({
           memo: susuId == null ? null : 'susu:$susuId',
         ),
       ));
+      break;
+    }
+    case 'OPEN_CHAT': {
+      final conversationId = actionPayload?['conversationId']?.toString()
+          ?? actionPayload?['roomId']?.toString();
+      if (conversationId != null) {
+        navigator.push(MaterialPageRoute(
+          builder: (_) => FriendChatScreen(
+            friendshipId: conversationId,
+            friendUsername: actionPayload?['friendName']?.toString() ?? 'Friend',
+            friendId: int.tryParse(actionPayload?['friendId']?.toString() ?? '') ?? 0,
+          ),
+        ));
+      } else {
+        navigator.push(MaterialPageRoute(builder: (_) => const MessagesHubScreen()));
+      }
+      break;
+    }
+    case 'OPEN_ORDER': {
+      final orderId = actionPayload?['orderId']?.toString();
+      if (orderId != null) {
+        navigator.push(MaterialPageRoute(
+          builder: (_) => OrderTrackingScreen(
+            orderId: orderId,
+            orderRef: actionPayload?['orderRef']?.toString() ?? orderId,
+          ),
+        ));
+      }
       break;
     }
     case 'OPEN_PROOF_OF_RESIDENCY':
