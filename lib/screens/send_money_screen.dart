@@ -11,6 +11,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/scale_tap.dart';
 
 class SendMoneyScreen extends ConsumerStatefulWidget {
   const SendMoneyScreen({super.key});
@@ -178,7 +179,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                GestureDetector(
+                ScaleTap(
                   onTap: _lookupRecipient,
                   child: Container(
                     width: 46,

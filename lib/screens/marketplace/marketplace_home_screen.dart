@@ -649,7 +649,7 @@ class _MarketplaceHomeScreenState
   Widget _viewSeg(
       IconData icon, _ViewMode mode, AzamanColors colors) {
     final active = _viewMode == mode;
-    return GestureDetector(
+    return ScaleTap(
       onTap: () => _setViewMode(mode),
       child: Container(
         width: 34,
@@ -674,7 +674,7 @@ class _MarketplaceHomeScreenState
     required AzamanColors colors,
     Color? activeColor,
   }) {
-    return GestureDetector(
+    return ScaleTap(
       onTap: onTap,
       child: Container(
         width: 42,
