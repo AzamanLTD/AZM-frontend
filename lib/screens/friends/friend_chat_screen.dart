@@ -538,6 +538,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                 size: 38,
                 showOnlineDot: true,
                 isOnline: _isFriendOnline,
+                heroTag: 'avatar-${widget.friendId}',
               ),
               const SizedBox(width: 10),
               Expanded(

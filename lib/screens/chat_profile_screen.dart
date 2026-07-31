@@ -358,6 +358,7 @@ class _IdentityTier extends StatelessWidget {
                 name: username,
                 size: 64,
                 showOnlineDot: false,
+                heroTag: 'avatar-${profile.friend.id}',
               ),
               const SizedBox(width: 14),
               Expanded(

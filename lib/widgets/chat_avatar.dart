@@ -8,6 +8,7 @@ class ChatAvatar extends StatelessWidget {
   final double size;
   final bool isOnline;
   final bool showOnlineDot;
+  final String? heroTag;
 
   const ChatAvatar({
     super.key,
@@ -16,17 +17,26 @@ class ChatAvatar extends StatelessWidget {
     this.size = 48,
     this.isOnline = false,
     this.showOnlineDot = false,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     final gradient = _nameGradient(name);
+    final avatar = _buildAvatar(hasImage, gradient);
+    if (heroTag != null && !MediaQuery.disableAnimationsOf(context)) {
+      return Hero(
+        tag: heroTag!,
+        flightShuttleBuilder: _avatarFlightShuttle,
+        child: avatar,
+      );
+    }
+    return avatar;
+  }
+
+  Widget _buildAvatar(bool hasImage, Gradient gradient) {
     // Squircle curvature — matches StoryRing's proportions (2026-07-06) so
-    // avatars read consistently across the status bar and chat surfaces
-    // instead of stories being squircles and chat rows being plain circles.
-    // Bumped 0.34 -> 0.5: at 0.34 the continuous-rectangle curve read as a
-    // rounded square rather than a true squircle with bulging sides.
     final radius = size * 0.5;
     final shape = ContinuousRectangleBorder(borderRadius: BorderRadius.circular(radius));
 
@@ -80,6 +90,18 @@ class ChatAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static Widget _avatarFlightShuttle(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection direction,
+    BuildContext fromContext,
+    BuildContext toContext,
+  ) {
+    final reduce = MediaQuery.disableAnimationsOf(flightContext);
+    final t = Curves.easeOutCubic.transform(animation.value);
+    return Opacity(opacity: reduce ? 1.0 : t.clamp(0.0, 1.0), child: fromContext.widget);
   }
 
   LinearGradient _nameGradient(String name) {
