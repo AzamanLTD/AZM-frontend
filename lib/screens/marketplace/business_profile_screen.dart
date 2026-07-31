@@ -57,6 +57,7 @@ import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -843,7 +844,7 @@ class _BusinessProfileScreenState
             tooltip: 'Pay Invoice',
             onTap: () {
               AzamanHaptics.nav();
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyInvoicesScreen()));
+              pushWithVerticalTransition(context, const MyInvoicesScreen());
             },
           ),
           const SizedBox(height: 12),
@@ -1346,13 +1347,11 @@ class _BusinessProfileScreenState
             child: GestureDetector(
               onTap: () {
                 AzamanHaptics.nav();
-                Navigator.push(
+                pushWithVerticalTransition(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => BusinessProductsScreen(
-                      bizId: widget.bizId,
-                      businessName: business.businessName,
-                    ),
+                  BusinessProductsScreen(
+                    bizId: widget.bizId,
+                    businessName: business.businessName,
                   ),
                 );
               },

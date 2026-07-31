@@ -44,6 +44,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 enum _ViewMode { list, map }
 
@@ -838,8 +839,7 @@ class _MarketplaceHomeScreenState
                   colors: colors,
                   onTap: () {
                     AzamanHaptics.nav();
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => BusinessProfileScreen(bizId: b.bizId)));
+                    pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
                   },
                 )
                     .animate()
@@ -1634,8 +1634,7 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
                     colors: widget.colors,
                     onTap: () {
                       AzamanHaptics.nav();
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => BusinessProfileScreen(bizId: b.bizId)));
+                      pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
                     },
                   ),
                 );
