@@ -22,7 +22,7 @@ class AzAnimatedSwitcher extends StatelessWidget {
   final Duration duration;
   final Widget child;
   final Widget? previousChild;
-  final TransitionBuilder? transitionBuilder;
+  final Widget Function(Widget, Animation<double>)? transitionBuilder;
 
   const AzAnimatedSwitcher({
     super.key,
@@ -45,9 +45,9 @@ class AzAnimatedSwitcher extends StatelessWidget {
       duration: duration,
       switchInCurve: MotionTokens.enter,
       switchOutCurve: MotionTokens.exit,
-      transitionBuilder: transitionBuilder ?? (child, animation) {
+      transitionBuilder: transitionBuilder ?? ((child, animation) {
         return FadeTransition(opacity: animation, child: child);
-      },
+      }),
       child: child,
     );
   }
@@ -83,7 +83,7 @@ class AzSlideFadeIn extends StatelessWidget {
         return Opacity(
           opacity: value.clamp(0.0, 1.0),
           child: Transform.translate(
-            offset: Offset.lerp(beginOffset, Offset.zero, value),
+            offset: Offset.lerp(beginOffset, Offset.zero, value) ?? Offset.zero,
             child: child,
           ),
         );

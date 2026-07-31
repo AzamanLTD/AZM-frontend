@@ -14,6 +14,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
+import 'package:azaman/widgets/staggered_item.dart';
 
 
 String _humanLabel(String type) {
@@ -189,7 +190,9 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
       itemBuilder: (context, i) {
         final header = keys[i];
         final items = grouped[header]!;
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        return StaggeredItem(
+          index: i,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
             child: Text(header, style: TextStyle(
@@ -340,7 +343,8 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               ),
             );
           }),
-        ],
+          ],
+        ),
       );
     },
   );

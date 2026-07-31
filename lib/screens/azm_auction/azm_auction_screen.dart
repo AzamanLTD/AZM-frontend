@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/azm_auction_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 
 class AzmAuctionScreen extends ConsumerStatefulWidget {
@@ -168,7 +169,13 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             auctionAsync.when(
-              loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+              loading: () => Column(
+                children: [
+                  SkeletonBlock(height: 160, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                ],
+              ),
               error: (e, _) => Text(e.toString()),
               data: (state) {
                 if (state == null) {
@@ -429,9 +436,12 @@ class _BidForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loadingAds) {
-      return Padding(
-        padding: const EdgeInsets.all(8),
-        child: Center(child: CircularProgressIndicator(color: colors.accent)),
+      return Column(
+        children: [
+          SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 8),
+          SkeletonBlock(height: 40, width: double.infinity, borderRadius: BorderRadius.circular(10)),
+        ],
       );
     }
     if (myAds.isEmpty) {

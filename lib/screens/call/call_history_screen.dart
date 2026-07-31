@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/screens/call/call_screen.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/staggered_item.dart';
 
 // Provider for call history
 final callHistoryProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -42,7 +44,18 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
         ],
       ),
       body: callsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView.builder(
+          itemCount: 8,
+          itemBuilder: (_, __) => ListTile(
+            leading: SkeletonBlock(height: 52, width: 52, borderRadius: BorderRadius.circular(26)),
+            title: Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: SkeletonBlock(height: 14, width: 140, borderRadius: BorderRadius.circular(4)),
+            ),
+            subtitle: SkeletonBlock(height: 12, width: 90, borderRadius: BorderRadius.circular(4)),
+            trailing: SkeletonBlock(height: 24, width: 24, borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
         error: (err, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -84,7 +97,10 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
               itemCount: calls.length,
               itemBuilder: (context, index) {
                 final call = calls[index] as Map<String, dynamic>;
-                return _CallHistoryItem(call: call);
+                return StaggeredItem(
+                  index: index,
+                  child: _CallHistoryItem(call: call),
+                );
               },
             ),
           );

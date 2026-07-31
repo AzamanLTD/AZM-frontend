@@ -23,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/staggered_item.dart';
 
 
 class AccountActivityScreen extends ConsumerStatefulWidget {
@@ -264,7 +266,10 @@ class _AccountActivityScreenState
             ),
           );
         }
-        return _entryCard(_entries[i], colors);
+        return StaggeredItem(
+          index: i,
+          child: _entryCard(_entries[i], colors),
+        );
       },
     );
   }
