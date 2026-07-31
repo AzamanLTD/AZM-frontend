@@ -22,6 +22,7 @@ import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/trade_countdown_chip.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class TradesTabScreen extends ConsumerStatefulWidget {
@@ -177,12 +178,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ActiveTradeScreen(orderId: '#${trade['id']}'),
-          ),
-        ).then((_) => _fetchTrades());
+        pushWithVerticalTransition(context, ActiveTradeScreen(orderId: '#${trade['id']}')).then((_) => _fetchTrades());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

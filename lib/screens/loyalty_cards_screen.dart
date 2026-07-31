@@ -17,6 +17,7 @@ import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -280,13 +281,9 @@ class _LoyaltyCard extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => WalletPassScreen(
-                            passType: 'loyalty',
+                        onPressed: () => pushWithVerticalTransition(context, WalletPassScreen(passType: 'loyalty',
                             itemId: card['id'] as String,
-                            title: program['name'] as String? ?? 'Loyalty Card',
-                          ),
-                        )),
+                            title: program['name'] as String? ?? 'Loyalty Card',)),
                         icon: const Icon(Icons.wallet, size: 16),
                         label: const Text('Add to Wallet', style: TextStyle(fontSize: 12)),
                         style: OutlinedButton.styleFrom(

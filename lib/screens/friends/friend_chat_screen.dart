@@ -33,6 +33,7 @@ import 'package:azaman/widgets/premium_chat_input.dart';
 import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -403,15 +404,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // ===========================================================================
 
   void _openTicketDashboard() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TicketDashboardScreen(
-          friendshipId: widget.friendshipId,
-          friendUsername: widget.friendUsername,
-        ),
-      ),
-    ).then((_) {
+    pushWithVerticalTransition(context, TicketDashboardScreen(friendshipId: widget.friendshipId,
+          friendUsername: widget.friendUsername,)).then((_) {
       // Refresh messages so any new TICKET_LINK event cards appear in
       // the parent chat feed.
       _loadMessages();
@@ -419,15 +413,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _openTicket(String ticketId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TicketWorkspaceScreen(
-          ticketId: ticketId,
-          friendUsername: widget.friendUsername,
-        ),
-      ),
-    );
+    pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: ticketId,
+          friendUsername: widget.friendUsername,));
   }
 
   // ===========================================================================
@@ -435,15 +422,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // ===========================================================================
 
   void _openChatProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatProfileScreen(
-          friendshipId: widget.friendshipId,
-          fallbackUsername: widget.friendUsername,
-        ),
-      ),
-    );
+    pushWithVerticalTransition(context, ChatProfileScreen(friendshipId: widget.friendshipId,
+          fallbackUsername: widget.friendUsername,));
   }
 
   // ===========================================================================
@@ -589,7 +569,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TicketWorkspaceScreen(ticketId: _ticketPresenceTicketId!, friendUsername: widget.friendUsername))),
+                    onPressed: () => pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: _ticketPresenceTicketId!, friendUsername: widget.friendUsername)),
                     style: TextButton.styleFrom(minimumSize: Size.zero, padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                     child: Text('Join', style: TextStyle(color: c.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),

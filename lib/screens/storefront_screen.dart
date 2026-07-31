@@ -197,10 +197,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
   }
 
   void _openCart() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CartScreen()),
-    );
+    pushWithVerticalTransition(context, const CartScreen());
   }
 
   @override

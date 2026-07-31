@@ -21,6 +21,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'dart:convert';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -192,9 +193,7 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
               itemBuilder: (context, i) => _SharedVaultCard(
                 vault: vaults[i],
                 colors: colors,
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => SharedVaultDetailScreen(vaultId: vaults[i].id),
-                )),
+                onTap: () => pushWithVerticalTransition(context, SharedVaultDetailScreen(vaultId: vaults[i].id)),
               ),
             );
           },

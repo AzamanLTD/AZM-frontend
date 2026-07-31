@@ -17,6 +17,7 @@ import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/disappearing_message_timer_sheet.dart';
 import 'package:azaman/screens/chat/message_search_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -169,10 +170,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             return GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => GroupProfileScreen(groupId: widget.groupId)),
-                );
+                pushWithVerticalTransition(context, GroupProfileScreen(groupId: widget.groupId));
               },
               child: Row(
                 children: [
@@ -204,12 +202,8 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           IconButton(
             icon: Icon(Icons.search, size: 20, color: colors.textSecondary),
             tooltip: 'Search messages',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => MessageSearchScreen(
-                conversationId: widget.groupId,
-                conversationContext: 'group',
-              ),
-            )),
+            onPressed: () => pushWithVerticalTransition(context, MessageSearchScreen(conversationId: widget.groupId,
+                conversationContext: 'group',)),
           ),
           Builder(builder: (ctx) {
             final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
@@ -454,12 +448,7 @@ class _SusuBanner extends ConsumerWidget {
       return GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SusuDashboardScreen(susuId: init.susuGroupId!),
-            ),
-          );
+          pushWithVerticalTransition(context, SusuDashboardScreen(susuId: init.susuGroupId!));
         },
         child: Container(
           color: colors.accent.withValues(alpha: 0.1),

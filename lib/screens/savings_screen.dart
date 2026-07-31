@@ -184,10 +184,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 title: 'Open a vault',
                 subtitle: 'Lock funds, earn rewards',
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const VaultListScreen()),
-                  );
+                  pushWithVerticalTransition(context, const VaultListScreen());
                 },
               ),
             ),

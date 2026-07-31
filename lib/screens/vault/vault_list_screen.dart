@@ -56,9 +56,7 @@ class VaultListScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.groups, color: colors.textPrimary, size: 20),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const SharedVaultScreen(),
-            )),
+            onPressed: () => pushWithVerticalTransition(context, const SharedVaultScreen()),
             tooltip: 'Shared Vaults',
           ),
         ],
@@ -79,10 +77,7 @@ class VaultListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const VaultCreateScreen()),
-          );
+          pushWithVerticalTransition(context, const VaultCreateScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
@@ -144,12 +139,7 @@ class _Body extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: VaultProgressCard(vault: v, colors: colors, onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => VaultDetailScreen(vaultId: v.id),
-              ),
-            );
+            pushWithVerticalTransition(context, VaultDetailScreen(vaultId: v.id));
           })
               .animate()
               .fadeIn(delay: (i * 60).ms, duration: 280.ms)

@@ -24,6 +24,7 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/screens/susu/susu_credit_score_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class SusuHubScreen extends ConsumerWidget {
@@ -123,9 +124,7 @@ class SusuHubScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.credit_score, color: colors.textPrimary, size: 20),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const SusuCreditScoreScreen(),
-            )),
+            onPressed: () => pushWithVerticalTransition(context, const SusuCreditScoreScreen()),
             tooltip: 'Credit Score',
           ),
         ],

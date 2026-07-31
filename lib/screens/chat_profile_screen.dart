@@ -40,6 +40,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
@@ -1010,15 +1011,8 @@ class _TicketRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TicketWorkspaceScreen(
-            ticketId: ticket.id,
-            friendUsername: friendUsername,
-          ),
-        ),
-      ),
+      onTap: () => pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: ticket.id,
+            friendUsername: friendUsername,)),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

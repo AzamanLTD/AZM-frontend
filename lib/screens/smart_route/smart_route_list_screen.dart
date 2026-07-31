@@ -11,6 +11,7 @@ import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/smart_route/smart_route_create_screen.dart';
 import 'package:azaman/widgets/smart_route/smart_route_card.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class SmartRouteListScreen extends ConsumerWidget {
@@ -91,10 +92,7 @@ class SmartRouteListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SmartRouteCreateScreen()),
-          );
+          pushWithVerticalTransition(context, const SmartRouteCreateScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,

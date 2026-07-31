@@ -8,6 +8,7 @@ import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/trade_account_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class VendorAdCreator extends ConsumerStatefulWidget {
@@ -104,10 +105,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
     // without leaving the ad-creator flow. Pop returns to the creator
     // where the balance check re-runs on Step 1's "Next" tap.
     HapticFeedback.lightImpact();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DepositScreen()),
-    ).then((_) {
+    pushWithVerticalTransition(context, const DepositScreen()).then((_) {
       // Refetch balance after returning so the collateral check uses
       // the latest available balance (a successful deposit settles
       // async, but a fresh fetch reflects any synchronous credit).

@@ -112,24 +112,14 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ProfileDetailsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ProfileDetailsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ReferralScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ReferralScreen()),
               ),
             ],
           ),
@@ -146,12 +136,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailingText: themeLabel,
                 onTap: () {
                   AzamanHaptics.nav();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ThemePickerScreen(),
-                    ),
-                  );
+                  pushWithVerticalTransition(context, const ThemePickerScreen());
                 },
               ),
             ],
@@ -253,48 +238,28 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.shield_outlined,
                 title: 'Identity Verification (KYC)',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const KycVerificationScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const KycVerificationScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.security,
                 title: 'Two-Factor & PIN',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SecuritySettingsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SecuritySettingsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.lock_outline,
                 title: 'Change Password',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ChangePasswordScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.history,
                 title: 'Account Activity',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AccountActivityScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const AccountActivityScreen()),
               ),
             ],
           ),
@@ -318,24 +283,14 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.account_balance_wallet_outlined,
                 title: 'Withdrawal Addresses',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SavedWalletsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SavedWalletsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.arrow_downward,
                 title: 'Deposit Addresses',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SavedMomoAccountsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SavedMomoAccountsScreen()),
               ),
             ],
           ),
@@ -390,12 +345,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.delete_outline,
                 title: 'Delete Account',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AccountDeactivationScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const AccountDeactivationScreen()),
               ),
             ],
           ),

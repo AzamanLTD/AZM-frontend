@@ -13,6 +13,7 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_create_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class GroupListScreen extends ConsumerWidget {
@@ -82,10 +83,7 @@ class GroupListScreen extends ConsumerWidget {
                   child: _GroupTile(
                     group: g,
                     colors: colors,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => GroupChatScreen(groupId: g.id)),
-                    ),
+                    onTap: () => pushWithVerticalTransition(context, GroupChatScreen(groupId: g.id)),
                   )
                       .animate()
                       .fadeIn(delay: (i * 50).ms, duration: 280.ms)
@@ -99,10 +97,7 @@ class GroupListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const GroupCreateScreen()),
-          );
+          pushWithVerticalTransition(context, const GroupCreateScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,

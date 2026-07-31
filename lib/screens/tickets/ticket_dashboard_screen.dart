@@ -76,15 +76,8 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
   }
 
   void _openTicket(Ticket t) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TicketWorkspaceScreen(
-          ticketId: t.id,
-          friendUsername: widget.friendUsername,
-        ),
-      ),
-    );
+    pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: t.id,
+          friendUsername: widget.friendUsername,));
   }
 
   @override

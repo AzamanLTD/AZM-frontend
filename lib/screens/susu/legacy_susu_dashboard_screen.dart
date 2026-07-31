@@ -17,6 +17,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/susu/susu_warning_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class LegacySusuDashboardScreen extends ConsumerWidget {
@@ -69,17 +70,10 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SusuWarningScreen(
-                          susuGroupId: susu.id,
+                    pushWithVerticalTransition(context, SusuWarningScreen(susuGroupId: susu.id,
                           contributionUsdc: susu.contributionUsdc,
                           frequency: susu.frequency,
-                          totalCycles: susu.totalCycles,
-                        ),
-                      ),
-                    );
+                          totalCycles: susu.totalCycles,));
                   },
                   icon: const Icon(Icons.gavel, size: 16),
                   label: const Text(

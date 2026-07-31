@@ -11,6 +11,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
@@ -151,9 +152,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                     child: _ActionChip(
                       icon: v.yieldEnabled ? Icons.flash_on : Icons.flash_off,
                       label: v.yieldEnabled ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%' : 'DeFi Yield',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => VaultYieldScreen(vault: v, vaultId: v.id),
-                      )),
+                      onTap: () => pushWithVerticalTransition(context, VaultYieldScreen(vault: v, vaultId: v.id)),
                       colors: colors,
                     ),
                   ),
@@ -162,13 +161,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                     child: _ActionChip(
                       icon: Icons.wallet,
                       label: 'Wallet Pass',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => WalletPassScreen(
-                          passType: 'vault',
+                      onTap: () => pushWithVerticalTransition(context, WalletPassScreen(passType: 'vault',
                           itemId: v.id,
-                          title: v.name,
-                        ),
-                      )),
+                          title: v.name,)),
                       colors: colors,
                     ),
                   ),

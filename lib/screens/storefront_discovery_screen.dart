@@ -15,6 +15,7 @@ import '../storefront/providers/storefront_provider.dart';
 import '../storefront/services/storefront_tracking_service.dart';
 import '../providers/theme_provider.dart';
 import 'storefront_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class StorefrontDiscoveryScreen extends ConsumerStatefulWidget {
   const StorefrontDiscoveryScreen({super.key});
@@ -250,15 +251,8 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                         final bizName = (display[i]['business'] as Map<String, dynamic>?)?['businessName'] as String?;
                         // Track discovery tap
                         StorefrontTrackingService.instance.trackEvent(bizId, 'storefront_view', {'source': 'discovery'});
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => StorefrontScreen(
-                              businessProfileId: bizId,
-                              businessName: bizName,
-                            ),
-                          ),
-                        );
+                        pushWithVerticalTransition(context, StorefrontScreen(businessProfileId: bizId,
+                              businessName: bizName,));
                       },
                     );
                   },

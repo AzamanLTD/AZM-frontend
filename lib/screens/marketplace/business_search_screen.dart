@@ -27,6 +27,7 @@ import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/business_card.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 enum _Sort { topRated, mostPopular, newest }
 
@@ -542,12 +543,7 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
               return BusinessCard(
                 business: biz,
                 tall: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BusinessProfileScreen(bizId: biz.bizId),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, BusinessProfileScreen(bizId: biz.bizId)),
               );
             },
           ),

@@ -17,6 +17,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/qr_scanner_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 
 class ShareProfileScreen extends ConsumerWidget {
@@ -47,10 +48,7 @@ class ShareProfileScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-          );
+          pushWithVerticalTransition(context, const QrScannerScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,

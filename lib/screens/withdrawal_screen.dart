@@ -454,10 +454,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartRouteListScreen()),
-        );
+        pushWithVerticalTransition(context, const SmartRouteListScreen());
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
