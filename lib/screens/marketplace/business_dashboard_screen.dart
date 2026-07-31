@@ -101,7 +101,7 @@ class _BusinessDashboardScreenState
       });
       return Scaffold(
         backgroundColor: colors.background,
-        body: const Center(child: CircularProgressIndicator()),
+        body: _DashboardSkeleton(colors: colors),
       );
     }
 
@@ -1134,6 +1134,45 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _DashboardSkeleton extends StatelessWidget {
+  final AzamanColors colors;
+  const _DashboardSkeleton({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Header skeleton
+          SkeletonBlock(width: 200, height: 28, borderRadius: BorderRadius.circular(8)),
+          const SizedBox(height: 20),
+          // Stats row skeleton
+          Row(
+            children: [
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              const SizedBox(width: 12),
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              const SizedBox(width: 12),
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Chart skeleton
+          SkeletonBlock(width: double.infinity, height: 180, borderRadius: BorderRadius.circular(16)),
+          const SizedBox(height: 24),
+          // List items skeleton
+          ...List.generate(4, (i) => Padding(
+            padding: EdgeInsets.only(bottom: i == 3 ? 0 : 12),
+            child: SkeletonBlock(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(12)),
+          )),
+        ],
       ),
     );
   }

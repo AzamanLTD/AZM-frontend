@@ -45,6 +45,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 enum _ViewMode { list, map }
 
@@ -1248,7 +1249,22 @@ class _MarketplaceHomeScreenState
     if (_position == null) return _locationPrompt(colors);
 
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SkeletonBlock(width: double.infinity, height: 120, borderRadius: BorderRadius.circular(16)),
+            const SizedBox(height: 12),
+            SkeletonBlock(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 12),
+            ...List.generate(3, (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SkeletonBlock(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(12)),
+            )),
+          ],
+        ),
+      );
     }
 
     final locations = state.locations;
