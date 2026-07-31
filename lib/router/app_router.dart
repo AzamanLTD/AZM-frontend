@@ -137,7 +137,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/notifications',
       name: 'notifications',
-      builder: (context, state) => const NotificationHubScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const NotificationHubScreen(),
+      ),
     ),
 
     // ── Trade lifecycle (keys: OPEN_TRADE / OPEN_DISPUTE) ───────────────────
@@ -298,12 +301,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/susu',
       name: 'susu-hub',
-      builder: (context, state) => const SusuHubScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const SusuHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/proof-of-residency',
       name: 'proof-of-residency',
-      builder: (context, state) => const ProofOfResidencyScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const ProofOfResidencyScreen(),
+      ),
     ),
     GoRoute(
       path: '/susu/invite/:token',
@@ -337,19 +346,28 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace/booking/checkin-qr/:reservationId',
       name: 'checkin-qr',
-      builder: (context, state) => CheckInQrScreen(
-        reservationId: state.pathParameters['reservationId']!,
+      pageBuilder: (context, state) => sharedAxisScaledPage(
+        key: state.pageKey,
+        child: CheckInQrScreen(
+          reservationId: state.pathParameters['reservationId']!,
+        ),
       ),
     ),
     GoRoute(
       path: '/marketplace/business/checkin',
       name: 'business-checkin',
-      builder: (context, state) => const BusinessCheckInScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const BusinessCheckInScreen(),
+      ),
     ),
     GoRoute(
       path: '/marketplace/transit',
       name: 'transit-trips',
-      builder: (context, state) => const TransitTripListScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const TransitTripListScreen(),
+      ),
     ),
     GoRoute(
       path: '/business-market/:bizId/transit',
