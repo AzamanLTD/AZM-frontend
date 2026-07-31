@@ -20,6 +20,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/orders/order_tracking_screen.dart';
 import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/staggered_item.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -116,7 +117,9 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                     padding: const EdgeInsets.all(16),
                     itemCount: orders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _OrderCard(
+                    itemBuilder: (_, i) => StaggeredItem(
+                      index: i,
+                      child: _OrderCard(
                       order: orders[i],
                       colors: colors,
                       onTap: () {
@@ -133,6 +136,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                           );
                         }
                       },
+                    ),
                     ),
                   ),
                 ),

@@ -16,6 +16,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/staggered_item.dart';
 
 class MyInvoicesScreen extends ConsumerStatefulWidget {
   const MyInvoicesScreen({super.key});
@@ -112,7 +113,9 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
                     padding: const EdgeInsets.all(16),
                     itemCount: invoices.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _InvoiceCard(
+                    itemBuilder: (_, i) => StaggeredItem(
+                      index: i,
+                      child: _InvoiceCard(
                       invoice: invoices[i],
                       colors: colors,
                       onTap: () async {
@@ -127,6 +130,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
                           ref.read(myInvoicesProvider.notifier).load();
                         }
                       },
+                    ),
                     ),
                   ),
                 ),
