@@ -169,14 +169,21 @@ class _BalanceNumberState extends State<_BalanceNumber>
             ? _formatNumber(v)
             : '\u2022\u2022\u2022\u2022\u2022\u2022';
 
-        return Text(
-          text,
-          style: TextStyle(
-            color: widget.colors.textPrimary,
-            fontSize: 33,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
-            fontFeatures: const [FontFeature.tabularFigures()],
+        return SizedBox(
+          width: double.infinity,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              text,
+              style: TextStyle(
+                color: widget.colors.textPrimary,
+                fontSize: 33,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
         );
       },

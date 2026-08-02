@@ -138,19 +138,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  // F-05: when a SENTRY_DSN is provided at build time, initialise Sentry and
-  // run the app inside its zone so uncaught errors are captured. When it's
-  // empty (dev/CI/default), skip Sentry entirely and boot exactly as before —
-  // no behavioural change, no network calls.
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
       (options) {
         options.dsn = AppConfig.sentryDsn;
         options.release = AppConfig.appVersion;
         options.environment = AppConfig.environment;
-        // 20% transaction sampling in prod; full sampling elsewhere.
         options.tracesSampleRate = AppConfig.isProduction ? 0.2 : 1.0;
-        // Don't ship PII (tokens, balances) to Sentry by default.
         options.sendDefaultPii = false;
       },
       appRunner: _bootstrap,
@@ -164,41 +158,6 @@ void main() async {
 /// Sentry zone wrapper above.
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase before anything else
-  // await Firebase.initializeApp();
-
-  // Register background message handler
-  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Initialize push notification service (permissions, foreground handling)
-  // await PushNotificationService.instance.init();
-
-  // Phase Q22 (2026-05-31): wire the FCM notification-tap callback so
-  // cold-start (`getInitialMessage`) and warm-from-bg (`onMessageOpenedApp`)
-  // both deep-link via the canonical `handleNotificationTap` resolver.
-  // Defer with a 1.5s delay on cold start so the SplashScreen has time
-  // to settle MainWrapper underneath the deep-link target — otherwise
-  // the destination ends up on top of an unsettled navigator and back
-  // pops to a blank screen.
-  /*
-  PushNotificationService.instance.onNotificationTap = (data) {
-    final action = data['action']?.toString() ?? '';
-    if (action.isEmpty) return;
-    // Coerce the rest of the payload (everything except `action`).
-    final actionPayload = <String, dynamic>{};
-    data.forEach((k, v) {
-      if (k != 'action') actionPayload[k] = v;
-    });
-    // Allow the navigator to settle. 1500ms covers the splash 2s delay
-    // worst-case race; in practice the navigator is ready well before
-    // then. handleNotificationTap itself uses Navigator.push on the
-    // root navigator key, so it's a no-op until the key has a state.
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      handleNotificationTap(action: action, actionPayload: actionPayload);
-    });
-  };
-  */
 
   runApp(
     const ProviderScope(
@@ -215,12 +174,7 @@ class AzamanApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Granular: only repaint when ThemeData actually changes (not on
-    // unrelated SettingsProvider/AuthProvider ticks).
     final themeData = ref.watch(theme_pkg.themeProvider.select((t) => t.themeData));
-    // Phase H — pull the active palette so we can sync the status bar
-    // and navigation-bar overlay style to the theme. Otherwise switching
-    // to a Light theme leaves a white status bar with white icons (invisible).
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -239,16 +193,6 @@ class AzamanApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        // Phase H4 — wrap every routed screen in the connectivity banner so
-        // a single overlay handles the offline / reconnected affordance for
-        // the whole app (rather than every screen rolling its own).
-        //
-        // Master Sprint v2 (2026-05-27) — also wraps every screen in a
-        // themed gradient backdrop so theme switches genuinely transform
-        // the look of the app. Each theme paints its own glow halos +
-        // accent wash behind the route. Scaffolds set
-        // backgroundColor: Colors.transparent (or use ThemedScaffold) to
-        // let the backdrop show through.
         builder: (context, child) {
           return ThemedAppBackdrop(
             child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
@@ -261,10 +205,6 @@ class AzamanApp extends ConsumerWidget {
 
 // =============================================================================
 // MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Savings | Profile)
-//
-// Phase H review pass: comment was stale ("4-tab Home | P2P | Trades |
-// Profile" referenced the pre-Phase-0 layout). Bottom nav is rendered
-// by `PremiumBottomNav` against `_kNavItems` defined further down.
 // =============================================================================
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -286,7 +226,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       const FriendsHubScreen(),
       const P2PMarketplaceScreen(),
       const SafeArea(bottom: false, child: SavingsScreen()),
-      const MarketplaceHomeScreen(), // V3: 5th tab — Premium Marketplace
+      const MarketplaceHomeScreen(),
     ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -296,12 +236,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
   @override
   void dispose() {
-    // Phase P3: No per-screen socket.off() needed — SocketService owns
-    // the callbacks via registered closures, disposed with the service.
     super.dispose();
   }
 
-  // ── Phase P3: Single unified socket initialization ───────────────────────
   void _initUnifiedSocket() {
     final socketService = ref.read(socketServiceProvider);
     socketService.init(ref);
@@ -309,11 +246,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     final auth = ref.read(auth_pkg.authProvider);
     if (auth.user != null) {
       socketService.joinUserRoom(auth.user!.id.toString());
-      // Sync the trade provider's role from the authenticated user's actual role
       ref.read(trade_pkg.tradeProvider).syncRoleFromAuth(auth.user!.role);
     }
 
-    // Register UI-level event callbacks on the unified socket
     socketService.onTradeCompleted((data) => _showSuccessReceipt(data));
 
     socketService.onNewNotification((data) {
@@ -352,9 +287,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       ));
     });
 
-    // ── V3 Marketplace Sprint (2026-06-21): business owner real-time wiring ──
-    // A new business notification bumps the badge; an authoritative
-    // unread-count push (multi-device sync) replaces it outright.
     socketService.onBizNotification((data) {
       if (!mounted) return;
       ref.read(bizUnreadCountProvider.notifier).state++;
@@ -364,9 +296,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       ref.read(bizUnreadCountProvider.notifier).state = count;
     });
 
-    // Load the signed-in user's own business (if any) so the home-screen
-    // notification bell + dashboard entry know whether to show, then seed the
-    // unread badge from the REST count.
     ref.read(myBusinessProvider.notifier).load().then((_) async {
       if (!mounted) return;
       final biz = ref.read(myBusinessProvider).profile;
@@ -381,7 +310,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   }
 
   void _showSuccessReceipt(dynamic data) {
-    final colors = ref.read(theme_pkg.themeProvider).colors;
+    final colors = ref.read(theme_pkg.themeProvider.select((t) => t.colors));
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -409,26 +338,15 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    // Granular theme read — only the chrome that depends on `colors` repaints
-    // on a theme switch, and `role` is selected so a balance update doesn't
-    // trigger a rebuild of the Scaffold.
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
-    // Phase UI Sprint: the role-pill in the AppBar (top-right of the
-    // scaffold) is now permanently "HQ" globally, regardless of the user's
-    // role. The vendor-vs-user cue lives exclusively on the P2P pull tab.
-    // The local `role` watch was therefore removed; if you need the role
-    // again, watch `tradeProvider.select((t) => t.currentRole)`.
 
     return Scaffold(
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
-
-
       bottomNavigationBar: PremiumBottomNav(
         selectedIndex: _selectedIndex,
         onItemSelected: (i) => setState(() => _selectedIndex = i),
       ),
-
       body: Stack(
         children: [
           IndexedStack(
@@ -441,10 +359,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
               _pages[4],
             ],
           ),
-          // Vendor Pull Tab — only visible on the P2P tab AND only when
-          // the user has explicitly opted in via Settings → "Show vendor
-          // pull tab" (off by default). Casual buyers no longer have the
-          // tab nudging them every time they open the marketplace.
           if (_selectedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
@@ -454,7 +368,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   }
 }
 
-// Legacy alias kept for any existing go_router references.
 class MainNavigationWrapper extends StatelessWidget {
   const MainNavigationWrapper({super.key});
   @override
