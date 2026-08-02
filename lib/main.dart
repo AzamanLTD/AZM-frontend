@@ -26,7 +26,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
-import 'package:azaman/widgets/in_app_push_banner.dart';
 
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
@@ -49,6 +48,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
+import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -141,19 +141,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  // F-05: when a SENTRY_DSN is provided at build time, initialise Sentry and
-  // run the app inside its zone so uncaught errors are captured. When it's
-  // empty (dev/CI/default), skip Sentry entirely and boot exactly as before —
-  // no behavioural change, no network calls.
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
       (options) {
         options.dsn = AppConfig.sentryDsn;
         options.release = AppConfig.appVersion;
         options.environment = AppConfig.environment;
-        // 20% transaction sampling in prod; full sampling elsewhere.
         options.tracesSampleRate = AppConfig.isProduction ? 0.2 : 1.0;
-        // Don't ship PII (tokens, balances) to Sentry by default.
         options.sendDefaultPii = false;
       },
       appRunner: _bootstrap,
@@ -169,9 +163,6 @@ Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ── 1. GLOBAL ERROR BOUNDARY ─────────────────────────────────────────────
-  // Capture framework-level errors (build/layout failures) so they NEVER
-  // produce a red screen that bounces the user to home. Instead we log and
-  // show a recoverable error widget.
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('[AZM-FATAL] ${details.exception}');
@@ -179,16 +170,12 @@ Future<void> _bootstrap() async {
   };
 
   // ── 2. ISOLATE ERROR GUARD ───────────────────────────────────────────────
-  // Errors thrown in separate isolates (image decoding, JSON parsing in
-  // compute()) don't reach FlutterError.onError. This catches them.
   Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
     final list = data as List;
     debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
   }).sendPort);
 
-  // ── 3. ERROR WIDGET BUILDER (no red screen) ──────────────────────────────
-  // Replace the default red error screen with a themed fallback that lets
-  // the user retry instead of being bounced to home.
+  // ── 3. ERROR WIDGET BUILDER ──────────────────────────────────────────────
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return const Material(
       color: Color(0xFF1A1A2E),
@@ -213,8 +200,6 @@ Future<void> _bootstrap() async {
   };
 
   // ── 5. IMMERSIVE EDGE-TO-EDGE ────────────────────────────────────────────
-  // Remove the Android status-bar/nav-bar tint so content flows edge-to-edge.
-  // Each Scaffold already sets transparent backgrounds via ThemedAppBackdrop.
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
   );
@@ -227,53 +212,54 @@ Future<void> _bootstrap() async {
   // ── 4. ZONE GUARD for async errors outside Flutter ───────────────────────
   runZonedGuarded<Future<void>>(
     () async {
+      var firebaseReady = false;
       if (!kIsWeb) {
         try {
           await Firebase.initializeApp();
           FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+          firebaseReady = true;
         } catch (e) {
           debugPrint('[Bootstrap] Firebase init failed: $e');
         }
       }
 
-      if (!kIsWeb) {
+      if (!kIsWeb && firebaseReady) {
         await PushNotificationService.instance.init();
+
+        PushNotificationService.instance.onNotificationTap = (data) {
+          final action = data['action']?.toString() ?? '';
+          if (action.isEmpty) return;
+          final actionPayload = <String, dynamic>{};
+          data.forEach((k, v) {
+            if (k != 'action') actionPayload[k] = v;
+          });
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            handleNotificationTap(action: action, actionPayload: actionPayload);
+          });
+        };
+
+        PushNotificationService.instance.onForegroundMessage = (message) {
+          final notification = message.notification;
+          if (notification == null) return;
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx == null) return;
+          InAppPushBanner.show(
+            ctx,
+            title: notification.title ?? '',
+            body: notification.body ?? '',
+            onTap: () {
+              final data = <String, dynamic>{};
+              message.data.forEach((k, v) => data[k] = v);
+              final action = data['action']?.toString() ?? '';
+              if (action.isNotEmpty) {
+                final payload = <String, dynamic>{};
+                data.forEach((k, v) { if (k != 'action') payload[k] = v; });
+                handleNotificationTap(action: action, actionPayload: payload);
+              }
+            },
+          );
+        };
       }
-
-      PushNotificationService.instance.onNotificationTap = (data) {
-        final action = data['action']?.toString() ?? '';
-        if (action.isEmpty) return;
-        final actionPayload = <String, dynamic>{};
-        data.forEach((k, v) {
-          if (k != 'action') actionPayload[k] = v;
-        });
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          handleNotificationTap(action: action, actionPayload: actionPayload);
-        });
-      };
-
-      // Foreground push: show in-app banner (auto-dismisses after 4s)
-      PushNotificationService.instance.onForegroundMessage = (message) {
-        final notification = message.notification;
-        if (notification == null) return;
-        final ctx = rootNavigatorKey.currentContext;
-        if (ctx == null) return;
-        InAppPushBanner.show(
-          ctx,
-          title: notification.title ?? '',
-          body: notification.body ?? '',
-          onTap: () {
-            final data = <String, dynamic>{};
-            message.data.forEach((k, v) => data[k] = v);
-            final action = data['action']?.toString() ?? '';
-            if (action.isNotEmpty) {
-              final payload = <String, dynamic>{};
-              data.forEach((k, v) { if (k != 'action') payload[k] = v; });
-              handleNotificationTap(action: action, actionPayload: payload);
-            }
-          },
-        );
-      };
 
       runApp(const ProviderScope(child: AzamanApp()));
     },
@@ -294,12 +280,7 @@ class AzamanApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Granular: only repaint when ThemeData actually changes (not on
-    // unrelated SettingsProvider/AuthProvider ticks).
     final themeData = ref.watch(theme_pkg.themeProvider.select((t) => t.themeData));
-    // Phase H — pull the active palette so we can sync the status bar
-    // and navigation-bar overlay style to the theme. Otherwise switching
-    // to a Light theme leaves a white status bar with white icons (invisible).
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -318,16 +299,6 @@ class AzamanApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        // Phase H4 — wrap every routed screen in the connectivity banner so
-        // a single overlay handles the offline / reconnected affordance for
-        // the whole app (rather than every screen rolling its own).
-        //
-        // Master Sprint v2 (2026-05-27) — also wraps every screen in a
-        // themed gradient backdrop so theme switches genuinely transform
-        // the look of the app. Each theme paints its own glow halos +
-        // accent wash behind the route. Scaffolds set
-        // backgroundColor: Colors.transparent (or use ThemedScaffold) to
-        // let the backdrop show through.
         builder: (context, child) {
           return ThemedAppBackdrop(
             child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
@@ -339,12 +310,7 @@ class AzamanApp extends ConsumerWidget {
 }
 
 // =============================================================================
-
 // MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Vault | Market)
-//
-// Phase H review pass: comment was stale ("4-tab Home | P2P | Trades |
-// Profile" referenced the pre-Phase-0 layout). Bottom nav is rendered
-// by `PremiumBottomNav` against `_kNavItems` defined further down.
 // =============================================================================
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -358,18 +324,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget> _pages;
-
-  // 2026-07-08: fade-through transition between Home/Chat/P2P (Material
-  // "fade through" pattern — the animations package's canonical use case
-  // for bottom-nav tab switches). Deliberately hand-rolled instead of
-  // wrapping IndexedStack in a PageTransitionSwitcher: that would swap the
-  // whole widget subtree on every tab change, which fully unmounts/remounts
-  // each page (losing scroll position, in-flight requests, etc). Instead
-  // the IndexedStack itself never changes identity — only its `index` and
-  // an Opacity wrapper animate — so all 3 tabs stay alive exactly as
-  // before, and the visual timing still matches the spec (fade the old tab
-  // out over the first ~25% of 300ms, then fade+the new tab in over the
-  // rest).
   late final AnimationController _fadeCtrl;
   int _displayedIndex = 0;
 
@@ -403,7 +357,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
     setState(() => _selectedIndex = i);
-    // Respect reduced-motion setting — skip the fade, just switch
     if (MediaQuery.of(context).disableAnimations) {
       setState(() => _displayedIndex = i);
     } else {
@@ -419,18 +372,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   @override
   void dispose() {
-    // Phase P3: No per-screen socket.off() needed — SocketService owns
-    // the callbacks via registered closures, disposed with the service.
     _fadeCtrl.dispose();
     super.dispose();
   }
 
-  // ── Phase P3: Single unified socket initialization ───────────────────────
   void _initUnifiedSocket() {
     final socketService = ref.read(socketServiceProvider);
     socketService.init(ref);
 
-    // Initialize WebRTC and wire socket for signaling
     final webrtcService = ref.read(webrtcServiceProvider);
     webrtcService.initialize();
     webrtcService.setSocket(socketService);
@@ -438,11 +387,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     final auth = ref.read(auth_pkg.authProvider);
     if (auth.user != null) {
       socketService.joinUserRoom(auth.user!.id.toString());
-      // Sync the trade provider's role from the authenticated user's actual role
       ref.read(trade_pkg.tradeProvider).syncRoleFromAuth(auth.user!.role);
     }
 
-    // Register UI-level event callbacks on the unified socket
     socketService.onTradeCompleted((data) => _showSuccessReceipt(data));
 
     socketService.onNewNotification((data) {
@@ -481,9 +428,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       ));
     });
 
-    // ── V3 Marketplace Sprint (2026-06-21): business owner real-time wiring ──
-    // A new business notification bumps the badge; an authoritative
-    // unread-count push (multi-device sync) replaces it outright.
     socketService.onBizNotification((data) {
       if (!mounted) return;
       ref.read(bizUnreadCountProvider.notifier).state++;
@@ -493,9 +437,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       ref.read(bizUnreadCountProvider.notifier).state = count;
     });
 
-    // Load the signed-in user's own business (if any) so the home-screen
-    // notification bell + dashboard entry know whether to show, then seed the
-    // unread badge from the REST count.
     ref.read(myBusinessProvider.notifier).load().then((_) async {
       if (!mounted) return;
       final biz = ref.read(myBusinessProvider).profile;
@@ -510,7 +451,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   void _showSuccessReceipt(dynamic data) {
-    final colors = ref.read(theme_pkg.themeProvider).colors;
+    final colors = ref.read(theme_pkg.themeProvider.select((t) => t.colors));
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -538,28 +479,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   @override
   Widget build(BuildContext context) {
-    // Granular theme read — only the chrome that depends on `colors` repaints
-    // on a theme switch, and `role` is selected so a balance update doesn't
-    // trigger a rebuild of the Scaffold.
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
-    // Phase UI Sprint: the role-pill in the AppBar (top-right of the
-    // scaffold) is now permanently "HQ" globally, regardless of the user's
-    // role. The vendor-vs-user cue lives exclusively on the P2P pull tab.
-    // The local `role` watch was therefore removed; if you need the role
-    // again, watch `tradeProvider.select((t) => t.currentRole)`.
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
       extendBody: true,
-
-
       bottomNavigationBar: PremiumBottomNav(
         selectedIndex: _selectedIndex,
         onItemSelected: _onNavItemSelected,
       ),
-
       body: Stack(
         children: [
           AnimatedBuilder(
@@ -579,17 +509,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               ],
             ),
           ),
-          // Vendor Pull Tab — only visible on the P2P tab AND only when
-          // the user has explicitly opted in via Settings → "Show vendor
-          // pull tab" (off by default). Casual buyers no longer have the
-          // tab nudging them every time they open the marketplace.
           if (_displayedIndex == 2 &&
               ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
             const VendorPullTab(),
 
-          // First-load hint: nudges the user that the settings drawer
-          // exists (previously only reachable via an undiscoverable
-          // edge-swipe gesture). Shows once, ever.
           DrawerPeekHint(
             onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
@@ -599,7 +522,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 }
 
-// Legacy alias kept for any existing go_router references.
 class MainNavigationWrapper extends StatelessWidget {
   const MainNavigationWrapper({super.key});
   @override

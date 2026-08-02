@@ -425,7 +425,7 @@ class _BalanceCardsScroll extends ConsumerWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
 
     return SizedBox(
-      height: 164,
+      height: 180,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
