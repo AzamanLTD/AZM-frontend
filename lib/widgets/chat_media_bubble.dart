@@ -44,7 +44,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/screens/chat/media_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 /// All metadata needed to render a media bubble. Wraps the wire format so
 /// callers don't have to remember which message field maps to which UI bit.
@@ -159,6 +161,26 @@ String _formatDuration(int? seconds) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
+Future<void> _openMediaViewer(BuildContext ctx, ChatMediaPayload p) async {
+  final url = p.url;
+  if (url == null) return;
+  Navigator.of(ctx).push(
+    MaterialPageRoute(
+      builder: (_) => MediaViewerScreen(
+        heroTag: 'media_${url.hashCode}',
+        items: [
+          MediaViewerItem(
+            url: url,
+            type: p.type,
+            caption: p.caption,
+          ),
+        ],
+        initialIndex: 0,
+      ),
+    ),
+  );
+}
+
 Future<void> _openInSystemViewer(BuildContext ctx, ChatMediaPayload p) async {
   final url = p.url;
   if (url == null) return;
@@ -204,22 +226,21 @@ class _ImageBubble extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        _openInSystemViewer(context, payload);
+        _openMediaViewer(context, payload);
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(
+        child: CachedNetworkImage(imageUrl: 
           _resolveMediaUrl(payload.url!),
           fit: BoxFit.cover,
           width: 240,
           height: 240,
-          errorBuilder: (_, __, ___) => _ErrorTile(
+          errorWidget: (_, __, ___) => _ErrorTile(
             colors: colors,
-            icon: HugeIconsSolid.image01,
+            icon: Icons.image_outlined,
             label: 'Image unavailable',
           ),
-          loadingBuilder: (_, child, p) =>
-              p == null ? child : _LoadingTile(colors: colors, height: 240),
+          placeholder: (_, url) => _LoadingTile(colors: colors, height: 240),
         ),
       ),
     );
@@ -241,7 +262,7 @@ class _VideoBubble extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        _openInSystemViewer(context, payload);
+        _openMediaViewer(context, payload);
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -252,16 +273,16 @@ class _VideoBubble extends StatelessWidget {
               width: 260,
               height: 160,
               color: colors.card,
-              child: const Icon(HugeIconsSolid.film01,
+              child: const Icon(Icons.movie_outlined,
                   size: 40, color: Colors.white24),
             ),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(HugeIconsSolid.play,
+              child: const Icon(Icons.play_circle_outline,
                   color: Colors.white, size: 28),
             ),
             if (payload.duration != null)
@@ -272,7 +293,7 @@ class _VideoBubble extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -313,7 +334,7 @@ class _AudioBubble extends StatefulWidget {
   State<_AudioBubble> createState() => _AudioBubbleState();
 }
 
-class _AudioBubbleState extends State<_AudioBubble> {
+class _AudioBubbleState extends State<_AudioBubble> with WidgetsBindingObserver {
   AudioPlayer? _player;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _stateSub;
@@ -322,10 +343,12 @@ class _AudioBubbleState extends State<_AudioBubble> {
   Duration? _duration;
   bool _playing = false;
   bool _loading = false;
+  double _speed = 1.0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final declaredSec = widget.payload.duration;
     if (declaredSec != null && declaredSec > 0) {
       _duration = Duration(seconds: declaredSec);
@@ -333,7 +356,16 @@ class _AudioBubbleState extends State<_AudioBubble> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _playing && _player != null) {
+      _player!.pause();
+      setState(() => _playing = false);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _stateSub?.cancel();
     final p = _player;
@@ -421,6 +453,14 @@ class _AudioBubbleState extends State<_AudioBubble> {
     await _player!.seek(target);
   }
 
+  void _cycleSpeed() {
+    HapticFeedback.selectionClick();
+    const speeds = [1.0, 1.5, 2.0];
+    final next = speeds[(speeds.indexOf(_speed) + 1) % speeds.length];
+    setState(() => _speed = next);
+    if (_player != null) _player!.setPlaybackRate(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = widget.isMe
@@ -447,7 +487,7 @@ class _AudioBubbleState extends State<_AudioBubble> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.15),
+                color: accent.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -462,8 +502,8 @@ class _AudioBubbleState extends State<_AudioBubble> {
                       )
                     : Icon(
                         _playing
-                            ? HugeIconsSolid.pause
-                            : HugeIconsSolid.play,
+                            ? Icons.pause_circle_outline
+                            : Icons.play_circle_outline,
                         color: accent,
                         size: 22,
                       ),
@@ -504,11 +544,32 @@ class _AudioBubbleState extends State<_AudioBubble> {
           Text(
             label,
             style: TextStyle(
-              color: accent.withOpacity(0.85),
+              color: accent.withValues(alpha: 0.85),
               fontSize: 11,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
+          if (_playing || _position > Duration.zero) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: _cycleSpeed,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: accent.withValues(alpha: 0.12),
+                ),
+                child: Text(
+                  '${_speed}x',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -577,7 +638,7 @@ class _Waveform extends StatelessWidget {
             decoration: BoxDecoration(
               color: filled
                   ? color
-                  : color.withOpacity(0.4),
+                  : color.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(barWidth / 2),
             ),
           );
@@ -619,7 +680,7 @@ class _DocumentBubble extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(_iconForMime(payload.mimeType),
@@ -653,7 +714,7 @@ class _DocumentBubble extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.download01,
+            Icon(Icons.download_outlined,
                 color: colors.textTertiary, size: 18),
           ],
         ),
@@ -662,17 +723,17 @@ class _DocumentBubble extends StatelessWidget {
   }
 
   IconData _iconForMime(String? mime) {
-    if (mime == null) return HugeIconsSolid.file01;
-    if (mime.contains('pdf')) return HugeIconsSolid.pdf01;
+    if (mime == null) return Icons.insert_drive_file_outlined;
+    if (mime.contains('pdf')) return Icons.picture_as_pdf_outlined;
     if (mime.contains('word') || mime.contains('msword')) {
-      return HugeIconsSolid.note01;
+      return Icons.note_outlined;
     }
     if (mime.contains('excel') || mime.contains('spreadsheet')) {
-      return HugeIconsSolid.grid02;
+      return Icons.grid_on_outlined;
     }
-    if (mime.contains('presentation')) return HugeIconsSolid.film01;
-    if (mime.startsWith('text')) return HugeIconsSolid.note01;
-    return HugeIconsSolid.file01;
+    if (mime.contains('presentation')) return Icons.movie_outlined;
+    if (mime.startsWith('text')) return Icons.note_outlined;
+    return Icons.insert_drive_file_outlined;
   }
 }
 
@@ -711,7 +772,7 @@ class _LinkBubble extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.link01, color: colors.accent, size: 18),
+              Icon(Icons.link, color: colors.accent, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -749,10 +810,10 @@ class _LinkBubble extends StatelessWidget {
             if (preview.image != null)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
+                child: CachedNetworkImage(imageUrl: 
                   preview.image!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: colors.surface),
+                  errorWidget: (_, __, ___) => Container(color: colors.surface),
                 ),
               ),
             Padding(

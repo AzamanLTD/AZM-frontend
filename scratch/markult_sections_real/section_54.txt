@@ -1,0 +1,17 @@
+Section 54: GAP FIX 4 — Worker Pattern ✅ COMPLIANT
+✅ COMPLIANT. All new workers (transitReminderWorker.js, businessAdExpiryWorker.js) follow the existing workers/ directory pattern — standalone files with a sweep function, not bare setInterval calls. The codebase has 17 existing workers following this pattern.
+Correct pattern (already followed by reservationNoShowWorker.js):
+// CORRECT PATTERN:
+// 1. Worker logic in workers/xxxWorker.js (standalone file)
+// 2. Exported function that accepts (prisma, ...services) as dependencies
+// 3. Registered in server.js via node-cron:
+//    const { sweepAll } = require('./workers/reservationNoShowWorker');
+//    cron.schedule('*/15 * * * *', () => sweepAll(prisma, notificationService));
+
+// WRONG PATTERN (from previous document):
+// setInterval(() => { ... }, 15 * 60 * 1000) // bare interval in server.js
+
+// The existing codebase already uses the correct pattern. The previous
+// document's transit worker should have referenced the existing
+// reservationNoShowWorker.js instead of creating a new setInterval.
+

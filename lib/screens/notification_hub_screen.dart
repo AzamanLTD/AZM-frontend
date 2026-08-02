@@ -1,12 +1,36 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+
+
+({IconData icon, Color color}) _notifStyle(
+    NotificationCategory category, AzamanColors colors) {
+  switch (category) {
+    case NotificationCategory.securityAccount:
+      return (icon: HugeIconsSolid.lockKey, color: colors.danger);
+    case NotificationCategory.vendorPriority:
+      return (icon: HugeIconsSolid.store01, color: colors.success);
+    case NotificationCategory.adminSystem:
+    case NotificationCategory.system:
+      return (icon: HugeIconsSolid.shield01, color: colors.textTertiary);
+    case NotificationCategory.money:
+      return (icon: HugeIconsSolid.moneyReceiveFlow01, color: const Color(0xFFFFD700));
+    case NotificationCategory.social:
+      return (icon: HugeIconsSolid.userGroup, color: const Color(0xFF9C59FF));
+    case NotificationCategory.chat:
+      return (icon: HugeIconsSolid.message01, color: const Color(0xFF3B97F7));
+    case NotificationCategory.general:
+      return (icon: HugeIconsSolid.notification01, color: colors.accent);
+  }
+}
 
 class NotificationHubScreen extends ConsumerStatefulWidget {
   const NotificationHubScreen({super.key});
@@ -20,13 +44,13 @@ class _NotificationHubScreenState
     extends ConsumerState<NotificationHubScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  int _tabCount = 2;
+  static const int _tabCount = 6; // All / Money / Security / Social / Chat / System
   bool _markingAllRead = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
   }
 
   @override
@@ -38,46 +62,53 @@ class _NotificationHubScreenState
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final role = ref.watch(authProvider).user?.role ?? '';
-    final isVendor = role.toUpperCase() == 'VENDOR';
-    final tabCount = isVendor ? 3 : 2;
+    final allNotifications    = ref.watch(notificationProvider);
+    final unreadCount         = ref.watch(unreadCountProvider);
 
-    if (tabCount != _tabCount) {
-      _tabCount = tabCount;
-      final oldIndex = _tabController.index.clamp(0, tabCount - 1);
-      _tabController.dispose();
-      _tabController = TabController(length: tabCount, vsync: this, initialIndex: oldIndex);
-    }
-
-    final generalNotifications = ref.watch(generalNotificationsProvider);
-    final securityNotifications = ref.watch(securityNotificationsProvider);
-    final vendorNotifications = ref.watch(vendorNotificationsProvider);
-    final unreadCount = ref.watch(unreadCountProvider);
+    // Derived category lists
+    final moneyNotifs    = allNotifications.where((n) => n.category == NotificationCategory.money).toList();
+    final securityNotifs = allNotifications.where((n) => n.category == NotificationCategory.securityAccount).toList();
+    final socialNotifs   = allNotifications.where((n) => n.category == NotificationCategory.social).toList();
+    final chatNotifs     = allNotifications.where((n) => n.category == NotificationCategory.chat).toList();
+    final systemNotifs   = allNotifications.where((n) =>
+      n.category == NotificationCategory.system ||
+      n.category == NotificationCategory.adminSystem ||
+      n.category == NotificationCategory.vendorPriority
+    ).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text('Notification Hub',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-        backgroundColor: colors.surface,
-        elevation: 0,
-        iconTheme: IconThemeData(color: colors.textPrimary),
-        actions: [
-          if (unreadCount > 0)
-            _MarkAllReadAction(
-              colors: colors,
-              busy: _markingAllRead,
-              onTap: _onMarkAllRead,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(56 + MediaQuery.of(context).padding.top + 48),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: AppBar(
+              title: Text('Notifications',
+                  style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3)),
+              backgroundColor: colors.surface.withValues(alpha: 0.7),
+              elevation: 0,
+              iconTheme: IconThemeData(color: colors.textPrimary),
+              actions: [
+                if (unreadCount > 0)
+                  _MarkAllReadAction(
+                    colors: colors,
+                    busy: _markingAllRead,
+                    onTap: _onMarkAllRead,
+                  ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: _buildTabBar(colors,
+                  allNotifications.length, moneyNotifs.length,
+                  securityNotifs.length, socialNotifs.length,
+                  chatNotifs.length, systemNotifs.length),
+              ),
             ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: _buildTabBar(
-            context, colors, isVendor,
-            generalNotifications.length, securityNotifications.length, vendorNotifications.length,
           ),
         ),
       ),
@@ -85,10 +116,12 @@ class _NotificationHubScreenState
         controller: _tabController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildNotificationList(context, colors, generalNotifications),
-          _buildNotificationList(context, colors, securityNotifications),
-          if (isVendor)
-            _buildNotificationList(context, colors, vendorNotifications),
+          _buildNotificationList(context, colors, allNotifications),
+          _buildNotificationList(context, colors, moneyNotifs),
+          _buildNotificationList(context, colors, securityNotifs),
+          _buildNotificationList(context, colors, socialNotifs),
+          _buildNotificationList(context, colors, chatNotifs),
+          _buildNotificationList(context, colors, systemNotifs),
         ],
       ),
     );
@@ -127,115 +160,302 @@ class _NotificationHubScreenState
     }
   }
 
-  Widget _buildTabBar(BuildContext context, AzamanColors colors, bool isVendor,
-      int generalCount, int securityCount, int vendorCount) {
-    return Container(
-      color: colors.surface,
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: colors.accent,
-        indicatorWeight: 3,
-        labelColor: colors.accent,
-        unselectedLabelColor: colors.textTertiary,
-        labelStyle:
-            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 14),
-        onTap: (_) => AzamanHaptics.toggle(),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('General'),
-                const SizedBox(width: 6),
-                _TabBadge(label: '$generalCount', color: colors.accent),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Security & Account'),
-                const SizedBox(width: 6),
-                _TabBadge(label: '$securityCount', color: colors.accent),
-              ],
-            ),
-          ),
-          if (isVendor)
-            Tab(
+  Widget _buildTabBar(AzamanColors colors,
+      int allCount, int moneyCount, int securityCount,
+      int socialCount, int chatCount, int systemCount) {
+    final tabs = [
+      ('All',      allCount,      Icons.notifications_outlined),
+      ('Money',    moneyCount,    Icons.monetization_on_outlined),
+      ('Security', securityCount, Icons.security_outlined),
+      ('Social',   socialCount,   Icons.people_outline),
+      ('Chat',     chatCount,     Icons.chat_bubble_outline),
+      ('System',   systemCount,   Icons.info_outline),
+    ];
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final tab = tabs[i];
+          final isSelected = _tabController.index == i;
+          return GestureDetector(
+            onTap: () { AzamanHaptics.toggle(); setState(() => _tabController.animateTo(i)); },
+            child: AnimatedContainer(
+              duration: 250.ms, curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: isSelected ? colors.accent : colors.softSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? colors.accent : colors.divider,
+                  width: isSelected ? 1.5 : 0.5,
+                ),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(HugeIconsSolid.store01, size: 16),
-                  const SizedBox(width: 6),
-                  const Text('Vendor Inbox'),
-                  const SizedBox(width: 6),
-                  _TabBadge(label: '$vendorCount', color: colors.success),
+                  Icon(tab.$3, size: 13,
+                    color: isSelected ? Colors.white : colors.textSecondary),
+                  const SizedBox(width: 5),
+                  Text(tab.$1,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : colors.textSecondary,
+                    ),
+                  ),
+                  if (tab.$2 > 0) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white.withValues(alpha: 0.3) : colors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('${tab.$2}',
+                        style: TextStyle(
+                          fontSize: 9, fontWeight: FontWeight.w800,
+                          color: isSelected ? Colors.white : colors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildNotificationList(BuildContext context, AzamanColors colors,
       List<AppNotification> notifications) {
-    // Pull-to-refresh works on every tab, even when the list is empty,
-    // so users have a way to retry after a transient fetch failure.
+    if (notifications.isEmpty) {
+      return _premiumEmptyState(colors);
+    }
+
+    // Group by date
+    final groups = <String, List<AppNotification>>{};
+    for (final n in notifications) {
+      final key = _dateGroupKey(n.createdAt);
+      groups.putIfAbsent(key, () => []).add(n);
+    }
+
     return RefreshIndicator(
       color: colors.accent,
-      backgroundColor: colors.surface,
       onRefresh: () => ref.read(notificationProvider.notifier).refresh(),
-      child: notifications.isEmpty
-          ? ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(HugeIconsSolid.notification01,
-                            size: 64, color: colors.textTertiary),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No notifications',
-                          style: TextStyle(
-                              color: colors.textTertiary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        itemCount: groups.length,
+        itemBuilder: (context, groupIndex) {
+          final entry = groups.entries.elementAt(groupIndex);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date header
+              Padding(
+                padding: EdgeInsets.only(top: groupIndex > 0 ? 20.0 : 0.0, bottom: 10.0),
+                child: Text(
+                  entry.key,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textTertiary,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ],
-            )
-          : ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: notifications.length,
-              separatorBuilder: (_, __) => Divider(
-                  color: colors.divider, height: 1, indent: 72, endIndent: 16),
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _NotificationTile(
-                  notification: notification,
-                  colors: colors,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    ref
-                        .read(notificationProvider.notifier)
-                        .markAsRead(notification.id);
-                    _navigateFromNotification(context, notification);
-                  },
-                );
-              },
-            ),
+              ).animate().fadeIn(duration: 200.ms),
+              // Notification tiles
+              ...entry.value.map((n) => _premiumNotificationTile(n, colors)),
+            ],
+          );
+        },
+      ),
     );
+  }
+
+  String _dateGroupKey(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final date = DateTime(dt.year, dt.month, dt.day);
+    if (date == today) return 'TODAY';
+    if (date == yesterday) return 'YESTERDAY';
+    return '${dt.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1]}';
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  Widget _premiumEmptyState(AzamanColors colors) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Animated bell icon
+          Container(
+            width: 80, height: 80,
+            decoration: BoxDecoration(
+              color: colors.accentSurface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.notifications_none_rounded,
+                size: 36, color: colors.accent),
+          )
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .scale(
+            begin: const Offset(1, 1),
+            end: const Offset(1.05, 1.05),
+            duration: 1500.ms,
+            curve: Curves.easeInOut,
+          ),
+          const SizedBox(height: 16),
+          Text('All caught up!',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+              )),
+          const SizedBox(height: 4),
+          Text('You have no unread notifications',
+              style: TextStyle(
+                fontSize: 13,
+                color: colors.textTertiary,
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _premiumNotificationTile(AppNotification notif, AzamanColors colors) {
+    final style = _notifStyle(notif.category, colors);
+
+    return Dismissible(
+      key: ValueKey(notif.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: colors.danger.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(Icons.delete_outline_rounded, color: colors.danger, size: 22),
+      ),
+      confirmDismiss: (_) async {
+        AzamanHaptics.warn();
+        ref.read(notificationProvider.notifier).markAsRead(notif.id);
+        // Note: Full delete not in scope currently, this marks read or triggers action
+        return true;
+      },
+      child: GestureDetector(
+        onTap: () {
+          AzamanHaptics.nav();
+          ref.read(notificationProvider.notifier).markAsRead(notif.id);
+          _navigateFromNotification(context, notif);
+        },
+        child: PremiumGlassContainer(
+          blur: 8,
+          opacity: notif.isRead ? 0.03 : 0.06,
+          borderRadius: 14,
+          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 8),
+          enableShadow: false,
+          border: Border.all(
+            color: notif.isRead ? colors.divider : colors.accent.withValues(alpha: 0.15),
+            width: notif.isRead ? 0.5 : 1,
+          ),
+          child: Row(
+            children: [
+              // Category icon with glow
+              Container(
+                width: 40, height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: style.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: notif.isRead ? null : [
+                    BoxShadow(color: style.color.withValues(alpha: 0.1), blurRadius: 8),
+                  ],
+                ),
+                child: Icon(style.icon, color: style.color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            notif.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (!notif.isRead) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 7, height: 7,
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: colors.accent.withValues(alpha: 0.4), blurRadius: 4),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      notif.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTimeAgo(notif.createdAt),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    )
+    .animate()
+    .fadeIn(delay: 50.ms, duration: 250.ms)
+    .slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
   }
 
   void _navigateFromNotification(
@@ -426,7 +646,7 @@ class _TabBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -441,133 +661,4 @@ class _TabBadge extends StatelessWidget {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
-  final AppNotification notification;
-  final AzamanColors colors;
-  final VoidCallback onTap;
-
-  const _NotificationTile({
-    required this.notification,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        color: notification.isRead
-            ? Colors.transparent
-            : colors.accent.withOpacity(0.04),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildLeadingIcon(),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: notification.isRead
-                                ? FontWeight.w500
-                                : FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _timeAgo(notification.createdAt),
-                        style: TextStyle(
-                            color: colors.textTertiary, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification.body,
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 13),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeadingIcon() {
-    IconData icon;
-    Color iconColor;
-    switch (notification.category) {
-      case NotificationCategory.securityAccount:
-        icon = HugeIconsSolid.security;
-        iconColor = colors.danger;
-      case NotificationCategory.general:
-        icon = HugeIconsSolid.notification01;
-        iconColor = colors.accent;
-      case NotificationCategory.vendorPriority:
-        icon = HugeIconsSolid.store01;
-        iconColor = colors.success;
-      case NotificationCategory.adminSystem:
-        icon = HugeIconsSolid.security;
-        iconColor = colors.warning;
-    }
-
-    return Stack(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        if (!notification.isRead)
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: colors.danger,
-                shape: BoxShape.circle,
-                border:
-                    Border.all(color: colors.background, width: 1.5),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _timeAgo(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inMinutes < 1) return 'Now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${date.day}/${date.month}';
-  }
-}
+// Removed _NotificationTile as it is replaced by _premiumNotificationTile

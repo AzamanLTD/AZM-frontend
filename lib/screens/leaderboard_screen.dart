@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/leaderboard_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
@@ -207,29 +207,29 @@ class _RankCard extends StatelessWidget {
     switch (entry.rank) {
       case 1:
         borderColor = const Color(0xFFFFD700);
-        glowColor = const Color(0xFFFFD700).withOpacity(0.25);
-        leading = _PodiumBadge(
+        glowColor = const Color(0xFFFFD700).withValues(alpha: 0.25);
+        leading = const _PodiumBadge(
           rank: 1,
-          icon: HugeIconsSolid.award01,
-          color: const Color(0xFFFFD700),
+          icon: Icons.emoji_events_outlined,
+          color: Color(0xFFFFD700),
           label: 'GOLD',
         );
       case 2:
         borderColor = const Color(0xFFC0C0C0);
-        glowColor = const Color(0xFFC0C0C0).withOpacity(0.2);
-        leading = _PodiumBadge(
+        glowColor = const Color(0xFFC0C0C0).withValues(alpha: 0.2);
+        leading = const _PodiumBadge(
           rank: 2,
-          icon: HugeIconsSolid.award01,
-          color: const Color(0xFFC0C0C0),
+          icon: Icons.emoji_events_outlined,
+          color: Color(0xFFC0C0C0),
           label: 'SILVER',
         );
       case 3:
         borderColor = const Color(0xFFCD7F32);
-        glowColor = const Color(0xFFCD7F32).withOpacity(0.2);
-        leading = _PodiumBadge(
+        glowColor = const Color(0xFFCD7F32).withValues(alpha: 0.2);
+        leading = const _PodiumBadge(
           rank: 3,
-          icon: HugeIconsSolid.award01,
-          color: const Color(0xFFCD7F32),
+          icon: Icons.emoji_events_outlined,
+          color: Color(0xFFCD7F32),
           label: 'BRONZE',
         );
       default:
@@ -257,16 +257,16 @@ class _RankCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isYou
-            ? colors.accent.withOpacity(0.07)
+            ? colors.accent.withValues(alpha: 0.07)
             : isPodium
                 ? colors.surface
                 : colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isYou
-              ? colors.accent.withOpacity(0.5)
+              ? colors.accent.withValues(alpha: 0.5)
               : isPodium
-                  ? borderColor.withOpacity(0.5)
+                  ? borderColor.withValues(alpha: 0.5)
                   : colors.divider,
           width: isYou || isPodium ? 1.5 : 1,
         ),
@@ -310,7 +310,7 @@ class _RankCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
-                            color: colors.accent.withOpacity(0.15),
+                            color: colors.accent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -327,9 +327,9 @@ class _RankCard extends StatelessWidget {
                       if (entry.kycVerified) ...[
                         const SizedBox(width: 4),
                         Icon(
-                          HugeIconsSolid.checkmarkCircle01,
+                          Icons.check_circle_outline,
                           size: 14,
-                          color: colors.accent.withOpacity(0.7),
+                          color: colors.accent.withValues(alpha: 0.7),
                         ),
                       ],
                     ],
@@ -442,14 +442,14 @@ class _PodiumBadge extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withOpacity(0.2),
-            color.withOpacity(0.05),
+            color.withValues(alpha: 0.2),
+            color.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -492,13 +492,13 @@ class _MyRankBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.user, color: colors.accent, size: 20),
+          Icon(Icons.person_outline, color: colors.accent, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -513,7 +513,7 @@ class _MyRankBanner extends StatelessWidget {
           Text(
             'Keep trading!',
             style: TextStyle(
-              color: colors.accent.withOpacity(0.6),
+              color: colors.accent.withValues(alpha: 0.6),
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
@@ -567,7 +567,7 @@ class _SkeletonCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.divider.withOpacity(0.5),
+                color: colors.divider.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -581,7 +581,7 @@ class _SkeletonCard extends StatelessWidget {
                     width: 100,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: colors.divider.withOpacity(0.5),
+                      color: colors.divider.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -590,7 +590,7 @@ class _SkeletonCard extends StatelessWidget {
                     width: 60,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: colors.divider.withOpacity(0.3),
+                      color: colors.divider.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -605,7 +605,7 @@ class _SkeletonCard extends StatelessWidget {
                   width: 50,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: colors.divider.withOpacity(0.5),
+                    color: colors.divider.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -614,7 +614,7 @@ class _SkeletonCard extends StatelessWidget {
                   width: 35,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: colors.divider.withOpacity(0.3),
+                    color: colors.divider.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -646,9 +646,9 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              HugeIconsSolid.analytics01,
+              Icons.analytics_outlined,
               size: 56,
-              color: colors.textTertiary.withOpacity(0.5),
+              color: colors.textTertiary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -672,7 +672,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 24),
             TextButton.icon(
               onPressed: onRefresh,
-              icon: Icon(HugeIconsSolid.refresh01, size: 16, color: colors.accent),
+              icon: Icon(Icons.refresh, size: 16, color: colors.accent),
               label: Text(
                 'Refresh',
                 style: TextStyle(color: colors.accent, fontSize: 12),
@@ -709,9 +709,9 @@ class _ErrorState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              HugeIconsSolid.wifi01,
+              Icons.wifi,
               size: 48,
-              color: colors.textTertiary.withOpacity(0.5),
+              color: colors.textTertiary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -743,7 +743,7 @@ class _ErrorState extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               ),
-              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
+              icon: const Icon(Icons.refresh, size: 16),
               label: const Text(
                 'Retry',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),

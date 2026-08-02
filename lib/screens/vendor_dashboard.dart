@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import 'dart:convert'; 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'vendor_ad_creator.dart';
@@ -16,7 +14,8 @@ import 'vendor_trade_execution.dart';
 import 'vendor_settings_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class VendorDashboard extends ConsumerStatefulWidget {
   const VendorDashboard({super.key});
@@ -153,7 +152,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     // Phase 15: use a NAMED handler so dispose() can detach only this
     // callback instead of nuking every balance_update listener.
-    final dynamic Function(dynamic) handler = (data) {
+    handler(data) {
       if (!mounted) return null;
       setState(() {
         if (data is Map && data['availableBalance'] != null) {
@@ -167,7 +166,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         }
       });
       return null;
-    };
+    }
     
     _balanceHandler = handler;
     socket.on('balance_update', handler);
@@ -314,7 +313,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: azamanGold.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                                    decoration: BoxDecoration(color: azamanGold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
                                     child: Text("$adCount", style: TextStyle(fontSize: 10, color: azamanGold, fontWeight: FontWeight.bold)),
                                   )
                                 ]
@@ -384,25 +383,25 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     final stats = [
       _GlanceStat(
-        icon: HugeIconsSolid.shoppingBag01,
+        icon: Icons.shopping_bag_outlined,
         label: 'Today\'s Trades',
         value: '${todayTrades.length}',
         color: colors.accent,
       ),
       _GlanceStat(
-        icon: HugeIconsSolid.exchange01,
+        icon: Icons.swap_horiz,
         label: 'Today\'s Volume',
         value: '\$${_fmt(todayVolume)}',
         color: colors.success,
       ),
       _GlanceStat(
-        icon: HugeIconsSolid.wallet01,
+        icon: Icons.account_balance_wallet_outlined,
         label: 'Escrow Locked',
         value: '\$${_fmt(_escrowLockedBalance)}',
         color: colors.warning,
       ),
       _GlanceStat(
-        icon: HugeIconsSolid.clock01,
+        icon: Icons.access_time,
         label: 'Avg Response',
         value: responseTimes.isEmpty
             ? '–'
@@ -410,7 +409,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         color: colors.textSecondary,
       ),
       _GlanceStat(
-        icon: HugeIconsSolid.checkmarkCircle01,
+        icon: Icons.check_circle_outline,
         label: 'Available',
         value: '\$${_fmt(_availableBalance)}',
         color: colors.success,
@@ -502,7 +501,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               // from the P2P pull-tab, so it MUST offer a way home.
               // Without this the user gets stranded on the dashboard.
               IconButton(
-                icon: Icon(HugeIconsSolid.arrowLeft01, color: gold, size: 20),
+                icon: Icon(Icons.arrow_back, color: gold, size: 20),
                 tooltip: 'Back',
                 onPressed: () {
                   HapticFeedback.lightImpact();
@@ -524,26 +523,24 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           Row(
             children: [
               IconButton(
-                icon: Icon(HugeIconsSolid.analytics01, color: gold),
+                icon: Icon(Icons.analytics_outlined, color: gold),
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorAnalyticsScreen()));
+                  pushWithVerticalTransition(context, const VendorAnalyticsScreen());
                 },
               ),
               IconButton(
-                icon: Icon(HugeIconsSolid.settings01, color: gold), 
+                icon: Icon(Icons.settings_outlined, color: gold), 
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => VendorSettingsScreen(
-                    pendingTradeCount: pendingTrades.length,
-                  )));
+                  pushWithVerticalTransition(context, VendorSettingsScreen(pendingTradeCount: pendingTrades.length,));
                 },
               ),
               Transform.scale(
                 scale: 0.8,
                 child: Switch(
                   value: isOnline, 
-                  activeColor: green, 
+                  activeThumbColor: green, 
                   onChanged: (val) {
                     setState(() => isOnline = val);
                     SocketService.instance.emit('toggle_online', {'isOnline': val});
@@ -565,8 +562,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(colors: [Colors.white.withOpacity(0.05), Colors.transparent]),
-        border: Border.all(color: gold.withOpacity(0.3)),
+        gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent]),
+        border: Border.all(color: gold.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +572,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("VENDOR TRADING OVERVIEW", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-              Icon(HugeIconsSolid.shield01, color: gold.withOpacity(0.5), size: 18),
+              Icon(Icons.shield_outlined, color: gold.withValues(alpha: 0.5), size: 18),
             ],
           ),
           const SizedBox(height: 10),
@@ -590,7 +587,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
-                child: Icon(_isBalanceVisible ? HugeIconsSolid.viewOff : HugeIconsSolid.view, color: Colors.white24, size: 18),
+                child: Icon(_isBalanceVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white24, size: 18),
               )
             ],
           ),
@@ -636,12 +633,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: gold.withOpacity(0.4)),
+                      border: Border.all(color: gold.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(HugeIconsSolid.arrowRight01, size: 14, color: gold),
+                        Icon(Icons.arrow_forward, size: 14, color: gold),
                         const SizedBox(width: 6),
                         Text("Fund Pool", style: TextStyle(color: gold, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
@@ -657,12 +654,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF02C076).withOpacity(0.4)),
+                      border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.4)),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(HugeIconsSolid.arrowLeft01, size: 14, color: Color(0xFF02C076)),
+                        Icon(Icons.arrow_back, size: 14, color: Color(0xFF02C076)),
                         SizedBox(width: 6),
                         Text("To Wallet", style: TextStyle(color: Color(0xFF02C076), fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
@@ -721,11 +718,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.15),
+                          color: accentColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          direction == 'TO_POOL' ? HugeIconsSolid.wallet01 : HugeIconsSolid.arrowLeft01,
+                          direction == 'TO_POOL' ? Icons.account_balance_wallet_outlined : Icons.arrow_back,
                           color: accentColor, size: 20,
                         ),
                       ),
@@ -816,9 +813,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                           child: Container(
                             height: 56,
                             decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.15),
+                              color: accentColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: accentColor.withOpacity(0.3)),
+                              border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                             ),
                             child: Stack(
                               children: [
@@ -830,7 +827,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                       width: confirmDragX + thumbSize,
                                       height: 56,
                                       decoration: BoxDecoration(
-                                        color: accentColor.withOpacity(0.2),
+                                        color: accentColor.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(28),
                                       ),
                                     ),
@@ -840,7 +837,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                 Center(
                                   child: Text(
                                     'Slide to confirm transfer',
-                                    style: TextStyle(color: accentColor.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(color: accentColor.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                                 // Thumb
@@ -853,9 +850,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                     decoration: BoxDecoration(
                                       color: accentColor,
                                       borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [BoxShadow(color: accentColor.withOpacity(0.4), blurRadius: 8)],
+                                      boxShadow: [BoxShadow(color: accentColor.withValues(alpha: 0.4), blurRadius: 8)],
                                     ),
-                                    child: const Icon(HugeIconsSolid.arrowRight01, color: Colors.white, size: 22),
+                                    child: const Icon(Icons.arrow_forward, color: Colors.white, size: 22),
                                   ),
                                 ),
                               ],
@@ -869,7 +866,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       height: 56,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: colors.divider.withOpacity(0.3),
+                        color: colors.divider.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Center(
@@ -936,10 +933,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF02C076).withOpacity(0.15),
+                  color: const Color(0xFF02C076).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(HugeIconsSolid.checkmarkCircle01, color: Color(0xFF02C076), size: 48),
+                child: const Icon(Icons.check_circle_outline, color: Color(0xFF02C076), size: 48),
               ),
               const SizedBox(height: 16),
               Text('Transfer Complete', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -1000,7 +997,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     if (_isLoadingTrades) {
       return Center(child: CircularProgressIndicator(color: ref.read(themeProvider).colors.accent));
     }
-    if (pendingTrades.isEmpty) return const AzamanEmptyState(icon: HugeIconsSolid.radar01, title: "No Active Orders", subtitle: "New trade requests will appear here.");
+    if (pendingTrades.isEmpty) return const AzamanEmptyState(icon: Icons.radar, title: "No Active Orders", subtitle: "New trade requests will appear here.");
     
     return ListView.builder(
       itemCount: pendingTrades.length,
@@ -1023,12 +1020,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         decoration: BoxDecoration(
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: gold.withOpacity(0.3)), 
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))]
+          border: Border.all(color: gold.withValues(alpha: 0.3)), 
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5))]
         ),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: gold.withOpacity(0.1), child: Icon(HugeIconsSolid.notification01, color: gold, size: 20)),
+            CircleAvatar(backgroundColor: gold.withValues(alpha: 0.1), child: Icon(Icons.notifications_outlined, color: gold, size: 20)),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
@@ -1068,7 +1065,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         }
 
         final ads = trade.myActiveAds;
-        if (ads.isEmpty) return const AzamanEmptyState(icon: HugeIconsSolid.layers01, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
+        if (ads.isEmpty) return const AzamanEmptyState(icon: Icons.layers_outlined, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
 
         return RefreshIndicator(
           color: gold,
@@ -1108,23 +1105,23 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? gold.withOpacity(0.35) : Colors.white.withOpacity(0.05),
+            color: isActive ? gold.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.05),
             width: isActive ? 1.2 : 0.5,
           ),
           boxShadow: [
             if (isActive)
               BoxShadow(
-                color: gold.withOpacity(0.06),
+                color: gold.withValues(alpha: 0.06),
                 blurRadius: 16,
                 spreadRadius: -2,
               ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.35),
+              color: Colors.black.withValues(alpha: 0.35),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 1,
               offset: const Offset(0, 0),
             ),
@@ -1142,9 +1139,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.15),
+                        color: typeColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: typeColor.withOpacity(0.3)),
+                        border: Border.all(color: typeColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         isBuy ? "BUY" : "SELL",
@@ -1165,8 +1162,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? const Color(0xFF02C076).withOpacity(0.1)
-                            : Colors.white.withOpacity(0.03),
+                            ? const Color(0xFF02C076).withValues(alpha: 0.1)
+                            : Colors.white.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1184,7 +1181,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       scale: 0.7,
                       child: Switch(
                         value: isActive,
-                        activeColor: const Color(0xFF02C076),
+                        activeThumbColor: const Color(0xFF02C076),
                         inactiveTrackColor: Colors.white10,
                         onChanged: (_) => _handleAdToggle(adId),
                       ),
@@ -1208,9 +1205,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.04)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
               ),
               child: Column(
                 children: [
@@ -1231,7 +1228,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(HugeIconsSolid.note01, color: gold.withOpacity(0.5), size: 14),
+                  Icon(Icons.note_outlined, color: gold.withValues(alpha: 0.5), size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1277,7 +1274,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     if (boostActive) {
       // Show "Boosted" badge with remaining time
-      final expires = DateTime.parse(boostExpiresAt!);
+      final expires = DateTime.parse(boostExpiresAt);
       final remaining = expires.difference(DateTime.now());
       final label = remaining.inHours > 24
           ? '${(remaining.inHours / 24).ceil()}d left'
@@ -1288,14 +1285,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF02C076).withOpacity(0.1),
+          color: const Color(0xFF02C076).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF02C076).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(HugeIconsSolid.rocket,
+            const Icon(Icons.rocket_launch_outlined,
                 size: 14, color: Color(0xFF02C076)),
             const SizedBox(width: 6),
             Text(
@@ -1330,14 +1327,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: gold.withOpacity(0.06),
+          color: gold.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: gold.withOpacity(0.25)),
+          border: Border.all(color: gold.withValues(alpha: 0.25)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.rocket, size: 14, color: gold),
+            Icon(Icons.rocket_launch_outlined, size: 14, color: gold),
             const SizedBox(width: 6),
             Text(
               'BOOST AD',
@@ -1352,7 +1349,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             Text(
               'from 15 AZM',
               style: TextStyle(
-                color: gold.withOpacity(0.6),
+                color: gold.withValues(alpha: 0.6),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -1398,12 +1395,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   MaterialPageRoute(builder: (_) => const VendorAdCreator()),
                 ).then((_) => _fetchVendorAds()); // Refresh ads after returning
               },
-              icon: const Icon(HugeIconsSolid.add01),
+              icon: const Icon(Icons.add),
               label: const Text("CREATE NEW AD"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: gold.withOpacity(0.1),
+                backgroundColor: gold.withValues(alpha: 0.1),
                 foregroundColor: gold,
-                side: BorderSide(color: gold.withOpacity(0.5)),
+                side: BorderSide(color: gold.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -1419,11 +1416,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   MaterialPageRoute(builder: (_) => const TradeAccountsScreen()),
                 );
               },
-              icon: const Icon(HugeIconsSolid.wallet01, size: 18),
+              icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
               label: const Text("MANAGE TRADE ACCOUNTS"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white70,
-                side: BorderSide(color: Colors.white24),
+                side: const BorderSide(color: Colors.white24),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -1539,7 +1536,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
           // Title
           Row(
             children: [
-              Icon(HugeIconsSolid.rocket, color: widget.gold, size: 22),
+              Icon(Icons.rocket_launch_outlined, color: widget.gold, size: 22),
               const SizedBox(width: 10),
               const Text(
                 'BOOST AD',
@@ -1554,7 +1551,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: widget.gold.withOpacity(0.1),
+                  color: widget.gold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1596,15 +1593,15 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? widget.gold.withOpacity(0.08)
-                      : Colors.white.withOpacity(canAfford ? 0.03 : 0.01),
+                      ? widget.gold.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: canAfford ? 0.03 : 0.01),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? widget.gold
                         : canAfford
                             ? Colors.white12
-                            : Colors.white.withOpacity(0.04),
+                            : Colors.white.withValues(alpha: 0.04),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -1638,7 +1635,7 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? widget.gold.withOpacity(0.15)
+                            ? widget.gold.withValues(alpha: 0.15)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -1748,7 +1745,7 @@ class TechBackground extends StatelessWidget {
 class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.02)..strokeWidth = 0.5;
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.02)..strokeWidth = 0.5;
     for (double i = 0; i < size.width; i += 40) { canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint); }
     for (double i = 0; i < size.height; i += 40) { canvas.drawLine(Offset(0, i), Offset(size.width, i), paint); }
   }

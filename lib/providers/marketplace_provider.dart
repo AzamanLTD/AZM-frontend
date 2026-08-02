@@ -23,7 +23,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,42 +157,42 @@ class AdListing {
 
   // ── Mock data factory (used when backend is unreachable in dev) ──────────
   static List<AdListing> mockList() => [
-    AdListing(
+    const AdListing(
       id: 'mock-1', vendorUsername: 'KwameGold', vendorId: 'v1',
       adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 5000,
       availableUsdc: 2340.00, paymentMethod: 'ZELLE',
       queueFull: false, queueDepth: 0,
       completedTrades: 312, completionRate: 0.98, aiScore: 0.94, isOnline: true,
     ),
-    AdListing(
+    const AdListing(
       id: 'mock-2', vendorUsername: 'AkosuaSwap', vendorId: 'v2',
       adType: 'SELL', pricePerUSD: 1.0, minLimit: 100, maxLimit: 10000,
       availableUsdc: 800.00, paymentMethod: 'CASHAPP',
       queueFull: false, queueDepth: 1,
       completedTrades: 88, completionRate: 0.91, aiScore: 0.78, isOnline: true,
     ),
-    AdListing(
+    const AdListing(
       id: 'mock-3', vendorUsername: 'KofiBarter', vendorId: 'v3',
       adType: 'BUY', pricePerUSD: 1.0, minLimit: 200, maxLimit: 20000,
       availableUsdc: 5500.00, paymentMethod: 'VENMO',
       queueFull: true, queueDepth: 3,
       completedTrades: 45, completionRate: 0.82, aiScore: 0.61, isOnline: false,
     ),
-    AdListing(
+    const AdListing(
       id: 'mock-4', vendorUsername: 'NanaDeFi', vendorId: 'v4',
       adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 3000,
       availableUsdc: 1200.00, paymentMethod: 'PAYPAL',
       queueFull: false, queueDepth: 0,
       completedTrades: 11, completionRate: 0.72, aiScore: 0.42, isOnline: true,
     ),
-    AdListing(
+    const AdListing(
       id: 'mock-5', vendorUsername: 'AbenaExchange', vendorId: 'v5',
       adType: 'BUY', pricePerUSD: 1.0, minLimit: 100, maxLimit: 8000,
       availableUsdc: 3100.00, paymentMethod: 'WIRE_TRANSFER',
       queueFull: false, queueDepth: 0,
       completedTrades: 210, completionRate: 0.97, aiScore: 0.88, isOnline: true,
     ),
-    AdListing(
+    const AdListing(
       id: 'mock-6', vendorUsername: 'YaaFastPay', vendorId: 'v6',
       adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 2000,
       availableUsdc: 620.00, paymentMethod: 'WISE',

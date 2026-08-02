@@ -23,7 +23,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+
 
 class AccountActivityScreen extends ConsumerStatefulWidget {
   const AccountActivityScreen({super.key});
@@ -130,7 +133,7 @@ class _AccountActivityScreenState
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -142,8 +145,7 @@ class _AccountActivityScreenState
           ),
         ),
       ),
-      body: RefreshIndicator(
-        color: colors.accent,
+      body: AzPullToRefresh(
         onRefresh: _loadInitial,
         child: _buildBody(colors),
       ),
@@ -152,8 +154,31 @@ class _AccountActivityScreenState
 
   Widget _buildBody(AzamanColors colors) {
     if (_entries.isEmpty && _loading) {
-      return Center(
-        child: CircularProgressIndicator(color: colors.accent),
+      // Skeleton loading — matches existing transaction row layout
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 8,
+        itemBuilder: (_, __) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              SkeletonBlock(height: 40, width: 40, borderRadius: BorderRadius.circular(20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBlock(height: 14, width: double.infinity, borderRadius: BorderRadius.circular(4)),
+                    const SizedBox(height: 6),
+                    SkeletonBlock(height: 12, width: 120, borderRadius: BorderRadius.circular(4)),
+                  ],
+                ),
+              ),
+              SkeletonBlock(height: 16, width: 60, borderRadius: BorderRadius.circular(4)),
+            ],
+          ),
+        ),
       );
     }
 
@@ -162,7 +187,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(HugeIconsSolid.alertCircle,
+          Icon(Icons.error_outline,
               color: colors.danger, size: 48),
           const SizedBox(height: 12),
           Center(
@@ -192,7 +217,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(HugeIconsSolid.transactionHistory,
+          Icon(Icons.history,
               color: colors.textTertiary, size: 56),
           const SizedBox(height: 12),
           Center(
@@ -241,7 +266,10 @@ class _AccountActivityScreenState
             ),
           );
         }
-        return _entryCard(_entries[i], colors);
+        return StaggeredItem(
+          index: i,
+          child: _entryCard(_entries[i], colors),
+        );
       },
     );
   }
@@ -312,17 +340,17 @@ class _AccountActivityScreenState
 
   IconData _iconFor(String title) {
     final t = title.toLowerCase();
-    if (t.contains('password')) return HugeIconsSolid.lock;
+    if (t.contains('password')) return Icons.lock_outline;
     if (t.contains('2fa') || t.contains('two-factor')) {
-      return HugeIconsSolid.security;
+      return Icons.security;
     }
-    if (t.contains('pin')) return HugeIconsSolid.dialpadSquare01;
+    if (t.contains('pin')) return Icons.dialpad;
     if (t.contains('login') || t.contains('signed in')) {
-      return HugeIconsSolid.login01;
+      return Icons.login;
     }
-    if (t.contains('logout')) return HugeIconsSolid.logout01;
-    if (t.contains('device')) return HugeIconsSolid.smartPhone01;
-    return HugeIconsSolid.shield01;
+    if (t.contains('logout')) return Icons.logout;
+    if (t.contains('device')) return Icons.smartphone_outlined;
+    return Icons.shield_outlined;
   }
 
   String _formatTimestamp(DateTime? ts) {

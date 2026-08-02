@@ -7,7 +7,7 @@
 //   want Azaman to send my money when I withdraw?". Two categories are
 //   permitted, NOTHING ELSE:
 //
-//     1. Local Mobile Money — MTN MoMo, Vodafone Cash, AirtelTigo,
+//     1. Local Mobile Money — MTN MoMo, Telecel Cash, AirtelTigo,
 //                             Telecel Cash.
 //     2. Crypto Wallets     — Polygon USDC addresses, Binance Pay IDs,
 //                             TRC20 USDT, ERC20/BEP20 USDC.
@@ -44,7 +44,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_button.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SavedWalletsScreen extends ConsumerStatefulWidget {
   const SavedWalletsScreen({super.key});
@@ -103,7 +103,8 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
           final a = raw as Map<String, dynamic>;
           final providerLegacy = switch (a['provider']) {
             'MTN' => 'MTN_MOMO',
-            'VODAFONE' => 'VODAFONE_CASH',
+            'VODAFONE' => 'TELECEL_CASH', // legacy mapping
+            'TELECEL' => 'TELECEL_CASH',
             'TELECEL' => 'AIRTELTIGO',
             _ => 'MTN_MOMO',
           };
@@ -180,13 +181,13 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
     // recognised crypto network. Anything else (UNKNOWN, miscategorised
     // legacy rows) is hidden.
     const allowed = {
-      'MTN_MOMO', 'VODAFONE_CASH', 'AIRTELTIGO', 'TELECEL_CASH',
+      'MTN_MOMO', 'TELECEL_CASH', 'AIRTELTIGO',
       'BINANCE_ID', 'TRC20', 'ERC20_BEP20', 'POLYGON',
     };
     if (allowed.contains(network)) return true;
     // Provider-based fallback for older rows that don't set `network`.
     const allowedProviders = {
-      'MTN MOMO', 'VODAFONE CASH', 'AIRTELTIGO', 'TELECEL CASH',
+      'MTN MOMO', 'TELECEL CASH', 'AIRTELTIGO',
       'BINANCE PAY', 'EXTERNAL WALLET',
     };
     return allowedProviders.contains(provider);
@@ -238,7 +239,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -252,7 +253,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.add01, color: colors.accent, size: 24),
+            icon: Icon(Icons.add, color: colors.accent, size: 24),
             onPressed: () => _showAddSheet(colors),
           ),
         ],
@@ -304,8 +305,8 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
             children: [
               Icon(
                 isCrypto
-                    ? HugeIconsSolid.bitcoin
-                    : HugeIconsSolid.smartPhone01,
+                    ? Icons.currency_bitcoin
+                    : Icons.smartphone_outlined,
                 size: 44,
                 color: colors.textTertiary,
               ),
@@ -428,13 +429,13 @@ class _WalletTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               isCrypto
-                  ? HugeIconsSolid.bitcoin
-                  : HugeIconsSolid.smartPhone01,
+                  ? Icons.currency_bitcoin
+                  : Icons.smartphone_outlined,
               color: accent,
               size: 20,
             ),
@@ -467,7 +468,7 @@ class _WalletTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.delete01,
+            icon: Icon(Icons.delete_outline,
                 color: colors.danger, size: 18),
             onPressed: onDelete,
           ),
@@ -533,10 +534,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
   bool _submitting = false;
 
   static const _momos = [
-    {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'color': Color(0xFFFFCC00)},
-    {'id': 'VODAFONE_CASH', 'name': 'Vodafone Cash', 'color': Color(0xFFE60000)},
-    {'id': 'AIRTELTIGO', 'name': 'AirtelTigo', 'color': Color(0xFFD62828)},
-    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFF0066CC)},
+    {'id': 'MTN_MOMO',     'name': 'MTN MoMo',     'color': Color(0xFFFFCC00)},
+    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash',  'color': Color(0xFFE60000)},
+    {'id': 'AIRTELTIGO',   'name': 'AirtelTigo',    'color': Color(0xFFD62828)},
   ];
 
   @override
@@ -648,7 +648,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Row(
             children: [
-              Icon(HugeIconsSolid.lock, color: colors.warning, size: 18),
+              Icon(Icons.lock_outline, color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Confirm with Password',
@@ -677,7 +677,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                   style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: colors.background.withOpacity(0.6),
+                    fillColor: colors.background.withValues(alpha: 0.6),
                     hintText: 'Password',
                     hintStyle: TextStyle(color: colors.textTertiary),
                     border: OutlineInputBorder(
@@ -734,23 +734,57 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Drag handle
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 decoration: BoxDecoration(
                   color: colors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            Text('Add Payout Destination',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
+            // Header row
+            Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.account_balance_wallet_outlined,
+                    color: colors.accent, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Add Payout Destination',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 17, fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3)),
+                      const SizedBox(height: 2),
+                      Text('Saved accounts for quick withdrawals',
+                        style: TextStyle(
+                          color: colors.textTertiary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(Icons.close, color: colors.textTertiary, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Divider(color: colors.divider, height: 1),
+            const SizedBox(height: 18),
 
             // Category toggle
             Row(
@@ -811,7 +845,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? colors.accent.withOpacity(0.15) : colors.card,
+          color: selected ? colors.accent.withValues(alpha: 0.15) : colors.card,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? colors.accent : colors.divider,
@@ -839,27 +873,49 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8)),
       const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      Row(
         children: _momos.map((m) {
           final selected = _momoNetwork == m['id'];
           final c = m['color'] as Color;
-          return ChoiceChip(
-            label: Text(m['name'] as String),
-            selected: selected,
-            onSelected: (_) =>
-                setState(() => _momoNetwork = m['id'] as String),
-            backgroundColor: colors.card,
-            selectedColor: c.withOpacity(0.15),
-            side: BorderSide(
-              color: selected ? c : colors.divider,
-              width: selected ? 1.4 : 1,
-            ),
-            labelStyle: TextStyle(
-              color: selected ? c : colors.textSecondary,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () { HapticFeedback.selectionClick(); setState(() => _momoNetwork = m['id'] as String); },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected ? c.withValues(alpha: 0.13) : colors.softSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? c : colors.divider,
+                      width: selected ? 1.8 : 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(m['name'] as String,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: selected ? c : colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           );
         }).toList(),
@@ -886,7 +942,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               label: _accountNameCtrl.text.isEmpty
                   ? 'Verify Account Holder'
                   : 'Re-verify',
-              icon: HugeIconsSolid.search01,
+              icon: Icons.search,
               variant: AzamanButtonVariant.secondary,
               onPressed: () async {
                 final phone = _phoneCtrl.text.trim();
@@ -899,7 +955,8 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                 // expects (MTN / VODAFONE / TELECEL).
                 final providerStr = switch (_momoNetwork) {
                   'MTN_MOMO' => 'MTN',
-                  'VODAFONE_CASH' => 'VODAFONE',
+                  'VODAFONE_CASH' => 'TELECEL', // legacy
+                  'TELECEL_CASH' => 'TELECEL',
                   'AIRTELTIGO' || 'TELECEL_CASH' => 'TELECEL',
                   _ => 'MTN',
                 };
@@ -928,13 +985,13 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colors.success.withOpacity(0.08),
+            color: colors.success.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.success.withOpacity(0.30)),
+            border: Border.all(color: colors.success.withValues(alpha: 0.30)),
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+              Icon(Icons.check_circle_outline, color: colors.success, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

@@ -15,7 +15,6 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
@@ -24,7 +23,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/susu/initiate_susu_sheet.dart';
 import 'package:azaman/widgets/susu/verification_chip.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class GroupProfileScreen extends ConsumerWidget {
   final String groupId;
@@ -43,7 +42,7 @@ class GroupProfileScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -117,7 +116,7 @@ class GroupProfileScreen extends ConsumerWidget {
                       if (iAmAdmin && !hasSusu)
                         TextButton.icon(
                           onPressed: () => _addMember(context, ref),
-                          icon: Icon(HugeIconsSolid.userAdd01,
+                          icon: Icon(Icons.person_add_outlined,
                               size: 15, color: colors.accent),
                           label: Text('Add',
                               style: TextStyle(
@@ -166,7 +165,7 @@ class GroupProfileScreen extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: colors.accent.withOpacity(0.15),
+              backgroundColor: colors.accent.withValues(alpha: 0.15),
               child: Text(
                 (gm.username ?? '?').isNotEmpty
                     ? gm.username![0].toUpperCase()
@@ -202,7 +201,7 @@ class GroupProfileScreen extends ConsumerWidget {
                       ],
                       if (gm.role == 'ADMIN') ...[
                         const SizedBox(width: 4),
-                        Icon(HugeIconsSolid.shield01,
+                        Icon(Icons.shield_outlined,
                             color: colors.warning, size: 12),
                       ],
                     ],
@@ -224,7 +223,7 @@ class GroupProfileScreen extends ConsumerWidget {
                         ),
                         if (proj.ready) ...[
                           const SizedBox(width: 6),
-                          Icon(HugeIconsSolid.checkmarkCircle01,
+                          Icon(Icons.check_circle_outline,
                               color: colors.success, size: 14),
                         ],
                       ],
@@ -242,7 +241,7 @@ class GroupProfileScreen extends ConsumerWidget {
   Widget _youTag(AzamanColors colors) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
         decoration: BoxDecoration(
-          color: colors.accent.withOpacity(0.15),
+          color: colors.accent.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text('YOU',
@@ -343,7 +342,7 @@ class _Header extends StatelessWidget {
                     height: 48,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: colors.accent.withOpacity(0.18),
+                      color: colors.accent.withValues(alpha: 0.18),
                       border: Border.all(color: colors.surface, width: 2),
                     ),
                     alignment: Alignment.center,
@@ -400,18 +399,18 @@ class _InitiateCta extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
-          colors.warning.withOpacity(0.16),
-          colors.accent.withOpacity(0.05),
+          colors.warning.withValues(alpha: 0.16),
+          colors.accent.withValues(alpha: 0.05),
         ]),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.warning.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank,
+              Icon(Icons.account_balance_outlined,
                   color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text('Start a Susu in this group',
@@ -434,7 +433,7 @@ class _InitiateCta extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: canStart ? onTap : null,
-              icon: const Icon(HugeIconsSolid.rocket, size: 16),
+              icon: const Icon(Icons.rocket_launch_outlined, size: 16),
               label: Text(
                 canStart
                     ? 'Initiate Susu'
@@ -445,7 +444,7 @@ class _InitiateCta extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.warning,
                 foregroundColor: Colors.black,
-                disabledBackgroundColor: colors.warning.withOpacity(0.30),
+                disabledBackgroundColor: colors.warning.withValues(alpha: 0.30),
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(11)),
@@ -481,16 +480,16 @@ class _InitiationSummary extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.08),
+        color: colors.warning.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.warning.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.clock01, color: colors.warning, size: 16),
+              Icon(Icons.access_time, color: colors.warning, size: 16),
               const SizedBox(width: 6),
               Text('Susu configuring',
                   style: TextStyle(
@@ -534,7 +533,7 @@ class _InitiationSummary extends ConsumerWidget {
                   }
                 },
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colors.danger.withOpacity(0.5)),
+                  side: BorderSide(color: colors.danger.withValues(alpha: 0.5)),
                   padding: const EdgeInsets.symmetric(vertical: 11),
                 ),
                 child: Text('Cancel initiation',
@@ -582,13 +581,13 @@ class _ActiveSusuBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.08),
+        color: colors.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.success.withOpacity(0.30)),
+        border: Border.all(color: colors.success.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+          Icon(Icons.check_circle_outline, color: colors.success, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

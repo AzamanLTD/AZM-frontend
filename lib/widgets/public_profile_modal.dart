@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class Badge {
   final IconData icon;
@@ -89,7 +89,7 @@ class PublicProfileModal extends ConsumerWidget {
         width: 36,
         height: 4,
         decoration: BoxDecoration(
-          color: colors.textTertiary.withOpacity(0.3),
+          color: colors.textTertiary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -106,10 +106,10 @@ class PublicProfileModal extends ConsumerWidget {
             height: 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: colors.accent.withOpacity(0.3), width: 2.5),
+              border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2.5),
               boxShadow: [
                 BoxShadow(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   blurRadius: 20,
                   spreadRadius: -2,
                 ),
@@ -122,7 +122,7 @@ class PublicProfileModal extends ConsumerWidget {
                   : null,
               child: avatarUrl.isEmpty
                   ? Icon(
-                      HugeIconsSolid.user,
+                      Icons.person_outline,
                       size: 44,
                       color: colors.textTertiary,
                     )
@@ -150,7 +150,7 @@ class PublicProfileModal extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  HugeIconsSolid.calendar01,
+                  Icons.calendar_today_outlined,
                   size: 12,
                   color: colors.accent,
                 ),
@@ -186,9 +186,9 @@ class PublicProfileModal extends ConsumerWidget {
           child: Column(
             children: [
               Icon(
-                HugeIconsSolid.award01,
+                Icons.emoji_events_outlined,
                 size: 32,
-                color: colors.textTertiary.withOpacity(0.4),
+                color: colors.textTertiary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 8),
               Text(
@@ -204,8 +204,8 @@ class PublicProfileModal extends ConsumerWidget {
       );
     }
 
-    final int crossAxisCount = 3;
-    final double childAspectRatio = 0.85;
+    const int crossAxisCount = 3;
+    const double childAspectRatio = 0.85;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -215,7 +215,7 @@ class PublicProfileModal extends ConsumerWidget {
           Row(
             children: [
               Icon(
-                HugeIconsSolid.award01,
+                Icons.emoji_events_outlined,
                 size: 16,
                 color: colors.accent,
               ),
@@ -235,7 +235,7 @@ class PublicProfileModal extends ConsumerWidget {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
@@ -266,7 +266,7 @@ class PublicProfileModal extends ConsumerWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: badge.color.withOpacity(0.12),
+              color: badge.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(

@@ -12,7 +12,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -83,7 +83,7 @@ class ProductCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(HugeIconsStroke.clock01,
+                      Icon(Icons.access_time,
                           size: 11, color: colors.textTertiary),
                       const SizedBox(width: 4),
                       Expanded(
@@ -157,7 +157,7 @@ class ProductCard extends ConsumerWidget {
     return Container(
       color: colors.softSurface,
       alignment: Alignment.center,
-      child: Icon(HugeIconsStroke.image01, color: colors.textTertiary, size: 28),
+      child: Icon(Icons.image_outlined, color: colors.textTertiary, size: 28),
     );
   }
 }

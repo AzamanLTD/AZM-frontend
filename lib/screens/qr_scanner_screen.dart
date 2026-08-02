@@ -26,7 +26,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -145,7 +145,6 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   Future<bool?> _showConfirmSheet(Map<String, dynamic> user, AzamanColors colors) {
     final username = user['username'] ?? 'Unknown';
-    final userId = user['id'];
     final tradesCompleted = user['tradesCompleted'] ?? 0;
 
     return showModalBottomSheet<bool>(
@@ -163,7 +162,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -279,7 +278,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(HugeIconsSolid.flash, color: Colors.white70),
+            icon: const Icon(Icons.bolt_outlined, color: Colors.white70),
             onPressed: () => _controller.toggleTorch(),
           ),
         ],

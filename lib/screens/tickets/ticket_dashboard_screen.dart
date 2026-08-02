@@ -15,7 +15,8 @@ import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class TicketDashboardScreen extends ConsumerStatefulWidget {
   final String friendshipId;
@@ -75,15 +76,8 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
   }
 
   void _openTicket(Ticket t) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TicketWorkspaceScreen(
-          ticketId: t.id,
-          friendUsername: widget.friendUsername,
-        ),
-      ),
-    );
+    pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: t.id,
+          friendUsername: widget.friendUsername,));
   }
 
   @override
@@ -200,7 +194,7 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
         elevation: 2,
-        icon: const Icon(HugeIconsSolid.add01),
+        icon: const Icon(Icons.add),
         label: const Text(
           'New Ticket',
           style: TextStyle(fontWeight: FontWeight.w800),
@@ -240,7 +234,7 @@ class _List extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.alertCircle,
+              Icon(Icons.error_outline,
                   color: colors.danger, size: 36),
               const SizedBox(height: 10),
               Text('Could not load tickets',
@@ -254,7 +248,7 @@ class _List extends StatelessWidget {
               OutlinedButton(
                 onPressed: onRetry,
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                  side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                 ),
                 child: Text('Retry',
                     style: TextStyle(color: colors.accent)),
@@ -271,7 +265,7 @@ class _List extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.ticket01,
+              Icon(Icons.confirmation_number_outlined,
                   color: colors.textTertiary, size: 44),
               const SizedBox(height: 10),
               Text(emptyLabel,
@@ -339,10 +333,10 @@ class _TicketTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.10),
+                color: colors.accent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(HugeIconsSolid.ticket01,
+              child: Icon(Icons.confirmation_number_outlined,
                   color: colors.accent, size: 20),
             ),
             const SizedBox(width: 12),
@@ -369,7 +363,7 @@ class _TicketTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _statusColor.withOpacity(0.14),
+                          color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -406,7 +400,7 @@ class _TicketTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            Icon(HugeIconsSolid.arrowRight01,
+            Icon(Icons.arrow_forward,
                 color: colors.textTertiary, size: 18),
           ],
         ),

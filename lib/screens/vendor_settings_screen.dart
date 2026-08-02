@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VendorSettingsScreen extends ConsumerStatefulWidget {
   final int pendingTradeCount;
@@ -65,7 +64,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
-                Icon(HugeIconsSolid.alertCircle,
+                Icon(Icons.error_outline,
                     color: colors.warning, size: 24),
                 const SizedBox(width: 10),
                 Expanded(
@@ -217,7 +216,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedMethod,
+                    initialValue: selectedMethod,
                     decoration: InputDecoration(
                       labelText: 'Payment Method',
                       labelStyle: TextStyle(color: colors.textTertiary),
@@ -347,7 +346,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                           vertical: 14, horizontal: 16),
                       decoration: BoxDecoration(
                         color: verificationScreenshot != null
-                            ? colors.success.withOpacity(0.1)
+                            ? colors.success.withValues(alpha: 0.1)
                             : colors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -360,8 +359,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         children: [
                           Icon(
                             verificationScreenshot != null
-                                ? HugeIconsSolid.checkmarkCircle01
-                                : HugeIconsSolid.camera01,
+                                ? Icons.check_circle_outline
+                                : Icons.camera_alt_outlined,
                             color: verificationScreenshot != null
                                 ? colors.success
                                 : colors.textTertiary,
@@ -535,7 +534,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: !isWeb3
-                                  ? colors.accent.withOpacity(0.15)
+                                  ? colors.accent.withValues(alpha: 0.15)
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
@@ -547,7 +546,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(HugeIconsSolid.smartPhone01,
+                                Icon(Icons.smartphone_outlined,
                                     size: 16,
                                     color: !isWeb3
                                         ? colors.accent
@@ -574,7 +573,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: isWeb3
-                                  ? colors.accent.withOpacity(0.15)
+                                  ? colors.accent.withValues(alpha: 0.15)
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
@@ -586,7 +585,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(HugeIconsSolid.internet,
+                                Icon(Icons.language,
                                     size: 16,
                                     color: isWeb3
                                         ? colors.accent
@@ -615,7 +614,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         colors: colors),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: 'TRC20',
+                      initialValue: 'TRC20',
                       decoration: InputDecoration(
                         labelText: 'Network',
                         labelStyle: TextStyle(color: colors.textTertiary),
@@ -642,7 +641,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         keyboardType: TextInputType.number),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: selectedProvider,
+                      initialValue: selectedProvider,
                       decoration: InputDecoration(
                         labelText: 'Provider',
                         labelStyle: TextStyle(color: colors.textTertiary),
@@ -803,7 +802,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    const Color gold = Color(0xFFD4AF37);
+    final Color gold = colors.accent;
     const Color green = Color(0xFF02C076);
 
     return Scaffold(
@@ -812,7 +811,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -831,7 +830,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
             decoration: BoxDecoration(
               color: colors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: gold.withOpacity(0.2)),
+              border: Border.all(color: gold.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -862,7 +861,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   scale: 1.1,
                   child: Switch(
                     value: _isActive,
-                    activeColor: green,
+                    activeThumbColor: green,
                     inactiveTrackColor: Colors.white10,
                     onChanged: _onToggleChanged,
                   ),
@@ -875,13 +874,13 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
               margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.08),
+                color: colors.warning.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.warning.withOpacity(0.2)),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.exchange01, color: colors.warning, size: 20),
+                  Icon(Icons.swap_horiz, color: colors.warning, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -934,7 +933,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 _showAddPayoutSheet();
               }
             },
-            child: const Icon(HugeIconsSolid.add01, size: 28),
+            child: const Icon(Icons.add, size: 28),
           );
         },
       ),
@@ -950,7 +949,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.wallet01,
+            Icon(Icons.account_balance_wallet_outlined,
                 size: 56, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text('No trade accounts yet',
@@ -989,7 +988,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.wallet01,
+            Icon(Icons.account_balance_wallet_outlined,
                 size: 56, color: colors.textTertiary),
             const SizedBox(height: 16),
             Text('No payout destinations yet',
@@ -1044,10 +1043,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
           CircleAvatar(
             radius: 22,
             backgroundColor: isCrypto
-                ? colors.accent.withOpacity(0.15)
-                : colors.success.withOpacity(0.15),
+                ? colors.accent.withValues(alpha: 0.15)
+                : colors.success.withValues(alpha: 0.15),
             child: Icon(
-              isCrypto ? HugeIconsSolid.internet : HugeIconsSolid.bank,
+              isCrypto ? Icons.language : Icons.account_balance_outlined,
               color: isCrypto ? colors.accent : colors.success,
               size: 22,
             ),
@@ -1082,7 +1081,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
             ),
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.delete01, color: colors.danger),
+            icon: Icon(Icons.delete_outline, color: colors.danger),
             onPressed: () {
               HapticFeedback.lightImpact();
               if (isPayout) {

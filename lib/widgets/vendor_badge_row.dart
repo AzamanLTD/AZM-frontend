@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:azaman/services/vendor_badge_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // AZAMAN — VENDOR BADGE ROW (Phase Q13-FE)
@@ -97,9 +97,9 @@ class _BadgeChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -138,19 +138,19 @@ class _BadgeChip extends StatelessWidget {
   IconData _getIconData(String iconName) {
     switch (iconName) {
       case 'verified':
-        return HugeIconsSolid.checkmarkCircle01;
+        return Icons.check_circle_outline;
       case 'trending_up':
-        return HugeIconsSolid.analytics01;
+        return Icons.analytics_outlined;
       case 'bolt':
-        return HugeIconsSolid.flash;
+        return Icons.bolt_outlined;
       case 'shield':
-        return HugeIconsSolid.shield01;
+        return Icons.shield_outlined;
       case 'diamond':
-        return HugeIconsSolid.diamond;
+        return Icons.diamond_outlined;
       case 'star':
-        return HugeIconsSolid.star;
+        return Icons.star_outline;
       default:
-        return HugeIconsSolid.medal01;
+        return Icons.military_tech_outlined;
     }
   }
 }

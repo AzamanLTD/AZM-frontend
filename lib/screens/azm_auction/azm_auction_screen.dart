@@ -20,7 +20,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/azm_auction_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+
 
 class AzmAuctionScreen extends ConsumerStatefulWidget {
   const AzmAuctionScreen({super.key});
@@ -149,16 +151,14 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('AZM Auction',
             style: TextStyle(
                 color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
       ),
-      body: RefreshIndicator(
-        color: colors.accent,
-        backgroundColor: colors.card,
+      body: AzPullToRefresh(
         onRefresh: () async {
           ref.invalidate(auctionStateProvider);
           ref.invalidate(myAuctionBidProvider);
@@ -168,7 +168,13 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             auctionAsync.when(
-              loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+              loading: () => Column(
+                children: [
+                  SkeletonBlock(height: 160, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                ],
+              ),
               error: (e, _) => Text(e.toString()),
               data: (state) {
                 if (state == null) {
@@ -256,13 +262,13 @@ class _Hero extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF6C63FF).withOpacity(0.18),
-                const Color(0xFF00E5FF).withOpacity(0.05),
+                const Color(0xFF6C63FF).withValues(alpha: 0.18),
+                const Color(0xFF00E5FF).withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF6C63FF).withOpacity(0.30),
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.30),
               width: 0.8,
             ),
           ),
@@ -271,7 +277,7 @@ class _Hero extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(HugeIconsSolid.sparkles, color: Color(0xFF9D8FFF), size: 18),
+                  const Icon(Icons.auto_awesome, color: Color(0xFF9D8FFF), size: 18),
                   const SizedBox(width: 6),
                   Text(
                     'AZM Auction',
@@ -282,9 +288,9 @@ class _Hero extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: colors.success.withOpacity(0.10),
+                      color: colors.success.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: colors.success.withOpacity(0.30), width: 0.7),
+                      border: Border.all(color: colors.success.withValues(alpha: 0.30), width: 0.7),
                     ),
                     child: Text(
                       status,
@@ -314,14 +320,14 @@ class _Hero extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(HugeIconsSolid.userGroup, color: colors.textTertiary, size: 14),
+                  Icon(Icons.group_outlined, color: colors.textTertiary, size: 14),
                   const SizedBox(width: 6),
                   Text(
                     '$participants vendors bidding',
                     style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                   const Spacer(),
-                  Icon(HugeIconsSolid.fire, color: colors.warning, size: 14),
+                  Icon(Icons.local_fire_department_outlined, color: colors.warning, size: 14),
                   const SizedBox(width: 4),
                   Text(
                     'Top 3 burn AZM, get 24h boost',
@@ -356,7 +362,7 @@ class _MyBidCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.judge, color: colors.textTertiary, size: 16),
+            Icon(Icons.gavel, color: colors.textTertiary, size: 16),
             const SizedBox(width: 8),
             Text('No active bid', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
           ],
@@ -366,13 +372,13 @@ class _MyBidCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withOpacity(0.30)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.accent, size: 16),
+          Icon(Icons.check_circle_outline, color: colors.accent, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -429,9 +435,12 @@ class _BidForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loadingAds) {
-      return Padding(
-        padding: const EdgeInsets.all(8),
-        child: Center(child: CircularProgressIndicator(color: colors.accent)),
+      return Column(
+        children: [
+          SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 8),
+          SkeletonBlock(height: 40, width: double.infinity, borderRadius: BorderRadius.circular(10)),
+        ],
       );
     }
     if (myAds.isEmpty) {
@@ -491,7 +500,7 @@ class _BidForm extends StatelessWidget {
               border: InputBorder.none,
               hintText: 'Bid (AZM)',
               hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-              prefixIcon: Icon(HugeIconsSolid.flash, color: colors.accentSecondary, size: 18),
+              prefixIcon: Icon(Icons.bolt_outlined, color: colors.accentSecondary, size: 18),
             ),
           ),
         ),
@@ -553,7 +562,7 @@ class _PromotedStrip extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(HugeIconsSolid.fire,
+                      Icon(Icons.local_fire_department_outlined,
                           color: colors.warning, size: 14),
                       const SizedBox(width: 8),
                       Text(

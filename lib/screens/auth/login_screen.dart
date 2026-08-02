@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/sso_service.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -12,7 +11,8 @@ import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
 import 'package:azaman/widgets/google_logo.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,6 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _influencerController = TextEditingController();
+  bool _passwordVisible = false;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -116,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             : (data['data']?['user'] is Map<String, dynamic>
                 ? data['data']!['user'] as Map<String, dynamic>
                 : <String, dynamic>{});
-        double _d(dynamic v) =>
+        double d(dynamic v) =>
             v is num ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
         
         final loggedInUser = User(
@@ -125,11 +126,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           email: u['email'] ?? '',
           token: rawToken,
           role: u['role'] ?? 'USER', // Backend returns uppercase 'USER' or 'ADMIN'
-          azmBalance: _d(u['azmBalance']),
-          availableBalance: _d(u['availableBalance']),
+          azmBalance: d(u['azmBalance']),
+          availableBalance: d(u['availableBalance']),
         );
 
+        final refreshToken = (data['refreshToken'] ?? data['data']?['refreshToken'])?.toString();
         await _storage.write(key: 'auth_token', value: loggedInUser.token);
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _storage.write(key: 'refresh_token', value: refreshToken);
+        }
         await _storage.write(key: 'user_id', value: loggedInUser.id);
         await _storage.write(key: 'user_role', value: loggedInUser.role.toLowerCase());
 
@@ -234,7 +239,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(HugeIconsSolid.exchange01, size: 72, color: colors.accent),
+        // Logo with Hero morph from splash — sits at the TOP of the login
+        Center(
+          child: Hero(
+            tag: 'azaman_logo',
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 100.0, end: 80.0),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (context, size, _) {
+                return Image.asset(
+                  'assets/images/azaman_logo.png',
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
+                );
+              },
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         Text(
           'Welcome to Azaman',
@@ -244,13 +267,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             fontWeight: FontWeight.bold,
             color: colors.textPrimary,
           ),
-        ),
+        ).animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.05, end: 0),
         const SizedBox(height: 6),
         Text(
           'Sign in to continue',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 15, color: colors.textSecondary),
-        ),
+        ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
         const SizedBox(height: 40),
 
         if (_errorMessage != null)
@@ -258,9 +281,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
+              color: colors.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.danger.withOpacity(0.4)),
+              border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
             ),
             child: Text(
               _errorMessage!,
@@ -276,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: InputDecoration(
             labelText: 'Email',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.mail01, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.mail_outline, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -285,7 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
             ),
           ),
         ),
@@ -293,11 +316,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         TextField(
           controller: _passwordController,
           style: TextStyle(color: colors.textPrimary),
-          obscureText: true,
+          obscureText: !_passwordVisible,
           decoration: InputDecoration(
             labelText: 'Password',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: colors.textTertiary,
+                size: 20,
+              ),
+              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+            ),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -306,7 +337,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
             ),
           ),
         ),
@@ -367,10 +398,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
         _ssoButton(
           label: 'Continue with Apple',
-          icon: HugeIconsSolid.apple,
+          icon: Icons.apple,
           iconColor: Colors.white,
           bgColor: Colors.black,
-          borderColor: Colors.white.withOpacity(0.15),
+          borderColor: Colors.white.withValues(alpha: 0.15),
           onTap: () => _signInWithSso(SsoProvider.apple),
         ),
         const SizedBox(height: 12),
@@ -445,7 +476,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             shape: BoxShape.circle,
           ),
           child: Icon(
-            HugeIconsSolid.mic01,
+            Icons.mic_none_outlined,
             size: 36,
             color: colors.accent,
           ),
@@ -479,7 +510,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: InputDecoration(
             hintText: 'Influencer Code',
             hintStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsSolid.hashtag, color: colors.textTertiary),
+            prefixIcon: Icon(Icons.tag, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -488,7 +519,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
             ),
           ),
         ),
@@ -618,7 +649,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.informationCircle, color: colors.accent),
+            Icon(Icons.info_outline, color: colors.accent),
             const SizedBox(width: 10),
             Text(
               '$providerLabel Sign-In',

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/sso_service.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -12,7 +11,7 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/main.dart';
 import 'package:azaman/widgets/google_logo.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -29,6 +28,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  String _passwordText = "";
   final _storage = const FlutterSecureStorage();
 
   @override
@@ -57,8 +57,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
 
-    if (password.length < 6) {
-      setState(() => _errorMessage = 'Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setState(() => _errorMessage = 'Password must be at least 8 characters.');
+      return;
+    }
+    if (!RegExp(r"[A-Z]").hasMatch(password) || !RegExp(r"[0-9]").hasMatch(password)) {
+      setState(() => _errorMessage =
+        "Password needs at least one uppercase letter and one number.");
       return;
     }
 
@@ -110,7 +115,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               : (loginData['data']?['user'] is Map<String, dynamic>
                   ? loginData['data']!['user'] as Map<String, dynamic>
                   : <String, dynamic>{});
-          double _d(dynamic v) =>
+          double d(dynamic v) =>
               v is num ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
           
           final newUser = User(
@@ -119,11 +124,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             email: u['email'] ?? '',
             token: rawToken,
             role: u['role'] ?? 'USER',
-            azmBalance: _d(u['azmBalance']),
-            availableBalance: _d(u['availableBalance']),
+            azmBalance: d(u['azmBalance']),
+            availableBalance: d(u['availableBalance']),
           );
 
+          final signupRefreshToken = (loginData['refreshToken'] ?? loginData['data']?['refreshToken'])?.toString();
           await _storage.write(key: 'auth_token', value: newUser.token);
+          if (signupRefreshToken != null && signupRefreshToken.isNotEmpty) {
+            await _storage.write(key: 'refresh_token', value: signupRefreshToken);
+          }
           await _storage.write(key: 'user_id', value: newUser.id);
           await _storage.write(key: 'user_role', value: newUser.role.toLowerCase());
 
@@ -143,7 +152,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           // Navigate to main app
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => MainWrapper()),
+            MaterialPageRoute(builder: (_) => const MainWrapper()),
           );
         } else {
           // Registration successful but auto-login failed
@@ -189,7 +198,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              Icon(HugeIconsSolid.exchange01, size: 64, color: colors.accent),
+              Icon(Icons.swap_horiz, size: 64, color: colors.accent),
               const SizedBox(height: 16),
               Text(
                 'Join Azaman P2P',
@@ -213,9 +222,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: colors.danger.withOpacity(0.1),
+                    color: colors.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colors.danger.withOpacity(0.4)),
+                    border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _errorMessage!,
@@ -230,7 +239,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Username',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(HugeIconsSolid.user, color: colors.textTertiary),
+                  prefixIcon: Icon(Icons.person_outline, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -239,7 +248,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -251,7 +260,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(HugeIconsSolid.mail01, color: colors.textTertiary),
+                  prefixIcon: Icon(Icons.mail_outline, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -260,7 +269,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -269,10 +278,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 controller: _passwordController,
                 style: TextStyle(color: colors.textPrimary),
                 obscureText: true,
+                onChanged: (v) => setState(() => _passwordText = v),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
+                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -281,12 +291,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
-                  helperText: 'Minimum 6 characters',
+                  helperText: 'Minimum 8 characters, 1 uppercase & 1 number',
                   helperStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
                 ),
               ),
+              if (_passwordText.isNotEmpty)
+                _PasswordStrengthBar(password: _passwordText),
               const SizedBox(height: 14),
               TextField(
                 controller: _confirmPasswordController,
@@ -295,7 +307,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(HugeIconsSolid.lock, color: colors.textTertiary),
+                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -304,7 +316,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -373,10 +385,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               _ssoButton(
                 colors: colors,
                 label: 'Continue with Apple',
-                icon: HugeIconsSolid.apple,
+                icon: Icons.apple,
                 iconColor: Colors.white,
                 bgColor: Colors.black,
-                borderColor: Colors.white.withOpacity(0.15),
+                borderColor: Colors.white.withValues(alpha: 0.15),
                 onTap: () => _signUpWithSso(SsoProvider.apple),
               ),
               const SizedBox(height: 12),
@@ -459,7 +471,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final colors = ref.read(themeProvider).colors;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => MainWrapper()),
+        MaterialPageRoute(builder: (_) => const MainWrapper()),
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -494,7 +506,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.informationCircle, color: colors.accent),
+            Icon(Icons.info_outline, color: colors.accent),
             const SizedBox(width: 10),
             Text(
               '$providerLabel Sign-In',
@@ -571,6 +583,45 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PasswordStrengthBar extends StatelessWidget {
+  final String password;
+  const _PasswordStrengthBar({required this.password});
+  int get _score {
+    int s = 0;
+    if (password.length >= 8) s++;
+    if (RegExp(r"[A-Z]").hasMatch(password)) s++;
+    if (RegExp(r"[0-9]").hasMatch(password)) s++;
+    if (RegExp(r"[!@#\$%^&*]").hasMatch(password)) s++;
+    return s;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final labels = ["Too weak", "Weak", "Fair", "Strong", "Very strong"];
+    final score  = _score;
+    final clr = score <= 1
+      ? const Color(0xFFEF4444)
+      : score == 2
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF10B981);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: List.generate(4, (i) => Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+            decoration: BoxDecoration(
+              color: i < score ? clr : const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2))))),
+          ),
+        const SizedBox(height: 4),
+        Text(labels[score], style: TextStyle(
+          color: clr, fontSize: 11, fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }

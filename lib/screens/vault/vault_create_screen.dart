@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultCreateScreen extends ConsumerStatefulWidget {
   const VaultCreateScreen({super.key});
@@ -120,7 +120,7 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
           ),
         ),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
@@ -203,7 +203,7 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                                 (f) => ChoiceChip(
                                   selected: _autoFreq == f,
                                   label: Text(f),
-                                  selectedColor: colors.accent.withOpacity(0.20),
+                                  selectedColor: colors.accent.withValues(alpha: 0.20),
                                   onSelected: (_) => setState(() => _autoFreq = f),
                                   labelStyle: TextStyle(
                                     color: _autoFreq == f
@@ -248,7 +248,7 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                     .shimmer(
                         delay: 600.ms,
                         duration: 1400.ms,
-                        color: Colors.white.withOpacity(0.30)),
+                        color: Colors.white.withValues(alpha: 0.30)),
               ],
             ),
           ),
@@ -312,7 +312,7 @@ class _DatePill extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.calendar01, color: colors.accent, size: 16),
+            Icon(Icons.calendar_today_outlined, color: colors.accent, size: 16),
             const SizedBox(width: 8),
             Text(
               '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
@@ -323,7 +323,7 @@ class _DatePill extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Icon(HugeIconsSolid.calendar01, color: colors.textTertiary, size: 14),
+            Icon(Icons.calendar_today_outlined, color: colors.textTertiary, size: 14),
           ],
         ),
       ),
@@ -372,9 +372,9 @@ class _RulesSheetState extends State<_RulesSheet> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.78,
         decoration: BoxDecoration(
-          color: colors.background.withOpacity(0.92),
+          color: colors.background.withValues(alpha: 0.92),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border.all(color: colors.glow.withOpacity(0.18), width: 0.8),
+          border: Border.all(color: colors.glow.withValues(alpha: 0.18), width: 0.8),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
@@ -391,7 +391,7 @@ class _RulesSheetState extends State<_RulesSheet> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Icon(HugeIconsSolid.judge, color: colors.warning, size: 18),
+                  Icon(Icons.gavel, color: colors.warning, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     'Rules of the Game',
@@ -458,7 +458,7 @@ class _RulesSheetState extends State<_RulesSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
                     foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    disabledBackgroundColor: colors.accent.withOpacity(0.30),
+                    disabledBackgroundColor: colors.accent.withValues(alpha: 0.30),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

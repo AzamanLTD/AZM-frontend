@@ -20,7 +20,7 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:math' as _math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +30,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/screens/vendor_apply.dart';
 import 'package:azaman/screens/vendor_dashboard.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VendorPullTab extends ConsumerStatefulWidget {
   const VendorPullTab({super.key});
@@ -238,7 +238,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
       SnackBar(
         content: Row(
           children: [
-            Icon(HugeIconsSolid.store01, color: colors.accent, size: 20),
+            Icon(Icons.storefront_outlined, color: colors.accent, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -267,7 +267,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.2),
+                color: colors.accent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -285,7 +285,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.accent.withOpacity(0.3)),
+          side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
         ),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
         duration: _pullTimeoutDuration,
@@ -319,18 +319,18 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
     final tabBgColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withOpacity(0.2)
+            ? colors.accent.withValues(alpha: 0.2)
             : (_hasHitLimit && !isVendor)
-                ? colors.danger.withOpacity(0.15)
-                : colors.surface.withOpacity(0.95);
+                ? colors.danger.withValues(alpha: 0.15)
+                : colors.surface.withValues(alpha: 0.95);
 
     final tabBorderColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withOpacity(0.7)
+            ? colors.accent.withValues(alpha: 0.7)
             : (_hasHitLimit && !isVendor)
-                ? colors.danger.withOpacity(0.6)
-                : colors.accent.withOpacity(0.4);
+                ? colors.danger.withValues(alpha: 0.6)
+                : colors.accent.withValues(alpha: 0.4);
 
     final tabTextColor = _hasPassedThreshold
         ? (colors.isDark ? Colors.black : Colors.white)
@@ -370,12 +370,12 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              colors.accent.withOpacity(0.0),
+                              colors.accent.withValues(alpha: 0.0),
                               (_hasHitLimit && !isVendor)
                                   ? (_pullCount >= 2
-                                      ? colors.accent.withOpacity(progress * 0.7)
-                                      : colors.danger.withOpacity(progress * 0.5))
-                                  : colors.accent.withOpacity(progress * 0.5),
+                                      ? colors.accent.withValues(alpha: progress * 0.7)
+                                      : colors.danger.withValues(alpha: progress * 0.5))
+                                  : colors.accent.withValues(alpha: progress * 0.5),
                             ],
                           ),
                         ),
@@ -482,8 +482,8 @@ class _RibbonPainter extends CustomPainter {
         colors: [
           background,
           Color.alphaBlend(
-            background.withOpacity(0.6),
-            border.withOpacity(0.18),
+            background.withValues(alpha: 0.6),
+            border.withValues(alpha: 0.18),
           ),
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
@@ -498,7 +498,7 @@ class _RibbonPainter extends CustomPainter {
 
     // Soft drop shadow under the ribbon — single offset blur
     final shadowPaint = Paint()
-      ..color = border.withOpacity(0.12)
+      ..color = border.withValues(alpha: 0.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.save();
     canvas.translate(0, 1.5);
@@ -539,7 +539,7 @@ class _RibbonPainter extends CustomPainter {
   double _sin(double r) {
     // Inline tiny Taylor approx not needed — math.sin is fine, but we
     // want zero allocation per frame so use the cached function.
-    return _math.sin(r);
+    return math.sin(r);
   }
 
   @override
@@ -606,10 +606,10 @@ class _VendorRequirementSheet extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.1),
+                      color: colors.accent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(HugeIconsSolid.store01,
+                    child: Icon(Icons.storefront_outlined,
                         color: colors.accent, size: 40),
                   ),
                 ),
@@ -642,19 +642,19 @@ class _VendorRequirementSheet extends StatelessWidget {
 
                 _buildSectionTitle('What You\'ll Need'),
                 const SizedBox(height: 12),
-                _buildRequirement(HugeIconsSolid.identityCard,
+                _buildRequirement(Icons.badge_outlined,
                     'Valid Government ID',
                     'Passport, National ID, or Driver\'s License with a selfie'),
-                _buildRequirement(HugeIconsSolid.home01,
+                _buildRequirement(Icons.home_outlined,
                     'Proof of Address',
                     'Utility bill or bank statement (within 3 months)'),
-                _buildRequirement(HugeIconsSolid.wallet01,
+                _buildRequirement(Icons.account_balance_wallet_outlined,
                     'Minimum \$500 USDT Collateral',
                     'Locked during your active vendor period'),
-                _buildRequirement(HugeIconsSolid.creditCard,
+                _buildRequirement(Icons.credit_card_outlined,
                     'At Least 2 Payment Methods',
                     'Mobile Money, bank transfer, or supported e-wallets'),
-                _buildRequirement(HugeIconsSolid.shield01,
+                _buildRequirement(Icons.shield_outlined,
                     'Financial Background Check',
                     'Source of funds and trading experience'),
 
@@ -677,13 +677,13 @@ class _VendorRequirementSheet extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.06),
+                      color: colors.accent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.accent.withOpacity(0.2)),
+                      border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       children: [
-                        Icon(HugeIconsSolid.share01,
+                        Icon(Icons.share_outlined,
                             color: colors.accent, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
@@ -704,8 +704,8 @@ class _VendorRequirementSheet extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Icon(HugeIconsSolid.arrowRight01,
-                            color: colors.accent.withOpacity(0.5), size: 14),
+                        Icon(Icons.arrow_forward,
+                            color: colors.accent.withValues(alpha: 0.5), size: 14),
                       ],
                     ),
                   ),
@@ -725,7 +725,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colors.surface.withOpacity(0.5),
+                    color: colors.surface.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: colors.divider),
                   ),
@@ -734,7 +734,7 @@ class _VendorRequirementSheet extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(HugeIconsSolid.informationCircle,
+                          Icon(Icons.info_outline,
                               color: colors.accent, size: 16),
                           const SizedBox(width: 8),
                           Text(
@@ -787,7 +787,7 @@ class _VendorRequirementSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.1),
+              color: colors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: colors.accent, size: 18),
@@ -819,7 +819,7 @@ class _VendorRequirementSheet extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+          Icon(Icons.check_circle_outline, color: colors.success, size: 16),
           const SizedBox(width: 10),
           Expanded(
             child: Text(text,

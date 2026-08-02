@@ -1,0 +1,126 @@
+Section 42: React Portal — NEW PAGE: Guests.jsx
+File: src/pages/Guests.jsx (NEW)
+Aggregates customer history: past orders, reservations, transit bookings, reviews, trust score, no-show count.
+// src/pages/Guests.jsx
+import { useState, useEffect } from 'react';
+import { Search, Star, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { marketplaceApi } from '../lib/marketplaceApi';
+
+const TRUST_COLORS = {
+  EXCELLENT: 'text-emerald-600 bg-emerald-50',
+  GOOD: 'text-blue-600 bg-blue-50',
+  CAUTION: 'text-amber-600 bg-amber-50',
+  RISK: 'text-red-600 bg-red-50',
+};
+
+export default function Guests({ businessId }) {
+  const [query, setQuery] = useState('');
+  const [guests, setGuests] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { loadGuests(); }, []);
+
+  const loadGuests = async () => {
+    setLoading(true);
+    try {
+      const res = await marketplaceApi.getGuests(businessId);
+      setGuests(res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const searchGuest = async () => {
+    if (!query.trim()) return loadGuests();
+    setLoading(true);
+    try {
+      const res = await marketplaceApi.searchGuest(businessId, query.trim());
+      setSelected(res.data);
+    } catch (e) { alert('Guest not found'); }
+    setLoading(false);
+  };
+
+  const filtered = query.trim()
+    ? guests.filter(g => g.azamanId?.includes(query) || g.fullName?.toLowerCase().includes(query.toLowerCase()))
+    : guests;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Guests & Customers</h1>
+        <p className="text-sm text-muted-foreground mt-1">Customer history, trust scores, and engagement</p>
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchGuest()}
+            placeholder="Search by AZM-ID or name..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-md border border-input bg-background text-sm" />
+        </div>
+      </div>
+
+      {/* Guest list */}
+      <div className="rounded-lg border bg-card divide-y">
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading...</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">No guests found</div>
+        ) : filtered.map(guest => (
+          <div key={guest.id} className="px-4 py-4 flex items-center gap-4 hover:bg-accent/5 cursor-pointer"
+            onClick={() => setSelected(guest)}>
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-medium text-primary">{guest.fullName?.[0] ?? '?'}</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-foreground">{guest.fullName}</p>
+              <p className="text-xs text-muted-foreground">{guest.azamanId}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-foreground">{guest.totalVisits} visits</p>
+              <p className="text-xs text-muted-foreground">{guest.totalSpentUsdc?.toFixed(2)} USDC</p>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${TRUST_COLORS[guest.trustLevel] || TRUST_COLORS.GOOD}`}>
+              {guest.trustLevel}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Guest detail modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelected(null)}>
+          <div className="bg-card rounded-lg max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between">
+              <h2 className="text-xl font-semibold">{selected.fullName}</h2>
+              <button onClick={() => setSelected(null)} className="text-muted-foreground">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">AZM-ID:</span> {selected.azamanId}</div>
+              <div><span className="text-muted-foreground">Visits:</span> {selected.totalVisits}</div>
+              <div><span className="text-muted-foreground">Total Spent:</span> {selected.totalSpentUsdc?.toFixed(2)} USDC</div>
+              <div><span className="text-muted-foreground">No-shows:</span> {selected.noShowCount}</div>
+            </div>
+            <div className={`px-3 py-2 rounded-md text-sm font-medium ${TRUST_COLORS[selected.trustLevel]}`}>
+              Trust Level: {selected.trustLevel}
+            </div>
+            {selected.recentVisits?.map((v, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm border-t pt-2">
+                {v.type === 'ORDER' ? <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  : v.type === 'RESERVATION' ? <Clock className="h-4 w-4 text-blue-500" />
+                  : v.type === 'NO_SHOW' ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : null}
+                <span className="flex-1">{v.description}</span>
+                <span className="text-muted-foreground">{v.date}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+

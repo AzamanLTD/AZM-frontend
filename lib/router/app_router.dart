@@ -21,10 +21,17 @@
 // notificationService.sendNotification calls.
 // =============================================================================
 
+import 'dart:io';
+import 'package:azaman/screens/story_camera_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:azaman/router/auth_guard.dart';
+import 'package:azaman/screens/marketplace/hotel_booking_screen.dart';
+import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
+import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
+
 
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/notification_hub_screen.dart';
@@ -33,12 +40,29 @@ import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/messages_hub_screen.dart';
+import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/settings_screen.dart';
+import 'package:azaman/screens/storefront_staking_screen.dart';
+import 'package:azaman/screens/storefront_screen.dart';
+import 'package:azaman/screens/storefront_discovery_screen.dart';
+import 'package:azaman/screens/storefront_order_history_screen.dart';
+import 'package:azaman/screens/universal_search_screen.dart';
+import 'package:azaman/screens/spending_insights_screen.dart';
+import 'package:azaman/screens/round_up_settings_screen.dart';
+import 'package:azaman/screens/notification_preferences_screen.dart';
+import 'package:azaman/screens/story_highlights_screen.dart';
+import 'package:azaman/screens/story_editor_screen.dart';
+import 'package:azaman/screens/close_friends_screen.dart';
+import 'package:azaman/screens/story_analytics_screen.dart';
+import 'package:azaman/screens/loyalty_cards_screen.dart';
+import 'package:azaman/screens/susu/susu_position_picker_screen.dart';
+import 'package:azaman/screens/susu/susu_completion_screen.dart';
 import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/susu/invite_landing_screen.dart';
@@ -46,8 +70,10 @@ import 'package:azaman/screens/susu/liability_acceptance_screen.dart';
 import 'package:azaman/screens/susu/proof_of_residency_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
 import 'package:azaman/screens/susu/susu_hub_screen.dart';
+import 'package:azaman/screens/transaction_history_screen.dart';
 // V3 Marketplace Sprint (2026-06-21) — Premium Marketplace surfaces.
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_search_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
@@ -58,8 +84,26 @@ import 'package:azaman/screens/marketplace/my_orders_screen.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
+import 'package:azaman/screens/marketplace/checkin_qr_screen.dart';
+import 'package:azaman/screens/marketplace/business_checkin_screen.dart';
+import 'package:azaman/screens/marketplace/transit_trip_list_screen.dart';
+import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/screens/worker/worker_hub_screen.dart';
+import 'package:azaman/screens/worker/worker_shifts_screen.dart';
+import 'package:azaman/screens/worker/worker_payroll_screen.dart';
+import 'package:azaman/screens/worker/worker_team_screen.dart';
+import 'package:azaman/screens/worker/worker_time_off_screen.dart';
+import 'package:azaman/screens/worker/worker_feedback_screen.dart';
+import 'package:azaman/screens/worker/worker_ewa_screen.dart';
+import 'package:azaman/screens/worker/worker_swaps_screen.dart';
+
+import 'package:azaman/screens/chat/message_search_screen.dart';
+import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
+import 'package:azaman/screens/orders/order_tracking_screen.dart';
+import 'package:azaman/screens/vault/vault_yield_screen.dart';
+import 'package:azaman/screens/story_creation_screen.dart';
+
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -68,6 +112,20 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
+  redirect: (context, state) {
+    final path = state.uri.path;
+    // Public routes always pass
+    if (path == '/' || path.startsWith('/susu/invite/')) return null;
+    // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
+    // and go to splash rather than letting a red error screen bounce home.
+    try {
+      if (!AuthGuard.isAuthenticated) return '/';
+    } catch (_) {
+      return '/';
+    }
+    return null;
+  },
+  errorBuilder: (context, state) => _AzamanRouteErrorScreen(error: state.error),
   routes: [
     // ── Boot & shell ────────────────────────────────────────────────────────
     GoRoute(
@@ -80,7 +138,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/notifications',
       name: 'notifications',
-      builder: (context, state) => const NotificationHubScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const NotificationHubScreen(),
+      ),
     ),
 
     // ── Trade lifecycle (keys: OPEN_TRADE / OPEN_DISPUTE) ───────────────────
@@ -122,44 +183,84 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       name: 'settings',
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const SettingsScreen(),
+      ),
     ),
     GoRoute(
       path: '/profile/edit',
       name: 'profile-edit',
-      builder: (context, state) => const ProfileDetailsScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const ProfileDetailsScreen(),
+      ),
     ),
     GoRoute(
       path: '/account/activity',
       name: 'account-activity',
-      builder: (context, state) => const AccountActivityScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const AccountActivityScreen(),
+      ),
     ),
     GoRoute(
       path: '/account/delete',
       name: 'account-delete',
-      builder: (context, state) => const AccountDeactivationScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const AccountDeactivationScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/transactions',
+      name: 'transactions',
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const TransactionHistoryScreen(),
+      ),
     ),
 
     // ── Social: friends, messages, referral, leaderboard ────────────────────
     GoRoute(
       path: '/friends',
       name: 'friends',
-      builder: (context, state) => const FriendsHubScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const FriendsHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/messages',
       name: 'messages',
-      builder: (context, state) => const MessagesHubScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const MessagesHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/referral',
       name: 'referral',
-      builder: (context, state) => const ReferralScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const ReferralScreen(),
+      ),
     ),
     GoRoute(
       path: '/leaderboard',
       name: 'leaderboard',
-      builder: (context, state) => const LeaderboardScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const LeaderboardScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/azm-auction',
+      name: 'azm-auction',
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const AzmAuctionScreen(),
+      ),
     ),
 
     // ── Marketplace + savings (deep-linkable from FCM "trade match"
@@ -167,12 +268,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       name: 'marketplace',
-      builder: (context, state) => const P2PMarketListScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const P2PMarketListScreen(),
+      ),
     ),
     GoRoute(
       path: '/savings',
       name: 'savings',
-      builder: (context, state) => const SavingsScreen(),
+      pageBuilder: (context, state) => sharedAxisPage(
+        key: state.pageKey,
+        child: const SavingsScreen(),
+      ),
     ),
 
     // ── Deposit (Phase 4 / Susu Sprint, 2026-05-31) ─────────────────────
@@ -195,12 +302,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/susu',
       name: 'susu-hub',
-      builder: (context, state) => const SusuHubScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const SusuHubScreen(),
+      ),
     ),
     GoRoute(
       path: '/proof-of-residency',
       name: 'proof-of-residency',
-      builder: (context, state) => const ProofOfResidencyScreen(),
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const ProofOfResidencyScreen(),
+      ),
     ),
     GoRoute(
       path: '/susu/invite/:token',
@@ -232,10 +345,80 @@ final GoRouter appRouter = GoRouter(
     // literal sub-routes (search / register / notifications / :bizId/products)
     // win over it.
     GoRoute(
+      path: '/marketplace/booking/checkin-qr/:reservationId',
+      name: 'checkin-qr',
+      pageBuilder: (context, state) => sharedAxisScaledPage(
+        key: state.pageKey,
+        child: CheckInQrScreen(
+          reservationId: state.pathParameters['reservationId']!,
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/marketplace/business/checkin',
+      name: 'business-checkin',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const BusinessCheckInScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/marketplace/transit',
+      name: 'transit-trips',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const TransitTripListScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/:bizId/transit',
+      name: 'business-transit-trips',
+      builder: (context, state) => TransitTripListScreen(
+        businessProfileId: state.pathParameters['bizId'],
+      ),
+    ),
+    GoRoute(
+      path: '/marketplace/transit/:tripId/seats',
+      name: 'transit-seat-selection',
+      builder: (context, state) => TransitSeatSelectionScreen(
+        tripId: state.pathParameters['tripId']!,
+      ),
+    ),
+    GoRoute(
       path: '/business-market',
-      name: 'business-market',
+      name: 'business-market-home',
       builder: (_, __) => const MarketplaceHomeScreen(),
     ),
+    GoRoute(
+      path: '/business-market/:bizId/hotel-booking',
+      name: 'hotel-booking',
+      builder: (context, state) => HotelBookingScreen(
+        bizId: state.pathParameters['bizId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/dine-in/:tabId',
+      name: 'dine-in-tab',
+      builder: (context, state) => DineInTabScreen(
+        tabId: state.pathParameters['tabId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/business-market/:bizId/stories',
+      name: 'business-stories',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return BusinessStoriesScreen(
+          bizId: state.pathParameters['bizId']!,
+          businessName: extra['businessName'] as String? ?? 'Business Story',
+          logoUrl: extra['logoUrl'] as String?,
+          storyUrls: extra['storyUrls'] is List
+              ? (extra['storyUrls'] as List).map((e) => e.toString()).toList()
+              : ['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800'],
+        );
+      },
+    ),
+
     GoRoute(
       path: '/business-market/orders',
       name: 'business-market-orders',
@@ -296,6 +479,238 @@ final GoRouter appRouter = GoRouter(
         bizId: state.pathParameters['bizId']!,
       ),
     ),
+
+    // ── Worker Sub-Portal (Business OS, 2026-07-06) ────────────────────────
+    GoRoute(
+      path: '/worker',
+      name: 'worker-hub',
+      builder: (_, __) => const WorkerHubScreen(),
+    ),
+    GoRoute(
+      path: '/worker/shifts',
+      name: 'worker-shifts',
+      builder: (_, __) => const WorkerShiftsScreen(),
+    ),
+    GoRoute(
+      path: '/worker/payroll',
+      name: 'worker-payroll',
+      builder: (_, __) => const WorkerPayrollScreen(),
+    ),
+    GoRoute(
+      path: '/worker/team',
+      name: 'worker-team',
+      builder: (_, __) => const WorkerTeamScreen(),
+    ),
+    GoRoute(
+      path: '/worker/time-off',
+      name: 'worker-time-off',
+      builder: (_, __) => const WorkerTimeOffScreen(),
+    ),
+    GoRoute(
+      path: '/worker/feedback',
+      name: 'worker-feedback',
+      builder: (_, __) => const WorkerFeedbackScreen(),
+    ),
+    GoRoute(
+      path: '/worker/ewa',
+      name: 'worker-ewa',
+      builder: (_, __) => const WorkerEwaScreen(),
+    ),
+    GoRoute(
+      path: '/worker/swaps',
+      name: 'worker-swaps',
+      builder: (_, __) => const WorkerSwapsScreen(),
+    ),
+    GoRoute(
+      path: '/storefront/staking',
+      name: 'storefront-staking',
+      builder: (_, __) => const StorefrontStakingScreen(),
+    ),
+    GoRoute(
+      path: '/storefront/:businessProfileId',
+      name: 'storefront',
+      builder: (context, state) => StorefrontScreen(
+        businessProfileId: state.pathParameters['businessProfileId']!,
+        businessName: state.uri.queryParameters['name'],
+      ),
+    ),
+    GoRoute(
+      path: '/discover/storefronts',
+      name: 'storefront-discovery',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StorefrontDiscoveryScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/my-orders',
+      name: 'storefront-order-history',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StorefrontOrderHistoryScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/search',
+      name: 'universal-search',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const UniversalSearchScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/spending-insights',
+      name: 'spending-insights',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const SpendingInsightsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/round-up',
+      name: 'round-up-savings',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const RoundUpSettingsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/story-highlights',
+      name: 'story-highlights',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const StoryHighlightsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/close-friends',
+      name: 'close-friends',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const CloseFriendsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/story-camera',
+      name: 'story-camera',
+      builder: (context, state) => StoryCameraScreen(
+        onCaptured: (mediaFile, isVideo, filter) {
+          context.pushNamed('story-editor', extra: {
+            'mediaFile': mediaFile,
+            'isVideo': isVideo,
+            'filter': filter,
+          });
+        },
+      ),
+    ),
+    GoRoute(
+      path: '/story-editor',
+      name: 'story-editor',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return StoryEditorScreen(
+          mediaFile: extra['mediaFile'] as File,
+          isVideo: extra['isVideo'] as bool? ?? false,
+          initialFilter: extra['filter'] as StoryFilter? ?? StoryFilter.none,
+          onPublish: (mediaFile, isVideo) {
+            context.pop();
+          },
+        );
+      },
+    ),
+    GoRoute(
+      path: '/story-analytics/:businessId',
+      name: 'story-analytics',
+      builder: (context, state) => StoryAnalyticsScreen(
+        businessId: state.pathParameters['businessId']!,
+        businessName: state.uri.queryParameters['name'] ?? 'Business',
+      ),
+    ),
+    GoRoute(
+      path: '/loyalty-cards',
+      name: 'loyalty-cards',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const LoyaltyCardsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/notification-preferences',
+      name: 'notification-preferences',
+      pageBuilder: (context, state) => sharedAxisVerticalPage(
+        key: state.pageKey,
+        child: const NotificationPreferencesScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/susu/position-picker',
+      name: 'susu-position-picker',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return SusuPositionPicker(
+          totalPositions: extra['totalPositions'] as int? ?? 10,
+          selectedPosition: extra['selectedPosition'] as int?,
+          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
+          onPositionSelected: extra['onPositionSelected'] as ValueChanged<int>? ?? (_) {},
+        );
+      },
+    ),
+    GoRoute(
+      path: '/susu/completion',
+      name: 'susu-completion',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return SusuCompletionScreen(
+          groupName: extra['groupName'] as String? ?? 'Susu Group',
+          totalContributed: extra['totalContributed'] as double? ?? 0,
+          totalPayout: extra['totalPayout'] as double? ?? 0,
+          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
+          currency: extra['currency'] as String? ?? 'GHS',
+        );
+      },
+    ),
+    GoRoute(
+      path: '/chat/:conversationId/search',
+      name: 'message-search',
+      builder: (context, state) => MessageSearchScreen(
+        conversationId: state.pathParameters['conversationId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/wallet-pass/:passType/:itemId',
+      name: 'wallet-pass',
+      builder: (context, state) => WalletPassScreen(
+        passType: state.pathParameters['passType']!,
+        itemId: state.pathParameters['itemId']!,
+        title: state.uri.queryParameters['title'] ?? '',
+        subtitle: state.uri.queryParameters['subtitle'] ?? '',
+      ),
+    ),
+    GoRoute(
+      path: '/orders/:orderId/tracking',
+      name: 'order-tracking',
+      builder: (context, state) => OrderTrackingScreen(
+        orderId: state.pathParameters['orderId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/vault/:vaultId/yield',
+      name: 'vault-yield',
+      builder: (context, state) => VaultYieldScreen(
+        vaultId: state.pathParameters['vaultId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/story-create',
+      name: 'story-creation',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return StoryCreationScreen(
+          mediaFile: extra['mediaFile'] as File,
+          isVideo: extra['isVideo'] as bool? ?? false,
+        );
+      },
+    ),
   ],
 );
 
@@ -321,7 +736,7 @@ class _DisputeScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.judge, size: 64, color: colors.danger),
+              Icon(Icons.gavel, size: 64, color: colors.danger),
               const SizedBox(height: 16),
               Text('Dispute #$disputeId',
                   style: TextStyle(
@@ -374,7 +789,6 @@ void handleNotificationTap({
     return;
   }
 
-  Widget? targetScreen;
   switch (action) {
     case 'OPEN_TRADE':
     case 'PING_TOPUP': {
@@ -452,6 +866,34 @@ void handleNotificationTap({
           memo: susuId == null ? null : 'susu:$susuId',
         ),
       ));
+      break;
+    }
+    case 'OPEN_CHAT': {
+      final conversationId = actionPayload?['conversationId']?.toString()
+          ?? actionPayload?['roomId']?.toString();
+      if (conversationId != null) {
+        navigator.push(MaterialPageRoute(
+          builder: (_) => FriendChatScreen(
+            friendshipId: conversationId,
+            friendUsername: actionPayload?['friendName']?.toString() ?? 'Friend',
+            friendId: int.tryParse(actionPayload?['friendId']?.toString() ?? '') ?? 0,
+          ),
+        ));
+      } else {
+        navigator.push(MaterialPageRoute(builder: (_) => const MessagesHubScreen()));
+      }
+      break;
+    }
+    case 'OPEN_ORDER': {
+      final orderId = actionPayload?['orderId']?.toString();
+      if (orderId != null) {
+        navigator.push(MaterialPageRoute(
+          builder: (_) => OrderTrackingScreen(
+            orderId: orderId,
+            orderRef: actionPayload?['orderRef']?.toString() ?? orderId,
+          ),
+        ));
+      }
       break;
     }
     case 'OPEN_PROOF_OF_RESIDENCY':
@@ -550,4 +992,43 @@ Map<String, dynamic>? parseFcmPayload(dynamic raw) {
     } catch (_) {}
   }
   return null;
+}
+
+// ── Phase 1.2: Crash-safe route error screen ──────────────────────────────
+class _AzamanRouteErrorScreen extends ConsumerWidget {
+  final Object? error;
+  const _AzamanRouteErrorScreen({this.error});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Page not found'), backgroundColor: colors.surface),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.explore_off, size: 56, color: colors.textTertiary),
+              const SizedBox(height: 16),
+              Text('This page could not be loaded.',
+                  style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              if (error != null)
+                Text('$error',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                    textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Back to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

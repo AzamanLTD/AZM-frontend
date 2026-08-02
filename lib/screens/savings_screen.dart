@@ -9,7 +9,9 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/savings_goal_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -54,7 +56,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final colors = ref.watch(themeProvider).colors;
 
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return const SkeletonList(itemHeight: 100, count: 4);
     }
 
     return RefreshIndicator(
@@ -105,38 +107,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
         ),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => HapticFeedback.selectionClick(),
-          child: SizedBox(
-            width: 30,
-            height: 30,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  HugeIconsSolid.notification01,
-                  color: colors.textPrimary,
-                  size: 24,
-                ),
-                Positioned(
-                  top: 3,
-                  right: 4,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: colors.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.background, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -171,7 +141,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           ),
         ),
         const SizedBox(width: 2),
-        Icon(HugeIconsSolid.arrowDown01, color: colors.textTertiary, size: 16),
+        Icon(Icons.arrow_downward, color: colors.textTertiary, size: 16),
       ],
     );
   }
@@ -196,7 +166,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.flag01,
+                icon: Icons.flag_outlined,
                 tint: colors.textPrimary,
                 background: colors.accent.withValues(alpha: 0.07),
                 title: 'New goal',
@@ -208,16 +178,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.lock,
+                icon: Icons.lock_outline,
                 tint: colors.textPrimary,
                 background: colors.success.withValues(alpha: 0.08),
                 title: 'Open a vault',
                 subtitle: 'Lock funds, earn rewards',
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const VaultListScreen()),
-                  );
+                  pushWithVerticalTransition(context, const VaultListScreen());
                 },
               ),
             ),
@@ -229,7 +196,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.userGroup,
+                icon: Icons.group_outlined,
                 tint: colors.textPrimary,
                 background: colors.warning.withValues(alpha: 0.10),
                 title: 'Join a Susu',
@@ -241,7 +208,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             Expanded(
               child: _ActionCard(
                 colors: colors,
-                icon: HugeIconsSolid.wallet01,
+                icon: Icons.account_balance_wallet_outlined,
                 tint: colors.textPrimary,
                 background: colors.softSurface,
                 title: 'Quick deposit',
@@ -275,10 +242,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           }
           final goal = Map<String, dynamic>.from(goals[index - 1] as Map);
           final name = goal['name']?.toString() ?? 'Goal';
+          final current = (goal["currentAmountGhs"] as num?)?.toDouble() ?? 0.0;
+          final target  = (goal["targetAmountGhs"] as num?)?.toDouble() ?? 1.0;
+          final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
           return _GoalCircle(
             colors: colors,
             label: name.split(' ').first,
             initials: _initials(name),
+            progress: progress,
             onTap: () {
               HapticFeedback.selectionClick();
               SavingsGoalSheet.show(
@@ -736,7 +707,7 @@ class _LockGoalCard extends StatelessWidget {
                   : colors.softSurface,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(HugeIconsSolid.lock, color: highlight, size: 16),
+            child: Icon(Icons.lock_outline, color: highlight, size: 16),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -800,8 +771,7 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
@@ -853,6 +823,7 @@ class _GoalCircle extends StatelessWidget {
   final String label;
   final String? initials;
   final bool isAdd;
+  final double progress;
   final VoidCallback onTap;
 
   const _GoalCircle({
@@ -861,58 +832,78 @@ class _GoalCircle extends StatelessWidget {
     required this.onTap,
     this.initials,
     this.isAdd = false,
+    this.progress = 0.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ScaleTap(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.only(right: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isAdd
-                    ? colors.softSurface
-                    : colors.accent.withValues(alpha: 0.14),
-              ),
-              child: isAdd
-                  ? Icon(
-                      HugeIconsSolid.add01,
-                      color: colors.textSecondary,
-                      size: 26,
-                    )
-                  : Text(
-                      initials ?? '?',
-                      style: TextStyle(
+            SizedBox(
+              width: 68, height: 68,
+              child: Stack(alignment: Alignment.center, children: [
+                if (!isAdd)
+                  SizedBox(
+                    width: 68, height: 68,
+                    child: CircularProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      strokeWidth: 3.5,
+                      color: colors.accent,
+                      backgroundColor: colors.softSurface,
+                    ),
+                  ),
+                Container(
+                  width: 56, height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isAdd
+                      ? colors.softSurface
+                      : colors.accent.withValues(alpha: 0.14),
+                  ),
+                  child: isAdd
+                    ? Icon(Icons.add,
+                        color: colors.textSecondary, size: 24)
+                    : Text(initials ?? "?",
+                        style: TextStyle(color: colors.accent,
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                ),
+                if (!isAdd)
+                  Positioned(
+                    bottom: 2, right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
                         color: colors.accent,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "${(progress * 100).toInt()}%",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
+                  ),
+              ]),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             SizedBox(
-              width: 64,
-              child: Text(
-                label,
+              width: 68,
+              child: Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.2,
-                ),
-              ),
+                style: TextStyle(color: colors.textSecondary,
+                  fontSize: 11, fontWeight: FontWeight.w500)),
             ),
           ],
         ),

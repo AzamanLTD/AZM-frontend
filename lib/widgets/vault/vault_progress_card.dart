@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VaultProgressCard extends StatelessWidget {
   final Vault vault;
@@ -40,6 +40,9 @@ class VaultProgressCard extends StatelessWidget {
     final isActive = vault.status == 'ACTIVE';
     final remaining = vault.maturityDate.difference(DateTime.now());
     final accent = isActive ? colors.accent : colors.textTertiary;
+    const rate = 0.08;
+    final daysTotal = vault.maturityDate.difference(vault.startDate).inDays;
+    final projected = vault.targetAmountUsdc * rate * (daysTotal / 365);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -51,10 +54,10 @@ class VaultProgressCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
-              color: colors.card.withOpacity(0.55),
+              color: colors.card.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: accent.withOpacity(0.20),
+                color: accent.withValues(alpha: 0.20),
                 width: 0.8,
               ),
             ),
@@ -70,18 +73,18 @@ class VaultProgressCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            accent.withOpacity(0.25),
-                            accent.withOpacity(0.10),
+                            accent.withValues(alpha: 0.25),
+                            accent.withValues(alpha: 0.10),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: accent.withOpacity(0.35),
+                          color: accent.withValues(alpha: 0.35),
                           width: 0.8,
                         ),
                       ),
                       child: Icon(
-                        isActive ? HugeIconsSolid.lock : HugeIconsSolid.lockKey,
+                        isActive ? Icons.lock_outline : Icons.key_outlined,
                         color: accent,
                         size: 16,
                       ),
@@ -119,37 +122,56 @@ class VaultProgressCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Progress
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    minHeight: 6,
-                    value: progress.toDouble(),
-                    backgroundColor: colors.divider,
-                    valueColor: AlwaysStoppedAnimation(accent),
+                // Progress ring + details
+                Row(children: [
+                  SizedBox(
+                    width: 56, height: 56,
+                    child: Stack(alignment: Alignment.center, children: [
+                      SizedBox(
+                        width: 56, height: 56,
+                        child: CircularProgressIndicator(
+                          value: progress.toDouble(),
+                          strokeWidth: 4,
+                          color: accent,
+                          backgroundColor: colors.softSurface,
+                        ),
+                      ),
+                      Text("${(progress * 100).toInt()}%",
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 11, fontWeight: FontWeight.w800)),
+                    ]),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(
-                      '\$${vault.currentAmountUsdc.toStringAsFixed(2)} / \$${vault.targetAmountUsdc.toStringAsFixed(2)}',
+                      '\$${vault.currentAmountUsdc.toStringAsFixed(2)} / \$${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
                       style: TextStyle(
                         color: colors.textSecondary,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Projected: +${projected.toStringAsFixed(2)} USDC by ${_shortDate(vault.maturityDate)}",
+                      style: TextStyle(color: colors.success, fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                    ),
+                  ])),
+                ]),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     _Chip(
-                      icon: HugeIconsSolid.fire,
+                      icon: Icons.local_fire_department_outlined,
                       label: '${vault.streakCount}',
                       color: colors.warning,
                     ),
                     const SizedBox(width: 6),
                     _Chip(
-                      icon: HugeIconsSolid.flash,
+                      icon: Icons.bolt_outlined,
                       label: vault.totalAzmEarned.toStringAsFixed(0),
                       color: colors.accentSecondary,
                     ),
@@ -161,6 +183,12 @@ class VaultProgressCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _shortDate(DateTime dt) {
+    final months = ["Jan","Feb","Mar","Apr","May","Jun",
+                    "Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
   }
 
   String _statusLine(Duration remaining) {
@@ -189,8 +217,8 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: color.withOpacity(0.10),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        color: color.withValues(alpha: 0.10),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Text(
         label,
@@ -217,7 +245,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

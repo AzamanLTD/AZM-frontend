@@ -6,7 +6,7 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
@@ -15,7 +15,11 @@ import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:azaman/widgets/business_card.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SavedBusinessesScreen extends ConsumerStatefulWidget {
   const SavedBusinessesScreen({super.key});
@@ -86,54 +90,47 @@ class _SavedBusinessesScreenState
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: colors.accent))
+          ? const SkeletonList(itemHeight: 90, count: 6)
           : saved.isEmpty
               ? const AzamanEmptyState(
-                  icon: HugeIconsStroke.bookmark02,
+                  icon: Icons.bookmark_outline,
                   title: 'No saved businesses',
                   subtitle: 'Tap the bookmark icon on any business to save it here.',
                 )
-              : ListView.separated(
+              : GridView.builder(
                   padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.78),
                   itemCount: saved.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
                     final bizId = saved.elementAt(i);
-                    final biz = _cache[bizId];
-                    if (biz == null) {
-                      return Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: colors.softSurface,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      );
+                    final b = _cache[bizId];
+                    if (b == null) {
+                      return Container(decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(16)));
                     }
                     return Dismissible(
-                      key: Key(bizId),
-                      direction: DismissDirection.endToStart,
+                      key: ValueKey(bizId), direction: DismissDirection.up,
+                      background: Container(decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                        child: const Align(alignment: Alignment.topCenter, child: Padding(padding: EdgeInsets.only(top: 12), child: Icon(Icons.delete_outline_rounded, color: Colors.red)))),
                       onDismissed: (_) {
                         AzamanHaptics.toggle();
                         ref.read(savedBusinessesProvider.notifier).remove(bizId);
                       },
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(
-                          color: colors.danger,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(HugeIconsSolid.delete02,
-                            color: Colors.white, size: 22),
-                      ),
-                      child: BusinessCard(
-                        business: biz,
-                        tall: false,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BusinessProfileScreen(bizId: bizId),
-                          ),
+                      child: GestureDetector(
+                        onTap: () => pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId)),
+                        child: PremiumGlassContainer(
+                          blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(12),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(flex: 3, child: Center(
+                              child: b.logoUrl != null
+                                ? ClipRRect(borderRadius: BorderRadius.circular(12), child: CachedNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity))
+                                : Container(decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle), padding: const EdgeInsets.all(16),
+                                    child: Icon(Icons.storefront_outlined, size: 28, color: colors.accent)),
+                            )),
+                            const SizedBox(height: 8),
+                            Text(b.businessName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 3),
+                            Row(children: [AnimatedRatingStars(rating: b.averageRating, size: 10), const Spacer(), Icon(Icons.bookmark_rounded, size: 14, color: colors.accent)]),
+                          ]),
                         ),
                       ),
                     );

@@ -84,11 +84,18 @@ class AzmSummary {
   final double totalEarned;
   final double currentBalance;
   final Map<String, AzmSourceStats> bySource;
+  // Added 2026-07-06: backend has tracked these correctly since the
+  // /auth/refresh streak-recording fix, but nothing on this response
+  // exposed them until now -- the Rewards page had no way to show them.
+  final int loginStreak;
+  final DateTime? lastLoginAt;
 
   const AzmSummary({
     required this.totalEarned,
     required this.currentBalance,
     required this.bySource,
+    this.loginStreak = 0,
+    this.lastLoginAt,
   });
 
   factory AzmSummary.fromJson(Map<String, dynamic> json) {
@@ -105,8 +112,68 @@ class AzmSummary {
       totalEarned: (json['totalEarned'] as num?)?.toDouble() ?? 0.0,
       currentBalance: (json['currentBalance'] as num?)?.toDouble() ?? 0.0,
       bySource: bySource,
+      loginStreak: (json['loginStreak'] as num?)?.toInt() ?? 0,
+      lastLoginAt: json['lastLoginAt'] != null
+          ? DateTime.tryParse(json['lastLoginAt'] as String)
+          : null,
     );
   }
+}
+
+// ─── Friends Leaderboard (2026-07-06) ───────────────────────────────────────
+
+class AzmLeaderboardEntry {
+  final int userId;
+  final String username;
+  final String? profilePictureUrl;
+  final double totalEarned;
+  final bool isMe;
+  final int rank;
+
+  const AzmLeaderboardEntry({
+    required this.userId,
+    required this.username,
+    this.profilePictureUrl,
+    required this.totalEarned,
+    required this.isMe,
+    required this.rank,
+  });
+
+  factory AzmLeaderboardEntry.fromJson(Map<String, dynamic> json) {
+    return AzmLeaderboardEntry(
+      userId: (json['userId'] as num).toInt(),
+      username: json['username'] as String? ?? 'Unknown',
+      profilePictureUrl: json['profilePictureUrl'] as String?,
+      totalEarned: (json['totalEarned'] as num?)?.toDouble() ?? 0.0,
+      isMe: json['isMe'] as bool? ?? false,
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class AzmFriendsLeaderboard {
+  final List<AzmLeaderboardEntry> entries;
+  final int? myRank;
+  final int totalMembers;
+
+  const AzmFriendsLeaderboard({
+    required this.entries,
+    required this.myRank,
+    required this.totalMembers,
+  });
+
+  factory AzmFriendsLeaderboard.fromJson(Map<String, dynamic> json) {
+    final list = (json['leaderboard'] as List? ?? [])
+        .map((e) => AzmLeaderboardEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return AzmFriendsLeaderboard(
+      entries: list,
+      myRank: (json['myRank'] as num?)?.toInt(),
+      totalMembers: (json['totalMembers'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  static const empty = AzmFriendsLeaderboard(entries: [], myRank: null, totalMembers: 0);
 }
 
 class AzmSourceStats {
@@ -208,6 +275,13 @@ class AzmRewardService {
     final response = await apiClient.get('/azm/rates', requireAuth: false);
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return AzmRates.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Fetch the caller + their accepted friends ranked by total AZM earned.
+  Future<AzmFriendsLeaderboard> getFriendsLeaderboard({int limit = 20}) async {
+    final response = await apiClient.get('/azm/friends-leaderboard?limit=$limit');
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return AzmFriendsLeaderboard.fromJson(body['data'] as Map<String, dynamic>);
   }
 }
 

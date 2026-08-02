@@ -32,11 +32,21 @@ dependencies:
   # For proof of payment uploads
   image_picker: ^1.2.1
 
+  # `image_cropper` lets users crop/rotate photos before sending in chat.
+  image_cropper: ^8.0.2
+
+  # Restaurant flip-book menu (pinned — proprietary license, approved-PR-only upstream)
+  turnable_page:
+    git:
+      url: https://github.com/saeedahmed725/turnable_page.git
+      ref: e8ad982c8e7c0ba9f8665274fbc5f604da8dc751
+
   # --- SURGICALLY ADDED FOR TRADE EFFICIENCY ---
   # Fixes canLaunchUrl & LaunchMode errors
   url_launcher: ^6.3.0  
   # Fixes Undefined name 'Share' error
-  share_plus: ^10.1.0    
+  share_plus: ^12.0.2
+  google_maps_flutter: ^2.9.0
   # For Binance-style haptic feedback (vibration)
   vibration: ^2.0.1      
   # ----------------------------------------------
@@ -50,7 +60,7 @@ dependencies:
 
   # --- CRASH / ERROR MONITORING (F-05) ---
   # Inert unless --dart-define=SENTRY_DSN=... is passed at build time.
-  sentry_flutter: ^8.9.0
+  sentry_flutter: ^9.22.0
   # ----------------------------------------------
 
   # Audio recording for account deletion feedback
@@ -111,6 +121,7 @@ dependencies:
   # don't sit in front of a spinning fetch with no signal. Watches radio
   # state changes (wifi / mobile / ethernet / none).
   connectivity_plus: ^6.1.0
+  flutter_webrtc: ^0.12.0
 
   # --- PHASE UI-OVERHAUL: Premium micro-interactions (gskinner) ---
   # `flutter_animate` is the canonical micro-interaction layer for the
@@ -122,6 +133,14 @@ dependencies:
   flutter_animate: ^4.5.0
   flutter_svg: ^2.3.0
 
+  # --- UI/UX SPRINT (2026-07-08): Material motion transitions ---
+  # Official Flutter-team package. Used for:
+  #   - Container transform (OpenContainer): bubble→sheet, story tap open/close,
+  #     chat attachment menu open, info popover open/close
+  #   - Shared axis (SharedAxisTransition): business profile pill-tab switches
+  #   - Fade through (FadeThroughTransition): bottom nav tab switches
+  animations: ^2.2.0
+
   # --- FLUTTER V3 MARKETPLACE SPRINT (2026-06-21) ---
   # `geolocator` resolves the user's GPS coordinates for the "Near You"
   # nearby-business search (/api/business/search/nearby?lat=&lng=).
@@ -131,10 +150,44 @@ dependencies:
   geolocator: ^13.0.1
   cached_network_image: ^3.4.1
 
+  # `video_player` plays story videos and video content in feeds.
+  # Pinned to 2.9.x for API stability.
+  video_player: ^2.9.2
+
+  # --- CHATS · NOTIFICATIONS · TRANSACTIONS SPRINT (2026-06-28) ---
+  # PDF printing & generation for ticket/transaction exports
+  printing: ^5.12.0
+  pdf: ^3.10.7
+  # Sticker pack caching
+  flutter_cache_manager: ^3.3.1
+  # Shimmer loading on transaction history rows
+  shimmer: ^3.0.0
+  # Date formatting for date-separator chips
+  intl: ^0.19.0
+  # Optional — emoji shortcode in sticker packs
+  dart_emoji: ^0.2.0
+  flutter_contacts: ^2.1.0
+  crypto: ^3.0.7
+  pinenacl: ^0.6.0  # X25519 + NaCl box for E2EE
+  hugeicons: ^1.1.7
+
+  uuid: any
+  http_parser: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: 2.4.7
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/azaman_logo_padded.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/azaman_logo_padded.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
@@ -144,6 +197,16 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/icons/
+    - assets/stickers/static/
+    - assets/stickers/animated/
+    - assets/chat_wallpapers/
 
 dependency_overrides:
   objective_c: 9.3.0
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/azaman_logo_splash.png"
+  android_12:
+    image: "assets/images/azaman_logo_splash.png"
+    color: "#FFFFFF"
+

@@ -37,7 +37,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SusuDashboardScreen extends ConsumerWidget {
   final String susuId;
@@ -57,7 +57,7 @@ class SusuDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
@@ -113,6 +113,11 @@ class SusuDashboardScreen extends ConsumerWidget {
                     .animate()
                     .fadeIn(duration: 320.ms)
                     .slideY(begin: 0.05, end: 0),
+                if (susu.status == SusuStatus.completed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _CompletionCelebrationCard(susu: susu, colors: colors),
+                  ),
                 if (susu.status == SusuStatus.frozenDispute)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -148,6 +153,12 @@ class SusuDashboardScreen extends ConsumerWidget {
                   meUserId: me?.id,
                   colors: colors,
                 ),
+                if (cycles.valueOrNull != null && cycles.valueOrNull!.isNotEmpty)
+                  _SusuPayoutTimeline(
+                    cycles: cycles.valueOrNull!,
+                    currentUserId: me?.id,
+                    colors: colors,
+                  ),
                 const SizedBox(height: 18),
                 _SectionTitle('Cycle schedule', colors: colors),
                 const SizedBox(height: 8),
@@ -207,19 +218,19 @@ class _Hero extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withOpacity(0.18),
-            colors.accent.withOpacity(0.05),
+            color.withValues(alpha: 0.18),
+            colors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank, color: color, size: 18),
+              Icon(Icons.account_balance_outlined, color: color, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Susu · ${susu.frequency.label}',
@@ -234,10 +245,10 @@ class _Hero extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.10),
+                  color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
                   border:
-                      Border.all(color: color.withOpacity(0.30), width: 0.7),
+                      Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
                 ),
                 child: Text(
                   label,
@@ -284,13 +295,13 @@ class _FrozenBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.08),
+        color: colors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.danger.withOpacity(0.30)),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.lock, color: colors.danger, size: 16),
+          Icon(Icons.lock_outline, color: colors.danger, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -309,6 +320,90 @@ class _FrozenBanner extends StatelessWidget {
   }
 }
 
+class _CompletionCelebrationCard extends StatelessWidget {
+  final SusuDetail susu;
+  final AzamanColors colors;
+  const _CompletionCelebrationCard({required this.susu, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPayout = susu.contributionUsdc * susu.totalCycles;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.accent.withValues(alpha: 0.20),
+            colors.accent.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.celebration, color: colors.accent, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Susu Complete! 🎉',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'This Susu group has completed all ${susu.totalCycles} cycles. '
+            'Total pool: \$${susu.contributionUsdc.toStringAsFixed(2)} × ${susu.totalCycles} = \$${totalPayout.toStringAsFixed(2)}',
+            style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.push('/susu/completion', extra: {
+                  'groupName': susu.name,
+                  'totalContributed': susu.contributionUsdc * susu.totalCycles,
+                  'totalPayout': totalPayout,
+                  'members': susu.members.map((m) => {
+                    'username': m.displayName,
+                    'avatarUrl': m.avatar,
+                    'position': m.cycleSlot ?? 0,
+                    'receivedAmount': susu.contributionUsdc * susu.totalCycles / susu.members.length,
+                  }).toList(),
+                  'currency': 'GHS',
+                });
+              },
+              icon: const Icon(Icons.celebration, size: 18),
+              label: const Text(
+                'View Celebration',
+                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
+  }
+}
+
 class _AcceptContractCta extends StatelessWidget {
   final String susuId;
   final AzamanColors colors;
@@ -318,7 +413,7 @@ class _AcceptContractCta extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
       onPressed: () => context.push('/susu/$susuId/contract'),
-      icon: const Icon(HugeIconsSolid.judge, size: 16),
+      icon: const Icon(Icons.gavel, size: 16),
       label: const Text(
         'Read & sign Liability Contract',
         style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -376,7 +471,7 @@ class _UpcomingCycleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(HugeIconsSolid.checkmarkCircle01,
+            Icon(Icons.check_circle_outline,
                 color: colors.success, size: 16),
             const SizedBox(width: 8),
             Expanded(
@@ -407,8 +502,8 @@ class _UpcomingCycleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: ready
-              ? colors.success.withOpacity(0.30)
-              : colors.warning.withOpacity(0.30),
+              ? colors.success.withValues(alpha: 0.30)
+              : colors.warning.withValues(alpha: 0.30),
           width: 0.7,
         ),
       ),
@@ -417,7 +512,7 @@ class _UpcomingCycleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.clock01,
+              Icon(Icons.access_time,
                   color: ready ? colors.success : colors.warning, size: 16),
               const SizedBox(width: 6),
               Text(
@@ -462,14 +557,14 @@ class _UpcomingCycleCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.10),
+                color: colors.success.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: colors.success.withOpacity(0.30), width: 0.7),
+                    color: colors.success.withValues(alpha: 0.30), width: 0.7),
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01,
+                  Icon(Icons.check_circle_outline,
                       color: colors.success, size: 14),
                   const SizedBox(width: 6),
                   Text(
@@ -493,7 +588,7 @@ class _UpcomingCycleCard extends StatelessWidget {
                   final memo = Uri.encodeComponent('susu:${susu.id}');
                   context.push('/deposit?amount=$amount&memo=$memo');
                 },
-                icon: const Icon(HugeIconsSolid.wallet01,
+                icon: const Icon(Icons.account_balance_wallet_outlined,
                     size: 16),
                 label: Text(
                   'Fund \$${shortfall.toStringAsFixed(2)} to cover cycle',
@@ -626,7 +721,7 @@ class _MembersRoster extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: colors.accent.withOpacity(0.15),
+                      backgroundColor: colors.accent.withValues(alpha: 0.15),
                       child: Text(
                         m.displayName.isEmpty
                             ? '?'
@@ -663,7 +758,7 @@ class _MembersRoster extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 5, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: colors.accent.withOpacity(0.15),
+                                    color: colors.accent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -679,7 +774,7 @@ class _MembersRoster extends StatelessWidget {
                               ],
                               if (m.role.toUpperCase() == 'ADMIN') ...[
                                 const SizedBox(width: 4),
-                                Icon(HugeIconsSolid.shield01,
+                                Icon(Icons.shield_outlined,
                                     color: colors.warning, size: 12),
                               ],
                             ],
@@ -696,10 +791,10 @@ class _MembersRoster extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.10),
+                        color: statusColor.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                            color: statusColor.withOpacity(0.30),
+                            color: statusColor.withValues(alpha: 0.30),
                             width: 0.7),
                       ),
                       child: Text(
@@ -782,7 +877,7 @@ class _CycleSchedule extends StatelessWidget {
                       width: 30,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.10),
+                        color: colors.accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
@@ -822,10 +917,10 @@ class _CycleSchedule extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.10),
+                        color: color.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                            color: color.withOpacity(0.30), width: 0.7),
+                            color: color.withValues(alpha: 0.30), width: 0.7),
                       ),
                       child: Text(
                         label,
@@ -883,7 +978,7 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              notFound ? HugeIconsSolid.lock : HugeIconsSolid.alertCircle,
+              notFound ? Icons.lock_outline : Icons.error_outline,
               size: 48,
               color: colors.textTertiary,
             ),
@@ -968,7 +1063,7 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.savings, color: colors.accent, size: 16),
+              Icon(Icons.savings_outlined, color: colors.accent, size: 16),
               const SizedBox(width: 8),
               Text('Make payouts work for you',
                   style: TextStyle(
@@ -1026,5 +1121,120 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
         ],
       ),
     );
+  }
+}
+
+class _SusuPayoutTimeline extends StatelessWidget {
+  final List<SusuCycleView> cycles;
+  final String? currentUserId;
+  final AzamanColors colors;
+
+  const _SusuPayoutTimeline({
+    required this.cycles,
+    required this.currentUserId,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mySlotIndex = cycles.indexWhere((cycle) =>
+      cycle.payoutUserId.toString() == currentUserId);
+    final nextPendingIndex = cycles.indexWhere((cycle) =>
+      cycle.status == SusuCycleStatus.pending || cycle.status == SusuCycleStatus.collecting || cycle.status == SusuCycleStatus.collectingGrace);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (nextPendingIndex >= 0) ...[
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              colors.accent.withValues(alpha: 0.15),
+              colors.accent.withValues(alpha: 0.05)]),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
+          ),
+          child: Row(children: [
+            Icon(Icons.event_available_outlined, color: colors.accent, size: 24),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Next Payout — Slot ${nextPendingIndex + 1}",
+                style: TextStyle(color: colors.accent,
+                  fontSize: 13, fontWeight: FontWeight.w800)),
+              Text(
+                cycles[nextPendingIndex].payoutUserId.toString() == currentUserId
+                  ? "Your turn!"
+                  : "Slot #${nextPendingIndex + 1}",
+                style: TextStyle(color: colors.textPrimary,
+                  fontSize: 16, fontWeight: FontWeight.w900)),
+              Text(
+                _fmtDateInline(cycles[nextPendingIndex].scheduledRunAt),
+                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+            ])),
+            if (mySlotIndex >= 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text("Your slot: #${mySlotIndex + 1}",
+                  style: const TextStyle(color: Colors.white,
+                    fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+          ]),
+        ),
+      ],
+      SizedBox(
+        height: 70,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(bottom: 12),
+          itemCount: cycles.length,
+          itemBuilder: (_, i) {
+            final cycle = cycles[i];
+            final isMe = cycle.payoutUserId.toString() == currentUserId;
+            final isDone = cycle.status == SusuCycleStatus.paidOut;
+            final isNext = i == nextPendingIndex;
+            final color = isDone ? colors.success
+                : isMe   ? colors.accent
+                : colors.softSurface;
+            return Container(
+              width: 52, margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDone || isMe ? 0.15 : 1.0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isNext ? colors.accent : colors.divider,
+                  width: isNext ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("#${i + 1}",
+                    style: TextStyle(
+                      color: isDone ? colors.success : isMe ? colors.accent : colors.textTertiary,
+                      fontSize: 14, fontWeight: FontWeight.w800)),
+                  if (isDone)
+                    Icon(Icons.check, color: colors.success, size: 14)
+                  else if (isMe)
+                    Icon(Icons.person_outline, color: colors.accent, size: 12)
+                  else
+                    const SizedBox.shrink(),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    ]);
+  }
+
+  String _fmtDateInline(DateTime dt) {
+    final months = ["Jan","Feb","Mar","Apr","May","Jun",
+                    "Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 }

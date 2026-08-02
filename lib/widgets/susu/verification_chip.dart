@@ -9,7 +9,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VerificationChip extends StatelessWidget {
   final String label; // 'KYC' | 'PoA'
@@ -31,16 +31,16 @@ class VerificationChip extends StatelessWidget {
       _ => colors.danger,
     };
     final icon = switch (state) {
-      'green' => HugeIconsSolid.checkmarkCircle01,
-      'yellow' => HugeIconsSolid.hourglass,
-      _ => HugeIconsSolid.cancel01,
+      'green' => Icons.check_circle_outline,
+      'yellow' => Icons.hourglass_empty,
+      _ => Icons.cancel_outlined,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: color.withOpacity(0.40), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.40), width: 0.7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -38,7 +38,11 @@ import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
   final String friendshipId;
@@ -332,37 +336,31 @@ class _IdentityTier extends StatelessWidget {
         profile.friend.username.isNotEmpty ? profile.friend.username : fallbackUsername;
     final nickname = profile.myNicknameForFriend;
 
-    return Container(
+    return PremiumGlassContainer(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.divider),
+      padding: const EdgeInsets.all(20),
+      borderRadius: 24,
+      blur: 30,
+      opacity: 0.15,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colors.accent.withValues(alpha: 0.2),
+          colors.card.withValues(alpha: 0.05),
+          colors.accent.withValues(alpha: 0.05),
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent.withOpacity(0.15),
-                  border:
-                      Border.all(color: colors.accent.withOpacity(0.4), width: 1),
-                ),
-                child: Center(
-                  child: Text(
-                    username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
+              ChatAvatar(
+                imageUrl: profile.friend.profilePictureUrl,
+                name: username,
+                size: 64,
+                showOnlineDot: false,
+                heroTag: 'avatar-${profile.friend.id}',
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -394,15 +392,15 @@ class _IdentityTier extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 6),
                             child: Tooltip(
                               message: 'Verified vendor',
-                              child: Icon(HugeIconsSolid.checkmarkCircle01,
+                              child: Icon(Icons.check_circle_outline,
                                   color: colors.accent, size: 18),
                             ),
                           )
                         else if (profile.friend.kycStatus == 'VERIFIED')
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: Icon(HugeIconsSolid.checkmarkCircle01,
-                                color: const Color(0xFF22C55E), size: 18),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6),
+                            child: Icon(Icons.check_circle_outline,
+                                color: Color(0xFF22C55E), size: 18),
                           ),
                       ],
                     ),
@@ -428,7 +426,7 @@ class _IdentityTier extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onEditNickname,
-                icon: Icon(HugeIconsSolid.pencilEdit01,
+                icon: Icon(Icons.edit_outlined,
                     color: colors.accent, size: 20),
                 tooltip: 'Edit nickname',
               ),
@@ -446,7 +444,7 @@ class _IdentityTier extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatPill(
-                  icon: HugeIconsSolid.task01,
+                  icon: Icons.task_alt_outlined,
                   label: 'Completed',
                   value: '${profile.friend.completedTransactions}',
                   colors: colors,
@@ -457,7 +455,7 @@ class _IdentityTier extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
-                  icon: HugeIconsSolid.star,
+                  icon: Icons.star_outline,
                   label: 'Rating',
                   value: profile.friend.rating != null
                       ? profile.friend.rating!.toStringAsFixed(1)
@@ -468,7 +466,7 @@ class _IdentityTier extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
-                  icon: HugeIconsSolid.agreement01,
+                  icon: Icons.handshake_outlined,
                   label: 'Mutual',
                   value: '${profile.mutualTradesCompleted}',
                   colors: colors,
@@ -513,12 +511,12 @@ class _StatPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: highlight
-            ? colors.accent.withOpacity(0.06)
+            ? colors.accent.withValues(alpha: 0.06)
             : colors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: highlight
-              ? colors.accent.withOpacity(0.30)
+              ? colors.accent.withValues(alpha: 0.30)
               : colors.divider,
         ),
       ),
@@ -544,7 +542,7 @@ class _StatPill extends StatelessWidget {
               ),
               if (onTap != null)
                 Icon(
-                  HugeIconsSolid.arrowRight01,
+                  Icons.arrow_forward,
                   color: iconColor,
                   size: 14,
                 ),
@@ -590,7 +588,7 @@ class _MediaTab extends ConsumerWidget {
     }
     if (state.mediaItems.isEmpty) {
       return _EmptyVault(
-        icon: HugeIconsSolid.image01,
+        icon: Icons.image_outlined,
         label: 'No shared media yet.',
         colors: colors,
         onRefresh: notifier.refreshMedia,
@@ -646,13 +644,13 @@ class _MediaTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (item.type == 'IMAGE' && url != null)
-              Image.network(
+              CachedNetworkImage(imageUrl: 
                 _resolve(url),
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorWidget: (_, __, ___) => Container(
                   color: colors.card,
                   alignment: Alignment.center,
-                  child: Icon(HugeIconsSolid.image01,
+                  child: Icon(Icons.image_outlined,
                       color: colors.textTertiary, size: 22),
                 ),
               )
@@ -662,8 +660,8 @@ class _MediaTile extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Icon(
                   item.type == 'VIDEO'
-                      ? HugeIconsSolid.play
-                      : HugeIconsSolid.image01,
+                      ? Icons.play_circle_outline
+                      : Icons.image_outlined,
                   color: colors.textTertiary,
                   size: 28,
                 ),
@@ -673,10 +671,10 @@ class _MediaTile extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
+                    color: Colors.black.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(HugeIconsSolid.play,
+                  child: const Icon(Icons.play_circle_outline,
                       color: Colors.white, size: 18),
                 ),
               ),
@@ -688,7 +686,7 @@ class _MediaTile extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.9),
+                    color: colors.accent.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -727,7 +725,7 @@ class _DocsLinksTab extends ConsumerWidget {
     }
     if (state.docsLinkItems.isEmpty) {
       return _EmptyVault(
-        icon: HugeIconsSolid.link01,
+        icon: Icons.link,
         label: 'No shared documents or links yet.',
         colors: colors,
         onRefresh: notifier.refreshDocsLinks,
@@ -783,11 +781,11 @@ class _DocLinkRow extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
-                    Icon(HugeIconsSolid.link01, color: colors.accent, size: 18),
+                    Icon(Icons.link, color: colors.accent, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -818,7 +816,7 @@ class _DocLinkRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(HugeIconsSolid.share01,
+              Icon(Icons.share_outlined,
                   color: colors.textTertiary, size: 16),
             ],
           ),
@@ -844,7 +842,7 @@ class _DocLinkRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.12),
+                color: colors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(_iconForMime(item.mediaMimeType),
@@ -877,7 +875,7 @@ class _DocLinkRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.download01,
+            Icon(Icons.download_outlined,
                 color: colors.textTertiary, size: 16),
           ],
         ),
@@ -915,17 +913,17 @@ class _DocLinkRow extends StatelessWidget {
   }
 
   IconData _iconForMime(String? mime) {
-    if (mime == null) return HugeIconsSolid.file01;
-    if (mime.contains('pdf')) return HugeIconsSolid.pdf01;
+    if (mime == null) return Icons.insert_drive_file_outlined;
+    if (mime.contains('pdf')) return Icons.picture_as_pdf_outlined;
     if (mime.contains('word') || mime.contains('msword')) {
-      return HugeIconsSolid.note01;
+      return Icons.note_outlined;
     }
     if (mime.contains('excel') || mime.contains('spreadsheet')) {
-      return HugeIconsSolid.grid02;
+      return Icons.grid_on_outlined;
     }
-    if (mime.contains('presentation')) return HugeIconsSolid.film01;
-    if (mime.startsWith('text')) return HugeIconsSolid.note01;
-    return HugeIconsSolid.file01;
+    if (mime.contains('presentation')) return Icons.movie_outlined;
+    if (mime.startsWith('text')) return Icons.note_outlined;
+    return Icons.insert_drive_file_outlined;
   }
 
   String _formatBytes(int bytes) {
@@ -969,7 +967,7 @@ class _TicketsTab extends ConsumerWidget {
     }
     if (all.isEmpty) {
       return _EmptyVault(
-        icon: HugeIconsSolid.ticket01,
+        icon: Icons.confirmation_number_outlined,
         label: 'No tickets between you yet.',
         colors: colors,
         onRefresh: notifier.refresh,
@@ -1014,15 +1012,8 @@ class _TicketRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TicketWorkspaceScreen(
-            ticketId: ticket.id,
-            friendUsername: friendUsername,
-          ),
-        ),
-      ),
+      onTap: () => pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: ticket.id,
+            friendUsername: friendUsername,)),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1036,10 +1027,10 @@ class _TicketRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.12),
+                color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.ticket01,
+              child: Icon(Icons.confirmation_number_outlined,
                   color: colors.accent, size: 18),
             ),
             const SizedBox(width: 10),
@@ -1065,7 +1056,7 @@ class _TicketRow extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _statusColor.withOpacity(0.14),
+                          color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -1089,7 +1080,7 @@ class _TicketRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.arrowRight01,
+            Icon(Icons.arrow_forward,
                 color: colors.textTertiary, size: 18),
           ],
         ),
@@ -1150,7 +1141,7 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
     }
     if (state.receiptItems.isEmpty) {
       return _EmptyVault(
-        icon: HugeIconsSolid.receiptDollar,
+        icon: Icons.receipt_long_outlined,
         label: 'No P2P transfers between you yet.',
         sublabel: 'Casual money transfers (with a tracking reason) appear here as immutable receipts.',
         colors: colors,
@@ -1227,11 +1218,11 @@ class _ReceiptRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: (isSent ? colors.warning : colors.success).withOpacity(0.12),
+              color: (isSent ? colors.warning : colors.success).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              isSent ? HugeIconsSolid.arrowUp01 : HugeIconsSolid.arrowDown01,
+              isSent ? Icons.arrow_upward : Icons.arrow_downward,
               color: isSent ? colors.warning : colors.success,
               size: 18,
             ),
@@ -1260,7 +1251,7 @@ class _ReceiptRow extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _statusColor.withOpacity(0.14),
+                        color: _statusColor.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1306,7 +1297,7 @@ class _ReceiptRow extends StatelessWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: colors.accent),
                     )
-                  : Icon(HugeIconsSolid.download01,
+                  : Icon(Icons.download_outlined,
                       color: colors.accent, size: 18),
               tooltip: 'Download receipt PDF',
             ),
@@ -1397,7 +1388,7 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.alertCircle,
+            Icon(Icons.error_outline,
                 color: colors.danger, size: 36),
             const SizedBox(height: 10),
             Text('Could not load profile',
@@ -1412,7 +1403,7 @@ class _ErrorRetry extends StatelessWidget {
             OutlinedButton(
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
               ),
               child: Text('Retry', style: TextStyle(color: colors.accent)),
             ),
@@ -1447,7 +1438,7 @@ class _CountedTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
+                color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1487,7 +1478,7 @@ class _LoadMoreButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: colors.accent.withOpacity(0.4)),
+          side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),

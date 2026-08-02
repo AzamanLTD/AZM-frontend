@@ -8,13 +8,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class MyInvoicesScreen extends ConsumerStatefulWidget {
   const MyInvoicesScreen({super.key});
@@ -88,44 +92,45 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
           indicatorColor: colors.accent,
           labelStyle:
               const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
-          tabs: const [
-            Tab(text: 'Unpaid'),
-            Tab(text: 'Paid'),
-            Tab(text: 'All'),
+          tabs: [
+            Tab(text: 'Unpaid  (${state.invoices.where((i) => i.status == InvoiceStatus.sent).length})'),
+            Tab(text: 'Paid  (${state.invoices.where((i) => i.status == InvoiceStatus.paid).length})'),
+            Tab(text: 'All  (${state.invoices.length})'),
           ],
         ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 72, count: 5)
           : invoices.isEmpty
-              ? AzamanEmptyState(
-                  icon: HugeIconsSolid.invoice01,
+              ? const AzamanEmptyState(
+                  icon: Icons.receipt_outlined,
                   title: 'No invoices here',
                   subtitle: 'Invoices from businesses will appear here.',
                 )
-              : RefreshIndicator(
-                  onRefresh: () =>
+              : AzPullToRefresh(
+        onRefresh: () =>
                       ref.read(myInvoicesProvider.notifier).load(),
-                  child: ListView.separated(
+        child: ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: invoices.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _InvoiceCard(
+                    itemBuilder: (_, i) => StaggeredItem(
+                      index: i,
+                      child: _InvoiceCard(
                       invoice: invoices[i],
                       colors: colors,
                       onTap: () async {
-                        await Navigator.push(
+                        await pushWithVerticalTransition(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => InvoiceDetailScreen(
-                                invoiceId: invoices[i].id),
-                          ),
+                          InvoiceDetailScreen(
+                              invoiceId: invoices[i].id),
                         );
                         if (mounted) {
                           ref.read(myInvoicesProvider.notifier).load();
                         }
                       },
+                    ),
                     ),
                   ),
                 ),
@@ -180,7 +185,7 @@ class _InvoiceCard extends StatelessWidget {
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(HugeIconsSolid.invoice01,
+              child: Icon(Icons.receipt_outlined,
                   color: colors.accent, size: 20),
             ),
             const SizedBox(width: 12),

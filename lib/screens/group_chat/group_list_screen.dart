@@ -13,7 +13,8 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_create_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class GroupListScreen extends ConsumerWidget {
   const GroupListScreen({super.key});
@@ -28,7 +29,7 @@ class GroupListScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Groups',
@@ -48,7 +49,7 @@ class GroupListScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 children: [
                   const SizedBox(height: 80),
-                  Icon(HugeIconsSolid.userAdd01, size: 56, color: colors.textTertiary),
+                  Icon(Icons.person_add_outlined, size: 56, color: colors.textTertiary),
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
@@ -82,10 +83,7 @@ class GroupListScreen extends ConsumerWidget {
                   child: _GroupTile(
                     group: g,
                     colors: colors,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => GroupChatScreen(groupId: g.id)),
-                    ),
+                    onTap: () => pushWithVerticalTransition(context, GroupChatScreen(groupId: g.id)),
                   )
                       .animate()
                       .fadeIn(delay: (i * 50).ms, duration: 280.ms)
@@ -99,14 +97,11 @@ class GroupListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const GroupCreateScreen()),
-          );
+          pushWithVerticalTransition(context, const GroupCreateScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(HugeIconsSolid.userAdd01, size: 18),
+        icon: const Icon(Icons.person_add_outlined, size: 18),
         label: const Text('New Group',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3)),
       ),
@@ -132,7 +127,7 @@ class _GroupTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: colors.card.withOpacity(0.55),
+              color: colors.card.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.divider, width: 0.7),
             ),
@@ -145,8 +140,8 @@ class _GroupTile extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        colors.accent.withOpacity(0.30),
-                        colors.accent.withOpacity(0.10),
+                        colors.accent.withValues(alpha: 0.30),
+                        colors.accent.withValues(alpha: 0.10),
                       ],
                     ),
                   ),
@@ -194,7 +189,7 @@ class _GroupTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
+                Icon(Icons.arrow_forward, color: colors.textTertiary, size: 16),
               ],
             ),
           ),
@@ -234,15 +229,15 @@ class _SusuChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (configuring) ...[
-            Icon(HugeIconsSolid.clock01, color: color, size: 8),
+            Icon(Icons.access_time, color: color, size: 8),
             const SizedBox(width: 3),
           ],
           Text(

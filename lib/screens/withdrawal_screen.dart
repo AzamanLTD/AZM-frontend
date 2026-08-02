@@ -39,13 +39,14 @@ import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 // ── Mode / network enums ─────────────────────────────────────────────────────
 
 enum _WithdrawMode { mobileMoney, cryptoWallet }
 
-enum MomoNetwork { mtn, vodafone, airtelTigo }
+enum MomoNetwork { mtn, telecel, airtelTigo }
 
 extension on MomoNetwork {
   /// Backend-canonical token sent on the wire.
@@ -53,8 +54,8 @@ extension on MomoNetwork {
     switch (this) {
       case MomoNetwork.mtn:
         return 'MTN';
-      case MomoNetwork.vodafone:
-        return 'VODAFONE';
+      case MomoNetwork.telecel:
+        return 'TELECEL';
       case MomoNetwork.airtelTigo:
         return 'AIRTELTIGO';
     }
@@ -105,6 +106,23 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // started owning the AZM debit (Phase E2 BUGFIX 2026-05-27) and was
   // retired.
   FeeDiscountTier? _selectedFeeDiscount;
+
+  // ── Fee preview ────────────────────────────────────────────────────────
+  double _feeComputed = 0.0;
+  double _youReceive  = 0.0;
+  double _amountVal   = 0.0;
+
+  void _updateFeePreview(String raw) {
+    final amt = double.tryParse(raw) ?? 0.0;
+    const baseRate = 0.02;
+    final discount = _selectedFeeDiscount?.discount ?? 0.0;
+    final fee = amt * baseRate * (1 - discount);
+    setState(() {
+      _amountVal   = amt;
+      _feeComputed = fee;
+      _youReceive  = amt - fee;
+    });
+  }
 
   // ── Recent Withdrawals (Phase Q11) ─────────────────────────────────────
   List<Map<String, dynamic>> _recentCompletedWithdrawals = [];
@@ -436,17 +454,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartRouteListScreen()),
-        );
+        pushWithVerticalTransition(context, const SmartRouteListScreen());
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
             Icon(
-              HugeIconsSolid.directionLeft01,
+              Icons.turn_left,
               color: colors.textPrimary,
               size: 20,
             ),
@@ -462,7 +477,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               ),
             ),
             Icon(
-              HugeIconsSolid.arrowRight01,
+              Icons.arrow_forward,
               color: colors.textTertiary,
               size: 18,
             ),
@@ -490,7 +505,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           child: Row(
             children: [
               Icon(
-                HugeIconsSolid.transactionHistory,
+                Icons.history,
                 color: colors.textPrimary,
                 size: 18,
               ),
@@ -517,14 +532,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     setState(() => _recentWithdrawalsExpanded = false);
                   },
                   icon: Icon(
-                    HugeIconsSolid.cancel01,
+                    Icons.cancel_outlined,
                     color: colors.textTertiary,
                     size: 18,
                   ),
                 )
               else
                 Icon(
-                  HugeIconsSolid.arrowDown01,
+                  Icons.arrow_downward,
                   color: colors.textTertiary,
                   size: 18,
                 ),
@@ -572,7 +587,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               child: Row(
                 children: [
                   Icon(
-                    HugeIconsSolid.checkmarkCircle01,
+                    Icons.check_circle_outline,
                     color: colors.success,
                     size: 18,
                   ),
@@ -621,7 +636,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  HugeIconsSolid.download01,
+                                  Icons.download_outlined,
                                   color: colors.accent,
                                   size: 14,
                                 ),
@@ -702,7 +717,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(
-            HugeIconsSolid.arrowLeft01,
+            Icons.arrow_back,
             color: colors.textPrimary,
             size: 18,
           ),
@@ -775,8 +790,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             children: [
               Icon(
                 isCritical
-                    ? HugeIconsSolid.alertCircle
-                    : HugeIconsSolid.informationCircle,
+                    ? Icons.error_outline
+                    : Icons.info_outline,
                 color: accent,
                 size: 18,
               ),
@@ -897,7 +912,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         TextField(
           controller: _amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => setState(() {}),
+          onChanged: (v) { setState(() {}); _updateFeePreview(v); },
           style: TextStyle(
             color: colors.textPrimary,
             fontSize: 24,
@@ -1002,7 +1017,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Icon(
-                        HugeIconsSolid.smartPhone01,
+                        Icons.smartphone_outlined,
                         color: colors.textPrimary,
                         size: 19,
                       ),
@@ -1070,16 +1085,21 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           // Map provider → MomoNetwork enum for backend
                           // compatibility — the existing _handleMomoWithdraw
                           // path still reads _selectedNetwork.apiValue.
-                          switch (a.provider) {
+                          // Map saved account provider → MomoNetwork enum
+                          switch (a.provider.toUpperCase()) {
                             case 'MTN':
                               _selectedNetwork = MomoNetwork.mtn;
                               break;
-                            case 'VODAFONE':
-                              _selectedNetwork = MomoNetwork.vodafone;
-                              break;
                             case 'TELECEL':
+                            case 'VODAFONE': // legacy stored value
+                              _selectedNetwork = MomoNetwork.telecel;
+                              break;
+                            case 'AIRTELTIGO':
+                            case 'AT':
                               _selectedNetwork = MomoNetwork.airtelTigo;
                               break;
+                            default:
+                              _selectedNetwork = MomoNetwork.mtn;
                           }
                         }),
                       ),
@@ -1167,7 +1187,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           Row(
             children: [
               Icon(
-                HugeIconsSolid.wallet01,
+                Icons.account_balance_wallet_outlined,
                 color: colors.textPrimary,
                 size: 20,
               ),
@@ -1253,7 +1273,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   ? _selectedWallet
                   : (wallets.isNotEmpty ? wallets.first : null),
               icon: Icon(
-                HugeIconsSolid.arrowDown01,
+                Icons.arrow_downward,
                 color: colors.textTertiary,
               ),
               items: wallets.map((wallet) {
@@ -1502,7 +1522,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(HugeIconsSolid.diamond, size: 14, color: colors.success),
+                Icon(Icons.diamond_outlined, size: 14, color: colors.success),
                 const SizedBox(width: 6),
                 Text(
                   '${_selectedFeeDiscount!.label} AZM discount applied',
@@ -1544,7 +1564,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // Header
         Row(
           children: [
-            Icon(HugeIconsSolid.diamond, size: 16, color: colors.textPrimary),
+            Icon(Icons.diamond_outlined, size: 16, color: colors.textPrimary),
             const SizedBox(width: 8),
             Text(
               'Use AZM to reduce the fee',
@@ -1694,7 +1714,24 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       );
     }
 
-    return SlideToConfirm(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_youReceive > 0) ...[
+          const SizedBox(height: 12),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider)),
+            child: Column(children: [
+              _FeeRow("Amount", "${_amountVal.toStringAsFixed(2)} USDC", colors),
+              _FeeRow("Service fee (2%)", "-${_feeComputed.toStringAsFixed(2)} USDC", colors, isDanger: true),
+              const Divider(height: 16),
+              _FeeRow("You receive", "${_youReceive.toStringAsFixed(2)} USDC", colors, isBold: true),
+            ]),
+          ),
+        ],
+        SlideToConfirm(
       key: _slideKey,
       text: _mode == _WithdrawMode.mobileMoney
           ? 'Slide to send mobile money'
@@ -1720,6 +1757,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           onCancelled: () => _slideKey.currentState?.reset(),
         );
       },
+    ),
+      ],
     );
   }
 
@@ -1734,19 +1773,19 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   IconData _iconForProvider(String provider) {
     switch (provider) {
       case 'MTN MoMo':
-        return HugeIconsSolid.smartPhone01;
+        return Icons.smartphone_outlined;
       case 'Telecel Cash':
-        return HugeIconsSolid.simcard01;
+        return Icons.sim_card_outlined;
       case 'AirtelTigo Money':
-        return HugeIconsSolid.smartPhone01;
+        return Icons.smartphone_outlined;
       case 'Bank Transfer':
-        return HugeIconsSolid.bank;
+        return Icons.account_balance_outlined;
       case 'BINANCE PAY':
-        return HugeIconsSolid.bitcoin;
+        return Icons.currency_bitcoin;
       case 'EXTERNAL WALLET':
-        return HugeIconsSolid.wallet01;
+        return Icons.account_balance_wallet_outlined;
       default:
-        return HugeIconsSolid.money01;
+        return Icons.payments_outlined;
     }
   }
 }
@@ -1769,19 +1808,50 @@ class _MomoAccountPicker extends StatelessWidget {
     required this.onTap,
   });
 
+  Color get _providerColor {
+    switch (account.provider.toUpperCase()) {
+      case 'MTN': return const Color(0xFFFFCC00);
+      case 'TELECEL': return const Color(0xFFE60000);
+      case 'AIRTELTIGO': case 'AT': return const Color(0xFFD62828);
+      default: return const Color(0xFF888888);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = _providerColor;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? c.withValues(alpha: 0.10) : colors.softSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? c.withValues(alpha: 0.70) : colors.divider,
+            width: selected ? 1.8 : 1.0,
+          ),
+          boxShadow: selected
+            ? [BoxShadow(color: c.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))]
+            : const [],
+        ),
         child: Row(
           children: [
-            Icon(
-              HugeIconsSolid.smartPhone01,
-              color: colors.textPrimary,
-              size: 19,
+            // Provider dot
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: c.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Container(
+                  width: 12, height: 12,
+                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1793,28 +1863,53 @@ class _MomoAccountPicker extends StatelessWidget {
                     account.accountName ?? account.nickname,
                     style: TextStyle(
                       color: colors.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5, fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${account.provider} · ${account.phoneNumber}',
+                    '${account.provider}  ·  ${account.phoneNumber}',
                     style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(
-              selected
-                  ? HugeIconsSolid.checkmarkCircle01
-                  : HugeIconsSolid.circle,
-              color: selected ? colors.textPrimary : colors.textTertiary,
-              size: 20,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                key: ValueKey(selected),
+                color: selected ? c : colors.textTertiary.withValues(alpha: 0.5),
+                size: 22,
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FeeRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final AzamanColors colors;
+  final bool isDanger;
+  final bool isBold;
+  const _FeeRow(this.label, this.value, this.colors,
+    {this.isDanger = false, this.isBold = false});
+  @override
+  Widget build(BuildContext context) {
+    final color = isDanger ? colors.danger
+      : isBold ? colors.textPrimary : colors.textSecondary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+          Text(value, style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.w800 : FontWeight.w500)),
+        ]),
     );
   }
 }

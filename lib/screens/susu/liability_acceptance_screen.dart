@@ -26,7 +26,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class LiabilityAcceptanceScreen extends ConsumerStatefulWidget {
   final String susuId;
@@ -115,7 +115,7 @@ class _LiabilityAcceptanceScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -190,14 +190,14 @@ class _ContractBody extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors.warning.withOpacity(0.10),
+              color: colors.warning.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
               border:
-                  Border.all(color: colors.warning.withOpacity(0.30), width: 0.7),
+                  Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.7),
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.refresh01,
+                Icon(Icons.refresh,
                     color: colors.warning, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
@@ -217,14 +217,14 @@ class _ContractBody extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(16, 14, 16, 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colors.danger.withOpacity(0.06),
+            color: colors.danger.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
             border:
-                Border.all(color: colors.danger.withOpacity(0.30), width: 0.7),
+                Border.all(color: colors.danger.withValues(alpha: 0.30), width: 0.7),
           ),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.judge, color: colors.danger, size: 16),
+              Icon(Icons.gavel, color: colors.danger, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -322,7 +322,7 @@ class _ContractBody extends StatelessWidget {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.black),
                         )
-                      : const Icon(HugeIconsSolid.checkmarkCircle01, size: 16),
+                      : const Icon(Icons.check_circle_outline, size: 16),
                   label: Text(
                     busy ? 'Recording…' : 'Accept Contract',
                     style: const TextStyle(
@@ -334,7 +334,7 @@ class _ContractBody extends StatelessWidget {
                     backgroundColor: colors.warning,
                     foregroundColor: Colors.black,
                     disabledBackgroundColor:
-                        colors.warning.withOpacity(0.30),
+                        colors.warning.withValues(alpha: 0.30),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -368,7 +368,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
+            Icon(Icons.error_outline, size: 48, color: colors.danger),
             const SizedBox(height: 12),
             Text(
               'Could not load the contract',
@@ -388,7 +388,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(HugeIconsSolid.refresh01, size: 16),
+              icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.warning,

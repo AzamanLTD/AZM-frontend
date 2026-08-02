@@ -25,17 +25,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/admin/admin_dashboard.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
-import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
@@ -45,11 +46,11 @@ import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
-import 'package:azaman/screens/vendor_dashboard.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
-import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/providers/business_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class SettingsDrawer extends ConsumerWidget {
   const SettingsDrawer({super.key});
@@ -58,6 +59,14 @@ class SettingsDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(currentUserProvider).value;
+    // Business profile state is prefetched below and consumed by the
+    // Marketplace floating action button, not rendered in this drawer.
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!ref.read(myBusinessProvider).hasLoaded && !ref.read(myBusinessProvider).isLoading) {
+        ref.read(myBusinessProvider.notifier).load();
+      }
+    });
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.88,
@@ -81,7 +90,7 @@ class SettingsDrawer extends ConsumerWidget {
               // but contrast stays AA-compliant against the foreground.
               Positioned.fill(
                 child: ColoredBox(
-                  color: colors.background.withOpacity(0.72),
+                  color: colors.background.withValues(alpha: 0.72),
                 ),
               ),
               const Positioned.fill(child: _EclipseGlow()),
@@ -104,13 +113,13 @@ class SettingsDrawer extends ConsumerWidget {
                   },
                   child: _animatedWrapper(
                     delay: 1,
-                    child: _buildPremiumProfileCard(colors, user),
+                    child: _buildPremiumProfileCard(context, colors, user),
                   ),
                 ),
 
                 const SizedBox(height: 10),
                 Divider(
-                  color: colors.divider.withOpacity(0.4),
+                  color: colors.divider.withValues(alpha: 0.4),
                   thickness: 1,
                   indent: 24,
                   endIndent: 24,
@@ -122,32 +131,28 @@ class SettingsDrawer extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                     children: [
-                      // SYSTEM STATUS
-                      _animatedWrapper(
-                        delay: 2,
-                        child: _buildSystemStatusCard(colors),
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      // ROOT ACCESS
-                      _animatedWrapper(
-                        delay: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionHeader(
-                              'ROOT ACCESS',
-                              colors: colors,
-                              headerColor: colors.danger,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildGodModeTile(context, colors),
-                          ],
+                      // ROOT ACCESS — restricted to the platform admin account only.
+                      // The backend already hard-gates every /api/admin route behind
+                      // `adminOnly` middleware; this UI gate just keeps the entry point
+                      // from cluttering the drawer for every other user.
+                      if ((user?.email ?? '').toLowerCase() == 'admin@azaman.test') ...[
+                        _animatedWrapper(
+                          delay: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionHeader(
+                                'ROOT ACCESS',
+                                colors: colors,
+                                headerColor: colors.danger,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildGodModeTile(context, colors),
+                            ],
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 25),
+                        const SizedBox(height: 25),
+                      ],
 
                       // PAYMENT ADDRESSES (Phase UI-2, 2026-05-26)
                       // Both deposit destinations (where users send funds
@@ -170,7 +175,12 @@ class SettingsDrawer extends ConsumerWidget {
                             const SizedBox(height: 8),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.025),
+                                // Same theme-independence fix as the profile
+                                // card above: a fixed white tint is invisible
+                                // against the near-white light background.
+                                color: colors.isDark
+                                    ? Colors.white.withValues(alpha: 0.025)
+                                    : colors.softSurface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: colors.divider),
                               ),
@@ -182,7 +192,7 @@ class SettingsDrawer extends ConsumerWidget {
                                     title: 'Deposit Addresses',
                                     subtitle:
                                         'Saved MoMo accounts for STK-push deposits',
-                                    icon: HugeIconsSolid.arrowDown01,
+                                    icon: Icons.arrow_downward,
                                     iconColor: colors.success,
                                     destination: const SavedMomoAccountsScreen(),
                                   ),
@@ -198,7 +208,7 @@ class SettingsDrawer extends ConsumerWidget {
                                     title: 'Withdrawal Addresses',
                                     subtitle:
                                         'MoMo & crypto payout destinations',
-                                    icon: HugeIconsSolid.arrowUp01,
+                                    icon: Icons.arrow_upward,
                                     iconColor: colors.warning,
                                     destination: const SavedWalletsScreen(),
                                   ),
@@ -254,7 +264,7 @@ class SettingsDrawer extends ConsumerWidget {
                       // AppBars with back arrows so the user can return.
                       _buildMenuItem(
                         context,
-                        HugeIconsSolid.security,
+                        Icons.security,
                         'Security Center',
                         'High',
                         colors,
@@ -263,7 +273,7 @@ class SettingsDrawer extends ConsumerWidget {
                       // Master Sprint (2026-05-27)
                       _buildMenuItem(
                         context,
-                        HugeIconsSolid.lock,
+                        Icons.lock_outline,
                         'Vaults',
                         'New',
                         colors,
@@ -278,7 +288,7 @@ class SettingsDrawer extends ConsumerWidget {
                       _buildRewardsExpansion(context, colors),
                       _buildMenuItem(
                         context,
-                        HugeIconsSolid.paintBoard,
+                        Icons.palette_outlined,
                         'Theme',
                         'Style',
                         colors,
@@ -286,23 +296,19 @@ class SettingsDrawer extends ConsumerWidget {
                       ),
                       _buildMenuItem(
                         context,
-                        HugeIconsSolid.store01,
+                        Icons.storefront_outlined,
                         'Azaman Store',
                         'New',
                         colors,
                         destination: const AzamanStoreScreen(),
                       ),
-                      // V3 Marketplace Sprint (2026-06-21): owner dashboard.
-                      // The screen self-redirects to registration when the
-                      // user has no business yet.
-                      _buildMenuItem(
-                        context,
-                        HugeIconsSolid.store01,
-                        'My Business',
-                        'Store',
-                        colors,
-                        destination: const BusinessDashboardScreen(),
-                      ),
+                      // 'Register Your Business' / business card entry moved to
+                      // a floating action button on the Marketplace screen (2026-07-06)
+                      // so registration/dashboard access lives where businesses are
+                      // actually browsed, instead of buried in Settings.
+
+                      // ── Worker Sub-Portal Card ────────────────────────────
+                      _WorkerCard(colors: colors),
 
                       const SizedBox(height: 40),
                       Center(
@@ -331,33 +337,47 @@ class SettingsDrawer extends ConsumerWidget {
   // ──────────────────────────────────────────────────────────────────────────
   // PROFILE CARD — fully wired to Riverpod auth state
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildPremiumProfileCard(AzamanColors colors, User? user) {
+  Widget _buildPremiumProfileCard(BuildContext context, AzamanColors colors, User? user) {
     final username = (user?.username.isNotEmpty ?? false)
         ? user!.username
         : 'Guest';
-    final uidLine = user != null ? '@UID-${user.id}' : '@UID-—';
+    final uidLine = (user?.azamanId != null && user!.azamanId!.isNotEmpty)
+        ? user.azamanId!
+        : (user != null ? 'AZM-—' : 'AZM-—');
     final badge = _kycBadgeFor(user?.kycStatus, colors);
+
+    // Theme-aware glass sheen. On dark themes, `colors.background` is
+    // near-black, so a low-opacity WHITE gradient reads as a subtle glossy
+    // highlight. On the light theme, `colors.background` is near-white --
+    // the exact same white gradient becomes invisible (white-on-white),
+    // which left this card with no visible fill or border in light mode
+    // and made it look like an unstyled blur with only text floating on
+    // it. Fixed by giving the card a real solid base (`colors.card`) plus
+    // a sheen tint that flips direction with the theme, matching the
+    // pattern already used in premium_glass_container.dart / theme_picker.
+    final sheenColor = colors.isDark ? Colors.white : Colors.black;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        color: colors.card,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withOpacity(0.06),
-            Colors.white.withOpacity(0.015),
+            Color.alphaBlend(sheenColor.withValues(alpha: colors.isDark ? 0.06 : 0.03), colors.card),
+            Color.alphaBlend(sheenColor.withValues(alpha: colors.isDark ? 0.015 : 0.0), colors.card),
           ],
         ),
         border: Border.all(
-          color: Colors.white.withOpacity(0.08),
+          color: colors.isDark ? Colors.white.withValues(alpha: 0.08) : colors.border,
           width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: colors.isDark ? 0.35 : 0.08),
             blurRadius: 18,
             spreadRadius: -4,
             offset: const Offset(0, 8),
@@ -379,25 +399,43 @@ class SettingsDrawer extends ConsumerWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      colors.accent.withOpacity(0.35),
-                      colors.accent.withOpacity(0.10),
+                      colors.accent.withValues(alpha: 0.35),
+                      colors.accent.withValues(alpha: 0.10),
                     ],
                   ),
                   border: Border.all(
-                    color: colors.accent.withOpacity(0.45),
+                    color: colors.accent.withValues(alpha: 0.45),
                     width: 1.0,
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  _initial(username),
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                child: (user?.profilePictureUrl != null &&
+                        user!.profilePictureUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: user.profilePictureUrl!,
+                          width: 64, height: 64,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Text(
+                            _initial(username),
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        _initial(username),
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
               ),
               // Verification ring overlay only when fully verified.
               if (user?.kycStatus == KycStatus.verified)
@@ -414,7 +452,7 @@ class SettingsDrawer extends ConsumerWidget {
                   ),
                   alignment: Alignment.center,
                   child: const Icon(
-                    HugeIconsSolid.checkmarkCircle01,
+                    Icons.check_circle_outline,
                     color: Color(0xFF22C55E),
                     size: 18,
                   ),
@@ -439,13 +477,31 @@ class SettingsDrawer extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  uidLine,
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                    letterSpacing: 0.4,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        uidLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.visible,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    if (user?.azamanId != null && user!.azamanId!.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _copyAzamanId(context, user.azamanId!),
+                        child: Icon(Icons.copy_rounded, size: 13, color: colors.textTertiary.withValues(alpha: 0.7)),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 8),
                 badge,
@@ -453,7 +509,7 @@ class SettingsDrawer extends ConsumerWidget {
             ),
           ),
           Icon(
-            HugeIconsSolid.arrowRight01,
+            Icons.arrow_forward,
             color: colors.textTertiary,
             size: 14,
           ),
@@ -475,32 +531,32 @@ class SettingsDrawer extends ConsumerWidget {
       case KycStatus.verified:
         tint = const Color(0xFF22C55E); // green
         label = 'Verified';
-        icon = HugeIconsSolid.checkmarkCircle01;
+        icon = Icons.check_circle_outline;
         break;
       case KycStatus.pending:
         tint = const Color(0xFFF59E0B); // amber/yellow
         label = 'Pending';
-        icon = HugeIconsSolid.hourglass;
+        icon = Icons.hourglass_empty;
         break;
       case KycStatus.rejected:
         tint = const Color(0xFFEF4444); // red
         label = 'Rejected';
-        icon = HugeIconsSolid.shield01;
+        icon = Icons.shield_outlined;
         break;
       case KycStatus.unverified:
         tint = const Color(0xFFEF4444); // red
         label = 'Unverified';
-        icon = HugeIconsSolid.shield01;
+        icon = Icons.shield_outlined;
         break;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: tint.withOpacity(0.14),
+        color: tint.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: tint.withOpacity(0.55),
+          color: tint.withValues(alpha: 0.55),
           width: 0.8,
         ),
       ),
@@ -529,6 +585,18 @@ class SettingsDrawer extends ConsumerWidget {
     return t.substring(0, 1).toUpperCase();
   }
 
+  void _copyAzamanId(BuildContext context, String azamanId) {
+    Clipboard.setData(ClipboardData(text: azamanId));
+    HapticFeedback.selectionClick();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied $azamanId'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // OTHER UI COMPONENTS — preserved from previous drawer
   // ──────────────────────────────────────────────────────────────────────────
@@ -545,12 +613,12 @@ class SettingsDrawer extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: colors.danger.withOpacity(0.05),
+          color: colors.danger.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.danger.withOpacity(0.4)),
+          border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: colors.danger.withOpacity(0.08),
+              color: colors.danger.withValues(alpha: 0.08),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -561,11 +629,11 @@ class SettingsDrawer extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.15),
+                color: colors.danger.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withOpacity(0.5)),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.5)),
               ),
-              child: Icon(HugeIconsSolid.shield01, color: colors.danger, size: 24),
+              child: Icon(Icons.shield_outlined, color: colors.danger, size: 24),
             ),
             const SizedBox(width: 15),
             Expanded(
@@ -584,14 +652,14 @@ class SettingsDrawer extends ConsumerWidget {
                   Text(
                     'System overrides & resolutions',
                     style: TextStyle(
-                      color: colors.danger.withOpacity(0.8),
+                      color: colors.danger.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 18),
+            Icon(Icons.error_outline, color: colors.danger, size: 18),
           ],
         ),
       ),
@@ -638,7 +706,7 @@ class SettingsDrawer extends ConsumerWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.10),
+                color: iconColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: iconColor, size: 16),
@@ -673,7 +741,7 @@ class SettingsDrawer extends ConsumerWidget {
               ),
             ),
             Icon(
-              HugeIconsSolid.arrowRight01,
+              Icons.arrow_forward,
               color: colors.textTertiary,
               size: 18,
             ),
@@ -688,42 +756,6 @@ class SettingsDrawer extends ConsumerWidget {
   // portal pattern is preserved in git history if a future surface (e.g.
   // a hero "Vendor Portal" entry) wants to opt back into it.
 
-  Widget _buildSystemStatusCard(AzamanColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.success.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.success.withOpacity(0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: colors.success,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: colors.success, blurRadius: 4)],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'TRADE ENGINE: ONLINE',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-          const Spacer(),
-          Icon(HugeIconsSolid.flash, color: colors.textTertiary, size: 16),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTopActionBar(BuildContext context, AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -731,7 +763,7 @@ class SettingsDrawer extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            icon: Icon(HugeIconsSolid.qrCode, color: colors.textSecondary),
+            icon: Icon(Icons.qr_code_outlined, color: colors.textSecondary),
             onPressed: () {
               HapticFeedback.selectionClick();
               Navigator.push(
@@ -741,7 +773,7 @@ class SettingsDrawer extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.settings01, color: colors.accent),
+            icon: Icon(Icons.settings_outlined, color: colors.accent),
             onPressed: () {
               HapticFeedback.selectionClick();
               Navigator.push(
@@ -785,24 +817,28 @@ class SettingsDrawer extends ConsumerWidget {
   Widget _buildShortcutsGrid(BuildContext context, AzamanColors colors) {
     final List<Map<String, dynamic>> items = [
       {
-        'icon': HugeIconsSolid.wallet01,
+        'icon': Icons.account_balance_wallet_outlined,
         'label': 'Deposit',
         'destination': const DepositScreen(),
       },
       {
-        'icon': HugeIconsSolid.sent,
+        'icon': Icons.send_outlined,
         'label': 'Withdraw',
         'destination': const WithdrawalScreen(),
       },
       {
-        'icon': HugeIconsSolid.transactionHistory,
+        'icon': Icons.history,
         'label': 'History',
         'destination': const AccountActivityScreen(),
       },
       {
-        'icon': HugeIconsSolid.analytics01,
+        'icon': Icons.analytics_outlined,
         'label': 'Leaderboard',
-        'destination': const LeaderboardScreen(),
+        // 2026-07-08 fix: was routing to the old standalone LeaderboardScreen
+        // (legacy/global leaderboard_provider.dart) — the real, actively
+        // maintained leaderboard is the Friends Leaderboard card inside the
+        // AZM Rewards page now, so route there instead.
+        'destination': const AzmRewardsScreen(),
       },
     ];
     return GridView.builder(
@@ -814,7 +850,7 @@ class SettingsDrawer extends ConsumerWidget {
       ),
       itemCount: items.length,
       itemBuilder: (context, i) => InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.lightImpact();
           // Close the drawer first so the destination screen is the visible
@@ -827,16 +863,37 @@ class SettingsDrawer extends ConsumerWidget {
         },
         child: Column(
           children: [
-            Icon(items[i]['icon'] as IconData,
-                color: colors.accent, size: 24),
+            // 2026-07-08 polish: bare icons upgraded to soft tinted-circle
+            // badges, matching the icon language used elsewhere this sprint
+            // (chat attachment menu, business follow button) instead of
+            // floating glyphs with no visual weight.
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accentSurface,
+              ),
+              child: Icon(items[i]['icon'] as IconData,
+                  color: colors.accent, size: 20),
+            ),
             const SizedBox(height: 6),
             Text(
               items[i]['label'] as String,
-              style: TextStyle(color: colors.textTertiary, fontSize: 10),
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
-      ),
+      ).animate(delay: (60 * i).ms).fadeIn(duration: 260.ms).scale(
+            begin: const Offset(0.85, 0.85),
+            end: const Offset(1, 1),
+            curve: Curves.easeOutBack,
+          ),
     );
   }
 
@@ -895,11 +952,11 @@ class SettingsDrawer extends ConsumerWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: colors.textSecondary.withOpacity(0.06),
+            color: colors.textSecondary.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            HugeIconsSolid.gift,
+            Icons.card_giftcard_outlined,
             color: colors.textSecondary,
             size: 15,
           ),
@@ -914,14 +971,14 @@ class SettingsDrawer extends ConsumerWidget {
           ),
         ),
         trailing: Icon(
-          HugeIconsSolid.arrowDown01,
+          Icons.arrow_downward,
           color: colors.divider,
           size: 18,
         ),
         children: [
           _buildMenuItem(
             context,
-            HugeIconsSolid.fire,
+            Icons.local_fire_department_outlined,
             'AZM Auction',
             'Vendor',
             colors,
@@ -929,7 +986,7 @@ class SettingsDrawer extends ConsumerWidget {
           ),
           _buildMenuItem(
             context,
-            HugeIconsSolid.diamond,
+            Icons.diamond_outlined,
             'AZM Rewards',
             'Earn',
             colors,
@@ -937,7 +994,7 @@ class SettingsDrawer extends ConsumerWidget {
           ),
           _buildMenuItem(
             context,
-            HugeIconsSolid.gift,
+            Icons.card_giftcard_outlined,
             'Referral Rewards',
             '10%',
             colors,
@@ -985,7 +1042,7 @@ class _EclipseGlow extends ConsumerWidget {
           // Base is the scaffold background with a touch deeper to read
           // as a true "eclipse" silhouette behind the soft halo.
           color: Color.alphaBlend(
-            Colors.black.withOpacity(0.18),
+            Colors.black.withValues(alpha: 0.18),
             colors.background,
           ),
           gradient: RadialGradient(
@@ -994,8 +1051,8 @@ class _EclipseGlow extends ConsumerWidget {
             center: const Alignment(-0.15, -0.85),
             radius: 1.15,
             colors: [
-              colors.accent.withOpacity(0.14),
-              colors.accent.withOpacity(0.04),
+              colors.accent.withValues(alpha: 0.14),
+              colors.accent.withValues(alpha: 0.04),
               Colors.transparent,
             ],
             stops: const [0.0, 0.35, 1.0],
@@ -1077,7 +1134,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: colors.textSecondary.withOpacity(0.06),
+                  color: colors.textSecondary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -1110,7 +1167,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
               ),
               const SizedBox(width: 6),
               Icon(
-                HugeIconsSolid.arrowRight01,
+                Icons.arrow_forward,
                 color: colors.divider,
                 size: 16,
               ),
@@ -1122,9 +1179,80 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
             .shimmer(
               delay: 80.ms,
               duration: 900.ms,
-              color: colors.accent.withOpacity(0.18),
+              color: colors.accent.withValues(alpha: 0.18),
             ),
       ),
+    );
+  }
+}
+
+
+// =============================================================================
+// WORKER SUB-PORTAL CARD — Shows in settings drawer when user is an employee
+// =============================================================================
+class _WorkerCard extends ConsumerWidget {
+  final dynamic colors;
+  const _WorkerCard({required this.colors});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final empAsync = ref.watch(myEmployeeProvider);
+
+    return empAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (employee) {
+        if (employee == null) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [colors.accentSecondary.withValues(alpha: 0.08), colors.accentSecondary.withValues(alpha: 0.02)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.15), width: 1),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).pop();
+              context.push('/worker');
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: colors.accentSecondary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.badge, color: colors.accentSecondary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Workplace', style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        Text('${employee.title ?? employee.role.name} @ ${employee.businessName ?? "Business"}',
+                            style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: colors.textTertiary, size: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

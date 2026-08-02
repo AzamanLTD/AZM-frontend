@@ -36,7 +36,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/utils/idempotency_key.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// Public entry-point. Call from the SavingsScreen goal card `onTap`.
 class SavingsGoalSheet {
@@ -252,10 +252,10 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(HugeIconsSolid.savings,
+                child: Icon(Icons.savings_outlined,
                     color: colors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -275,7 +275,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                         _statusBadge(colors),
                         const SizedBox(width: 8),
                         if (_isLocked)
-                          Icon(HugeIconsSolid.lock,
+                          Icon(Icons.lock_outline,
                               size: 12, color: colors.textTertiary),
                         if (_isLocked)
                           const SizedBox(width: 3),
@@ -334,7 +334,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
             children: [
               Expanded(
                 child: _ActionTile(
-                  icon: HugeIconsSolid.add01,
+                  icon: Icons.add,
                   label: 'Fund',
                   color: colors.success,
                   enabled: canFund && !_busy,
@@ -344,7 +344,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
               const SizedBox(width: 10),
               Expanded(
                 child: _ActionTile(
-                  icon: HugeIconsSolid.arrowUpRight01,
+                  icon: Icons.north_east,
                   label: 'Withdraw',
                   color: colors.accent,
                   enabled: canWithdraw && !_busy,
@@ -358,7 +358,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           // Pause / Resume toggle button
           OutlinedButton.icon(
             icon: Icon(
-              isPaused ? HugeIconsSolid.play : HugeIconsSolid.pause,
+              isPaused ? Icons.play_circle_outline : Icons.pause_circle_outline,
               color: isPaused ? colors.success : colors.warning,
               size: 18,
             ),
@@ -401,12 +401,12 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.success.withOpacity(0.08),
+                color: colors.success.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.party,
+                  Icon(Icons.celebration_outlined,
                       color: colors.success, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
@@ -439,7 +439,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -733,14 +733,14 @@ class _ActionTile extends ConsumerWidget {
           decoration: BoxDecoration(
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: fg.withOpacity(0.16)),
+            border: Border.all(color: fg.withValues(alpha: 0.16)),
           ),
           child: Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: fg.withOpacity(0.12),
+                  color: fg.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: fg, size: 22),

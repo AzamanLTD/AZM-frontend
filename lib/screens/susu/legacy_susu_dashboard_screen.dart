@@ -17,7 +17,8 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/susu/susu_warning_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class LegacySusuDashboardScreen extends ConsumerWidget {
   final String susuGroupId;
@@ -36,7 +37,7 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Susu',
@@ -69,19 +70,12 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SusuWarningScreen(
-                          susuGroupId: susu.id,
+                    pushWithVerticalTransition(context, SusuWarningScreen(susuGroupId: susu.id,
                           contributionUsdc: susu.contributionUsdc,
                           frequency: susu.frequency,
-                          totalCycles: susu.totalCycles,
-                        ),
-                      ),
-                    );
+                          totalCycles: susu.totalCycles,));
                   },
-                  icon: const Icon(HugeIconsSolid.judge, size: 16),
+                  icon: const Icon(Icons.gavel, size: 16),
                   label: const Text(
                     'Read Contract & Sign',
                     style: TextStyle(fontWeight: FontWeight.w800),
@@ -140,19 +134,19 @@ class _Hero extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            colors.warning.withOpacity(0.18),
-            colors.accent.withOpacity(0.05),
+            colors.warning.withValues(alpha: 0.18),
+            colors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.warning.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.bank, color: colors.warning, size: 18),
+              Icon(Icons.account_balance_outlined, color: colors.warning, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Susu · ${susu.frequency}',
@@ -163,9 +157,9 @@ class _Hero extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: colors.warning.withOpacity(0.10),
+                  color: colors.warning.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: colors.warning.withOpacity(0.30), width: 0.7),
+                  border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.7),
                 ),
                 child: Text(
                   susu.status,
@@ -220,8 +214,8 @@ class _MyPosition extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: colors.accent.withOpacity(0.10),
-              border: Border.all(color: colors.accent.withOpacity(0.30), width: 0.7),
+              color: colors.accent.withValues(alpha: 0.10),
+              border: Border.all(color: colors.accent.withValues(alpha: 0.30), width: 0.7),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -287,7 +281,7 @@ class _CycleTile extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.10),
+              color: colors.accent.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
@@ -321,9 +315,9 @@ class _CycleTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+              border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
             ),
             child: Text(
               label,

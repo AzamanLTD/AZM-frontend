@@ -11,7 +11,8 @@ import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/smart_route/smart_route_create_screen.dart';
 import 'package:azaman/widgets/smart_route/smart_route_card.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class SmartRouteListScreen extends ConsumerWidget {
   const SmartRouteListScreen({super.key});
@@ -26,7 +27,7 @@ class SmartRouteListScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -47,7 +48,7 @@ class SmartRouteListScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 children: [
                   const SizedBox(height: 80),
-                  Icon(HugeIconsSolid.directionLeft01, size: 56, color: colors.textTertiary),
+                  Icon(Icons.turn_left, size: 56, color: colors.textTertiary),
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
@@ -91,14 +92,11 @@ class SmartRouteListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SmartRouteCreateScreen()),
-          );
+          pushWithVerticalTransition(context, const SmartRouteCreateScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(HugeIconsSolid.add01, size: 18),
+        icon: const Icon(Icons.add, size: 18),
         label: const Text(
           'New Route',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),

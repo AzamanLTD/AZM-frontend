@@ -20,7 +20,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -86,7 +86,7 @@ class TodayWidget extends ConsumerWidget {
               children: [
                 _StatTile(
                   colors: colors,
-                  icon: HugeIconsSolid.exchange01,
+                  icon: Icons.swap_horiz,
                   label: 'Active Trades',
                   count: summary.activeTradesCount,
                   accent: colors.accent,
@@ -106,7 +106,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: HugeIconsSolid.moneySend01,
+                  icon: Icons.call_made,
                   label: 'Pending Withdrawals',
                   count: summary.pendingWithdrawalsCount,
                   accent: colors.warning,
@@ -122,7 +122,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: HugeIconsSolid.userAdd01,
+                  icon: Icons.person_add_outlined,
                   label: 'Friend Requests',
                   count: summary.friendRequestsCount,
                   accent: colors.success,
@@ -139,7 +139,7 @@ class TodayWidget extends ConsumerWidget {
                 ),
                 _StatTile(
                   colors: colors,
-                  icon: HugeIconsSolid.notification01,
+                  icon: Icons.notifications_outlined,
                   label: 'Unread',
                   count: summary.unreadNotifications,
                   accent: colors.danger,
@@ -256,7 +256,7 @@ class _StatTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: accent.withOpacity(0.18)),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,12 +271,12 @@ class _StatTile extends StatelessWidget {
                   height: 32,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
+                    color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: accent, size: 18),
                 ),
-                Icon(HugeIconsSolid.arrowRight01,
+                Icon(Icons.arrow_forward,
                     color: colors.textTertiary, size: 11),
               ],
             ),
@@ -401,11 +401,11 @@ class _PendingWithdrawalsSheet {
                             height: 36,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: colors.warning.withOpacity(0.12),
+                              color: colors.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              HugeIconsSolid.sent,
+                              Icons.send_outlined,
                               color: colors.warning,
                               size: 18,
                             ),
@@ -444,7 +444,7 @@ class _PendingWithdrawalsSheet {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: colors.warning.withOpacity(0.12),
+                              color: colors.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(

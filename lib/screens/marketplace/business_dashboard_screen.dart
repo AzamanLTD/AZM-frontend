@@ -14,17 +14,20 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 import 'package:image_picker/image_picker.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/worker_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 // KYB document types (Section 13).
 const _kKybTypes = <String, String>{
@@ -98,7 +101,7 @@ class _BusinessDashboardScreenState
       });
       return Scaffold(
         backgroundColor: colors.background,
-        body: const Center(child: CircularProgressIndicator()),
+        body: _DashboardSkeleton(colors: colors),
       );
     }
 
@@ -118,7 +121,7 @@ class _BusinessDashboardScreenState
         actions: [
           if (profile != null)
             IconButton(
-              icon: Icon(HugeIconsStroke.store01, color: colors.textSecondary),
+              icon: Icon(Icons.storefront_outlined, color: colors.textSecondary),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -129,7 +132,7 @@ class _BusinessDashboardScreenState
         ],
       ),
       body: _loading || profile == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 90, count: 5)
           : RefreshIndicator(
               onRefresh: _loadDashboard,
               child: ListView(
@@ -140,6 +143,8 @@ class _BusinessDashboardScreenState
                   if (_stats != null) const SizedBox(height: 20),
                   _statsGrid(colors),
                   const SizedBox(height: 20),
+                  _workerTiles(colors),
+                  const SizedBox(height: 20),
                   _quickActions(colors, profile),
                   const SizedBox(height: 20),
                   _recentOrders(colors),
@@ -149,6 +154,50 @@ class _BusinessDashboardScreenState
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _workerTiles(AzamanColors colors) {
+    return Consumer(builder: (context, ref, _) {
+      final dashAsync = ref.watch(workerDashboardProvider);
+      return dashAsync.when(
+        loading: () => const SizedBox.shrink(),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (dash) {
+          if (dash?.employee == null) return const SizedBox.shrink();
+          return Row(
+            children: [
+              Expanded(child: _miniStat(colors, 'Accrued',
+                dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0", Icons.savings)),
+              const SizedBox(width: 8),
+              Expanded(child: _miniStat(colors, 'EWA',
+                dash.ewaAvailable.toStringAsFixed(0), Icons.bolt)),
+              const SizedBox(width: 8),
+              Expanded(child: _miniStat(colors, 'Next',
+                dash.nextShift != null ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
+            ],
+          );
+        },
+      );
+    });
+  }
+
+  Widget _miniStat(AzamanColors colors, String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surface, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colors.accent, size: 16),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+        ],
+      ),
     );
   }
 
@@ -163,7 +212,7 @@ class _BusinessDashboardScreenState
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.shield01, color: colors.warning, size: 22),
+          Icon(Icons.shield_outlined, color: colors.warning, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -196,13 +245,13 @@ class _BusinessDashboardScreenState
     final s = _stats;
     final cards = [
       _StatData('Total Orders', '${s?.totalOrders ?? 0}',
-          HugeIconsSolid.shoppingBag01, colors.accent),
+          Icons.shopping_bag_outlined, colors.accent),
       _StatData('Completed', '${s?.completedOrders ?? 0}',
-          HugeIconsSolid.checkmarkCircle01, colors.success),
-      _StatData('Revenue', '${(s?.totalRevenue ?? 0).toStringAsFixed(2)}',
-          HugeIconsSolid.wallet01, colors.success),
-      _StatData('Avg Order', '${(s?.avgOrderValue ?? 0).toStringAsFixed(2)}',
-          HugeIconsSolid.chartLineData01, colors.warning),
+          Icons.check_circle_outline, colors.success),
+      _StatData('Revenue', (s?.totalRevenue ?? 0).toStringAsFixed(2),
+          Icons.account_balance_wallet_outlined, colors.success),
+      _StatData('Avg Order', (s?.avgOrderValue ?? 0).toStringAsFixed(2),
+          Icons.show_chart, colors.warning),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -249,10 +298,10 @@ class _BusinessDashboardScreenState
 
   Widget _quickActions(AzamanColors colors, BusinessProfile profile) {
     final actions = [
-      ('Add Product', HugeIconsSolid.addCircle, () => _openProductEditor()),
+      ('Add Product', Icons.add_circle_outline, () => _openProductEditor()),
       (
         'View Reviews',
-        HugeIconsSolid.star,
+        Icons.star_outline,
         () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -260,16 +309,24 @@ class _BusinessDashboardScreenState
               ),
             )
       ),
-      ('Submit KYB', HugeIconsSolid.shield01, _openKybSheet),
+      ('Submit KYB', Icons.shield_outlined, _openKybSheet),
       (
         'My Products',
-        HugeIconsSolid.store01,
+        Icons.storefront_outlined,
         () => _loadDashboard(),
       ),
+      (
+        'Check-In',
+        Icons.qr_code_scanner,
+        () => context.push('/marketplace/business/checkin'),
+      ),
     ];
-    return Row(
+    return Wrap(
+      spacing: 4,
+      runSpacing: 12,
       children: actions
-          .map((a) => Expanded(
+          .map((a) => SizedBox(
+                width: (MediaQuery.of(context).size.width - 48) / 4.5,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
@@ -577,12 +634,12 @@ class _BusinessDashboardScreenState
                       ),
                     ),
                     IconButton(
-                      icon: Icon(HugeIconsStroke.pencilEdit01,
+                      icon: Icon(Icons.edit_outlined,
                           size: 18, color: colors.textSecondary),
                       onPressed: () => _openProductEditor(existing: p),
                     ),
                     IconButton(
-                      icon: Icon(HugeIconsStroke.delete02,
+                      icon: Icon(Icons.delete_forever_outlined,
                           size: 18, color: colors.danger),
                       onPressed: () => _deleteProduct(p),
                     ),
@@ -600,7 +657,7 @@ class _BusinessDashboardScreenState
       message: 'Remove "${p.name}" from your catalogue?',
       confirmLabel: 'Delete',
       destructive: true,
-      icon: HugeIconsSolid.delete02,
+      icon: Icons.delete_forever_outlined,
     );
     if (ok != true) return;
     try {
@@ -812,7 +869,7 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                       child: _uploading
                           ? const CircularProgressIndicator(strokeWidth: 2)
                           : (_imageFile == null && _imageUrl == null
-                              ? Icon(HugeIconsStroke.image01,
+                              ? Icon(Icons.image_outlined,
                                   color: colors.textTertiary, size: 26)
                               : null),
                     ),
@@ -1019,8 +1076,8 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
                       children: [
                         Icon(
                           done
-                              ? HugeIconsSolid.checkmarkCircle01
-                              : HugeIconsStroke.file01,
+                              ? Icons.check_circle_outline
+                              : Icons.insert_drive_file_outlined,
                           color: done ? colors.success : colors.textTertiary,
                           size: 18,
                         ),
@@ -1077,6 +1134,45 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _DashboardSkeleton extends StatelessWidget {
+  final AzamanColors colors;
+  const _DashboardSkeleton({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Header skeleton
+          SkeletonBlock(width: 200, height: 28, borderRadius: BorderRadius.circular(8)),
+          const SizedBox(height: 20),
+          // Stats row skeleton
+          Row(
+            children: [
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              const SizedBox(width: 12),
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              const SizedBox(width: 12),
+              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Chart skeleton
+          SkeletonBlock(width: double.infinity, height: 180, borderRadius: BorderRadius.circular(16)),
+          const SizedBox(height: 24),
+          // List items skeleton
+          ...List.generate(4, (i) => Padding(
+            padding: EdgeInsets.only(bottom: i == 3 ? 0 : 12),
+            child: SkeletonBlock(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(12)),
+          )),
+        ],
       ),
     );
   }

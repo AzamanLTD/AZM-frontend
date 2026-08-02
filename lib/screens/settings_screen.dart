@@ -32,10 +32,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/screens/account_activity_screen.dart';
@@ -51,7 +51,8 @@ import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -73,7 +74,7 @@ class SettingsScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -88,6 +89,14 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         physics: const BouncingScrollPhysics(),
         children: [
+              _SettingsLogoHeader(colors: colors),
+              Center(
+                child: Text(
+                  'Azaman Protocol v3.1',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 20),
           // ── ACCOUNT ─────────────────────────────────────────────────
           // Phase M (2026-05-25): wires three orphan screens that had
           // product value but no inbound import — Edit Profile (orphan
@@ -101,26 +110,16 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.user,
+                icon: Icons.person_outline,
                 title: 'Edit Profile',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ProfileDetailsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ProfileDetailsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.gift,
+                icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ReferralScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ReferralScreen()),
               ),
             ],
           ),
@@ -132,17 +131,12 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.paintBoard,
+                icon: Icons.palette_outlined,
                 title: 'Theme',
                 trailingText: themeLabel,
                 onTap: () {
                   AzamanHaptics.nav();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ThemePickerScreen(),
-                    ),
-                  );
+                  pushWithVerticalTransition(context, const ThemePickerScreen());
                 },
               ),
             ],
@@ -155,7 +149,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.notification01,
+                icon: Icons.notifications_outlined,
                 title: 'Push Notifications',
                 subtitle: 'Receive alerts on your device',
                 value: settings.pushNotifications,
@@ -164,7 +158,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.exchange01,
+                icon: Icons.swap_horiz,
                 title: 'Trade Alerts',
                 subtitle: 'New orders, releases, cancellations',
                 value: settings.tradeAlerts,
@@ -173,7 +167,7 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.bubbleChat,
+                icon: Icons.chat_bubble_outline,
                 title: 'Chat Messages',
                 subtitle: 'In-trade chat notifications',
                 value: settings.chatNotifications,
@@ -185,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
               // vendor portal entry point need to see the side ribbon.
               _ToggleRow(
                 colors: colors,
-                icon: HugeIconsSolid.store01,
+                icon: Icons.storefront_outlined,
                 title: 'Show Vendor Tag',
                 subtitle: 'Pull-tab on the P2P tab to enter the vendor portal',
                 value: settings.vendorTagEnabled,
@@ -201,22 +195,26 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.dollar01,
-                title: 'Default Currency',
-                trailingText: settings.defaultCurrency,
+                icon: Icons.attach_money,
+                title: 'Display Currency',
+                trailingText: ref.watch(currencyProvider).name.toUpperCase(),
                 onTap: () => _pickFromList(
                   context,
                   colors,
-                  title: 'Default Currency',
-                  options: const ['USD', 'GHS', 'EUR', 'GBP', 'NGN'],
-                  current: settings.defaultCurrency,
-                  onPicked: settings.setDefaultCurrency,
+                  title: 'Display Currency',
+                  options: const ['USDC', 'GHS'],
+                  current: ref.watch(currencyProvider).name.toUpperCase(),
+                  onPicked: (v) {
+                    ref.read(currencyProvider.notifier).set(
+                          v == 'GHS' ? DisplayCurrency.ghs : DisplayCurrency.usdc,
+                        );
+                  },
                 ),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.internet,
+                icon: Icons.language,
                 title: 'Language',
                 trailingText: settings.appLanguage,
                 onTap: () => _pickFromList(
@@ -238,50 +236,30 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.shield01,
+                icon: Icons.shield_outlined,
                 title: 'Identity Verification (KYC)',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const KycVerificationScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const KycVerificationScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.security,
+                icon: Icons.security,
                 title: 'Two-Factor & PIN',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SecuritySettingsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SecuritySettingsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.lock,
+                icon: Icons.lock_outline,
                 title: 'Change Password',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const ChangePasswordScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.transactionHistory,
+                icon: Icons.history,
                 title: 'Account Activity',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AccountActivityScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const AccountActivityScreen()),
               ),
             ],
           ),
@@ -303,26 +281,16 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.wallet01,
+                icon: Icons.account_balance_wallet_outlined,
                 title: 'Withdrawal Addresses',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SavedWalletsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SavedWalletsScreen()),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.arrowDown01,
+                icon: Icons.arrow_downward,
                 title: 'Deposit Addresses',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SavedMomoAccountsScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const SavedMomoAccountsScreen()),
               ),
             ],
           ),
@@ -334,7 +302,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.delete01,
+                icon: Icons.delete_outline,
                 title: 'Clear Cache',
                 onTap: () {
                   AzamanHaptics.nav();
@@ -351,14 +319,18 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.informationCircle,
+                icon: Icons.info_outline,
                 title: 'About Azaman',
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'Azaman Protocol',
                   applicationVersion: 'v3.1 (Phase F)',
-                  applicationIcon:
-                      Icon(HugeIconsSolid.shield01, color: colors.accent, size: 40),
+                  applicationIcon: Image.asset(
+                    'assets/images/azaman_logo.png',
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                  ),
                   children: const [
                     Text('The premier P2P crypto remittance engine.'),
                   ],
@@ -371,14 +343,9 @@ class SettingsScreen extends ConsumerWidget {
               // copy + icon to discourage accidental taps.
               _NavRow(
                 colors: colors,
-                icon: HugeIconsSolid.delete01,
+                icon: Icons.delete_outline,
                 title: 'Delete Account',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AccountDeactivationScreen(),
-                  ),
-                ),
+                onTap: () => pushWithVerticalTransition(context, const AccountDeactivationScreen()),
               ),
             ],
           ),
@@ -398,7 +365,7 @@ class SettingsScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side:
-                        BorderSide(color: colors.danger.withOpacity(0.25)),
+                        BorderSide(color: colors.danger.withValues(alpha: 0.25)),
                   ),
                   elevation: 0,
                 ),
@@ -477,7 +444,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   ),
                   trailing: isSelected
-                      ? Icon(HugeIconsSolid.checkmarkCircle01, color: colors.accent)
+                      ? Icon(Icons.check_circle_outline, color: colors.accent)
                       : null,
                 );
               }),
@@ -510,7 +477,7 @@ class SettingsScreen extends ConsumerWidget {
       confirmLabel: 'Sign Out',
       cancelLabel: 'Cancel',
       destructive: true,
-      icon: HugeIconsSolid.logout01,
+      icon: Icons.logout,
     );
 
     if (confirm == true && context.mounted) {
@@ -644,7 +611,7 @@ class _NavRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
             ],
-            Icon(HugeIconsSolid.arrowRight01,
+            Icon(Icons.arrow_forward,
                 color: colors.textTertiary, size: 13),
           ],
         ),
@@ -709,10 +676,115 @@ class _ToggleRow extends StatelessWidget {
               AzamanHaptics.toggle();
               onChanged(v);
             },
-            activeColor: colors.success,
+            activeThumbColor: colors.success,
           ),
         ],
       ),
     );
   }
+}
+
+class _SettingsLogoHeader extends ConsumerStatefulWidget {
+  final AzamanColors colors;
+  const _SettingsLogoHeader({required this.colors});
+
+  @override
+  ConsumerState<_SettingsLogoHeader> createState() => _SettingsLogoHeaderState();
+}
+
+class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ringCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ringCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ringCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 90,
+              height: 90,
+              child: AnimatedBuilder(
+                animation: _ringCtrl,
+                builder: (_, __) => Transform.rotate(
+                  angle: _ringCtrl.value * 2 * 3.14159,
+                  child: CustomPaint(
+                    painter: _GradientRingPainter(color: colors.accent),
+                    size: const Size(90, 90),
+                  ),
+                ),
+              ),
+            ),
+            Image.asset(
+              'assets/images/azaman_logo.png',
+              width: 56,
+              height: 56,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientRingPainter extends CustomPainter {
+  // Backlog item 11: was hardcoded to the old stale gold hex regardless
+  // of the active theme's accent -- now takes the live accent color so
+  // this ring stays in sync whenever the theme palette changes.
+  final Color color;
+  const _GradientRingPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 3;
+
+    final sweepGradient = SweepGradient(
+      startAngle: 0.0,
+      endAngle: 2 * 3.14159 * 0.75, // 3/4 circle
+      colors: [
+        color.withValues(alpha: 0.0),
+        color.withValues(alpha: 0.3),
+        color.withValues(alpha: 0.8),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    );
+
+    final paint = Paint()
+      ..shader = sweepGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      0, // start angle
+      2 * 3.14159 * 0.75, // sweep 3/4
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

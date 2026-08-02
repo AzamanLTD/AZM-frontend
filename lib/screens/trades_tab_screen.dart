@@ -20,8 +20,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/trade_countdown_chip.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class TradesTabScreen extends ConsumerStatefulWidget {
   const TradesTabScreen({super.key});
@@ -125,7 +127,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_activeTrades.isEmpty) {
-      return _emptyState(colors, HugeIconsSolid.exchange01, 'No Active Trades',
+      return _emptyState(colors, Icons.swap_horiz, 'No Active Trades',
           'Start a trade from the P2P marketplace to see it here.');
     }
 
@@ -145,7 +147,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_completedTrades.isEmpty) {
-      return _emptyState(colors, HugeIconsSolid.transactionHistory, 'No Trade History',
+      return _emptyState(colors, Icons.history, 'No Trade History',
           'Completed and cancelled trades will appear here.');
     }
 
@@ -162,7 +164,6 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
 
   Widget _buildTradeCard(Map<String, dynamic> trade, AzamanColors colors, {required bool isActive}) {
     final status = trade['status'] ?? 'UNKNOWN';
-    final amountFiat = (trade['amountFiat'] as num?)?.toDouble() ?? 0;
     final amountCrypto = (trade['amountCrypto'] as num?)?.toDouble() ?? 0;
     final crypto = trade['crypto'] ?? 'USDT';
     final type = trade['type'] ?? 'SELL';
@@ -177,12 +178,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ActiveTradeScreen(orderId: '#${trade['id']}'),
-          ),
-        ).then((_) => _fetchTrades());
+        pushWithVerticalTransition(context, ActiveTradeScreen(orderId: '#${trade['id']}')).then((_) => _fetchTrades());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -191,11 +187,11 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? statusColor.withOpacity(0.3) : colors.divider,
+            color: isActive ? statusColor.withValues(alpha: 0.3) : colors.divider,
             width: isActive ? 1.2 : 0.8,
           ),
           boxShadow: isActive
-              ? [BoxShadow(color: statusColor.withOpacity(0.08), blurRadius: 12)]
+              ? [BoxShadow(color: statusColor.withValues(alpha: 0.08), blurRadius: 12)]
               : null,
         ),
         child: Row(
@@ -204,7 +200,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
+                color: statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(statusIcon, color: statusColor, size: 20),
@@ -234,7 +230,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -249,10 +245,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '\$${amountFiat.toStringAsFixed(2)} | ${amountCrypto.toStringAsFixed(4)} $crypto',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                  ),
+                  DualCurrencyText(usdc: amountCrypto, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                   if (createdAt != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -265,7 +258,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
               ),
             ),
 
-            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 20),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 20),
           ],
         ),
       ),
@@ -300,7 +293,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 56, color: colors.textTertiary.withOpacity(0.3)),
+          Icon(icon, size: 56, color: colors.textTertiary.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
           Text(title, style: TextStyle(color: colors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
@@ -327,13 +320,13 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'PENDING_PAYMENT': return HugeIconsSolid.hourglass;
-      case 'PAID': return HugeIconsSolid.checkmarkCircle01;
-      case 'COMPLETED': return HugeIconsSolid.checkmarkCircle01;
-      case 'DISPUTED': return HugeIconsSolid.judge;
+      case 'PENDING_PAYMENT': return Icons.hourglass_empty;
+      case 'PAID': return Icons.check_circle_outline;
+      case 'COMPLETED': return Icons.check_circle_outline;
+      case 'DISPUTED': return Icons.gavel;
       case 'CANCELLED':
-      case 'AUTO_CANCELLED': return HugeIconsSolid.cancel01;
-      default: return HugeIconsSolid.exchange01;
+      case 'AUTO_CANCELLED': return Icons.cancel_outlined;
+      default: return Icons.swap_horiz;
     }
   }
 

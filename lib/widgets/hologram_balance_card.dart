@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/animated_number.dart';
+
 
 class HologramBalanceCard extends ConsumerWidget {
   const HologramBalanceCard({super.key});
@@ -14,7 +16,6 @@ class HologramBalanceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final balanceData = ref.watch(balanceDataProvider);
-    final isVisible = ref.watch(balanceVisibleProvider);
     final user = ref.watch(authProvider).user;
 
     final totalUsdc = balanceData.totalBalance;
@@ -24,13 +25,15 @@ class HologramBalanceCard extends ConsumerWidget {
         : uid;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 158),
       decoration: BoxDecoration(
         color: colors.softSurface,
         borderRadius: BorderRadius.circular(22),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -63,12 +66,12 @@ class HologramBalanceCard extends ConsumerWidget {
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           if (truncatedId.isNotEmpty) ...[
             Row(
               children: [
                 Icon(
-                  HugeIconsSolid.wallet01,
+                  Icons.account_balance_wallet_outlined,
                   size: 14,
                   color: colors.textTertiary,
                 ),
@@ -84,12 +87,87 @@ class HologramBalanceCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
           ],
-          _BalanceNumber(
-            value: totalUsdc,
-            isVisible: isVisible,
-            colors: colors,
+          Consumer(
+            builder: (context, ref, _) {
+              final isVisible = ref.watch(balanceVisibleProvider);
+              final rate = ref.watch(oracleRateProvider);
+              final ghsVal = totalUsdc * rate;
+              final currency = ref.watch(currencyProvider);
+              final ghsFirst = currency == DisplayCurrency.ghs;
+              String fmtGhs(double v) {
+                final parts = v.toStringAsFixed(2).split('.');
+                final intPart = parts[0];
+                final buf = StringBuffer();
+                for (int i = 0; i < intPart.length; i++) {
+                  if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
+                  buf.write(intPart[i]);
+                }
+                return '$buf.${parts[1]}';
+              }
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                isVisible
+                    ? AnimatedNumber(
+                        value: ghsFirst ? ghsVal : totalUsdc,
+                        formatter: (v) => ghsFirst
+                            ? 'GH₵ ${fmtGhs(v)}'
+                            : '${v.toStringAsFixed(2)} USDC',
+                        duration: const Duration(milliseconds: 600),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      )
+                    : Text('••••••',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                const SizedBox(height: 2),
+                if (isVisible)
+                  Text(
+                    ghsFirst ? '${totalUsdc.toStringAsFixed(2)} USDC' : 'GH₵ ${fmtGhs(ghsVal)}',
+                    style: TextStyle(
+                      color: colors.textSecondary.withValues(alpha: 0.75),
+                      fontSize: 13,
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Container(width: 6, height: 6,
+                    decoration: BoxDecoration(color: colors.success, shape: BoxShape.circle)),
+                  const SizedBox(width: 5),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: child,
+                      ),
+                    ),
+                    child: Text(
+                      "1 USDC = GH₵ ${rate.toStringAsFixed(2)}",
+                      key: ValueKey(rate.toStringAsFixed(2)),
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ]),
+              ]);
+            },
           ),
         ],
       ),

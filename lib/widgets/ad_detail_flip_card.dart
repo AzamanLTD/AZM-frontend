@@ -46,6 +46,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/vendor_badge_row.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
+
 /// Public entry point: open the in-place flip overlay.
 ///
 /// `originRect` is the screen-space rect of the source card row (used

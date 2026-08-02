@@ -36,7 +36,7 @@ flutter run --dart-define=API_HOST=192.168.1.100 --dart-define=API_PORT=3000
 flutter run --dart-define=SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz
 ```
 
-Defaults to the live deployed backend (`https://azaman-backend-9d3u.onrender.com`) so iOS Simulator and Android Emulator work out-of-the-box with no extra config.
+Defaults to the live deployed backend (`https://azm-backend.onrender.com`) so iOS Simulator and Android Emulator work out-of-the-box with no extra config.
 
 ## Architecture
 

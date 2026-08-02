@@ -22,8 +22,10 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
+import 'package:azaman/screens/susu/susu_credit_score_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class SusuHubScreen extends ConsumerWidget {
   const SusuHubScreen({super.key});
@@ -75,7 +77,7 @@ class SusuHubScreen extends ConsumerWidget {
                   Navigator.of(ctx).pop();
                   ctx.push('/messages');
                 },
-                icon: const Icon(HugeIconsSolid.chat01, size: 16),
+                icon: const Icon(Icons.chat_outlined, size: 16),
                 label: const Text('Go to Chats',
                     style: TextStyle(
                         fontWeight: FontWeight.w800, letterSpacing: 0.3)),
@@ -106,7 +108,7 @@ class SusuHubScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -119,13 +121,20 @@ class SusuHubScreen extends ConsumerWidget {
             letterSpacing: 0.3,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.credit_score, color: colors.textPrimary, size: 20),
+            onPressed: () => pushWithVerticalTransition(context, const SusuCreditScoreScreen()),
+            tooltip: 'Credit Score',
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: colors.warning,
         foregroundColor: Colors.black,
         elevation: 1,
         onPressed: () => _showStartHelp(context, colors),
-        icon: const Icon(HugeIconsSolid.add01, size: 18),
+        icon: const Icon(Icons.add, size: 18),
         label: const Text(
           'Start a Susu',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -256,7 +265,7 @@ class _SusuTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: row.status == SusuStatus.frozenDispute
-                  ? colors.danger.withOpacity(0.40)
+                  ? colors.danger.withValues(alpha: 0.40)
                   : colors.divider,
               width: 0.7,
             ),
@@ -282,10 +291,10 @@ class _SusuTile extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.10),
+                      color: statusColor.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                          color: statusColor.withOpacity(0.30), width: 0.7),
+                          color: statusColor.withValues(alpha: 0.30), width: 0.7),
                     ),
                     child: Text(
                       statusLabel,
@@ -313,10 +322,10 @@ class _SusuTile extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.10),
+                        color: colors.accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                            color: colors.accent.withOpacity(0.30),
+                            color: colors.accent.withValues(alpha: 0.30),
                             width: 0.7),
                       ),
                       child: Text(
@@ -386,8 +395,8 @@ class _EmptyState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
-        Icon(HugeIconsSolid.bank,
-            size: 56, color: colors.warning.withOpacity(0.30)),
+        Icon(Icons.account_balance_outlined,
+            size: 56, color: colors.warning.withValues(alpha: 0.30)),
         const SizedBox(height: 14),
         Text(
           'No Susus yet',
@@ -422,7 +431,7 @@ class _ErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
-        Icon(HugeIconsSolid.alertCircle, size: 48, color: colors.danger),
+        Icon(Icons.error_outline, size: 48, color: colors.danger),
         const SizedBox(height: 12),
         Text(
           'Could not load your Susus',

@@ -28,11 +28,13 @@ import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/ticket_service.dart';
+import 'package:azaman/widgets/chat_money_card.dart';
+
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
 import 'package:azaman/widgets/escrow_status_panel.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TicketWorkspaceScreen extends ConsumerStatefulWidget {
   final String ticketId;
@@ -330,7 +332,7 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
         actions: [
           if (state.ticket != null)
             PopupMenuButton<TicketStatus>(
-              icon: Icon(HugeIconsSolid.moreVertical, color: colors.textPrimary),
+              icon: Icon(Icons.more_vert, color: colors.textPrimary),
               color: colors.surface,
               onSelected: _confirmAndChange,
               itemBuilder: (_) {
@@ -339,19 +341,19 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
                 if (cur == TicketStatus.open) {
                   items.add(PopupMenuItem(
                     value: TicketStatus.closed,
-                    child: _menuRow(HugeIconsSolid.checkmarkCircle01,
+                    child: _menuRow(Icons.check_circle_outline,
                         'Close ticket', colors),
                   ));
                   items.add(PopupMenuItem(
                     value: TicketStatus.cancelled,
-                    child: _menuRow(HugeIconsSolid.cancel01,
+                    child: _menuRow(Icons.cancel_outlined,
                         'Cancel ticket', colors,
                         danger: true),
                   ));
                 } else {
                   items.add(PopupMenuItem(
                     value: TicketStatus.open,
-                    child: _menuRow(HugeIconsSolid.refresh01,
+                    child: _menuRow(Icons.refresh,
                         'Reopen ticket', colors),
                   ));
                 }
@@ -381,7 +383,7 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
               onCancel: () =>
                   ref.read(escrowProvider(widget.ticketId).notifier).cancel(),
             ),
-          if (state.ticket != null) _Header(ticket: state.ticket!, colors: colors),
+          if (state.ticket != null) _Header(ticket: state.ticket!, colors: colors, friendUsername: widget.friendUsername),
           if (state.counterpartyViewingUserId != null)
             _PresenceBanner(colors: colors, friendName: widget.friendUsername),
           Expanded(
@@ -435,69 +437,271 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Header (ticket meta card)
+// Header — premium deal card (mirrors P2P CashBalanceCard aesthetic)
 // ─────────────────────────────────────────────────────────────────────────────
-class _Header extends StatelessWidget {
+class _Header extends StatefulWidget {
   final Ticket ticket;
   final AzamanColors colors;
-  const _Header({required this.ticket, required this.colors});
+  final String friendUsername;
+  const _Header({
+    required this.ticket,
+    required this.colors,
+    required this.friendUsername,
+  });
+
+  @override
+  State<_Header> createState() => _HeaderState();
+}
+
+class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
+  late final AnimationController _sheenCtrl;
+
+  static const _gold = Color(0xFFD4AF37);
+  static const _gradTop = Color(0xFF0E1116);
+  static const _gradBottom = Color(0xFF05070A);
+
+  @override
+  void initState() {
+    super.initState();
+    _sheenCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _sheenCtrl.dispose();
+    super.dispose();
+  }
+
+  Color get _statusColor => switch (widget.ticket.status) {
+        TicketStatus.open     => const Color(0xFFF59E0B),
+        TicketStatus.closed   => const Color(0xFF22C55E),
+        TicketStatus.cancelled=> const Color(0xFFEF4444),
+      };
+
+  String get _statusLabel => switch (widget.ticket.status) {
+        TicketStatus.open     => 'ACTIVE',
+        TicketStatus.closed   => 'CLOSED',
+        TicketStatus.cancelled=> 'CANCELLED',
+      };
+
+  String _fmtAmount(double v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(2)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(2)}K';
+    return v.toStringAsFixed(2);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final t = widget.ticket;
+    final cardW = MediaQuery.of(context).size.width - 32;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      height: 148,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            // ── Background gradient ──────────────────────────────────────────
+            Positioned.fill(
+              child: Container(
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.alphaBlend(
+                          _gold.withValues(alpha: 0.18), _gradTop),
+                      _gradBottom,
+                    ],
+                  ),
+                  border: Border.all(
+                      color: _gold.withValues(alpha: 0.28), width: 1),
                 ),
-                child: Text(
-                  ticket.type.label.toUpperCase(),
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+              ),
+            ),
+            // ── Decorative ring ──────────────────────────────────────────────
+            Positioned(
+              right: -40,
+              top: -50,
+              child: IgnorePointer(
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: _gold.withValues(alpha: 0.08), width: 22),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '${ticket.targetAmount.toStringAsFixed(2)} ${ticket.targetCurrency}',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+            ),
+            // ── Sheen ────────────────────────────────────────────────────────
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _sheenCtrl,
+                  builder: (_, __) {
+                    final t2 = Curves.easeInOutSine.transform(_sheenCtrl.value);
+                    final dx = -cardW * 0.7 + t2 * cardW * 1.9;
+                    return Transform.translate(
+                      offset: Offset(dx, 0),
+                      child: Transform.rotate(
+                        angle: -0.4,
+                        child: Container(
+                          width: cardW * 0.26,
+                          height: cardW * 2.2,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Colors.transparent,
+                                Color(0x0AFFFFFF),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
-          if (ticket.memo != null && ticket.memo!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              ticket.memo!,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 12,
-                height: 1.4,
+            ),
+            // ── Content ──────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row 1: chip + type + status badge
+                  Row(
+                    children: [
+                      // Chip glyph
+                      Container(
+                        width: 26,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          gradient: LinearGradient(
+                            colors: [
+                              _gold.withValues(alpha: 0.85),
+                              _gold.withValues(alpha: 0.45),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        t.type.label.toUpperCase(),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.80),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _statusColor.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: _statusColor.withValues(alpha: 0.55),
+                              width: 0.8),
+                        ),
+                        child: Text(
+                          _statusLabel,
+                          style: TextStyle(
+                            color: _statusColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Row 2: big amount
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          t.targetCurrency,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.60),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _fmtAmount(t.targetAmount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.0,
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Row 3: deal name + peer
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          t.name,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Memo pill
+                      if (t.memo != null && t.memo!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.09),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Has memo',
+                            style: TextStyle(
+                              color: _gold.withValues(alpha: 0.80),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -518,9 +722,9 @@ class _PresenceBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.10),
+        color: colors.accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -591,6 +795,39 @@ class _Bubble extends StatelessWidget {
       );
     }
 
+
+    // TRANSFER messages render as premium ChatMoneyCards
+    final isTransfer = const {
+      'TRANSFER_SENT',
+      'TRANSFER_REQUEST',
+      'TRANSFER_COMPLETED',
+      'TRANSFER_DECLINED'
+    }.contains(msg.type);
+
+    if (isTransfer) {
+      final amt = (msg.metadata?['amount'] as num?)?.toDouble() ?? 0.0;
+      final cur = msg.metadata?['currency']?.toString() ?? 'USDC';
+      final isRequest = msg.type == 'TRANSFER_REQUEST';
+      // If we don't have senderUsername, we can fall back to 'Unknown' or ''
+      final contactName = msg.sender?['username']?.toString() ?? '';
+      
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: ChatMoneyCard(
+          amount: amt,
+          currency: cur,
+          isMe: isMe,
+          contactName: contactName,
+          status: msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
+          isRequest: isRequest,
+          reference: msg.metadata?['reference']?.toString(),
+          memo: msg.content,
+          timestamp: msg.createdAt,
+          skinId: msg.metadata?['cardSkin']?.toString(),
+        ),
+      );
+    }
+
     // SYSTEM messages render as a centered ghost line.
     if (msg.type == 'SYSTEM') {
       return Padding(
@@ -617,7 +854,7 @@ class _Bubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? colors.accent.withOpacity(0.16) : colors.card,
+          color: isMe ? colors.accent.withValues(alpha: 0.16) : colors.card,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -626,7 +863,7 @@ class _Bubble extends StatelessWidget {
           ),
           border: Border.all(
             color: isMe
-                ? colors.accent.withOpacity(0.25)
+                ? colors.accent.withValues(alpha: 0.25)
                 : colors.divider,
           ),
         ),
@@ -675,7 +912,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.bubbleChat,
+            Icon(Icons.chat_bubble_outline,
                 color: colors.textTertiary, size: 36),
             const SizedBox(height: 8),
             Text('No messages yet.',
@@ -788,7 +1025,7 @@ class _InputBarState extends State<_InputBar> {
                               : Colors.white,
                         ),
                       )
-                    : Icon(HugeIconsSolid.sent,
+                    : Icon(Icons.send_outlined,
                         color: colors.isDark
                             ? Colors.black
                             : Colors.white,
@@ -832,7 +1069,7 @@ class _LockedFooter extends StatelessWidget {
       color: colors.surface,
       child: Row(
         children: [
-          Icon(HugeIconsSolid.lock,
+          Icon(Icons.lock_outline,
               color: colors.textTertiary, size: 16),
           const SizedBox(width: 8),
           Expanded(

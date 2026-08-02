@@ -22,13 +22,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/rating_stars.dart';
+import 'package:azaman/widgets/story_ring.dart';
 
 class BusinessCard extends ConsumerWidget {
   final BusinessProfile business;
@@ -46,6 +47,11 @@ class BusinessCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     return tall ? _tallCard(context, ref, colors) : _compactCard(ref, colors);
+  }
+
+  Color? get _categoryColor {
+    final cat = BusinessCategories.fromWire(business.category);
+    return cat.color;
   }
 
   // ── Tall photo-first card ─────────────────────────────────────────────────
@@ -82,7 +88,7 @@ class BusinessCard extends ConsumerWidget {
   Widget _coverPhoto(AzamanColors colors) {
     final coverUrl = _resolveCoverUrl();
     return SizedBox(
-      height: 160,
+      height: 130,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
@@ -155,7 +161,7 @@ class BusinessCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${business.categoryLabel}  ·  ${business.bizId}',
+            business.categoryLabel,
             style: TextStyle(color: colors.textTertiary, fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -174,10 +180,10 @@ class BusinessCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(HugeIconsStroke.checkmarkBadge01, size: 12, color: colors.textTertiary),
+              Icon(Icons.shopping_bag_outlined, size: 12, color: colors.textTertiary),
               const SizedBox(width: 3),
               Text(
-                '${business.completedEscrows} deals',
+                '${business.completedEscrows} orders',
                 style: TextStyle(color: colors.textTertiary, fontSize: 12),
               ),
             ],
@@ -201,8 +207,26 @@ class BusinessCard extends ConsumerWidget {
               ]),
             ),
           ],
+          const SizedBox(height: 8),
+          _escrowBadge(colors),
         ],
       ),
+    );
+  }
+
+  Widget _escrowBadge(AzamanColors colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.success.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: colors.success.withValues(alpha: 0.3))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.shield_outlined, size: 10, color: colors.success),
+        const SizedBox(width: 3),
+        Text("Escrow Protected", style: TextStyle(
+          color: colors.success, fontSize: 9, fontWeight: FontWeight.w700)),
+      ]),
     );
   }
 
@@ -243,7 +267,7 @@ class BusinessCard extends ConsumerWidget {
                     ),
                     if (business.isVerified) ...[
                       const SizedBox(width: 5),
-                      Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.success),
+                      Icon(Icons.check_circle_outline, size: 13, color: colors.success),
                     ],
                   ]),
                   const SizedBox(height: 3),
@@ -272,7 +296,7 @@ class BusinessCard extends ConsumerWidget {
             const SizedBox(width: 8),
             _BookmarkButton(bizId: business.bizId, size: 18),
             const SizedBox(width: 4),
-            Icon(HugeIconsSolid.arrowRight01, size: 14, color: colors.textTertiary),
+            Icon(Icons.arrow_forward, size: 14, color: colors.textTertiary),
           ],
         ),
       ),
@@ -298,29 +322,12 @@ class BusinessCard extends ConsumerWidget {
   }
 
   Widget _smallLogo(AzamanColors colors) {
-    final url = business.logoUrl;
-    final placeholder = Container(
-      width: 52,
-      height: 52,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accentSurface),
-      child: Text(
-        business.businessName.isNotEmpty
-            ? business.businessName.substring(0, 1).toUpperCase()
-            : 'B',
-        style: TextStyle(color: colors.accent, fontSize: 20, fontWeight: FontWeight.w800),
-      ),
-    );
-    if (url == null || url.isEmpty) return placeholder;
-    return ClipOval(
-      child: CachedNetworkImage(
-        imageUrl: url,
-        width: 52,
-        height: 52,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => placeholder,
-        errorWidget: (_, __, ___) => placeholder,
-      ),
+    return StoryRing(
+      avatarUrl: business.logoUrl,
+      hasUnseenStory: business.showcaseUrls.isNotEmpty,
+      isBoosted: false,
+      size: 52,
+      storyCount: business.showcaseUrls.isNotEmpty ? business.showcaseUrls.length : 1,
     );
   }
 
@@ -412,7 +419,7 @@ class _BookmarkButton extends ConsumerWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: Icon(
-          isSaved ? HugeIconsSolid.bookmark02 : HugeIconsStroke.bookmark02,
+          isSaved ? Icons.bookmark_outline : Icons.bookmark_outline,
           key: ValueKey(isSaved),
           size: size,
           color: isSaved ? colors.accent : colors.textTertiary,
@@ -421,3 +428,4 @@ class _BookmarkButton extends ConsumerWidget {
     );
   }
 }
+

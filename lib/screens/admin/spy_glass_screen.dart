@@ -7,7 +7,7 @@ import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/chat_interface.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SpyGlassScreen extends ConsumerStatefulWidget {
   const SpyGlassScreen({super.key});
@@ -32,7 +32,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
 
     HapticFeedback.mediumImpact();
 
-    final tp = ref.read(tradeProvider);
+    ref.read(tradeProvider);
     _socket = SocketService.instance.rawSocket;
 
     _socket!.emit('join_admin_spy', tradeId);
@@ -152,10 +152,10 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.15),
+                color: colors.danger.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.view, color: colors.danger, size: 18),
+              child: Icon(Icons.visibility_outlined, color: colors.danger, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -170,7 +170,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
           ],
         ),
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () {
             _disconnectSpyRoom();
             Navigator.pop(context);
@@ -179,7 +179,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
         actions: [
           if (_isSpying)
             IconButton(
-              icon: Icon(HugeIconsSolid.arrowShrink01, color: colors.danger),
+              icon: Icon(Icons.compress, color: colors.danger),
               tooltip: "Disconnect",
               onPressed: _disconnectSpyRoom,
             ),
@@ -216,10 +216,10 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.1),
+              color: colors.danger.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(HugeIconsSolid.view, color: colors.danger, size: 52),
+            child: Icon(Icons.visibility_outlined, color: colors.danger, size: 52),
           ),
           const SizedBox(height: 24),
           Text(
@@ -243,7 +243,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
             decoration: InputDecoration(
               hintText: "Trade ID (e.g. 42)",
               hintStyle: TextStyle(color: colors.textTertiary),
-              prefixIcon: Icon(HugeIconsSolid.hashtag, color: colors.accent),
+              prefixIcon: Icon(Icons.tag, color: colors.accent),
               filled: true,
               fillColor: colors.card,
               border: OutlineInputBorder(
@@ -252,7 +252,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+                borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
               ),
             ),
             keyboardType: TextInputType.number,
@@ -270,7 +270,7 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: _connectSpyRoom,
-              icon: const Icon(HugeIconsSolid.view),
+              icon: const Icon(Icons.visibility_outlined),
               label: const Text(
                 "CONNECT TO SPY ROOM",
                 style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 13),
@@ -291,11 +291,11 @@ class _SpyGlassScreenState extends ConsumerState<SpyGlassScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: accent.withOpacity(0.08),
+      color: accent.withValues(alpha: 0.08),
       child: Row(
         children: [
           Icon(
-            _isExpired ? HugeIconsSolid.clock01 : HugeIconsSolid.clock01,
+            _isExpired ? Icons.access_time : Icons.access_time,
             size: 14,
             color: accent,
           ),

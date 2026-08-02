@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -17,6 +17,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/biz_notification_card.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 
 class BusinessNotificationsScreen extends ConsumerStatefulWidget {
   const BusinessNotificationsScreen({super.key});
@@ -174,16 +175,16 @@ class _BusinessNotificationsScreenState
         actions: [
           IconButton(
             tooltip: 'Mark all read',
-            icon: Icon(HugeIconsSolid.tickDouble01, color: colors.accent),
+            icon: Icon(Icons.done_all, color: colors.accent),
             onPressed: _markAllRead,
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 64, count: 6)
           : _items.isEmpty
-              ? AzamanEmptyState(
-                  icon: HugeIconsSolid.notification01,
+              ? const AzamanEmptyState(
+                  icon: Icons.notifications_outlined,
                   title: 'No notifications yet',
                   subtitle: 'Order and payment alerts will appear here.',
                 )

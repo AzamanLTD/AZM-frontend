@@ -1,5 +1,9 @@
 // =============================================================================
-// GROUP CHAT PROVIDER  (Master Sprint, 2026-05-27)
+// GROUP CHAT PROVIDER  (Master Sprint, 2026-05-27 — Phase 11.0 cleanup)
+//
+// Group metadata, list, detail, and Susu-initiation state.
+// Message state is handled by premium_chat_provider.dart (PremiumChatNotifier)
+// with ChatContext.group — this file no longer defines its own message model.
 // =============================================================================
 
 import 'dart:convert';
@@ -28,13 +32,15 @@ class GroupMember {
   });
 
   factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
-        id: j['id'],
-        userId: (j['userId'] as num).toInt(),
-        username: j['user']?['username'],
-        profilePictureUrl: j['user']?['profilePictureUrl'],
-        role: j['role'],
-        joinedAt: DateTime.parse(j['joinedAt']),
-        removedAt: j['removedAt'] != null ? DateTime.tryParse(j['removedAt']) : null,
+        id: j['id']?.toString() ?? '',
+        userId: j['userId'] != null ? (j['userId'] as num).toInt() : 0,
+        username: j['user']?['username']?.toString(),
+        profilePictureUrl: j['user']?['profilePictureUrl']?.toString(),
+        role: j['role']?.toString() ?? 'MEMBER',
+        joinedAt: j['joinedAt'] != null
+            ? DateTime.tryParse(j['joinedAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+        removedAt: j['removedAt'] != null ? DateTime.tryParse(j['removedAt'].toString()) : null,
       );
 }
 
@@ -68,12 +74,12 @@ class GroupSummary {
   bool get isSusuActive => susuStatus == 'ACTIVE';
 
   factory GroupSummary.fromJson(Map<String, dynamic> j) => GroupSummary(
-        id: j['id'],
-        name: j['name'],
-        description: j['description'],
-        avatarUrl: j['avatarUrl'],
-        status: j['status'],
-        susuGroupId: j['susuGroupId'],
+        id: j['id']?.toString() ?? '',
+        name: j['name']?.toString() ?? 'Group',
+        description: j['description']?.toString(),
+        avatarUrl: j['avatarUrl']?.toString(),
+        status: j['status']?.toString() ?? 'ACTIVE',
+        susuGroupId: j['susuGroupId']?.toString(),
         susuStatus: j['susuGroup']?['status']?.toString(),
         initiationDeadline: j['susuGroup']?['initiationDeadline'] != null
             ? DateTime.tryParse(j['susuGroup']['initiationDeadline'].toString())
@@ -81,43 +87,9 @@ class GroupSummary {
         members: (j['members'] as List<dynamic>? ?? const [])
             .map((m) => GroupMember.fromJson(m))
             .toList(),
-        updatedAt: DateTime.parse(j['updatedAt']),
-      );
-}
-
-class GroupMessage {
-  final String id;
-  final int? senderId;
-  final String? senderUsername;
-  final String type;
-  final String? content;
-  final Map<String, dynamic>? metadata;
-  final String? mediaUrl;
-  final String? mediaType;
-  final DateTime createdAt;
-
-  GroupMessage({
-    required this.id,
-    this.senderId,
-    this.senderUsername,
-    required this.type,
-    this.content,
-    this.metadata,
-    this.mediaUrl,
-    this.mediaType,
-    required this.createdAt,
-  });
-
-  factory GroupMessage.fromJson(Map<String, dynamic> j) => GroupMessage(
-        id: j['id'],
-        senderId: j['senderId'] != null ? (j['senderId'] as num).toInt() : null,
-        senderUsername: j['sender']?['username'],
-        type: j['type'],
-        content: j['content'],
-        metadata: j['metadata'] as Map<String, dynamic>?,
-        mediaUrl: j['mediaUrl'],
-        mediaType: j['mediaType'],
-        createdAt: DateTime.parse(j['createdAt']),
+        updatedAt: j['updatedAt'] != null
+            ? DateTime.tryParse(j['updatedAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
       );
 }
 
@@ -185,28 +157,9 @@ final groupDetailProvider =
   return GroupSummary.fromJson(body['group']);
 });
 
-final groupMessagesProvider = FutureProvider.family<List<GroupMessage>, String>(
-  (ref, groupId) async {
-    final res = await apiClient.get('/group-chats/$groupId/messages?limit=50');
-    if (res.statusCode != 200) return const [];
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final list = body['messages'] as List<dynamic>? ?? const [];
-    return list.map((e) => GroupMessage.fromJson(e)).toList();
-  },
-);
-
 class GroupActions {
   final Ref ref;
   GroupActions(this.ref);
-
-  Future<void> sendMessage(String groupId, {required String content, String type = 'TEXT'}) async {
-    final res = await apiClient.post('/group-chats/$groupId/messages', {
-      'type': type,
-      'content': content,
-    });
-    if (res.statusCode != 201) throw Exception('Send failed');
-    ref.invalidate(groupMessagesProvider(groupId));
-  }
 
   Future<void> addMember(
     String groupId, {
@@ -293,7 +246,6 @@ class SusuInitiationMember {
   String get poaChip => chipState(por);
 }
 
-/// The group's Susu-initiation status (null susuGroupId = no susu yet).
 class SusuInitiationStatus {
   final String? susuGroupId;
   final String? status; // CONFIGURING | ACTIVE | ...

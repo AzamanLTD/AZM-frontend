@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // AZAMAN — FORCE UPDATE SCREEN (Phase Q15-FE)
@@ -45,11 +45,11 @@ class ForceUpdateScreen extends ConsumerWidget {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: colors.accent.withOpacity(0.1),
+                    color: colors.accent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    HugeIconsSolid.download01,
+                    Icons.download_outlined,
                     size: 60,
                     color: colors.accent,
                   ),
@@ -112,7 +112,7 @@ class ForceUpdateScreen extends ConsumerWidget {
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(HugeIconsSolid.download01, size: 22),
+                          Icon(Icons.download_outlined, size: 22),
                           SizedBox(width: 10),
                           Text(
                             'Update Now',

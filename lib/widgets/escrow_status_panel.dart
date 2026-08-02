@@ -15,7 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -70,7 +70,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
         child: Row(
           children: [
             const SizedBox(width: 16),
-            Icon(HugeIconsSolid.lockKey, size: 18, color: colors.textTertiary),
+            Icon(Icons.key_outlined, size: 18, color: colors.textTertiary),
             const SizedBox(width: 10),
             Text(
               widget.isLoading ? 'Loading escrow…' : 'No escrow on this ticket',
@@ -166,7 +166,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(HugeIconsStroke.arrowDown01,
+                      child: Icon(Icons.arrow_downward,
                           size: 20, color: colors.textTertiary),
                     ),
                   ],
@@ -210,7 +210,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       message:
           'Lock ${escrow.totalLocked.toStringAsFixed(2)} USDC (incl. ${escrow.feeUsdc.toStringAsFixed(2)} fee) into escrow?',
       confirmLabel: 'Fund',
-      icon: HugeIconsSolid.lockKey,
+      icon: Icons.key_outlined,
     );
     if (ok != true || !mounted) return;
     await AzamanBiometricGate.run(
@@ -226,7 +226,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       title: title,
       message: message,
       confirmLabel: 'Confirm',
-      icon: HugeIconsSolid.checkmarkCircle01,
+      icon: Icons.check_circle_outline,
     );
     if (ok != true || !mounted) return;
     await AzamanBiometricGate.run(
@@ -253,7 +253,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       confirmLabel: 'Cancel Escrow',
       cancelLabel: 'Keep',
       destructive: true,
-      icon: HugeIconsSolid.cancelCircle,
+      icon: Icons.cancel_outlined,
     );
     if (ok != true || !mounted) return;
     widget.onCancel();
@@ -293,7 +293,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(HugeIconsSolid.alertCircle,
+                  Icon(Icons.error_outline,
                       color: colors.danger, size: 20),
                   const SizedBox(width: 8),
                   Text('Raise a Dispute',
@@ -580,7 +580,7 @@ class _ExpandedBody extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.alertCircle,
+                  Icon(Icons.error_outline,
                       size: 16, color: colors.danger),
                   const SizedBox(width: 8),
                   Expanded(
@@ -631,27 +631,27 @@ class _ExpandedBody extends StatelessWidget {
 
     // DRAFT — payer funds.
     if (status == EscrowStatus.draft && _isPayer) {
-      buttons.add(_primaryButton('Fund Escrow', HugeIconsSolid.lockKey, onFund));
+      buttons.add(_primaryButton('Fund Escrow', Icons.key_outlined, onFund));
     }
 
     // FUNDED / IN_PROGRESS.
     if (status == EscrowStatus.funded || status == EscrowStatus.inProgress) {
       if (_isPayee) {
         buttons.add(_primaryButton('Mark Delivered',
-            HugeIconsSolid.checkmarkCircle01, () => onSatisfy(
+            Icons.check_circle_outline, () => onSatisfy(
                 'Mark Delivered',
                 'Confirm you have delivered. This moves the escrow toward settlement.')));
       }
       // Update terms (both parties may refine).
       buttons.add(_secondaryButton(
-          'Update Terms', HugeIconsStroke.pencilEdit01, onUpdateTerms));
+          'Update Terms', Icons.edit_outlined, onUpdateTerms));
       if (_isPayer) {
         buttons.add(_dangerButton(
-            'Cancel Escrow', HugeIconsStroke.cancelCircle, onCancel));
+            'Cancel Escrow', Icons.cancel_outlined, onCancel));
       }
       // Either party can dispute.
       buttons.add(_dangerButton(
-          'Raise Dispute', HugeIconsStroke.alertCircle, onDispute));
+          'Raise Dispute', Icons.error_outline, onDispute));
     }
 
     // PENDING_SETTLEMENT — the other party confirms release.
@@ -661,14 +661,14 @@ class _ExpandedBody extends StatelessWidget {
               (_isPayee && escrow.payeeSatisfied);
       if (!iHaveConfirmed) {
         buttons.add(_primaryButton('Confirm Release',
-            HugeIconsSolid.checkmarkCircle01, () => onSatisfy(
+            Icons.check_circle_outline, () => onSatisfy(
                 'Confirm Release',
                 'Release the locked funds? This settles the escrow.')));
       } else {
         buttons.add(_infoBar('Waiting for the other party to confirm.'));
       }
       buttons.add(_dangerButton(
-          'Raise Dispute', HugeIconsStroke.alertCircle, onDispute));
+          'Raise Dispute', Icons.error_outline, onDispute));
     }
 
     // DISPUTED / ADMIN_REVIEW — read-only, awaiting admin.
@@ -803,8 +803,8 @@ class _ExpandedBody extends StatelessWidget {
           children: [
             Icon(
               satisfied
-                  ? HugeIconsSolid.checkmarkCircle01
-                  : HugeIconsStroke.clock01,
+                  ? Icons.check_circle_outline
+                  : Icons.access_time,
               size: 14,
               color: satisfied ? colors.success : colors.textTertiary,
             ),

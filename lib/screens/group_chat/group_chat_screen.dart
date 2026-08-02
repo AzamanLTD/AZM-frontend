@@ -1,23 +1,24 @@
-// =============================================================================
-// GROUP CHAT SCREEN  (Master Sprint, 2026-05-27)
-//
-// Slim group chat surface: scrollable message list + composer. Reuses
-// patterns from the existing personal chat. Susu binding shows a top
-// banner that links to the susu dashboard.
-// =============================================================================
-
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:azaman/providers/group_chat_provider.dart';
-import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/screens/group_chat/group_profile_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/premium_message_bubble.dart';
+import 'package:azaman/widgets/premium_chat_input.dart';
+import 'package:azaman/providers/premium_chat_provider.dart';
+import 'package:azaman/models/chat_message.dart';
+import 'package:azaman/widgets/typing_indicator_bubble.dart';
+import 'package:azaman/widgets/chat_date_header.dart';
+import 'package:azaman/widgets/disappearing_message_timer_sheet.dart';
+import 'package:azaman/screens/chat/message_search_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -28,19 +29,45 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
-  final _input = TextEditingController();
-  final _focusNode = FocusNode();
-  bool _sending = false;
+  final TextEditingController _input = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  final ImagePicker _imagePicker = ImagePicker();
+  final ScrollController _scrollController = ScrollController();
 
-  // Master Sprint v2: @-mentions overlay state. When the user types `@`
-  // we show a member picker; tapping inserts `@username` at the cursor.
+  final bool _sending = false;
+  String? _myUserId;
+  bool _inputHasText = false;
+
+  // Mention Picker States
   bool _showMentionPicker = false;
   String _mentionFilter = '';
+
+  // Reply States
+  ChatMessage? _replyToMessage;
+
+  // Plus menu & typing
+  final bool _plusMenuOpen = false;
+  final bool _isTyping = false;
+
+
 
   @override
   void initState() {
     super.initState();
     _input.addListener(_onInputChanged);
+    _input.addListener(() {
+      final has = _input.text.trim().isNotEmpty;
+      if (has != _inputHasText) setState(() => _inputHasText = has);
+    });
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        ref.read(premiumChatProvider(ChatContextParams(context: ChatContext.group, contextId: widget.groupId)).notifier).loadMessages(loadMore: true);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _myUserId = ref.read(authProvider).user?.id.toString();
+    });
   }
 
   @override
@@ -48,16 +75,28 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _input.removeListener(_onInputChanged);
     _input.dispose();
     _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
 
   void _onInputChanged() {
     final txt = _input.text;
     final selection = _input.selection;
     if (!selection.isValid) return;
     final caret = selection.end;
-    // Look back from the caret for an `@` token that hasn't been
-    // closed by a space yet.
     int at = -1;
     for (int i = caret - 1; i >= 0; i--) {
       final ch = txt[i];
@@ -83,134 +122,175 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     final caret = _input.selection.end;
     int at = -1;
     for (int i = caret - 1; i >= 0; i--) {
-      if (txt[i] == '@') {
+      final ch = txt[i];
+      if (ch == ' ' || ch == '\n') break;
+      if (ch == '@') {
         at = i;
         break;
       }
     }
-    if (at < 0) return;
-    final replacement = '@$username ';
-    final next = txt.replaceRange(at, caret, replacement);
-    _input.value = TextEditingValue(
-      text: next,
-      selection: TextSelection.collapsed(offset: at + replacement.length),
-    );
+    if (at >= 0) {
+      final before = txt.substring(0, at);
+      final after = txt.substring(caret);
+      final newText = '$before@$username $after';
+      _input.text = newText;
+      _input.selection = TextSelection.collapsed(
+        offset: at + username.length + 2,
+      );
+    }
     setState(() => _showMentionPicker = false);
   }
 
-  Future<void> _send() async {
-    final txt = _input.text.trim();
-    if (txt.isEmpty) return;
-    setState(() => _sending = true);
-    try {
-      await ref.read(groupActionsProvider).sendMessage(widget.groupId, content: txt);
-      _input.clear();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+  void _triggerReply(ChatMessage msg) {
+    HapticFeedback.lightImpact();
+    setState(() => _replyToMessage = msg);
   }
+
+  // Legacy _send() and _sendMessage() have been removed. Sending is handled exclusively by PremiumChatInput via premiumChatProvider.
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final groupAsync = ref.watch(groupDetailProvider(widget.groupId));
-    final msgsAsync = ref.watch(groupMessagesProvider(widget.groupId));
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: groupAsync.when(
-          loading: () => const Text(''),
-          error: (_, __) => const Text('Group'),
-          data: (g) => GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GroupProfileScreen(groupId: widget.groupId),
-                ),
-              ).then((_) {
-                ref.invalidate(groupDetailProvider(widget.groupId));
-                ref.invalidate(susuInitiationStatusProvider(widget.groupId));
-              });
-            },
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    g?.name ?? 'Group',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800),
+          loading: () => const SizedBox(),
+          error: (_, __) => const SizedBox(),
+          data: (g) {
+            if (g == null) return const SizedBox();
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                pushWithVerticalTransition(context, GroupProfileScreen(groupId: widget.groupId));
+              },
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 17,
+                    backgroundColor: colors.softSurface,
+                    backgroundImage: g.avatarUrl != null ? NetworkImage(g.avatarUrl!) : null,
+                    child: g.avatarUrl == null
+                        ? Text(g.name.substring(0, 1).toUpperCase(), style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold))
+                        : null,
                   ),
-                ),
-                Icon(HugeIconsSolid.arrowDown01,
-                    color: colors.textTertiary, size: 18),
-              ],
-            ),
-          ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(g.name, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 1.5),
+                        Text('${g.members.length} members', style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         actions: [
           IconButton(
-            tooltip: 'Group profile',
-            icon: Icon(HugeIconsSolid.userGroup, color: colors.accent, size: 20),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GroupProfileScreen(groupId: widget.groupId),
-                ),
-              ).then((_) {
-                ref.invalidate(groupDetailProvider(widget.groupId));
-                ref.invalidate(susuInitiationStatusProvider(widget.groupId));
-              });
-            },
+            icon: Icon(Icons.search, size: 20, color: colors.textSecondary),
+            tooltip: 'Search messages',
+            onPressed: () => pushWithVerticalTransition(context, MessageSearchScreen(conversationId: widget.groupId,
+                conversationContext: 'group',)),
           ),
+          Builder(builder: (ctx) {
+            final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
+            final chatState = ref.watch(premiumChatProvider(params));
+            return IconButton(
+              icon: Icon(Icons.timer_outlined,
+                  size: 20,
+                  color: chatState.disappearAfterSeconds != null
+                      ? colors.accent
+                      : colors.textSecondary),
+              tooltip: chatState.disappearAfterSeconds != null
+                  ? 'Disappearing: ${chatState.disappearLabel}'
+                  : 'Disappearing messages',
+              onPressed: () => showDisappearTimerSheet(context, params),
+            );
+          }),
         ],
       ),
       body: Column(
         children: [
-          // Susu state banner: shows the initiation countdown while
-          // configuring, or the active-dashboard link once activated.
           _SusuBanner(groupId: widget.groupId),
           Expanded(
-            child: msgsAsync.when(
-              loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
-              error: (e, _) => Center(child: Text(e.toString())),
-              data: (msgs) {
-                if (msgs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No messages yet — say hi!',
-                      style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                    ),
-                  );
+            child: Builder(
+              builder: (ctx) {
+                final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
+                final chatState = ref.watch(premiumChatProvider(params));
+                
+                if (chatState.isLoading && chatState.messages.isEmpty) {
+                  return Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2));
                 }
+                
+                if (chatState.messages.isEmpty) {
+                  return Center(child: Text('No messages here yet.', style: TextStyle(color: colors.textTertiary, fontSize: 13)));
+                }
+
                 return ListView.builder(
+                  controller: _scrollController,
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  itemCount: msgs.length,
-                  itemBuilder: (context, i) => _MessageBubble(msg: msgs[i], colors: colors),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 12, bottom: 20),
+                  itemCount: chatState.messages.length + (chatState.hasMore ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (i == chatState.messages.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2))
+                      );
+                    }
+                    final msg = chatState.messages[i];
+                    if (msg.kind == MessageKind.susuEvent) {
+                      return _SusuEventCard(message: msg, colors: colors);
+                    }
+                    final msgDate = msg.timestamp;
+                    final prevMsg = i < chatState.messages.length - 1 ? chatState.messages[i + 1] : null;
+                    final showDateHeader = prevMsg == null ||
+                        msgDate.day != prevMsg.timestamp.day ||
+                        msgDate.month != prevMsg.timestamp.month;
+
+                    return Column(children: [
+                      if (showDateHeader) ChatDateHeader(date: msgDate),
+                      PremiumMessageBubble(
+                        key: ValueKey(msg.localId),
+                        message: msg,
+                        myUserId: int.tryParse(_myUserId ?? '0') ?? 0,
+                        showAvatar: true,
+                        showSenderName: true,
+                        onReply: (m) => setState(() => _replyToMessage = m),
+                        onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
+                        onEdit: (m) => _showEditDialog(context, colors, m, params),
+                        onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
+                        onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
+                      )
+                    ]);
+                  },
                 );
-              },
+              }
             ),
           ),
-          // Master Sprint v2: @-mentions picker. Slides up above the
-          // composer when the user is mid-mention, lists matching members.
+          
+          Builder(
+            builder: (ctx) {
+              final chatState = ref.watch(premiumChatProvider(ChatContextParams(context: ChatContext.group, contextId: widget.groupId)));
+              if (chatState.typingUserIds.isNotEmpty) return TypingBubble(colors: colors);
+              return const SizedBox();
+            }
+          ),
+
           if (_showMentionPicker)
             groupAsync.when(
               loading: () => const SizedBox(),
@@ -218,13 +298,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
               data: (g) {
                 if (g == null) return const SizedBox();
                 final filtered = g.members
-                    .where((m) =>
-                        (m.username ?? '').toLowerCase().contains(_mentionFilter))
+                    .where((m) => (m.username ?? '').toLowerCase().contains(_mentionFilter))
                     .take(5)
                     .toList();
                 if (filtered.isEmpty) return const SizedBox();
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 14),
+                  margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   decoration: BoxDecoration(
                     color: colors.card,
@@ -237,54 +316,22 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         .map((m) => InkWell(
                               onTap: () => _insertMention(m.username ?? ''),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 26,
-                                      height: 26,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: colors.accent.withOpacity(0.15),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        (m.username ?? '?').substring(0, 1).toUpperCase(),
-                                        style: TextStyle(
-                                          color: colors.accent,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 10,
-                                        ),
-                                      ),
+                                    CircleAvatar(
+                                      radius: 13,
+                                      backgroundColor: colors.accent.withValues(alpha: 0.15),
+                                      child: Text((m.username ?? '?').substring(0, 1).toUpperCase(), style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w800)),
                                     ),
                                     const SizedBox(width: 10),
-                                    Text(
-                                      '@${m.username ?? 'unknown'}',
-                                      style: TextStyle(
-                                        color: colors.textPrimary,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
+                                    Text('@${m.username ?? 'unknown'}', style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700)),
                                     const Spacer(),
                                     if (m.role == 'ADMIN')
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: colors.warning.withOpacity(0.10),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          'ADMIN',
-                                          style: TextStyle(
-                                            color: colors.warning,
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.8,
-                                          ),
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                        decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(4)),
+                                        child: Text('ADMIN', style: TextStyle(color: colors.warning, fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                                       ),
                                   ],
                                 ),
@@ -295,101 +342,63 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                 );
               },
             ),
-          _Composer(
-            controller: _input,
-            focusNode: _focusNode,
-            sending: _sending,
-            onSend: _send,
-            colors: colors,
+
+          Builder(
+            builder: (ctx) {
+              final params = ChatContextParams(context: ChatContext.group, contextId: widget.groupId);
+              return PremiumChatInput(
+                controller: _input,
+                focusNode: _focusNode,
+                replyTo: _replyToMessage,
+                onClearReply: () => setState(() => _replyToMessage = null),
+                onSendText: (text) {
+                  ref.read(premiumChatProvider(params).notifier).sendTextMessage(
+                    text,
+                    replyToId: _replyToMessage?.id,
+                    replyToText: _replyToMessage?.text,
+                    replyToSenderName: _replyToMessage?.senderUsername,
+                  );
+                  setState(() => _replyToMessage = null);
+                },
+                onSendMedia: ({required mediaUrl, required mediaType, required messageType, mimeType, size, duration, waveformPeaks, linkPreview, caption}) {
+                  ref.read(premiumChatProvider(params).notifier).sendMediaMessage(
+                    mediaUrl: mediaUrl, mediaType: mediaType, messageType: messageType, mimeType: mimeType,
+                    size: size, duration: duration, waveformPeaks: waveformPeaks, linkPreview: linkPreview, caption: caption,
+                  );
+                },
+                onTypingChanged: (isTyping) => ref.read(premiumChatProvider(params).notifier).sendTyping(isTyping),
+              );
+            }
           ),
         ],
       ),
     );
   }
-}
 
-class _MessageBubble extends StatelessWidget {
-  final GroupMessage msg;
-  final AzamanColors colors;
-  const _MessageBubble({required this.msg, required this.colors});
 
-  @override
-  Widget build(BuildContext context) {
-    if (msg.type == 'SYSTEM') {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Center(
-          child: Text(
-            msg.content ?? '',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
+  void _showEditDialog(BuildContext ctx, AzamanColors c, ChatMessage msg, ChatContextParams params) {
+    final editCtrl = TextEditingController(text: msg.text);
+    showDialog(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        backgroundColor: c.card,
+        title: Text('Edit Message', style: TextStyle(color: c.textPrimary, fontSize: 16)),
+        content: TextField(
+          controller: editCtrl, maxLines: null,
+          style: TextStyle(color: c.textPrimary),
+          decoration: InputDecoration(hintText: 'Edit your message', hintStyle: TextStyle(color: c.textTertiary)),
         ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withOpacity(0.15),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              (msg.senderUsername ?? '?').substring(0, 1).toUpperCase(),
-              style: TextStyle(
-                color: colors.accent,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.divider, width: 0.6),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    msg.senderUsername ?? 'Unknown',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  // Master Sprint v2: render @-mentions in accent color so
-                  // they stand out from the rest of the body. Splits the
-                  // text on a regex matching `@\w+` and recombines into
-                  // styled spans.
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 13,
-                      ),
-                      children: _buildBodySpans(msg.content ?? '', colors),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: c.textTertiary))),
+          TextButton(
+            onPressed: () {
+              final newText = editCtrl.text.trim();
+              if (newText.isNotEmpty) {
+                ref.read(premiumChatProvider(params).notifier).editMessage(msg.id, newText);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text('Save', style: TextStyle(color: c.accent)),
           ),
         ],
       ),
@@ -397,311 +406,69 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-class _Composer extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool sending;
-  final VoidCallback onSend;
-  final AzamanColors colors;
-
-  const _Composer({
-    required this.controller,
-    required this.focusNode,
-    required this.sending,
-    required this.onSend,
-    required this.colors,
-  });
-
+class _SusuEventCard extends StatelessWidget {
+  final ChatMessage message; final AzamanColors colors;
+  const _SusuEventCard({required this.message, required this.colors});
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
+    final meta = message.metadata ?? {};
+    final type = meta['type']?.toString() ?? 'SUSU_EVENT';
+    final icon = type == 'SUSU_PAYOUT' ? '💸' : type == 'SUSU_CYCLE_COMPLETE' ? '🏆' : '✅';
+    final label = meta['label']?.toString() ?? type.replaceFirst('_', ' ');
+    return Center(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-        color: Colors.transparent,
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.divider),
-                ),
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 13),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    hintText: 'Message…  type @ to mention',
-                    hintStyle: TextStyle(color: colors.textTertiary, fontSize: 12.5),
-                  ),
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: sending ? null : onSend,
-              icon: Icon(HugeIconsSolid.sent, color: colors.accent),
-            ),
-          ],
-        ),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.2))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(icon, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(color: colors.accent, fontSize: 12.5, fontWeight: FontWeight.w700)),
+        ]),
       ),
     );
   }
 }
-
-
-/// Master Sprint v2: tokenise message body so `@username` substrings render
-/// in the accent color. Reused by group + (future) ticket message bubbles.
-List<InlineSpan> _buildBodySpans(String text, AzamanColors colors) {
-  final spans = <InlineSpan>[];
-  final regex = RegExp(r'@\w+');
-  int cursor = 0;
-  for (final m in regex.allMatches(text)) {
-    if (m.start > cursor) {
-      spans.add(TextSpan(text: text.substring(cursor, m.start)));
-    }
-    spans.add(TextSpan(
-      text: m.group(0)!,
-      style: TextStyle(
-        color: colors.accent,
-        fontWeight: FontWeight.w800,
-      ),
-    ));
-    cursor = m.end;
-  }
-  if (cursor < text.length) {
-    spans.add(TextSpan(text: text.substring(cursor)));
-  }
-  return spans;
-}
-
-// =============================================================================
-// SUSU BANNER — Phase 5 / Workstream D (2026-06-01)
-//
-// Sits below the chat AppBar. Three states:
-//   • no susu        → renders nothing
-//   • CONFIGURING    → live countdown banner with chevron-expandable details
-//                      (per-cycle, projected pool, frequency) + ready count
-//   • ACTIVE         → tap-to-open the Susu dashboard
-//
-// The countdown ticks every second locally; the underlying status refreshes
-// from susuInitiationStatusProvider (also nudged by socket events the chat
-// screen already listens to via the group room).
-// =============================================================================
-class _SusuBanner extends ConsumerStatefulWidget {
+  
+class _SusuBanner extends ConsumerWidget {
   final String groupId;
   const _SusuBanner({required this.groupId});
 
   @override
-  ConsumerState<_SusuBanner> createState() => _SusuBannerState();
-}
-
-class _SusuBannerState extends ConsumerState<_SusuBanner> {
-  Timer? _ticker;
-  bool _expanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // 1s tick to animate the countdown. Cheap — only rebuilds this banner.
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  String _fmtCountdown(Duration d) {
-    if (d.isNegative) return 'expired';
-    final days = d.inDays;
-    final h = d.inHours % 24;
-    final m = d.inMinutes % 60;
-    final s = d.inSeconds % 60;
-    if (days > 0) return '${days}d ${h}h ${m}m';
-    if (h > 0) return '${h}h ${m}m ${s}s';
-    return '${m}m ${s}s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final statusAsync = ref.watch(susuInitiationStatusProvider(widget.groupId));
-    final rate = ref.watch(susuSuppliedRateProvider).valueOrNull;
+    final statusAsync = ref.watch(susuInitiationStatusProvider(groupId));
     final init = statusAsync.valueOrNull;
     if (init == null || init.susuGroupId == null) return const SizedBox();
 
-    // ── Active susu → dashboard link ──────────────────────────────────────
     if (init.isActive) {
       return GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SusuDashboardScreen(susuId: init.susuGroupId!),
-            ),
-          );
+          pushWithVerticalTransition(context, SusuDashboardScreen(susuId: init.susuGroupId!));
         },
         child: Container(
-          margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: colors.success.withOpacity(0.10),
-            borderRadius: BorderRadius.circular(10),
-            border:
-                Border.all(color: colors.success.withOpacity(0.30), width: 0.7),
-          ),
+          color: colors.accent.withValues(alpha: 0.1),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           child: Row(
             children: [
-              Icon(HugeIconsSolid.bank,
-                  color: colors.success, size: 14),
+              Icon(Icons.volunteer_activism, color: colors.accent, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Susu active · tap to view cycles & payouts',
-                  style: TextStyle(
-                      color: colors.success,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700),
+                  'Active Susu cycle in progress',
+                  style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
-              Icon(HugeIconsSolid.arrowRight01, color: colors.success, size: 14),
+              Icon(Icons.chevron_right, color: colors.accent, size: 16),
             ],
           ),
         ),
       );
     }
-
-    // ── Configuring → countdown banner ────────────────────────────────────
-    if (!init.isConfiguring) return const SizedBox();
-    final deadline = init.deadline;
-    final remaining =
-        deadline == null ? Duration.zero : deadline.difference(DateTime.now());
-    final ghsRate = rate?.usdcToGhs ?? 0;
-    final contribution = init.contributionUsdc ?? 0;
-    final pool = init.projectedPoolUsdc;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-      decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.warning.withOpacity(0.30), width: 0.7),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(HugeIconsSolid.clock01, color: colors.warning, size: 14),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Susu initiating · verify in ${_fmtCountdown(remaining)}',
-                      style: TextStyle(
-                        color: colors.warning,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${init.readyCount}/${init.memberCount}',
-                    style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  Icon(
-                    _expanded
-                        ? HugeIconsSolid.arrowUp01
-                        : HugeIconsSolid.arrowDown01,
-                    color: colors.warning,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Divider(color: colors.divider, height: 12),
-                  _detail(colors, 'Per cycle',
-                      '\$${contribution.toStringAsFixed(2)}'
-                      '${ghsRate > 0 ? '  ≈ GH₵ ${(contribution * ghsRate).toStringAsFixed(2)}' : ''}'),
-                  _detail(colors, 'Projected pool / cycle',
-                      '\$${pool.toStringAsFixed(2)}'
-                      '${ghsRate > 0 ? '  ≈ GH₵ ${(pool * ghsRate).toStringAsFixed(2)}' : ''}'),
-                  _detail(colors, 'Frequency', init.frequency ?? '—'),
-                  _detail(colors, 'Members', '${init.memberCount}'),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                GroupProfileScreen(groupId: widget.groupId),
-                          ),
-                        );
-                      },
-                      icon: Icon(HugeIconsSolid.task01,
-                          size: 14, color: colors.warning),
-                      label: Text('View members & verification',
-                          style: TextStyle(
-                              color: colors.warning,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800)),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                            color: colors.warning.withOpacity(0.40)),
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
+    return const SizedBox();
   }
-
-  Widget _detail(AzamanColors colors, String k, String v) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(k,
-                style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-            Flexible(
-              child: Text(v,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      );
 }

@@ -10,14 +10,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
+import 'package:azaman/screens/marketplace/receipt_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
   final String invoiceId;
@@ -105,6 +110,29 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             content: Text('Invoice paid. Thank you!'),
             behavior: SnackBarBehavior.floating,
           ));
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (!mounted) return;
+            LeaveReviewSheet.show(context, business: BusinessProfile(
+              id: inv.businessProfileId,
+              bizId: inv.businessBizId ?? '',
+              businessName: inv.businessName ?? '',
+              category: '',
+              isVerified: false,
+              isSuspended: false,
+              kybStatus: 'UNVERIFIED',
+              totalEscrows: 0,
+              completedEscrows: 0,
+              userId: 0,
+              totalVolume: 0,
+              averageRating: 0,
+              reviews: const [],
+              reviewCount: 0,
+              amenities: [],
+              cuisineTypes: [],
+              username: '',
+              logoUrl: inv.businessLogoUrl,
+            ));
+          });
         } catch (e) {
           if (!mounted) return;
           setState(() => _paying = false);
@@ -137,7 +165,20 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 fontWeight: FontWeight.w800)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                SkeletonBlock(height: 100, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                const SizedBox(height: 16),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+              ],
+            ),
+          )
           : _invoice == null
               ? Center(
                   child: Text(_error ?? 'Invoice not found',
@@ -175,15 +216,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.accentSurface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(HugeIconsSolid.store01, color: colors.accent, size: 22),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: colors.accentSurface,
+            backgroundImage: inv.businessLogoUrl != null
+                ? CachedNetworkImageProvider(inv.businessLogoUrl!)
+                : null,
+            child: inv.businessLogoUrl == null
+                ? Icon(Icons.storefront_outlined, color: colors.accent, size: 22)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -191,6 +232,13 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text('BILL FROM',
+                    style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2)),
+                const SizedBox(height: 3),
                 Text(
                   inv.businessName ?? 'Business',
                   style: TextStyle(
@@ -359,7 +407,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           decoration: InputDecoration(
             labelText: 'Tip (optional)',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(HugeIconsStroke.coins01,
+            prefixIcon: Icon(Icons.widgets_outlined,
                 size: 18, color: colors.textTertiary),
             filled: true,
             fillColor: colors.card,
@@ -382,7 +430,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               AzamanHaptics.toggle();
               setState(() => _coverFee = v);
             },
-            activeColor: colors.success,
+            activeThumbColor: colors.success,
             title: Text('Cover platform fee',
                 style: TextStyle(
                     color: colors.textPrimary,
@@ -448,7 +496,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Column(
         children: [
-          Icon(HugeIconsSolid.checkmarkCircle01,
+          Icon(Icons.check_circle_outline,
               color: colors.success, size: 40),
           const SizedBox(height: 8),
           Text('Paid',
@@ -466,6 +514,27 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               _fmtDate(inv.paidAt!),
               style: TextStyle(color: colors.textTertiary, fontSize: 11),
             ),
+          const SizedBox(height: 14),
+          TextButton.icon(
+            onPressed: () {
+              AzamanHaptics.nav();
+              pushWithVerticalTransition(
+                context,
+                ReceiptScreen(
+                  invoice: inv,
+                  businessName: inv.businessName ?? 'Business',
+                  businessLogoUrl: inv.businessLogoUrl,
+                ),
+              );
+            },
+            icon: Icon(Icons.insert_drive_file_outlined,
+                size: 16, color: colors.accent),
+            label: Text('View Full Receipt',
+                style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );
@@ -480,7 +549,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Row(
         children: [
-          Icon(HugeIconsSolid.cancelCircle, color: colors.textTertiary),
+          Icon(Icons.cancel_outlined, color: colors.textTertiary),
           const SizedBox(width: 10),
           Expanded(
             child: Text('This invoice was voided by the business.',

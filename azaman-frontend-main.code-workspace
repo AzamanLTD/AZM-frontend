@@ -4,15 +4,12 @@
 			"path": "."
 		},
 		{
-			"path": "../azaman-backend-main"
+			"name": "AZM-backend",
+			"path": "../AZM-backend"
 		},
 		{
-			"path": "../azaman-website"
-		},
-		{
-			"path": "../admin_web_portal"
+			"path": "../AZM-businessPortal"
 		}
 	],
-	"settings": {
-	}
+	"settings": {}
 }

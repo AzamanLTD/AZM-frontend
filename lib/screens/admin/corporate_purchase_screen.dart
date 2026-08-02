@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class CorporatePurchaseScreen extends ConsumerStatefulWidget {
   const CorporatePurchaseScreen({super.key});
@@ -113,7 +113,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 56),
+            Icon(Icons.check_circle_outline, color: colors.success, size: 56),
             const SizedBox(height: 16),
             Text(
               'OTC Logged Successfully',
@@ -166,10 +166,10 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.bank, color: colors.accent, size: 18),
+              child: Icon(Icons.account_balance_outlined, color: colors.accent, size: 18),
             ),
             const SizedBox(width: 10),
             Text(
@@ -189,7 +189,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 80),
+                  Icon(Icons.check_circle_outline, color: colors.success, size: 80),
                   const SizedBox(height: 20),
                   Text(
                     'OTC Recorded',
@@ -210,7 +210,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionHeader('MANUAL OTC LOGGING', HugeIconsSolid.noteEdit, colors),
+                    _buildSectionHeader('MANUAL OTC LOGGING', Icons.edit_note_outlined, colors),
                     const SizedBox(height: 6),
                     Text(
                       'Record a corporate OTC trade with exact financial details.',
@@ -258,7 +258,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                     ),
                     const SizedBox(height: 28),
 
-                    _buildSectionHeader('TRANSACTION RECEIPT', HugeIconsSolid.receiptDollar, colors),
+                    _buildSectionHeader('TRANSACTION RECEIPT', Icons.receipt_long_outlined, colors),
                     const SizedBox(height: 4),
                     Text(
                       'Upload a clear screenshot of the payment confirmation. This is mandatory.',
@@ -275,7 +275,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _receiptImage == null
-                              ? colors.accent.withOpacity(0.5)
+                              ? colors.accent.withValues(alpha: 0.5)
                               : colors.accent,
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: colors.divider,
@@ -285,7 +285,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                         ),
                         onPressed: (_isUploading) ? null : _submitOtcLog,
                         icon: _isUploading
-                            ? SizedBox(
+                            ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -293,7 +293,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(HugeIconsSolid.cloudUpload),
+                            : const Icon(Icons.cloud_upload_outlined),
                         label: Text(
                           _isUploading ? 'SUBMITTING...' : 'LOG OTC TO LEDGER',
                           style: const TextStyle(
@@ -361,7 +361,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
           },
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: colors.textTertiary.withOpacity(0.5)),
+            hintStyle: TextStyle(color: colors.textTertiary.withValues(alpha: 0.5)),
             prefixText: '$prefix ',
             prefixStyle: TextStyle(
               color: colors.accent,
@@ -377,11 +377,11 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.accent.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colors.danger.withOpacity(0.5)),
+              borderSide: BorderSide(color: colors.danger.withValues(alpha: 0.5)),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -402,12 +402,12 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
         decoration: BoxDecoration(
           color: _receiptImage == null
               ? colors.card
-              : colors.card.withOpacity(0.8),
+              : colors.card.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: _receiptImage == null
-                ? colors.accent.withOpacity(0.3)
-                : colors.success.withOpacity(0.6),
+                ? colors.accent.withValues(alpha: 0.3)
+                : colors.success.withValues(alpha: 0.6),
             width: _receiptImage == null ? 1.5 : 2.5,
           ),
         ),
@@ -418,11 +418,11 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.12),
+                      color: colors.accent.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      HugeIconsSolid.camera01,
+                      Icons.camera_alt_outlined,
                       color: colors.accent,
                       size: 36,
                     ),
@@ -468,7 +468,7 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(HugeIconsSolid.refresh01, color: Colors.white, size: 14),
+                            Icon(Icons.refresh, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text(
                               'Change',
@@ -485,13 +485,13 @@ class _CorporatePurchaseScreenState extends ConsumerState<CorporatePurchaseScree
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: colors.success.withOpacity(0.9),
+                        color: colors.success.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(HugeIconsSolid.checkmarkCircle01, color: Colors.white, size: 14),
+                          Icon(Icons.check_circle_outline, color: Colors.white, size: 14),
                           SizedBox(width: 4),
                           Text(
                             'RECEIPT ATTACHED',

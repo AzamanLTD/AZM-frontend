@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SmartRouteCard extends StatelessWidget {
   final SmartRoute route;
@@ -23,11 +23,11 @@ class SmartRouteCard extends StatelessWidget {
   const SmartRouteCard({super.key, required this.route, required this.colors});
 
   IconData get _icon => switch (route.action) {
-        'WITHDRAW_MOMO' => HugeIconsSolid.smartPhone01,
-        'INTERNAL_TRANSFER' => HugeIconsSolid.exchange01,
-        'SAVINGS_DEPOSIT' => HugeIconsSolid.savings,
-        'VAULT_DEPOSIT' => HugeIconsSolid.lock,
-        _ => HugeIconsSolid.directionLeft01,
+        'WITHDRAW_MOMO' => Icons.smartphone_outlined,
+        'INTERNAL_TRANSFER' => Icons.swap_horiz,
+        'SAVINGS_DEPOSIT' => Icons.savings_outlined,
+        'VAULT_DEPOSIT' => Icons.lock_outline,
+        _ => Icons.turn_left,
       };
 
   Color _accent() => switch (route.action) {
@@ -70,10 +70,10 @@ class SmartRouteCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
-            color: colors.card.withOpacity(0.55),
+            color: colors.card.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: accent.withOpacity(0.20),
+              color: accent.withValues(alpha: 0.20),
               width: 0.8,
             ),
           ),
@@ -83,7 +83,7 @@ class SmartRouteCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.12),
+                  color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(_icon, color: accent, size: 16),
@@ -151,9 +151,9 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.30), width: 0.7),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
       ),
       child: Text(
         label,

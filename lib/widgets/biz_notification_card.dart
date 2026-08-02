@@ -7,10 +7,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 
 class BizNotificationCard extends ConsumerWidget {
   final BizNotification notification;
@@ -30,76 +31,80 @@ class BizNotificationCard extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
+      child: PremiumGlassContainer(
+        blur: 8,
+        opacity: notification.isRead ? 0.03 : 0.06,
+        borderRadius: 14,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: notification.isRead
-              ? colors.card
-              : colors.accentSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 1),
+        margin: const EdgeInsets.only(bottom: 8),
+        enableShadow: false,
+        border: Border.all(
+          color: notification.isRead ? colors.divider : tint.withValues(alpha: 0.2),
+          width: notification.isRead ? 0.5 : 1,
         ),
         child: Row(
           children: [
+            // Icon with glow
             Container(
-              width: 38,
-              height: 38,
+              width: 40, height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: tint.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(11),
+                boxShadow: notification.isRead ? null : [
+                  BoxShadow(color: tint.withValues(alpha: 0.1), blurRadius: 8),
+                ],
               ),
               child: Icon(icon, color: tint, size: 18),
             ),
             const SizedBox(width: 12),
+            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    notification.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          notification.title,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (!notification.isRead) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 7, height: 7,
+                          decoration: BoxDecoration(
+                            color: colors.accent,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: colors.accent.withValues(alpha: 0.4), blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     notification.body,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                    ),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12, height: 1.3),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _timeAgo(notification.createdAt),
+                    style: TextStyle(fontSize: 10.5, color: colors.textTertiary, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _timeAgo(notification.createdAt),
-                  style: TextStyle(color: colors.textTertiary, fontSize: 10.5),
-                ),
-                const SizedBox(height: 6),
-                if (!notification.isRead)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: colors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
             ),
           ],
         ),
@@ -110,23 +115,23 @@ class BizNotificationCard extends ConsumerWidget {
   (IconData, Color) _iconFor(String type, AzamanColors colors) {
     switch (type.toUpperCase()) {
       case 'NEW_ORDER':
-        return (HugeIconsSolid.shoppingBag01, colors.accent);
+        return (Icons.shopping_bag_outlined, colors.accent);
       case 'ORDER_FUNDED':
-        return (HugeIconsSolid.wallet01, colors.success);
+        return (Icons.account_balance_wallet_outlined, colors.success);
       case 'ORDER_SATISFIED':
       case 'ORDER_SETTLED':
-        return (HugeIconsSolid.checkmarkCircle01, colors.success);
+        return (Icons.check_circle_outline, colors.success);
       case 'ORDER_DISPUTED':
-        return (HugeIconsSolid.alertCircle, colors.danger);
+        return (Icons.error_outline, colors.danger);
       case 'ORDER_CANCELLED':
       case 'ORDER_REFUNDED':
-        return (HugeIconsSolid.cancelCircle, colors.textTertiary);
+        return (Icons.cancel_outlined, colors.textTertiary);
       case 'KYB_STATUS_CHANGED':
-        return (HugeIconsSolid.shield01, colors.warning);
+        return (Icons.shield_outlined, colors.warning);
       case 'INVOICE_PAID':
-        return (HugeIconsSolid.invoice01, colors.success);
+        return (Icons.receipt_outlined, colors.success);
       default:
-        return (HugeIconsSolid.notification01, colors.accent);
+        return (Icons.notifications_outlined, colors.accent);
     }
   }
 

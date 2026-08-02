@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class MilestoneProgress extends ConsumerWidget {
   final double currentVolume;
@@ -38,7 +38,7 @@ class MilestoneProgress extends ConsumerWidget {
               Row(
                 children: [
                   Icon(
-                    tierIcon ?? HugeIconsSolid.medal01,
+                    tierIcon ?? Icons.military_tech_outlined,
                     size: 15,
                     color: colors.accent,
                   ),

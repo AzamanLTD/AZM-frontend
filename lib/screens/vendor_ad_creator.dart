@@ -3,13 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
-import 'package:azaman/providers/trade_account_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/trade_account_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class VendorAdCreator extends ConsumerStatefulWidget {
   const VendorAdCreator({super.key});
@@ -71,7 +71,6 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         final settingsRes = await apiClient.get('/users/dashboard', requireAuth: true);
         if (settingsRes.statusCode == 200) {
           final settingsBody = jsonDecode(settingsRes.body);
-          final rates = settingsBody['data']?['rates'] ?? {};
           // The dashboard endpoint doesn't expose vendorMinCollateral yet,
           // so we use the fallback. The backend enforces the real value.
         }
@@ -106,10 +105,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
     // without leaving the ad-creator flow. Pop returns to the creator
     // where the balance check re-runs on Step 1's "Next" tap.
     HapticFeedback.lightImpact();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DepositScreen()),
-    ).then((_) {
+    pushWithVerticalTransition(context, const DepositScreen()).then((_) {
       // Refetch balance after returning so the collateral check uses
       // the latest available balance (a successful deposit settles
       // async, but a fresh fetch reflects any synchronous credit).
@@ -209,7 +205,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text("Post Ad", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-        leading: IconButton(icon: Icon(HugeIconsSolid.cancel01, color: colors.textPrimary), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(icon: Icon(Icons.cancel_outlined, color: colors.textPrimary), onPressed: () => Navigator.pop(context)),
       ),
       body: _isLoadingData 
         ? Center(child: CircularProgressIndicator(color: colors.accent))
@@ -289,14 +285,14 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           decoration: BoxDecoration(
             color: ref.read(themeProvider).colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withOpacity(0.3)),
+            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.analytics01, color: ref.read(themeProvider).colors.accent, size: 18),
+                  Icon(Icons.analytics_outlined, color: ref.read(themeProvider).colors.accent, size: 18),
                   const SizedBox(width: 8),
                   Text("+${_marginPercent.toStringAsFixed(1)}%",
                       style: TextStyle(color: ref.read(themeProvider).colors.accent, fontWeight: FontWeight.bold, fontSize: 18)),
@@ -305,9 +301,9 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: ref.read(themeProvider).colors.accent,
-                  inactiveTrackColor: ref.read(themeProvider).colors.accent.withOpacity(0.2),
+                  inactiveTrackColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.2),
                   thumbColor: ref.read(themeProvider).colors.accent,
-                  overlayColor: ref.read(themeProvider).colors.accent.withOpacity(0.1),
+                  overlayColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.1),
                   trackHeight: 4,
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
                 ),
@@ -337,14 +333,14 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           decoration: BoxDecoration(
             color: ref.read(themeProvider).colors.card, 
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withOpacity(0.3))
+            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3))
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Row(
                 children: [
-                  Icon(HugeIconsSolid.percent, color: Color(0xFFF0B90B), size: 20),
+                  Icon(Icons.percent, color: Color(0xFFF0B90B), size: 20),
                   SizedBox(width: 10),
                   Text("Flat 2% Platform Fee", style: TextStyle(color: Color(0xFFF0B90B), fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
@@ -365,7 +361,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   const Text("Trades < \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: const Text("60% Admin / 40% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
                   )
                 ],
@@ -377,7 +373,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   const Text("Trades > \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: const Text("50% Admin / 50% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
                   )
                 ],
@@ -421,10 +417,10 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           Container(
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFF6465D).withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withOpacity(0.3))),
+            decoration: BoxDecoration(color: const Color(0xFFF6465D).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withValues(alpha: 0.3))),
             child: const Row(
               children: [
-                Icon(HugeIconsSolid.alertCircle, color: Color(0xFFF6465D), size: 16),
+                Icon(Icons.error_outline, color: Color(0xFFF6465D), size: 16),
                 SizedBox(width: 8),
                 Expanded(child: Text("Minimum \$500 collateral required to post an ad.", style: TextStyle(color: Color(0xFFF6465D), fontSize: 11))),
               ],
@@ -502,14 +498,14 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
-                  color: isSelected ? ref.read(themeProvider).colors.accent.withOpacity(0.1) : ref.read(themeProvider).colors.card,
+                  color: isSelected ? ref.read(themeProvider).colors.accent.withValues(alpha: 0.1) : ref.read(themeProvider).colors.card,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: isSelected ? ref.read(themeProvider).colors.accent : Colors.transparent, width: 1.5),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isSelected ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.circle,
+                      isSelected ? Icons.check_circle_outline : Icons.circle_outlined,
                       color: isSelected ? ref.read(themeProvider).colors.accent : Colors.white24,
                       size: 20,
                     ),
@@ -642,7 +638,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.clock01, color: ref.read(themeProvider).colors.accent, size: 18),
+                Icon(Icons.access_time, color: ref.read(themeProvider).colors.accent, size: 18),
                 const SizedBox(width: 12),
                 Text(
                   time.format(context),
@@ -760,8 +756,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                   return;
                 }
 
-                if (_currentStep < 2) setState(() => _currentStep++);
-                else _publishAd();
+                if (_currentStep < 2) {
+                  setState(() => _currentStep++);
+                } else {
+                  _publishAd();
+                }
               },
               child: _isPublishing 
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 

@@ -16,7 +16,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -64,7 +64,7 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                 children: [
                   _Stat(
                     colors: colors,
-                    icon: HugeIconsSolid.wallet01,
+                    icon: Icons.account_balance_wallet_outlined,
                     label: 'Total Liquidity',
                     value: '\$${_fmt(totalUsdc)}',
                     valueColor: colors.accent,
@@ -72,7 +72,7 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                   const SizedBox(width: 20),
                   _Stat(
                     colors: colors,
-                    icon: HugeIconsSolid.userGroup,
+                    icon: Icons.group_outlined,
                     label: 'Online Now',
                     value: '$onlineCount vendor${onlineCount == 1 ? '' : 's'}',
                     valueColor: colors.success,

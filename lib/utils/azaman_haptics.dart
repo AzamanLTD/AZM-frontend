@@ -59,6 +59,11 @@ class AzamanHaptics {
     return HapticFeedback.heavyImpact();
   }
 
+  /// Light tap — success feedback (payment sent, order placed, goal reached).
+  static Future<void> success() {
+    return HapticFeedback.lightImpact();
+  }
+
   /// Heavy double-tap — error / danger / unrecoverable confirm.
   /// Dart's HapticFeedback has no native "double" pulse, so we fire
   /// a heavy + a delayed second heavy. ~140ms gap reads as "two beats".

@@ -5,9 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'dart:io';
+
+import 'package:azaman/screens/contacts_screen.dart';
+import 'package:azaman/providers/story_provider.dart';
+import 'package:azaman/widgets/story_ring.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
+import 'package:azaman/screens/story_creation_screen.dart';
+import 'package:azaman/screens/story_camera_screen.dart';
+import 'package:azaman/screens/story_editor_screen.dart';
+import 'package:azaman/widgets/chat_unread_badge.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/chat_avatar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -47,6 +64,30 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
 
   void _onSearchChanged(String query) {
     ref.read(friendProvider).searchUsers(query);
+  }
+
+  Future<void> _pickAndCreateStory() async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StoryCameraScreen(
+          onCaptured: (File mediaFile, bool isVideo, StoryFilter filter) {
+            Navigator.pushReplacement(context, MaterialPageRoute(
+              builder: (_) => StoryEditorScreen(
+                mediaFile: mediaFile,
+                isVideo: isVideo,
+                initialFilter: filter,
+                onPublish: (File file, bool isVid) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(
+                    builder: (_) => StoryCreationScreen(mediaFile: file, isVideo: isVid),
+                  ));
+                },
+              ),
+            ));
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _openRequestsSheet() async {
@@ -315,7 +356,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -327,72 +368,154 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       style: TextStyle(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w800,
-                        fontSize: 27,
+                        fontSize: 28,
                         letterSpacing: -0.5,
                       ),
-                    ),
+                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
                   ),
-                  GestureDetector(
+                  ScaleTap(
+                    onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
+                    ),
+                  ).animate().fadeIn(delay: 60.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
+                  ScaleTap(
                     onTap: _openRequestsSheet,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: 42,
+                          height: 42,
                           decoration: BoxDecoration(
                             color: colors.softSurface,
                             shape: BoxShape.circle,
+                            border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
                           ),
                           alignment: Alignment.center,
-                          child: Icon(
-                            HugeIconsStroke.clipboard,
-                            color: colors.textPrimary,
-                            size: 20,
-                          ),
+                          child: Icon(Icons.person_add_rounded, color: colors.textPrimary, size: 20),
                         ),
                         if (provider.pendingRequests.isNotEmpty)
-                          Positioned(
-                            top: -1,
-                            right: -1,
-                            child: Container(
-                              width: 11,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: colors.danger,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: colors.background, width: 1.5),
-                              ),
-                            ),
-                          ),
+                          Positioned(top: -2, right: -2, child: ChatUnreadBadge(count: provider.pendingRequests.length, fontSize: 10)),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () {
-                      _toggleSearch();
-                    },
+                  ).animate().fadeIn(delay: 120.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
+                  const SizedBox(width: 8),
+                  ScaleTap(
+                    onTap: _toggleSearch,
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
-                        color: _isSearching
-                            ? colors.accent.withValues(alpha: 0.12)
-                            : colors.softSurface,
+                        color: _isSearching ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _isSearching ? colors.accent.withValues(alpha: 0.2) : colors.textTertiary.withValues(alpha: 0.08),
+                          width: 0.5),
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        _isSearching ? HugeIconsSolid.cancel01 : HugeIconsStroke.chatSearch01,
+                        _isSearching ? HugeIconsSolid.cancel01 : Icons.search_rounded,
                         color: _isSearching ? colors.accent : colors.textPrimary,
-                        size: 20,
-                      ),
+                        size: 20),
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 180.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                 ],
               ),
             ),
+
+            if (!_isSearching) ...[
+              const SizedBox(height: 12),
+              Consumer(builder: (context, ref, _) {
+                final feed = ref.watch(storyFeedProvider);
+                final auth = ref.watch(authProvider);
+                final myAvatar = auth.user?.profilePictureUrl;
+                
+                Widget buildMyStatus() {
+                  return GestureDetector(
+                    onTap: _pickAndCreateStory,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: Column(children: [
+                        Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: colors.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: colors.surface, width: 2),
+                              ),
+                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(width: 64, child: Text('My Status', maxLines: 1,
+                          overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                      ]),
+                    ),
+                  );
+                }
+
+                return feed.when(
+                  data: (groups) => SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: groups.length + 1,
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          return buildMyStatus().animate().fadeIn(duration: 250.ms).slideX(begin: -0.15, end: 0);
+                        }
+                        final g = groups[i - 1];
+                        return GestureDetector(
+                          onTap: () => StoryViewerScreen.open(context, groups: groups, initialGroupIndex: i - 1),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Column(children: [
+                              StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted, storyCount: g.stories.length),
+                              const SizedBox(height: 6),
+                              SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
+                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500))),
+                            ]),
+                          ),
+                        ).animate().fadeIn(delay: Duration(milliseconds: 80 * i), duration: 300.ms).slideX(begin: -0.1, end: 0, delay: Duration(milliseconds: 80 * i));
+                      },
+                    ),
+                  ),
+                  loading: () => SizedBox(
+                    height: 96,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [buildMyStatus()],
+                    ),
+                  ),
+                  error: (_, __) => SizedBox(
+                    height: 96,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [buildMyStatus()],
+                    ),
+                  ),
+                );
+              }),
+            ],
 
             if (_isSearching) ...[
               const SizedBox(height: 14),
@@ -508,7 +631,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];
@@ -638,31 +761,33 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                HugeIconsStroke.messageMultiple01,
-                color: colors.textPrimary,
-                size: 116,
-              ),
+              PremiumGlassContainer(
+                blur: 20,
+                opacity: 0.05,
+                borderRadius: 60,
+                padding: const EdgeInsets.all(28),
+                child: Icon(HugeIconsStroke.userGroup, color: colors.accent, size: 56),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 2000.ms, curve: Curves.easeInOut),
               const SizedBox(height: 28),
-              Text(
-                'Your inbox is empty',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  letterSpacing: -0.4,
-                ),
-              ),
+              Text('Your inbox is empty',
+                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.4))
+                .animate().fadeIn(delay: 200.ms, duration: 400.ms),
               const SizedBox(height: 10),
-              Text(
-                'Conversations will show up here.',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Text('Add friends by their Azaman ID to start chatting.',
+                style: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center)
+                .animate().fadeIn(delay: 300.ms, duration: 400.ms),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(24)),
+                  child: Text('Find Friends',
+                    style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
             ],
           ),
         ),
@@ -681,48 +806,70 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         loading: () => _buildFriendsList(provider.friends, colors),
         error: (_, __) => _buildFriendsList(provider.friends, colors),
         data: (groups) {
-          return ListView(
+          // 2026-07-08: groups and friends used to render as two separate
+          // labelled sections (GROUPS header, then FRIENDS header) — mixed
+          // now into a single list sorted by most-recent activity, with a
+          // faint hairline between rows instead of category chrome.
+          final entries = <_ChatListEntry>[
+            for (final g in groups)
+              _ChatListEntry(sortTime: g.updatedAt, builder: () => _GroupChatTile(group: g, colors: colors)),
+            for (final f in provider.friends)
+              _ChatListEntry(sortTime: _friendSortTime(f), builder: () => _buildFriendTile(f, colors)),
+          ]..sort((a, b) {
+              if (a.sortTime == null && b.sortTime == null) return 0;
+              if (a.sortTime == null) return 1;
+              if (b.sortTime == null) return -1;
+              return b.sortTime!.compareTo(a.sortTime!);
+            });
+
+          // FIX (2026-07-08): Stan wants the row content to start at the
+          // screen edge, not inset -- removed the outer 20px horizontal
+          // list padding (each tile still has its own ~14px internal
+          // content padding, so text/avatars don't literally touch the
+          // glass edge, but there's no extra outer gutter anymore).
+          return ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-            children: [
-              if (groups.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'GROUPS',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 120),
+            itemCount: entries.length,
+            // FIX (2026-07-08): a flat Divider at 0.4 opacity read as a
+            // hard, prominent rule between rows. Replaced with a 1px band
+            // whose color fades in from both edges (transparent -> a very
+            // faint shadow tone -> transparent) -- reads as soft depth
+            // between rows rather than a drawn line.
+            separatorBuilder: (_, __) => Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    (colors.isDark ? Colors.black : Colors.black)
+                        .withValues(alpha: colors.isDark ? 0.35 : 0.07),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
-                for (final g in groups)
-                  _GroupChatTile(group: g, colors: colors),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Text(
-                    'FRIENDS',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
-              for (final f in provider.friends)
-                _buildFriendTile(f, colors),
-            ],
+              ),
+            ),
+            itemBuilder: (context, i) => entries[i].builder(),
           );
         },
       ),
     );
+  }
+
+  /// Best-effort last-activity timestamp for a friend row, so it can be
+  /// interleaved with group rows in one recency-sorted list.
+  DateTime? _friendSortTime(Map<String, dynamic> friend) {
+    final latestMessage = friend['latestMessage'] is Map<String, dynamic>
+        ? friend['latestMessage'] as Map<String, dynamic>
+        : null;
+    final raw = latestMessage?['createdAt'] ?? friend['lastMessageTime'];
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    return DateTime.tryParse(raw.toString());
   }
 
   Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
@@ -730,7 +877,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
       itemCount: friends.length,
       itemBuilder: (context, index) => _buildFriendTile(friends[index], colors),
     );
@@ -756,6 +903,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     final unread = (friend['unreadCount'] ?? 0) is int
         ? friend['unreadCount'] as int
         : int.tryParse('${friend['unreadCount']}') ?? 0;
+    final currentUsername = ref.watch(authProvider).user?.username ?? '';
+    final bool isMentioned = currentUsername.isNotEmpty &&
+        lastMessage.contains('@$currentUsername');
     final friendshipId = friend['friendshipId']?.toString() ??
         friend['id']?.toString() ??
         '';
@@ -802,22 +952,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: colors.softSurface,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                username.isNotEmpty ? username[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
+            ChatAvatar(
+              imageUrl: friendObj['profilePictureUrl']?.toString(),
+              name: username,
+              size: 50,
+              showOnlineDot: true,
+              isOnline: friendObj['isOnline'] == true,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -905,20 +1045,35 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       if (hasUnread) ...[
                         const SizedBox(width: 8),
                         Container(
-                          width: 20,
-                          height: 20,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: colors.accent,
+                            color: isMentioned ? colors.warning : colors.accent,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: TextStyle(
-                              color: colors.isDark ? Colors.black : Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isMentioned) ...[
+                                Text(
+                                  '@',
+                                  style: TextStyle(
+                                    color: colors.isDark ? Colors.black : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                              ],
+                              Text(
+                                unread > 99 ? '99+' : '$unread',
+                                style: TextStyle(
+                                  color: colors.isDark ? Colors.black : Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -931,20 +1086,27 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  lastTime,
-                  style: TextStyle(
-                    color: hasUnread ? colors.accent : colors.textTertiary,
-                    fontSize: 12,
-                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                if (hasUnread)
+                  ChatUnreadBadge(count: unread)
+                else if (lastTime.isNotEmpty)
+                  Text(lastTime, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+                if (isMentioned && hasUnread) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text('@You', style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
-                ),
+                ],
               ],
             ),
           ],
         ),
       ),
-    );
+    )
+    .animate()
+    .fadeIn(duration: 250.ms)
+    .slideX(begin: 0.05, end: 0);
   }
 
   Widget _buildRequestsSheetBody(AzamanColors colors, FriendProvider provider) {
@@ -959,7 +1121,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsStroke.clipboard, size: 44, color: colors.textTertiary),
+            Icon(HugeIconsStroke.userGroup, size: 44, color: colors.textTertiary),
             const SizedBox(height: 14),
             Text(
               'No requests',
@@ -1157,6 +1319,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
   }
 }
 
+class _ChatListEntry {
+  final DateTime? sortTime;
+  final Widget Function() builder;
+  const _ChatListEntry({required this.sortTime, required this.builder});
+}
+
 class _GroupChatTile extends StatelessWidget {
   final GroupSummary group;
   final AzamanColors colors;
@@ -1164,84 +1332,48 @@ class _GroupChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final timeStr = _formatTime(group.updatedAt);
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GroupChatScreen(groupId: group.id),
-          ),
-        );
+        pushWithVerticalTransition(context, GroupChatScreen(groupId: group.id));
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            _GroupBubbleAvatar(group: group, colors: colors),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          group.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      if (group.isSusuEnabled) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colors.warning.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'SUSU',
-                            style: TextStyle(
-                              color: colors.warning,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${group.members.length} members',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
-          ],
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+        child: Row(children: [
+          _GroupBubbleAvatar(group: group, colors: colors),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Expanded(child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
+              if (timeStr.isNotEmpty) Text(timeStr, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+              if (group.isSusuEnabled) ...[
+                const SizedBox(width: 6),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                  child: Text('SUSU', style: TextStyle(color: colors.warning, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Text('${group.members.length} members', style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+          ])),
+          Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
+        ]),
       ),
-    );
+    ).animate().fadeIn(duration: 250.ms).slideX(begin: 0.05, end: 0);
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.day}/${dt.month}';
   }
 }
 
@@ -1252,62 +1384,72 @@ class _GroupBubbleAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (group.avatarUrl != null && group.avatarUrl!.isNotEmpty) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: group.avatarUrl!,
+          fit: BoxFit.cover,
+          width: 50, height: 50,
+          placeholder: (_, __) => _gradientBubble(group.name, 50),
+          errorWidget: (_, __, ___) => _gradientBubble(group.name, 50),
+        ),
+      );
+    }
     final members = group.members;
-    final firstChar = group.name.isEmpty ? '?' : group.name[0].toUpperCase();
-    final secondChar = members.isNotEmpty
-        ? (members.first.username ?? '?').substring(0, 1).toUpperCase()
-        : '?';
-    final thirdChar = members.length > 1
-        ? (members[1].username ?? '?').substring(0, 1).toUpperCase()
-        : '+';
     return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 8,
-            child: _bubble(char: firstChar, size: 28, color: colors.accent, fontSize: 11),
-          ),
-          Positioned(
-            bottom: 2,
-            left: 0,
-            child: _bubble(char: secondChar, size: 24, color: colors.accentSecondary, fontSize: 10),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 2,
-            child: _bubble(char: thirdChar, size: 24, color: colors.success, fontSize: 10),
-          ),
-        ],
-      ),
+      width: 50, height: 50,
+      child: Stack(children: [
+        Positioned(top: 0, left: 8, child: _gradientBubble(group.name, 30)),
+        if (members.isNotEmpty)
+          Positioned(bottom: 2, left: 0, child: _memberBubble(members.first.profilePictureUrl, members.first.username ?? '?', 24, colors.accentSecondary)),
+        if (members.length > 1)
+          Positioned(bottom: 0, right: 2, child: _memberBubble(members[1].profilePictureUrl, members[1].username ?? '+', 24, colors.success))
+        else if (members.length == 1)
+          Positioned(bottom: 0, right: 2, child: _countBubble('+', 24, colors.success)),
+      ]),
     );
   }
 
-  Widget _bubble({
-    required String char,
-    required double size,
-    required Color color,
-    required double fontSize,
-  }) {
+  Widget _gradientBubble(String name, double size) {
+    int hash = 0;
+    for (int i = 0; i < name.length; i++) {
+      hash = (hash * 31 + name.codeUnitAt(i)) & 0x7FFFFFFF;
+    }
+    final hue1 = (hash % 360).toDouble();
+    final hue2 = ((hash ~/ 360) % 360).toDouble();
     return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
+      width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.15),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [
+          HSLColor.fromAHSL(1.0, hue1, 0.55, 0.45).toColor(),
+          HSLColor.fromAHSL(1.0, hue2, 0.50, 0.35).toColor(),
+        ]),
         border: Border.all(color: colors.background, width: 1.5),
       ),
-      child: Text(
-        char,
-        style: TextStyle(
-          color: color,
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: TextStyle(color: Colors.white, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  Widget _memberBubble(String? photoUrl, String name, double size, Color fallbackColor) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: colors.background, width: 1.5)),
+        child: ClipOval(child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
+          placeholder: (_, __) => _countBubble(name, size, fallbackColor),
+          errorWidget: (_, __, ___) => _countBubble(name, size, fallbackColor))),
+      );
+    }
+    return _countBubble(name, size, fallbackColor);
+  }
+
+  Widget _countBubble(String char, double size, Color color) {
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15), border: Border.all(color: colors.background, width: 1.5)),
+      child: Text(char.isNotEmpty ? char[0].toUpperCase() : '?', style: TextStyle(color: color, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
     );
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 enum BanStatus { active, warned, restricted, banned }
 
@@ -126,7 +126,7 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
             child: SafeArea(
               bottom: false,
               child: Material(
-                color: colors.danger.withOpacity(0.88),
+                color: colors.danger.withValues(alpha: 0.88),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(14),
                   bottomRight: Radius.circular(14),
@@ -140,7 +140,7 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: colors.danger.withOpacity(0.3),
+                        color: colors.danger.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -151,11 +151,11 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
-                          HugeIconsSolid.shield01,
+                          Icons.shield_outlined,
                           color: Colors.white,
                           size: 18,
                         ),
@@ -181,9 +181,9 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                                   ? 'Auto-lift in $_formattedCountdown'
                                   : 'Lift time unavailable',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.75),
+                                color: Colors.white.withValues(alpha: 0.75),
                                 fontSize: 10,
-                                fontFeatures: [FontFeature.tabularFigures()],
+                                fontFeatures: const [FontFeature.tabularFigures()],
                               ),
                             ),
                           ],
@@ -245,14 +245,14 @@ class _AppealButtonState extends State<_AppealButton> with SingleTickerProviderS
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.25)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.mail01, color: Colors.white, size: 14),
+              Icon(Icons.mail_outline, color: Colors.white, size: 14),
               SizedBox(width: 6),
               Text(
                 'Appeal',

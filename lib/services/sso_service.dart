@@ -201,7 +201,11 @@ class SsoService {
 
     final user = User.fromJson({...u, 'token': token});
 
+    final ssoRefreshToken = (data['refreshToken'] ?? data['data']?['refreshToken'])?.toString();
     await _storage.write(key: 'auth_token', value: user.token);
+    if (ssoRefreshToken != null && ssoRefreshToken.isNotEmpty) {
+      await _storage.write(key: 'refresh_token', value: ssoRefreshToken);
+    }
     await _storage.write(key: 'user_id', value: user.id);
     await _storage.write(key: 'user_role', value: user.role.toLowerCase());
 

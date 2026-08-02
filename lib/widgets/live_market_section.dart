@@ -33,7 +33,7 @@ import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/services/rate_alert_service.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/rate_alert_sheet.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // ── In-memory rate history (Phase G + Phase H review pass) ─────────────────
 //
@@ -190,7 +190,7 @@ class _GhsHeroCard extends StatelessWidget {
                     border: Border.all(color: colors.divider),
                   ),
                   child: Icon(
-                    HugeIconsSolid.exchange01,
+                    Icons.swap_horiz,
                     size: 14,
                     color: colors.textTertiary,
                   ),
@@ -253,9 +253,9 @@ class _GhsHeroCard extends StatelessWidget {
               ),
             ),
           ] else if (coldLoad) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: const SkeletonBlock(
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: SkeletonBlock(
                 height: 36,
                 width: double.infinity,
                 borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -290,7 +290,7 @@ class _CurrencyBadge extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: colors.divider.withOpacity(0.3),
+            color: colors.divider.withValues(alpha: 0.3),
           ),
           child: Text(
             flag,
@@ -341,10 +341,10 @@ class _Sparkline extends StatelessWidget {
       LineChartData(
         minY: minY - pad,
         maxY: maxY + pad,
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
-        lineTouchData: LineTouchData(enabled: false),
+        lineTouchData: const LineTouchData(enabled: false),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
@@ -353,10 +353,10 @@ class _Sparkline extends StatelessWidget {
             isStrokeCapRound: true,
             barWidth: 2.0,
             color: lineColor,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: lineColor.withOpacity(0.10),
+              color: lineColor.withValues(alpha: 0.10),
             ),
           ),
         ],
@@ -395,7 +395,7 @@ class _RateAlertRow extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(HugeIconsSolid.notification01,
+                Icon(Icons.notifications_outlined,
                     size: 17, color: colors.textPrimary),
                 const SizedBox(width: 8),
                 Text(
@@ -412,7 +412,7 @@ class _RateAlertRow extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: colors.accent.withOpacity(0.15),
+                      color: colors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -481,15 +481,15 @@ class _AlertChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.08),
+        color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: chipColor.withOpacity(0.25)),
+        border: Border.all(color: chipColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isAbove ? HugeIconsSolid.analytics01 : HugeIconsSolid.analytics01,
+            isAbove ? Icons.analytics_outlined : Icons.analytics_outlined,
             size: 12,
             color: chipColor,
           ),

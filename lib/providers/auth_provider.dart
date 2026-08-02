@@ -1,7 +1,12 @@
 // =============================================================================
+// =============================================================================
+// AZAMAN V2 — AUTH PROVIDER  (Riverpod-native exports)
 // AZAMAN V2 — AUTH PROVIDER  (Riverpod-native exports)
 //
+//
 // Phase 0a migration: the ChangeNotifier class is preserved verbatim so that
+// Phase 0a migration: the ChangeNotifier class is preserved verbatim so that
+// all existing legacy callsites (Provider.of, Consumer<AuthProvider>) keep
 // all existing legacy callsites (Provider.of, Consumer<AuthProvider>) keep
 // working until Phase 0b lands the mechanical mass-migration. The new
 // `authProvider` and `authStateProvider` exports are the canonical Riverpod
@@ -28,6 +33,8 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
+import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/router/auth_guard.dart';
 
 /// Discrete states for the auth machine. UI guards (router, splash, etc.)
 /// switch on this rather than checking nullable user fields.
@@ -124,6 +131,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> fetchUserDetails() async {
     if (_user == null || _user!.token.isEmpty) {
       _status = AuthStatus.unauthenticated;
+    AuthGuard.isAuthenticated = false;
       _publish();
       return;
     }
@@ -154,7 +162,13 @@ class AuthProvider with ChangeNotifier {
         'token': _user!.token,
       });
       _status = AuthStatus.authenticated;
+    AuthGuard.isAuthenticated = true;
       _error = null;
+
+      if (ref != null) {
+        SocketService.instance.disconnect();
+        SocketService.instance.initWithRef(ref!);
+      }
 
       // Seed `balanceDataProvider` from the fresh /auth/me payload so the
       // home hologram, AZM chip, and Available/Escrow pills render the real
@@ -176,22 +190,26 @@ class AuthProvider with ChangeNotifier {
         await apiClient.clearAuthData();
         _user = null;
         _status = AuthStatus.profileNotFound;
+    AuthGuard.isAuthenticated = false;
         _error = 'Profile not found. Please complete registration.';
       } else if (e.statusCode == 401) {
         debugPrint('[Auth] JWT rejected — clearing session.');
         await apiClient.clearAuthData();
         _user = null;
         _status = AuthStatus.unauthenticated;
+    AuthGuard.isAuthenticated = false;
         _error = 'Session expired. Please log in again.';
       } else {
         debugPrint('[Auth] Profile fetch failed (${e.statusCode}): $e');
         _status = AuthStatus.error;
+    AuthGuard.isAuthenticated = false;
         _error = e.toString();
       }
     } catch (e) {
       if (generation != _hydrationGeneration) return;
       debugPrint('[Auth] Profile fetch error: $e');
       _status = AuthStatus.error;
+    AuthGuard.isAuthenticated = false;
       _error = 'Could not load profile. Check your connection.';
     } finally {
       _publish();
@@ -203,6 +221,7 @@ class AuthProvider with ChangeNotifier {
     if (!ok) {
       _user = null;
       _status = AuthStatus.unauthenticated;
+    AuthGuard.isAuthenticated = false;
       _publish();
     }
     return ok;
@@ -217,7 +236,9 @@ class AuthProvider with ChangeNotifier {
     await apiClient.clearAuthData();
     _user = null;
     _status = AuthStatus.unauthenticated;
+    AuthGuard.isAuthenticated = false;
     _error = null;
+    SocketService.instance.disconnect();
     _publish();
   }
 
@@ -246,6 +267,15 @@ class AuthProvider with ChangeNotifier {
   void updateRole(String role) {
     if (_user == null) return;
     _user = _user!.copyWith(role: role);
+    _publish();
+  }
+
+  /// Push a freshly-uploaded avatar URL into the live user snapshot so every
+  /// surface reading `currentUserProvider` / `authProvider` (home header,
+  /// settings drawer, etc.) reflects it immediately without a full refetch.
+  void updateProfilePicture(String url) {
+    if (_user == null) return;
+    _user = _user!.copyWith(profilePictureUrl: url);
     _publish();
   }
 

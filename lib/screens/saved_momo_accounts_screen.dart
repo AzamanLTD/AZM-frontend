@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SavedMomoAccountsScreen extends ConsumerWidget {
   const SavedMomoAccountsScreen({super.key});
@@ -34,7 +34,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -59,7 +59,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(HugeIconsSolid.smartPhone01, size: 48, color: colors.textTertiary),
+                    Icon(Icons.smartphone_outlined, size: 48, color: colors.textTertiary),
                     const SizedBox(height: 12),
                     Text(
                       'No deposit addresses yet',
@@ -107,7 +107,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(HugeIconsSolid.add01, size: 18),
+        icon: const Icon(Icons.add, size: 18),
         label: const Text(
           'Add Account',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
@@ -124,7 +124,8 @@ class _MomoTile extends ConsumerWidget {
 
   Color _providerColor() => switch (account.provider) {
         'MTN' => const Color(0xFFFFCC00),
-        'VODAFONE' => const Color(0xFFE60000),
+        'TELECEL' => const Color(0xFFE60000),
+        'VODAFONE' => const Color(0xFFE60000), // legacy
         'TELECEL' => const Color(0xFF0066CC),
         _ => colors.textSecondary,
       };
@@ -135,7 +136,7 @@ class _MomoTile extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: colors.card.withOpacity(0.85),
+        color: colors.card.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colors.divider, width: 0.7),
       ),
@@ -145,10 +146,10 @@ class _MomoTile extends ConsumerWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: pcolor.withOpacity(0.12),
+              color: pcolor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(HugeIconsSolid.smartPhone01, color: pcolor, size: 16),
+            child: Icon(Icons.smartphone_outlined, color: pcolor, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -168,7 +169,7 @@ class _MomoTile extends ConsumerWidget {
                     ),
                     if (account.isPrimary) ...[
                       const SizedBox(width: 6),
-                      Icon(HugeIconsSolid.star, color: colors.warning, size: 12),
+                      Icon(Icons.star_outline, color: colors.warning, size: 12),
                     ],
                   ],
                 ),
@@ -188,7 +189,7 @@ class _MomoTile extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: Icon(HugeIconsSolid.delete01, color: colors.danger.withOpacity(0.8), size: 18),
+            icon: Icon(Icons.delete_outline, color: colors.danger.withValues(alpha: 0.8), size: 18),
             onPressed: () async {
               HapticFeedback.mediumImpact();
               final ok = await showDialog<bool>(
@@ -297,7 +298,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
     try {
       await ref.read(savedMomoProvider.notifier).create(
             nickname: _nickname.text.trim().isEmpty
-                ? '${_provider} ${_msisdn ?? _phone.text.trim()}'
+                ? '$_provider ${_msisdn ?? _phone.text.trim()}'
                 : _nickname.text.trim(),
             provider: _provider,
             phoneNumber: _msisdn ?? _phone.text.trim(),
@@ -325,7 +326,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
       decoration: BoxDecoration(
         color: colors.background,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: colors.glow.withOpacity(0.18))),
+        border: Border(top: BorderSide(color: colors.glow.withValues(alpha: 0.18))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -354,11 +355,11 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
             _label(colors, 'Network Provider'),
             Wrap(
               spacing: 6,
-              children: ['MTN', 'VODAFONE', 'TELECEL']
+              children: ['MTN', 'TELECEL', 'AIRTELTIGO']
                   .map((p) => ChoiceChip(
                         selected: _provider == p,
                         label: Text(p),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() {
                           _provider = p;
                           _verifiedName = null;
@@ -412,13 +413,13 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.success.withOpacity(0.08),
+                  color: colors.success.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.success.withOpacity(0.30)),
+                  border: Border.all(color: colors.success.withValues(alpha: 0.30)),
                 ),
                 child: Row(
                   children: [
-                    Icon(HugeIconsSolid.checkmarkCircle01, color: colors.success, size: 16),
+                    Icon(Icons.check_circle_outline, color: colors.success, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -467,13 +468,13 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colors.warning.withOpacity(0.06),
+                color: colors.warning.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.warning.withOpacity(0.20)),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.20)),
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.lock, color: colors.warning, size: 14),
+                  Icon(Icons.lock_outline, color: colors.warning, size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -511,7 +512,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
                   foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                  disabledBackgroundColor: colors.accent.withOpacity(0.30),
+                  disabledBackgroundColor: colors.accent.withValues(alpha: 0.30),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,

@@ -25,7 +25,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class InviteLandingScreen extends ConsumerStatefulWidget {
   final String token;
@@ -88,7 +88,7 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
+          icon: Icon(Icons.arrow_back,
               color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
@@ -162,20 +162,20 @@ class _PreviewBody extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                colors.warning.withOpacity(0.18),
-                colors.accent.withOpacity(0.05),
+                colors.warning.withValues(alpha: 0.18),
+                colors.accent.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(18),
             border:
-                Border.all(color: colors.warning.withOpacity(0.30), width: 0.8),
+                Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.bank,
+                  Icon(Icons.account_balance_outlined,
                       color: colors.warning, size: 18),
                   const SizedBox(width: 6),
                   Expanded(
@@ -242,25 +242,25 @@ class _PreviewBody extends StatelessWidget {
               const SizedBox(height: 6),
               _BulletRow(
                 colors: colors,
-                icon: HugeIconsSolid.shield01,
+                icon: Icons.shield_outlined,
                 text: 'You will need a verified ID (KYC) and proof of '
                     'residency before joining.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: HugeIconsSolid.judge,
+                icon: Icons.gavel,
                 text: 'A liability contract authorises automatic seizure '
                     'of contributions on cycle days.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: HugeIconsSolid.shield01,
+                icon: Icons.shield_outlined,
                 text: 'Your inviter loses AZM and trust rating if you '
                     'default — vouching is permanent.',
               ),
               _BulletRow(
                 colors: colors,
-                icon: HugeIconsSolid.clock01,
+                icon: Icons.access_time,
                 text: 'This invite expires '
                     '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')} '
                     '${exp.hour.toString().padLeft(2, '0')}:${exp.minute.toString().padLeft(2, '0')}.',
@@ -280,7 +280,7 @@ class _PreviewBody extends StatelessWidget {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.black),
                   )
-                : const Icon(HugeIconsSolid.checkmarkCircle01, size: 16),
+                : const Icon(Icons.check_circle_outline, size: 16),
             label: Text(
               redeeming
                   ? 'Accepting…'
@@ -360,8 +360,8 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(
               expired
-                  ? HugeIconsSolid.clock01
-                  : HugeIconsSolid.alertCircle,
+                  ? Icons.access_time
+                  : Icons.error_outline,
               size: 48,
               color: expired ? colors.warning : colors.danger,
             ),

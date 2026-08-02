@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SmartRouteCreateScreen extends ConsumerStatefulWidget {
   const SmartRouteCreateScreen({super.key});
@@ -88,7 +88,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('New Smart Route',
@@ -103,6 +103,32 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Explainer card
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.bolt_outlined, size: 18, color: colors.accent),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("What is a Smart Route?", style: TextStyle(
+                    color: colors.accent, fontSize: 13, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Smart Routes run automatically on a schedule. "
+                    "Set up a monthly MoMo withdrawal, recurring vault deposit, "
+                    "or scheduled transfer — once. It runs on its own after that.",
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ])),
+              ]),
+            ),
             _label(colors, 'Action'),
             Wrap(
               spacing: 6,
@@ -116,7 +142,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                   .map((p) => ChoiceChip(
                         selected: _action == p.$1,
                         label: Text(p.$2),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() => _action = p.$1),
                         labelStyle: TextStyle(
                           color: _action == p.$1 ? colors.accent : colors.textSecondary,
@@ -145,7 +171,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                   .map((f) => ChoiceChip(
                         selected: _frequency == f,
                         label: Text(f),
-                        selectedColor: colors.accent.withOpacity(0.20),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
                         onSelected: (_) => setState(() => _frequency = f),
                         labelStyle: TextStyle(
                           color: _frequency == f ? colors.accent : colors.textSecondary,
@@ -177,7 +203,7 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                     .map((p) => ChoiceChip(
                           selected: _momoProvider == p,
                           label: Text(p),
-                          selectedColor: colors.accent.withOpacity(0.20),
+                          selectedColor: colors.accent.withValues(alpha: 0.20),
                           onSelected: (_) => setState(() => _momoProvider = p),
                           labelStyle: TextStyle(
                             color: _momoProvider == p ? colors.accent : colors.textSecondary,

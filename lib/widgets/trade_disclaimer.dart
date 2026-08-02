@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class TradeDisclaimer extends ConsumerWidget {
   final bool compact;
@@ -16,15 +16,15 @@ class TradeDisclaimer extends ConsumerWidget {
       margin: compact ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 4, 16, 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.1),
+        color: colors.warning.withValues(alpha: 0.1),
         border: Border(
-          bottom: BorderSide(color: colors.warning.withOpacity(0.25)),
+          bottom: BorderSide(color: colors.warning.withValues(alpha: 0.25)),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(HugeIconsSolid.informationCircle, color: colors.warning, size: compact ? 14 : 16),
+          Icon(Icons.info_outline, color: colors.warning, size: compact ? 14 : 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

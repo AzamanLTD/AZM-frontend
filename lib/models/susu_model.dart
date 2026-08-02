@@ -304,7 +304,7 @@ class SusuSummary {
             ? cyclesArr.first as Map<String, dynamic>
             : null);
 
-    int _asInt(dynamic v) =>
+    int asInt(dynamic v) =>
         v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0;
 
     return SusuSummary(
@@ -314,7 +314,7 @@ class SusuSummary {
       contributionUsdc: _decimalToDouble(
           susu['contributionUsdc'] ?? susu['contributionAmount']),
       frequency: SusuFrequency.fromString(susu['frequency']),
-      totalCycles: _asInt(susu['totalCycles'] ?? susu['cycleCount']),
+      totalCycles: asInt(susu['totalCycles'] ?? susu['cycleCount']),
       activatedAt: _maybeDate(susu['activatedAt'] ?? susu['startDate']),
       myCycleSlot: me == null
           ? null

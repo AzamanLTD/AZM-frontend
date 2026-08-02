@@ -52,6 +52,7 @@ class SocketService {
 
   io.Socket? _socket;
   WidgetRef? _ref;
+  bool _connecting = false;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // =========================================================================
@@ -95,9 +96,19 @@ class SocketService {
   /// A business order was marked delivered (customer-facing nudge).
   void Function(Map<String, dynamic> data)? _onBusinessOrderDelivered;
 
+  // ── Order tracking (real-time courier location, status, ETA) ──────────────
+  void Function(Map<String, dynamic> data)? _onOrderLocation;
+  void Function(Map<String, dynamic> data)? _onOrderStatus;
+  void Function(Map<String, dynamic> data)? _onOrderEta;
+
   /// Any `escrow_*` / `invoice_paid` event — the second arg is the event name
   /// so a single handler can fan out (the ticket workspace filters by ticket).
   void Function(Map<String, dynamic> data, String eventName)? _onEscrowEvent;
+
+  /// Deposit confirmed by payment provider webhook (Moolre on-ramp).
+  /// Called with: amountGhs, amountUsdc, provider, reference.
+  void Function(double amountGhs, double amountUsdc, String provider, String reference)?
+      _onDepositSuccess;
 
   // ── Registration methods ──────────────────────────────────────────────────
 
@@ -153,6 +164,11 @@ class SocketService {
     _onEscrowEvent = cb;
   }
 
+  void onDepositSuccess(
+      void Function(double amountGhs, double amountUsdc, String provider, String reference) callback) {
+    _onDepositSuccess = callback;
+  }
+
   // ── V3 Marketplace Sprint dispatch helpers ────────────────────────────────
 
   Map<String, dynamic> _toMap(dynamic data) =>
@@ -175,9 +191,10 @@ class SocketService {
     String host = AppConfig.socketUrl;
     try {
       if (!kIsWeb && Platform.isAndroid) {
-        host = host
-            .replaceFirst('localhost', '10.0.2.2')
-            .replaceFirst('127.0.0.1', '10.0.2.2');
+        // Only replace 'localhost' (emulator pattern).
+        // Keep 127.0.0.1 as-is — physical devices use adb reverse
+        // which maps 127.0.0.1 on the device to the host machine.
+        host = host.replaceFirst('localhost', '10.0.2.2');
       }
     } catch (_) {
       // Platform.isAndroid throws on web; kIsWeb guard above prevents that
@@ -202,21 +219,27 @@ class SocketService {
   // Internal connect helpers
   // -------------------------------------------------------------------------
   Future<void> _connect() async {
-    if (_socket != null && (_socket!.connected)) return;
+    // Skip if a socket already exists or connection is in progress
+    if (_socket != null || _connecting) return;
+    _connecting = true;
 
     // Get token for authenticated socket connection
     final token = await _storage.read(key: 'auth_token');
 
+    final host = _resolvedHost;
+    debugPrint('[SocketService] _connect → host=$host, hasToken=${token != null && token.isNotEmpty}');
+
     _socket = io.io(
-      _resolvedHost,
+      host,
       io.OptionBuilder()
           .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
+          .enableForceNew()
+          .enableForceNewConnection()
           .setReconnectionAttempts(double.infinity)
           .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
           .setAuth({'token': token ?? ''})
-          .setExtraHeaders({'ngrok-skip-browser-warning': 'true'})
           .build(),
     );
 
@@ -224,20 +247,26 @@ class SocketService {
   }
 
   Future<void> _connectWithRef(Ref ref) async {
-    if (_socket != null && (_socket!.connected)) return;
+    // Skip if a socket already exists or connection is in progress
+    if (_socket != null || _connecting) return;
+    _connecting = true;
 
     final token = await _storage.read(key: 'auth_token');
 
+    final host = _resolvedHost;
+    debugPrint('[SocketService] _connectWithRef → host=$host, hasToken=${token != null && token.isNotEmpty}');
+
     _socket = io.io(
-      _resolvedHost,
+      host,
       io.OptionBuilder()
           .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
+          .enableForceNew()
+          .enableForceNewConnection()
           .setReconnectionAttempts(double.infinity)
           .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
           .setAuth({'token': token ?? ''})
-          .setExtraHeaders({'ngrok-skip-browser-warning': 'true'})
           .build(),
     );
 
@@ -248,8 +277,18 @@ class SocketService {
   // TRADE ROOM MANAGEMENT
   // =========================================================================
 
+  /// Stored user ID to use for reconnect logic
+  String? _currentUserId;
+
   /// Track which trade rooms we've joined to avoid duplicate joins
   final Set<String> _joinedTradeRooms = {};
+  
+  /// Track which friend chat rooms we've joined to auto-rejoin on network flap
+  final Set<String> _joinedFriendRooms = {};
+
+  /// Track which group chat rooms we've joined to auto-rejoin on network flap
+  final Set<String> _joinedGroupRooms = {};
+  final Set<String> _joinedOrderRooms = {};
 
   /// Join a specific trade room. Idempotent — safe to call multiple times.
   void joinTradeRoom(String tradeId) {
@@ -277,11 +316,73 @@ class SocketService {
   }
 
   // -------------------------------------------------------------------------
+  // Friend Chat Room tracking
+  // -------------------------------------------------------------------------
+
+  void joinFriendRoom(String friendshipId, String userId) {
+    if (_joinedFriendRooms.contains(friendshipId)) return;
+    _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _joinedFriendRooms.add(friendshipId);
+  }
+
+  void leaveFriendRoom(String friendshipId, String userId) {
+    _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _joinedFriendRooms.remove(friendshipId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Group Chat Room tracking
+  // -------------------------------------------------------------------------
+
+  void joinGroupRoom(String groupId, String userId) {
+    if (_joinedGroupRooms.contains(groupId)) return;
+    _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
+    _joinedGroupRooms.add(groupId);
+  }
+
+  void leaveGroupRoom(String groupId, String userId) {
+    _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
+    _joinedGroupRooms.remove(groupId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Order Tracking Room
+  // -------------------------------------------------------------------------
+
+  void joinOrderRoom(String orderId) {
+    if (_joinedOrderRooms.contains(orderId)) return;
+    _socket?.emit('join_order', {'orderId': orderId});
+    _joinedOrderRooms.add(orderId);
+    if (AppConfig.enableNetworkLogs) {
+      debugPrint('[SocketService] Joined order room: order_$orderId');
+    }
+  }
+
+  void leaveOrderRoom(String orderId) {
+    _socket?.emit('leave_order', {'orderId': orderId});
+    _joinedOrderRooms.remove(orderId);
+  }
+
+  // ── Order tracking callbacks ─────────────────────────────────────────────
+  void onOrderLocation(void Function(Map<String, dynamic>) cb) {
+    _onOrderLocation = cb;
+  }
+
+  void onOrderStatus(void Function(Map<String, dynamic>) cb) {
+    _onOrderStatus = cb;
+  }
+
+  void onOrderEta(void Function(Map<String, dynamic>) cb) {
+    _onOrderEta = cb;
+  }
+
+  // -------------------------------------------------------------------------
   // Room management
   // -------------------------------------------------------------------------
 
   /// Join the user's personal balance + notification rooms
   void joinUserRoom(String userId) {
+    _currentUserId = userId;
     _socket?.emit('join_user_room', {'userId': userId});
     _socket?.emit('join_balance_room', userId);
     if (AppConfig.enableNetworkLogs) {
@@ -325,6 +426,12 @@ class SocketService {
             debugPrint('[SocketService] Re-joined trade room: trade_$roomId');
           }
         }
+        for (final roomId in _joinedFriendRooms) {
+          _socket?.emit('join_friend_chat', {'friendshipId': roomId, 'userId': _currentUserId});
+        }
+        for (final roomId in _joinedGroupRooms) {
+          _socket?.emit('join_group', {'groupId': roomId, 'userId': _currentUserId});
+        }
       })
       ..onDisconnect((_) {
         if (AppConfig.enableNetworkLogs) {
@@ -332,8 +439,21 @@ class SocketService {
         }
       })
       ..onConnectError((err) {
+        final errStr = err.toString();
         if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connect error: $err');
+        }
+        // Detect auth failures from the server's socketAuth middleware
+        if (errStr.contains('Authentication failed') ||
+            errStr.contains('Token expired') ||
+            errStr.contains('Token superseded') ||
+            errStr.contains('banned') ||
+            errStr.contains('no longer exists')) {
+          debugPrint('[SocketService] Auth-related socket rejection: $errStr');
+          // Stop reconnection attempts for auth failures — the client
+          // must refresh its token before reconnecting. Auto-reconnect
+          // would just hammer the server with bad tokens.
+          _socket?.io.disconnect();
         }
       })
 
@@ -384,10 +504,22 @@ class SocketService {
         }
       })
 
-      // ── deposit_success ─────────────────────────────────────────────────
+      // ── deposit_success (Moolre on-ramp webhook confirmation) ────────────
       ..on('deposit_success', (data) {
-        if (AppConfig.enableNetworkLogs) {
-          debugPrint('[SocketService] deposit_success received');
+        try {
+          final raw = data is Map<String, dynamic>
+              ? data
+              : Map<String, dynamic>.from(data as Map);
+          final amountGhs  = _toDouble(raw['amountGhs']);
+          final amountUsdc = _toDouble(raw['amountUsdc']);
+          final provider   = raw['provider']?.toString() ?? 'MOBILE_MONEY';
+          final reference  = raw['reference']?.toString() ?? '';
+          if (AppConfig.enableNetworkLogs) {
+            debugPrint('[SocketService] deposit_success → GH₵$amountGhs / $amountUsdc USDC ($provider)');
+          }
+          _onDepositSuccess?.call(amountGhs, amountUsdc, provider, reference);
+        } catch (e) {
+          debugPrint('[SocketService] deposit_success parse error: $e');
         }
       })
 
@@ -546,21 +678,23 @@ class SocketService {
   void _attachCoreListenersPlainRef(Ref ref) {
     _socket!
       ..onConnect((_) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connected → $_resolvedHost (ID: ${_socket?.id})');
-        }
         for (final roomId in _joinedTradeRooms) {
           _socket?.emit('join_trade', roomId);
         }
       })
       ..onDisconnect((_) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Disconnected');
-        }
       })
       ..onConnectError((err) {
-        if (AppConfig.enableNetworkLogs) {
           debugPrint('[SocketService] Connect error: $err');
+        final errStr = err.toString();
+        if (errStr.contains('Authentication failed') ||
+            errStr.contains('Token expired') ||
+            errStr.contains('Token superseded') ||
+            errStr.contains('banned') ||
+            errStr.contains('no longer exists')) {
+          _socket?.io.disconnect();
         }
       })
       ..on('balance_update', (data) {
@@ -720,7 +854,9 @@ class SocketService {
     _socket?.dispose();
     _socket = null;
     _ref = null;
+    _connecting = false;
     _joinedTradeRooms.clear();
+    _joinedOrderRooms.clear();
     // Clear all registered callbacks
     _onAzmReward = null;
     _onAzmSpend = null;
@@ -734,14 +870,60 @@ class SocketService {
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
     _onBusinessOrderDelivered = null;
+    _onOrderLocation = null;
+    _onOrderStatus = null;
+    _onOrderEta = null;
     _onEscrowEvent = null;
+    _onDepositSuccess = null;
     if (AppConfig.enableNetworkLogs) {
       debugPrint('[SocketService] Disposed');
     }
   }
 
+  /// Force a full reconnect — tears down the existing socket and
+  /// re-establishes with a fresh token from secure storage. Called
+  /// when the auth provider refreshes the JWT or when the socket
+  /// auth middleware rejects a stale token.
+  Future<void> forceReconnect() async {
+    debugPrint('[SocketService] forceReconnect — tearing down and reconnecting');
+    // Preserve rooms + user ID across the reconnect
+    final savedRooms = Set<String>.from(_joinedTradeRooms);
+    final savedUserId = _currentUserId;
+
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
+    _connecting = false;
+
+    // Re-init — _connect reads the fresh token from secure storage
+    if (_ref != null) {
+      _connect();
+    } else {
+      // No WidgetRef — use the Ref-less path
+      _connect();
+    }
+
+    // Give it a moment to connect, then rejoin rooms
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (savedUserId != null) {
+      joinUserRoom(savedUserId);
+    }
+    for (final roomId in savedRooms) {
+      _socket?.emit('join_trade', roomId);
+    }
+  }
+
   bool get isConnected => _socket?.connected ?? false;
   io.Socket? get rawSocket => _socket;
+  
+  /// Public socket getter for WebRTC signaling
+  io.Socket? get socket => _socket;
+  
+  /// Current user ID getter
+  String? get userId => _currentUserId;
+  
+  /// Parsed user ID as int for APIs that need it
+  int get userIdInt => int.tryParse(_currentUserId ?? '0') ?? 0;
 
   // -------------------------------------------------------------------------
   // Helpers

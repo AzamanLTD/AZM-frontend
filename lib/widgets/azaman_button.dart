@@ -100,7 +100,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
         boxShadow: shadowColor != null && !disabled
             ? [
                 BoxShadow(
-                  color: shadowColor.withOpacity(_pressed ? 0.25 : 0.40),
+                  color: shadowColor.withValues(alpha: _pressed ? 0.25 : 0.40),
                   blurRadius: _pressed ? 6 : 14,
                   spreadRadius: -2,
                   offset: Offset(0, _pressed ? 2 : 6),
@@ -175,7 +175,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
           .shimmer(
             delay: 250.ms,
             duration: 1500.ms,
-            color: Colors.white.withOpacity(0.30),
+            color: Colors.white.withValues(alpha: 0.30),
           );
     }
 
@@ -191,9 +191,9 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
   Color _disabledFill(AzamanColors colors) {
     switch (widget.variant) {
       case AzamanButtonVariant.primary:
-        return colors.accent.withOpacity(0.30);
+        return colors.accent.withValues(alpha: 0.30);
       case AzamanButtonVariant.danger:
-        return colors.danger.withOpacity(0.30);
+        return colors.danger.withValues(alpha: 0.30);
       case AzamanButtonVariant.secondary:
         return colors.card;
       case AzamanButtonVariant.ghost:
@@ -219,7 +219,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
             colors: [
               colors.accent,
               Color.alphaBlend(
-                colors.accentSecondary.withOpacity(0.7),
+                colors.accentSecondary.withValues(alpha: 0.7),
                 colors.accent,
               ),
             ],
@@ -236,7 +236,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
             colors: [
               colors.danger,
               Color.alphaBlend(
-                Colors.black.withOpacity(0.10),
+                Colors.black.withValues(alpha: 0.10),
                 colors.danger,
               ),
             ],
@@ -251,12 +251,12 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              colors.accent.withOpacity(0.10),
-              colors.accent.withOpacity(0.04),
+              colors.accent.withValues(alpha: 0.10),
+              colors.accent.withValues(alpha: 0.04),
             ],
           ),
           colors.accent,
-          colors.accent.withOpacity(0.30),
+          colors.accent.withValues(alpha: 0.30),
           null,
         );
       case AzamanButtonVariant.ghost:

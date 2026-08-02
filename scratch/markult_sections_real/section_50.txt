@@ -1,0 +1,85 @@
+Section 50: React Portal — Settings.jsx Penalty Policy Section
+File: src/pages/Settings.jsx
+ADD a penalty policy configuration section to the existing Settings page. This is where businesses set their no-show penalty percentage (max 50%), grace period, and toggle business-side no-show.
+FIND the settings sections and ADD:
+// ADD state at the top of the Settings component:
+const [penaltyPolicy, setPenaltyPolicy] = useState({
+  penaltyPct: 10, gracePeriodMins: 30, businessSideNoShowEnabled: false,
+});
+const [savingPolicy, setSavingPolicy] = useState(false);
+
+// ADD useEffect to load:
+useEffect(() => {
+  if (businessId) {
+    marketplaceApi.getPenaltyPolicy(businessId)
+      .then(res => setPenaltyPolicy(res.data))
+      .catch(() => {});
+  }
+}, [businessId]);
+
+// ADD this section in the JSX (before the save button at the bottom):
+<div className="rounded-lg border bg-card p-6 space-y-4">
+  <div>
+    <h3 className="font-semibold text-foreground">Penalty Policy</h3>
+    <p className="text-sm text-muted-foreground mt-1">
+      Configure no-show penalties for bookings and reservations
+    </p>
+  </div>
+
+  <div>
+    <label className="text-sm font-medium text-muted-foreground">
+      Penalty Percentage ({penaltyPolicy.penaltyPct}%)
+    </label>
+    <input type="range" min="0" max="50" step="5"
+      value={penaltyPolicy.penaltyPct}
+      onChange={(e) => setPenaltyPolicy(p => ({ ...p, penaltyPct: parseInt(e.target.value) }))}
+      className="w-full mt-2" />
+    <p className="text-xs text-muted-foreground mt-1">
+      Maximum 50%. This percentage of the escrow deposit is forfeited on no-show.
+    </p>
+  </div>
+
+  <div>
+    <label className="text-sm font-medium text-muted-foreground">Grace Period (minutes)</label>
+    <input type="number" min="0" max="120"
+      value={penaltyPolicy.gracePeriodMins}
+      onChange={(e) => setPenaltyPolicy(p => ({ ...p, gracePeriodMins: parseInt(e.target.value) || 0 }))}
+      className="mt-1 w-32 px-3 py-2 rounded-md border border-input bg-background text-sm" />
+    <p className="text-xs text-muted-foreground mt-1">
+      Time after scheduled slot before a no-show is triggered.
+    </p>
+  </div>
+
+  <div className="flex items-center justify-between">
+    <div>
+      <label className="text-sm font-medium text-foreground">Business-Side No-Show</label>
+      <p className="text-xs text-muted-foreground mt-1">
+        If your business cancels a booking, the customer gets a full refund plus their penalty back.
+      </p>
+    </div>
+    <button
+      onClick={() => setPenaltyPolicy(p => ({ ...p, businessSideNoShowEnabled: !p.businessSideNoShowEnabled }))}
+      className={`relative h-6 w-11 rounded-full transition-colors ${
+        penaltyPolicy.businessSideNoShowEnabled ? 'bg-primary' : 'bg-muted'
+      }`}>
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+        penaltyPolicy.businessSideNoShowEnabled ? 'translate-x-5' : 'translate-x-0.5'
+      }`} />
+    </button>
+  </div>
+
+  <button
+    onClick={async () => {
+      setSavingPolicy(true);
+      try {
+        await marketplaceApi.updatePenaltyPolicy(businessId, penaltyPolicy);
+        alert('Penalty policy saved');
+      } catch (e) { alert('Failed to save'); }
+      setSavingPolicy(false);
+    }}
+    disabled={savingPolicy}
+    className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+    {savingPolicy ? 'Saving...' : 'Save Penalty Policy'}
+  </button>
+</div>
+

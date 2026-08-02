@@ -109,7 +109,7 @@ class _ConfirmBody extends ConsumerWidget {
                     height: 56,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: accent.withOpacity(0.12),
+                      color: accent.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: accent, size: 26),

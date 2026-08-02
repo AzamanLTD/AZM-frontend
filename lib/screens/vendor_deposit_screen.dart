@@ -7,7 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class VendorDepositScreen extends ConsumerStatefulWidget {
   const VendorDepositScreen({super.key});
@@ -89,7 +89,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -117,7 +117,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                         color: colors.card,
                         borderRadius: BorderRadius.circular(20),
                         border:
-                            Border.all(color: colors.accent.withOpacity(0.2)),
+                            Border.all(color: colors.accent.withValues(alpha: 0.2)),
                       ),
                       child: Column(
                         children: [
@@ -130,8 +130,8 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.5)),
-                              Icon(HugeIconsSolid.shield01,
-                                  color: colors.accent.withOpacity(0.5),
+                              Icon(Icons.shield_outlined,
+                                  color: colors.accent.withValues(alpha: 0.5),
                                   size: 18),
                             ],
                           ),
@@ -160,14 +160,14 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: colors.warning.withOpacity(0.08),
+                          color: colors.warning.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: colors.warning.withOpacity(0.2)),
+                              color: colors.warning.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           children: [
-                            Icon(HugeIconsSolid.alertCircle,
+                            Icon(Icons.error_outline,
                                 color: colors.warning, size: 20),
                             const SizedBox(width: 12),
                             Expanded(
@@ -187,7 +187,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                           color: colors.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: colors.accent.withOpacity(0.3)),
+                              color: colors.accent.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           children: [
@@ -247,7 +247,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
-                                    icon: Icon(HugeIconsSolid.copy01,
+                                    icon: Icon(Icons.copy_outlined,
                                         color: colors.accent, size: 20),
                                     onPressed: () {
                                       HapticFeedback.selectionClick();
@@ -275,15 +275,15 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colors.warning.withOpacity(0.06),
+                          color: colors.warning.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: colors.warning.withOpacity(0.15)),
+                              color: colors.warning.withValues(alpha: 0.15)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(HugeIconsSolid.informationCircle,
+                            Icon(Icons.info_outline,
                                 color: colors.warning, size: 18),
                             const SizedBox(width: 12),
                             Expanded(

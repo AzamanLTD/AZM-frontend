@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/scale_tap.dart';
+
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -9,6 +11,22 @@ import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+
+String _recentLabel(String title) {
+  final t = title.toUpperCase();
+  if (t.contains("DEPOSIT") || t.contains("MOMO") || t.contains("FIAT")) return "MoMo Deposit";
+  if (t.contains("WITHDRAWAL")) return "MoMo Withdrawal";
+  if (t.contains("P2P") || t.contains("TRADE")) return "P2P Trade Payout";
+  if (t.contains("SUSU") && t.contains("PAYOUT")) return "Susu Payout";
+  if (t.contains("SUSU")) return "Susu Contribution";
+  if (t.contains("VAULT") || t.contains("LOCK")) return "Vault Lock";
+  if (t.contains("ESCROW") || t.contains("TICKET")) return "Escrow Funded";
+  if (t.contains("INVOICE")) return "Invoice Payment";
+  if (t.contains("REWARD") || t.contains("AZM")) return "AZM Reward";
+  if (t.contains("SEND") || t.contains("OUT")) return "Sent";
+  if (t.contains("RECEIVE") || t.contains("IN")) return "Received";
+  return title;
+}
 
 class RecentActivitySection extends ConsumerWidget {
   const RecentActivitySection({super.key});
@@ -29,43 +47,35 @@ class RecentActivitySection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Transactions',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+              Container(
+                width: 4, height: 20,
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              if (txns.isNotEmpty)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AccountActivityScreen(),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    'See all',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                      decorationColor: colors.textSecondary,
-                    ),
-                  ),
-                ),
+              const SizedBox(width: 8),
+              Text('Recent Activity',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: colors.textPrimary,
+                  letterSpacing: -0.3,
+                )),
+              const Spacer(),
+              ScaleTap(
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const AccountActivityScreen())),
+                child: Text('See All',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.accent,
+                  )),
+              ),
             ],
-          ),
+          ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
           const SizedBox(height: 14),
           if (isColdLoad)
             const _ActivitySkeleton()
@@ -74,8 +84,11 @@ class RecentActivitySection extends ConsumerWidget {
           else
             Column(
               children: [
-                for (final t in txns)
-                  _ActivityRow(colors: colors, txn: t),
+                for (int i = 0; i < txns.length; i++)
+                  _ActivityRow(colors: colors, txn: txns[i])
+                    .animate()
+                    .fadeIn(delay: (80 * i).ms, duration: 280.ms)
+                    .slideY(begin: 0.08, end: 0, delay: (80 * i).ms, duration: 280.ms),
               ],
             ),
         ],
@@ -116,8 +129,8 @@ class _ActivityRow extends StatelessWidget {
             ),
             child: Icon(
               txn.isCredit
-                  ? HugeIconsSolid.arrowDownLeft01
-                  : HugeIconsSolid.arrowUpRight01,
+                  ? Icons.south_west
+                  : Icons.north_east,
               size: 18,
               color: txn.isCredit ? colors.success : colors.textSecondary,
             ),
@@ -128,7 +141,7 @@ class _ActivityRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn.title,
+                  _recentLabel(txn.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -219,7 +232,7 @@ class _EmptyActivity extends StatelessWidget {
             color: colors.softSurface,
           ),
           child: Icon(
-            HugeIconsSolid.transactionHistory,
+            Icons.history,
             size: 19,
             color: colors.textTertiary,
           ),

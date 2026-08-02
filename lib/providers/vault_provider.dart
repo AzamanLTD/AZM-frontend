@@ -44,6 +44,14 @@ class Vault {
   final double totalAzmEarned;
   final Map<String, dynamic>? receiptSnapshot;
 
+  // ── Phase 3: DeFi Yield ──
+  final bool yieldEnabled;
+  final String? yieldStrategy;
+  final double yieldApr;
+  final double yieldEarnedUsdc;
+  final DateTime? yieldLastCompoundAt;
+  final bool yieldAutoCompound;
+
   Vault({
     required this.id,
     required this.name,
@@ -66,6 +74,12 @@ class Vault {
     required this.consistencyScore,
     required this.totalAzmEarned,
     this.receiptSnapshot,
+    this.yieldEnabled = false,
+    this.yieldStrategy,
+    this.yieldApr = 0,
+    this.yieldEarnedUsdc = 0,
+    this.yieldLastCompoundAt,
+    this.yieldAutoCompound = true,
   });
 
   factory Vault.fromJson(Map<String, dynamic> j) => Vault(
@@ -93,6 +107,14 @@ class Vault {
         consistencyScore: _num(j['consistencyScore']),
         totalAzmEarned: _num(j['totalAzmEarned']),
         receiptSnapshot: j['receiptSnapshot'] as Map<String, dynamic>?,
+        yieldEnabled: j['yieldEnabled'] as bool? ?? false,
+        yieldStrategy: j['yieldStrategy'] as String?,
+        yieldApr: _num(j['yieldApr']),
+        yieldEarnedUsdc: _num(j['yieldEarnedUsdc']),
+        yieldLastCompoundAt: j['yieldLastCompoundAt'] != null
+            ? DateTime.tryParse(j['yieldLastCompoundAt'])
+            : null,
+        yieldAutoCompound: j['yieldAutoCompound'] as bool? ?? true,
       );
 
   double get progressFraction =>

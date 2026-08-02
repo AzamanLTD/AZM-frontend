@@ -14,9 +14,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
-import 'package:image_picker/image_picker.dart';
 
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:azaman/config.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -56,6 +58,17 @@ class _BusinessRegisterScreenState
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+
+  // Type-specific controllers
+  final _vehicleTypeCtrl = TextEditingController();
+  final _vehiclePlateCtrl = TextEditingController();
+  final _routeInfoCtrl = TextEditingController();
+  final _cuisineTypeCtrl = TextEditingController();
+  final _diningStyleCtrl = TextEditingController();
+  final _openingHoursCtrl = TextEditingController();
+  final _roomTypesCtrl = TextEditingController();
+  final _amenitiesCtrl = TextEditingController();
+  final _checkInTimeCtrl = TextEditingController();
   final _websiteCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -76,6 +89,16 @@ class _BusinessRegisterScreenState
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
+    
+    _vehicleTypeCtrl.dispose();
+    _vehiclePlateCtrl.dispose();
+    _routeInfoCtrl.dispose();
+    _cuisineTypeCtrl.dispose();
+    _diningStyleCtrl.dispose();
+    _openingHoursCtrl.dispose();
+    _roomTypesCtrl.dispose();
+    _amenitiesCtrl.dispose();
+    _checkInTimeCtrl.dispose();
     super.dispose();
   }
 
@@ -202,7 +225,9 @@ class _BusinessRegisterScreenState
               return null;
             }),
             const SizedBox(height: 12),
-            _categoryDropdown(colors),
+            _categorySelector(colors),
+            const SizedBox(height: 12),
+            _typeSpecificFields(colors),
             const SizedBox(height: 12),
             _field(colors, _descCtrl, 'Description (optional)',
                 maxLines: 3, maxLength: 500),
@@ -219,6 +244,8 @@ class _BusinessRegisterScreenState
             _field(colors, _addressCtrl, 'Address (optional)'),
             const SizedBox(height: 12),
             _countryDropdown(colors),
+            const SizedBox(height: 20),
+            _webDashboardLinkOut(colors),
             const SizedBox(height: 24),
             SizedBox(
               height: 52,
@@ -251,6 +278,57 @@ class _BusinessRegisterScreenState
     );
   }
 
+  /// Backlog: "open web dashboard" link-out. The portal is reference-only --
+  /// we never embed it, just point to it for users who'd rather manage KYB
+  /// docs, invoices, and catalog bulk-edits from a full computer screen.
+  /// Hides itself entirely if no portal URL has been configured at build
+  /// time (see AppConfig.businessPortalUrl) rather than linking to a guess.
+  Widget _webDashboardLinkOut(AzamanColors colors) {
+    if (!AppConfig.hasBusinessPortalUrl) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () => launchUrl(
+        Uri.parse(AppConfig.businessPortalUrl),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.desktop_windows_outlined, size: 17, color: colors.accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Prefer a bigger screen?',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text('Manage KYB docs, invoices & catalog from the web dashboard',
+                      style: TextStyle(fontSize: 11.5, color: colors.textTertiary)),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new, size: 18, color: colors.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _logoPicker(AzamanColors colors) {
     return GestureDetector(
       onTap: _uploadingLogo ? null : _pickLogo,
@@ -273,7 +351,7 @@ class _BusinessRegisterScreenState
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(HugeIconsStroke.camera01,
+                      Icon(Icons.camera_alt_outlined,
                           color: colors.textTertiary, size: 24),
                       const SizedBox(height: 4),
                       Text('Logo',
@@ -286,28 +364,144 @@ class _BusinessRegisterScreenState
     );
   }
 
-  Widget _categoryDropdown(AzamanColors colors) {
-    return DropdownButtonFormField<String>(
-      value: _category,
-      isExpanded: true,
-      dropdownColor: colors.card,
-      decoration: _decoration(colors, 'Category'),
-      items: BusinessCategories.values
-          .map((c) => DropdownMenuItem(
-                value: c.wire,
-                child: Text(c.label,
-                    style: TextStyle(color: colors.textPrimary)),
-              ))
-          .toList(),
-      onChanged: (v) {
-        if (v != null) setState(() => _category = v);
-      },
+  Widget _categorySelector(AzamanColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Business Type',
+            style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        // Primary categories — large cards
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: BusinessCategories.primary.map((cat) {
+            final selected = _category == cat.wire;
+            return GestureDetector(
+              onTap: () => setState(() => _category = cat.wire),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? cat.color.withValues(alpha: 0.12)
+                      : colors.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: selected
+                        ? cat.color.withValues(alpha: 0.5)
+                        : colors.divider,
+                    width: selected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(cat.icon,
+                        size: 20,
+                        color: selected ? cat.color : colors.textSecondary),
+                    const SizedBox(width: 8),
+                    Text(cat.label,
+                        style: TextStyle(
+                            color: selected
+                                ? cat.color
+                                : colors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        // Secondary categories — compact dropdown
+        DropdownButtonFormField<String>(
+          initialValue: BusinessCategories.secondary.any((c) => c.wire == _category)
+              ? _category
+              : null,
+          isExpanded: true,
+          dropdownColor: colors.card,
+          hint: Text('Or select another category',
+              style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+          decoration: _decoration(colors, 'Other Categories'),
+          items: BusinessCategories.secondary
+              .map((c) => DropdownMenuItem(
+                    value: c.wire,
+                    child: Row(children: [
+                      Icon(c.icon, size: 18, color: c.color),
+                      const SizedBox(width: 8),
+                      Text(c.label,
+                          style: TextStyle(color: colors.textPrimary)),
+                    ]),
+                  ))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) setState(() => _category = v);
+          },
+        ),
+      ],
     );
+  }
+
+  Widget _typeSpecificFields(AzamanColors colors) {
+
+    // TRANSIT — vehicle & route info
+    if (_category == 'LOGISTICS') {
+      return Column(
+        children: [
+          const SizedBox(height: 12),
+          _field(colors, _vehicleTypeCtrl, 'Vehicle Type (e.g. Bus, Minivan)'),
+          const SizedBox(height: 12),
+          _field(colors, _vehiclePlateCtrl, 'Vehicle Plate (optional)'),
+          const SizedBox(height: 12),
+          _field(colors, _routeInfoCtrl, 'Primary Route (e.g. Accra - Kumasi)',
+              maxLines: 2),
+        ],
+      );
+    }
+
+    // RESTAURANTS — cuisine & dining info
+    if (_category == 'FOOD_BEVERAGE') {
+      return Column(
+        children: [
+          const SizedBox(height: 12),
+          _field(colors, _cuisineTypeCtrl, 'Cuisine Type (e.g. Ghanaian, Continental)'),
+          const SizedBox(height: 12),
+          _field(colors, _diningStyleCtrl, 'Dining Style (e.g. Fine Dining, Casual)',
+              maxLines: 2),
+          const SizedBox(height: 12),
+          _field(colors, _openingHoursCtrl, 'Opening Hours (e.g. 8AM - 10PM)'),
+        ],
+      );
+    }
+
+    // HOTELS — room & amenity info
+    if (_category == 'REAL_ESTATE') {
+      return Column(
+        children: [
+          const SizedBox(height: 12),
+          _field(colors, _roomTypesCtrl, 'Room Types (e.g. Single, Double, Suite)',
+              maxLines: 2),
+          const SizedBox(height: 12),
+          _field(colors, _amenitiesCtrl, 'Amenities (e.g. WiFi, Pool, AC)',
+              maxLines: 2),
+          const SizedBox(height: 12),
+          _field(colors, _checkInTimeCtrl, 'Check-in Time (e.g. 2PM)'),
+        ],
+      );
+    }
+
+    // No type-specific fields for other categories
+    return const SizedBox.shrink();
   }
 
   Widget _countryDropdown(AzamanColors colors) {
     return DropdownButtonFormField<String>(
-      value: _country,
+      initialValue: _country,
       isExpanded: true,
       dropdownColor: colors.card,
       decoration: _decoration(colors, 'Country'),

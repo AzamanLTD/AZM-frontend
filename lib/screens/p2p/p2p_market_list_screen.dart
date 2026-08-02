@@ -16,6 +16,7 @@ import 'package:azaman/widgets/ad_detail_flip_card.dart';
 import 'package:azaman/widgets/p2p_market_summary_bar.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
+
 const double _kSegmentHeaderHeight = 56.0;
 
 class P2PMarketListScreen extends ConsumerStatefulWidget {

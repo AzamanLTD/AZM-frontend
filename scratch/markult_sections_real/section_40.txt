@@ -1,0 +1,79 @@
+Section 40: Flutter — business_models.dart Extensions
+File: lib/models/business_models.dart
+Add models for DineInTab, PenaltyPolicy, BusinessAdPost, and extend BusinessProfile.
+// ADD these models to business_models.dart:
+
+class DineInTabModel {
+  final String id;
+  final String businessName;
+  final String status; // OPEN, CONFIRMED, CLOSED
+  final List<DineInTabItemModel> items;
+  final double totalUsdc;
+
+  DineInTabModel({required this.id, required this.businessName, required this.status,
+    required this.items, required this.totalUsdc});
+
+  factory DineInTabModel.fromJson(Map<String, dynamic> j) => DineInTabModel(
+    id: j['id'], businessName: j['businessName'] ?? '',
+    status: j['status'] ?? 'OPEN',
+    items: (j['items'] as List?)?.map((i) => DineInTabItemModel.fromJson(i)).toList() ?? [],
+    totalUsdc: (j['totalUsdc'] as num?)?.toDouble() ?? 0.0,
+  );
+}
+
+class DineInTabItemModel {
+  final String name;
+  final int quantity;
+  final double unitPriceUsdc;
+  final double totalUsdc;
+
+  DineInTabItemModel({required this.name, required this.quantity,
+    required this.unitPriceUsdc, required this.totalUsdc});
+
+  factory DineInTabItemModel.fromJson(Map<String, dynamic> j) => DineInTabItemModel(
+    name: j['name'] ?? '', quantity: j['quantity'] ?? 1,
+    unitPriceUsdc: (j['unitPriceUsdc'] as num?)?.toDouble() ?? 0.0,
+    totalUsdc: (j['totalUsdc'] as num?)?.toDouble() ?? 0.0,
+  );
+}
+
+class PenaltyPolicyModel {
+  final double penaltyPct;
+  final int gracePeriodMins;
+  final bool businessSideNoShowEnabled;
+
+  PenaltyPolicyModel({required this.penaltyPct, required this.gracePeriodMins,
+    required this.businessSideNoShowEnabled});
+
+  factory PenaltyPolicyModel.fromJson(Map<String, dynamic> j) => PenaltyPolicyModel(
+    penaltyPct: (j['penaltyPct'] as num?)?.toDouble() ?? 0.0,
+    gracePeriodMins: j['gracePeriodMins'] ?? 30,
+    businessSideNoShowEnabled: j['businessSideNoShowEnabled'] ?? false,
+  );
+}
+
+class BusinessAdPostModel {
+  final String id;
+  final String template;
+  final String? caption;
+  final String? imageUrl;
+  final DateTime createdAt;
+
+  BusinessAdPostModel({required this.id, required this.template,
+    required this.caption, required this.imageUrl, required this.createdAt});
+
+  factory BusinessAdPostModel.fromJson(Map<String, dynamic> j) => BusinessAdPostModel(
+    id: j['id'], template: j['template'] ?? 'PROMO',
+    caption: j['caption'], imageUrl: j['imageUrl'],
+    createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
+  );
+}
+
+// EXTEND BusinessProfile with:
+//   showcaseUrls: List<String>?
+//   penaltyPolicy: PenaltyPolicyModel?
+//   followerCount: int
+//   isFollowing: bool
+//   adPosts: List<BusinessAdPostModel>?
+
+

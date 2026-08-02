@@ -24,7 +24,6 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,10 +31,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 /// Callback fired when a successful recording finishes. The file is on
 /// the local filesystem; the caller uploads it via
@@ -58,11 +58,14 @@ class AudioRecorderButton extends ConsumerStatefulWidget {
   /// width is independent.
   final double size;
 
+  final ValueChanged<bool>? onRecordingStateChanged;
+
   const AudioRecorderButton({
     super.key,
     required this.onRecorded,
     this.disabled = false,
     this.size = 36,
+    this.onRecordingStateChanged,
   });
 
   @override
@@ -76,6 +79,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
   // State machine
   bool _recording = false;
   bool _cancelling = false;
+  bool _locked = false;
   Duration _elapsed = Duration.zero;
   DateTime? _startedAt;
   String? _filePath;
@@ -88,7 +92,9 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
   // Drag tracking
   Offset _dragOrigin = Offset.zero;
   double _dragDx = 0;
+  double _dragDy = 0;
   static const double _cancelThresholdDx = -80;
+  static const double _lockThresholdDy = -65;
 
   @override
   void dispose() {
@@ -132,11 +138,15 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
         path: path,
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not start recording: $e')),
-      );
-      return;
+      try {
+        await _recorder.start(const RecordConfig(), path: path);
+      } catch (fallbackError) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start recording: $e')),
+        );
+        return;
+      }
     }
 
     AzamanHaptics.confirm();
@@ -144,17 +154,25 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     setState(() {
       _recording = true;
       _cancelling = false;
+      _locked = false;
       _peaks.clear();
       _filePath = path;
       _startedAt = DateTime.now();
       _elapsed = Duration.zero;
       _dragDx = 0;
+      _dragDy = 0;
     });
+    widget.onRecordingStateChanged?.call(true);
 
     _tickTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
       if (!mounted || !_recording) return;
       setState(() {
         _elapsed = DateTime.now().difference(_startedAt!);
+        // Fallback: If hardware amplitude stream drops, inject synthetic peaks so the UI always looks alive
+        if (_peaks.length < (_elapsed.inMilliseconds / 200).floor()) {
+          if (_peaks.length >= 50) _peaks.removeAt(0);
+          _peaks.add(15 + (DateTime.now().millisecondsSinceEpoch % 30));
+        }
       });
     });
 
@@ -164,12 +182,14 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
       // amp.current is in dBFS, typically -160..0. Normalise to 0..100.
       final db = amp.current.isFinite ? amp.current : -60.0;
       final pct = ((db + 60) / 60 * 100).clamp(0, 100).round();
-      if (_peaks.length >= 50) {
-        // Keep the most recent 50 buckets so longer notes still produce
-        // a meaningful waveform without exploding the JSON payload.
-        _peaks.removeAt(0);
-      }
-      _peaks.add(pct);
+      setState(() {
+        if (_peaks.length >= 50) {
+          // Keep the most recent 50 buckets so longer notes still produce
+          // a meaningful waveform without exploding the JSON payload.
+          _peaks.removeAt(0);
+        }
+        _peaks.add(pct);
+      });
     });
   }
 
@@ -191,12 +211,15 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
       setState(() {
         _recording = false;
         _cancelling = false;
+        _locked = false;
         _elapsed = Duration.zero;
         _peaks.clear();
         _filePath = null;
         _startedAt = null;
         _dragDx = 0;
+        _dragDy = 0;
       });
+      widget.onRecordingStateChanged?.call(false);
     }
 
     if (cancelled || finalPath == null) {
@@ -229,83 +252,187 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     } catch (_) {/* swallow */}
   }
 
-  void _onDragStart(DragStartDetails d) {
-    if (!_recording) return;
-    _dragOrigin = d.globalPosition;
-  }
-
-  void _onDragUpdate(DragUpdateDetails d) {
-    if (!_recording) return;
-    final dx = d.globalPosition.dx - _dragOrigin.dx;
-    setState(() {
-      _dragDx = dx;
-      _cancelling = dx <= _cancelThresholdDx;
-    });
-  }
-
-  void _onDragEnd(DragEndDetails d) {
-    if (!_recording) return;
-    _stopAndCommit();
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    if (_recording) {
-      return _RecordingStrip(
-        elapsed: _elapsed,
-        cancelling: _cancelling,
-        dragDx: _dragDx,
-        cancelThresholdDx: _cancelThresholdDx,
-        colors: colors,
-        onDragStart: _onDragStart,
-        onDragUpdate: _onDragUpdate,
-        onDragEnd: _onDragEnd,
-        size: widget.size,
-      );
-    }
-    return GestureDetector(
-      onLongPressStart: (_) => _startRecording(),
-      onLongPressEnd: (_) => _stopAndCommit(),
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          color: colors.accent.withOpacity(widget.disabled ? 0.05 : 0.12),
-          shape: BoxShape.circle,
+    
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomRight,
+      children: [
+        // 1. Recording Strip (Slides in from right over input field)
+        if (_recording)
+          Positioned(
+            right: (_locked ? widget.size : widget.size * 1.5) + 12,
+            bottom: 0,
+            child: Transform.translate(
+              offset: Offset(_dragDx, 0),
+              child: _RecordingStrip(
+                elapsed: _elapsed,
+                cancelling: _cancelling,
+                locked: _locked,
+                dragDx: _dragDx,
+                cancelThresholdDx: _cancelThresholdDx,
+                colors: colors,
+                onCancelRecording: () {
+                  setState(() => _cancelling = true);
+                  _stopAndCommit();
+                },
+                size: widget.size,
+                peaks: _peaks,
+              ),
+            ),
+          ),
+          
+        // 2. Lock Indicator (Bouncing above mic)
+        if (_recording && !_locked)
+          Positioned(
+            right: 0,
+            bottom: widget.size + 16 + (_dragDy.clamp(_lockThresholdDy, 0.0).abs() * 0.5),
+            child: _LockIndicator(colors: colors),
+          ),
+          
+        // 3. Main Mic/Send Button
+        GestureDetector(
+          onLongPressStart: (d) {
+            _dragOrigin = d.globalPosition;
+            _startRecording();
+          },
+          onLongPressMoveUpdate: (d) {
+            if (!_recording || _locked) return;
+            final dx = d.globalPosition.dx - _dragOrigin.dx;
+            final dy = d.globalPosition.dy - _dragOrigin.dy;
+            setState(() {
+              _dragDx = dx;
+              _dragDy = dy;
+              _cancelling = dx <= _cancelThresholdDx;
+              if (dy <= _lockThresholdDy) {
+                _locked = true;
+                _dragDy = 0;
+                HapticFeedback.heavyImpact();
+              }
+            });
+          },
+          onLongPressEnd: (d) {
+            if (!_recording || _locked) return;
+            _stopAndCommit();
+          },
+          onTap: () {
+            if (_locked) {
+              _stopAndCommit(); // Send recorded audio
+            } else if (!_recording) {
+              // Quick tap ignores, maybe could add a hint toast
+              HapticFeedback.selectionClick();
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutBack,
+            width: _recording && !_locked ? widget.size * 1.5 : widget.size,
+            height: _recording && !_locked ? widget.size * 1.5 : widget.size,
+            decoration: BoxDecoration(
+              color: _locked ? colors.accent : colors.accent.withValues(alpha: widget.disabled ? 0.05 : 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+              child: Icon(
+                _locked ? HugeIconsSolid.sent : Icons.mic_rounded,
+                key: ValueKey(_locked),
+                color: _locked ? Colors.white : colors.accent.withValues(alpha: widget.disabled ? 0.4 : 1.0),
+                size: _recording && !_locked ? 28 : 20,
+              ),
+            ),
+          ),
         ),
-        child: Icon(
-          HugeIconsSolid.mic01,
-          color: colors.accent.withOpacity(widget.disabled ? 0.4 : 1.0),
-          size: 18,
+      ],
+    );
+  }
+}
+
+// ── Bouncing Lock Indicator (Telegram Style) ─────────────────────────────
+class _LockIndicator extends StatefulWidget {
+  final AzamanColors colors;
+  const _LockIndicator({required this.colors});
+  @override State<_LockIndicator> createState() => _LockIndicatorState();
+}
+
+class _LockIndicatorState extends State<_LockIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  @override void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+  }
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Transform.translate(
+        offset: Offset(0, -_ctrl.value * 6),
+        child: Container(
+          width: 44, height: 60,
+          decoration: BoxDecoration(
+            color: widget.colors.surface,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_open_rounded, size: 16, color: widget.colors.textSecondary),
+              const SizedBox(height: 6),
+              Icon(Icons.keyboard_arrow_up, size: 18, color: widget.colors.textTertiary),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _RecordingStrip extends StatelessWidget {
+// ── Horizontal Recording Strip with Live Waveform ────────────────────────
+class _RecordingStrip extends StatefulWidget {
   final Duration elapsed;
   final bool cancelling;
+  final bool locked;
   final double dragDx;
   final double cancelThresholdDx;
   final AzamanColors colors;
-  final void Function(DragStartDetails) onDragStart;
-  final void Function(DragUpdateDetails) onDragUpdate;
-  final void Function(DragEndDetails) onDragEnd;
+  final VoidCallback onCancelRecording;
   final double size;
+  final List<int> peaks;
 
   const _RecordingStrip({
     required this.elapsed,
     required this.cancelling,
+    required this.locked,
     required this.dragDx,
     required this.cancelThresholdDx,
     required this.colors,
-    required this.onDragStart,
-    required this.onDragUpdate,
-    required this.onDragEnd,
+    required this.onCancelRecording,
     required this.size,
+    required this.peaks,
   });
+
+  @override State<_RecordingStrip> createState() => _RecordingStripState();
+}
+
+class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
 
   String _formatElapsed(Duration d) {
     final m = d.inMinutes;
@@ -315,113 +442,116 @@ class _RecordingStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (dragDx / cancelThresholdDx).clamp(0.0, 1.0);
-    final dotColor = cancelling
-        ? colors.danger
-        : Color.lerp(colors.danger, colors.warning, pct) ?? colors.danger;
-    return GestureDetector(
-      onHorizontalDragStart: onDragStart,
-      onHorizontalDragUpdate: onDragUpdate,
-      onHorizontalDragEnd: onDragEnd,
-      child: Container(
-        height: size,
-        constraints: const BoxConstraints(minWidth: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: cancelling
-              ? colors.danger.withOpacity(0.15)
-              : colors.danger.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(size / 2),
-          border: Border.all(
-              color: dotColor.withOpacity(cancelling ? 0.7 : 0.35), width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PulseDot(color: dotColor),
-            const SizedBox(width: 8),
-            Text(
-              _formatElapsed(elapsed),
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+    final isCancelling = widget.cancelling;
+    final baseColor = isCancelling ? widget.colors.danger : widget.colors.accent;
+
+    return Container(
+      height: widget.size,
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.55),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: widget.colors.surface,
+        borderRadius: BorderRadius.circular(widget.size / 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Blinking red dot
+          AnimatedBuilder(
+            animation: _pulseCtrl,
+            builder: (_, __) => Container(
+              width: _pulseCtrl.value * 3 + 8,
+              height: _pulseCtrl.value * 3 + 8,
+              decoration: BoxDecoration(color: baseColor, shape: BoxShape.circle),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    cancelling
-                        ? HugeIconsSolid.cancel01
-                        : HugeIconsSolid.arrowLeft01,
-                    color: dotColor,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    cancelling ? 'Release to cancel' : 'Slide to cancel',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(width: 10),
+          // Timer
+          Text(_formatElapsed(widget.elapsed),
+            style: TextStyle(color: widget.colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]),
+          ),
+          const SizedBox(width: 12),
+          // Live Continuous Waveform
+          Flexible(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Ensure there is some width to draw waveform
+                final availableWidth = constraints.maxWidth > 0 ? constraints.maxWidth : 100.0;
+                final maxVisiblePeaks = (availableWidth / 5.0).floor();
+                final visiblePeaks = widget.peaks.length > maxVisiblePeaks
+                    ? widget.peaks.sublist(widget.peaks.length - maxVisiblePeaks)
+                    : widget.peaks;
+
+                return ClipRect(
+                  child: SizedBox(
+                    height: 24,
+                    width: availableWidth,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: List.generate(
+                        visiblePeaks.length,
+                        (i) {
+                          final peak = visiblePeaks[i];
+                          final h = (peak / 100 * 24).clamp(3.0, 24.0);
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 100),
+                            width: 2.5,
+                            height: h,
+                            margin: const EdgeInsets.only(left: 2.5),
+                            decoration: BoxDecoration(
+                              color: isCancelling ? widget.colors.danger.withValues(alpha: 0.5) : widget.colors.accent.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Cancel — 2026-07-08 fix: previously this button only existed
+          // when `locked == true`; while actively holding to record
+          // (the default, unlocked state) there was NO tappable cancel
+          // target at all, only the slide-left gesture, which most users
+          // never discover mid-hold. Now a real tap target is always
+          // present — while unlocked it sits next to the slide hint, while
+          // locked it's the sole cancel affordance, same as before.
+          if (!widget.locked)
+            Opacity(
+              opacity: isCancelling ? 1.0 : (1.0 - (widget.dragDx / -40).clamp(0.0, 1.0)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.keyboard_arrow_left, color: widget.colors.textTertiary, size: 16),
+                  Text(isCancelling ? 'Release to cancel' : 'Slide to cancel',
+                    style: TextStyle(color: widget.colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PulseDot extends StatefulWidget {
-  final Color color;
-  const _PulseDot({required this.color});
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        // Sine-eased pulse 0..1 across the cycle, mapped to 0.5..1.0 alpha.
-        final t = (math.sin(_ctrl.value * 2 * math.pi) + 1) / 2;
-        final alpha = 0.5 + 0.5 * t;
-        return Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: widget.color.withOpacity(alpha),
-            shape: BoxShape.circle,
+          const SizedBox(width: 6),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              widget.onCancelRecording();
+            },
+            child: Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: widget.colors.danger.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.close_rounded, color: widget.colors.danger, size: 16),
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

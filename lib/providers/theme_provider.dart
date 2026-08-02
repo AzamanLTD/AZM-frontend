@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_page_transitions.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // ============================================================
 // AZAMAN THEME ENGINE — V3 (Immersive Planetary Themes)
@@ -171,7 +171,7 @@ class ThemeProvider with ChangeNotifier {
           return c.textTertiary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return c.success.withOpacity(0.3);
+          if (states.contains(WidgetState.selected)) return c.success.withValues(alpha: 0.3);
           return c.divider;
         }),
       ),
@@ -193,7 +193,7 @@ class ThemeProvider with ChangeNotifier {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: c.accent.withOpacity(0.5)),
+          borderSide: BorderSide(color: c.accent.withValues(alpha: 0.5)),
         ),
       ),
       colorScheme: ColorScheme(
@@ -213,71 +213,99 @@ class ThemeProvider with ChangeNotifier {
   static AzamanColors getColors(AzamanTheme theme) {
     switch (theme) {
       case AzamanTheme.light:
-        return AzamanColors(
+        return const AzamanColors(
           isDark: false,
           name: "Light",
-          icon: HugeIconsSolid.sun01,
-          background: const Color(0xFFFAFAFB),
+          icon: Icons.wb_sunny_outlined,
+          background: Color(0xFFFAFAFB),
           surface: Colors.white,
-          card: const Color(0xFFFFFFFF),
-          softSurface: const Color(0xFFF1F1F3),
-          divider: const Color(0xFFE6E6E9),
-          accent: const Color(0xFFB8860B),       // darker gold reads on white
-          accentSecondary: const Color(0xFF8B6914),
-          accentSurface: const Color(0xFFFDF6E3),
-          success: const Color(0xFF018C5C),       // darker green on white
-          danger: const Color(0xFFD32C44),
-          warning: const Color(0xFFC78A00),
-          textPrimary: const Color(0xFF111827),    // near-black, AA contrast on white
-          textSecondary: const Color(0xFF374151),
-          textTertiary: const Color(0xFF6B7280),
-          glow: const Color(0xFFB8860B),
+          card: Color(0xFFFFFFFF),
+          softSurface: Color(0xFFF1F1F3),
+          divider: Color(0xFFE6E6E9),
+          accent: Color(0xFFB8860B),       // darker gold reads on white
+          accentSecondary: Color(0xFF8B6914),
+          accentSurface: Color(0xFFFDF6E3),
+          success: Color(0xFF018C5C),       // darker green on white
+          danger: Color(0xFFD32C44),
+          warning: Color(0xFFC78A00),
+          textPrimary: Color(0xFF111827),    // near-black, AA contrast on white
+          textSecondary: Color(0xFF374151),
+          textTertiary: Color(0xFF6B7280),
+          glow: Color(0xFFB8860B),
+          scaffoldBackground: Color(0xFFFAFAFB),
+          border: Color(0xFFE6E6E9),
         );
 
       case AzamanTheme.dark:
+        // Backlog item 11 -- full intentional dark mode redesign
+        // (2026-07-06). The previous palette had three real, measurable
+        // defects that made "dark mode" feel like a flat filter instead
+        // of a designed theme:
+        //   1. `card` was byte-for-byte identical to `surface` -- so
+        //      elevated cards never actually read as elevated above the
+        //      screens they sat on. Now there's a real 3-step ramp:
+        //      background (deepest) -> surface -> card (most elevated).
+        //   2. `warning` was byte-for-byte identical to `accentSecondary`
+        //      -- a warning chip and a plain secondary-accent button were
+        //      visually the same color, losing all semantic meaning.
+        //      Warning is now its own distinct amber-orange.
+        //   3. `glow` was byte-for-byte identical to `accent` -- every
+        //      "glow" halo/border effect (used 40+ places across the app)
+        //      was just the flat accent color re-used, so nothing ever
+        //      actually *glowed*. `glow` is now a lighter, luminous gold
+        //      that reads as a genuine radiant highlight at low opacity.
+        // The accent itself is warmed and brightened slightly so it pops
+        // harder against the deeper background -- since every screen
+        // pulls from these same tokens, this single palette change
+        // carries the redesign across buttons, badges, borders and
+        // accents app-wide for free.
         return AzamanColors(
           isDark: true,
           name: "Dark",
-          icon: HugeIconsSolid.moon,
-          background: const Color(0xFF0B0E11),
-          surface: const Color(0xFF1E2329),
-          card: const Color(0xFF1E2329),
-          softSurface: const Color(0xFF181D23),
-          divider: Colors.white.withOpacity(0.06),
-          accent: const Color(0xFFD4AF37),
-          accentSecondary: const Color(0xFFF0B90B),
-          accentSurface: const Color(0xFFD4AF37).withOpacity(0.08),
-          success: const Color(0xFF02C076),
-          danger: const Color(0xFFF6465D),
-          warning: const Color(0xFFF0B90B),
+          icon: Icons.dark_mode_outlined,
+          background: const Color(0xFF0A0D11),
+          surface: const Color(0xFF151A20),
+          card: const Color(0xFF1D232B),
+          softSurface: const Color(0xFF11151B),
+          divider: Colors.white.withValues(alpha: 0.07),
+          accent: const Color(0xFFE3BE58),
+          accentSecondary: const Color(0xFFF4B93D),
+          accentSurface: const Color(0xFFE3BE58).withValues(alpha: 0.10),
+          success: const Color(0xFF1CDB94),
+          danger: const Color(0xFFFF5C72),
+          warning: const Color(0xFFFFA726),
           textPrimary: Colors.white,
           textSecondary: Colors.white70,
           textTertiary: Colors.white38,
-          glow: const Color(0xFFD4AF37),
+          glow: const Color(0xFFF5D580),
+          scaffoldBackground: const Color(0xFF0A0D11),
+          border: Colors.white.withValues(alpha: 0.08),
         );
 
       case AzamanTheme.midnight:
         return AzamanColors(
           isDark: true,
           name: "Midnight",
-          icon: HugeIconsSolid.moon,
+          icon: Icons.dark_mode_outlined,
           // True blackout — almost zero ambient light. Violet accent so
           // numbers and CTAs read with weight against pitch black.
           background: const Color(0xFF000000),
           surface: const Color(0xFF0A0612),
           card: const Color(0xFF0F0820),
           softSurface: const Color(0xFF0A0614),
-          divider: const Color(0xFFBB86FC).withOpacity(0.08),
+          divider: const Color(0xFFBB86FC).withValues(alpha: 0.08),
           accent: const Color(0xFFBB86FC),
           accentSecondary: const Color(0xFFE040FB),
-          accentSurface: const Color(0xFFBB86FC).withOpacity(0.06),
+          accentSurface: const Color(0xFFBB86FC).withValues(alpha: 0.06),
           success: const Color(0xFF69F0AE),
           danger: const Color(0xFFFF5252),
           warning: const Color(0xFFFFAB40),
           textPrimary: const Color(0xFFF3E5F5),
           textSecondary: const Color(0xFFCE93D8),
-          textTertiary: const Color(0xFF9C27B0).withOpacity(0.55),
+          textTertiary: const Color(0xFF9C27B0).withValues(alpha: 0.55),
           glow: const Color(0xFFBB86FC),
+          scaffoldBackground: const Color(0xFF000000),
+          border: const Color(0xFFBB86FC).withValues(alpha: 0.08),
         );
     }
   }
@@ -312,6 +340,9 @@ class AzamanColors {
   final Color textTertiary;
 
   final Color glow;
+  
+  final Color scaffoldBackground;
+  final Color border;
 
   const AzamanColors({
     required this.isDark,
@@ -332,7 +363,14 @@ class AzamanColors {
     required this.textSecondary,
     required this.textTertiary,
     required this.glow,
+    required this.scaffoldBackground,
+    required this.border,
   });
+
+  // Aliases used by business_reviews_section.dart
+  Color get commentPrimary => textPrimary;
+  Color get commentSecondary => textSecondary;
+  Color get commentTertiary => textTertiary;
 }
 
 

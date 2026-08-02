@@ -11,7 +11,9 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/chat_plus_menu.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class ChatInterface extends ConsumerStatefulWidget {
   final IO.Socket socket;
@@ -153,19 +155,19 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   // --- Render 3-state ticks ---
   Widget _statusTicks(String? status, AzamanColors colors) {
     if (status == 'sending') {
-      return Icon(HugeIconsSolid.clock01, size: 13, color: colors.textTertiary.withOpacity(0.6));
+      return Icon(Icons.access_time, size: 13, color: colors.textTertiary.withValues(alpha: 0.6));
     }
     if (status == 'failed') {
-      return Icon(HugeIconsSolid.alertCircle, size: 13, color: colors.danger);
+      return Icon(Icons.error_outline, size: 13, color: colors.danger);
     }
     if (status == 'read') {
-      return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.accent);
+      return Icon(Icons.check_circle_outline, size: 13, color: colors.accent);
     }
     if (status == 'delivered') {
-      return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
+      return Icon(Icons.check_circle_outline, size: 13, color: colors.textTertiary);
     }
     // sent or anything else
-    return Icon(HugeIconsSolid.checkmarkCircle01, size: 13, color: colors.textTertiary);
+    return Icon(Icons.check_circle_outline, size: 13, color: colors.textTertiary);
   }
 
   @override
@@ -178,7 +180,12 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            // Telegram uses a fast, lightly-bouncing scroll with momentum.
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            // Keyboard-dismiss on drag (Telegram behavior)
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             itemCount: widget.messages.length,
             itemBuilder: (context, i) {
@@ -217,9 +224,35 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           Padding(
             padding: const EdgeInsets.only(left: 20, bottom: 10),
             child: Row(children: [
-              SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent)),
-              const SizedBox(width: 10),
-              Text("Typing...", style: TextStyle(color: colors.accent.withOpacity(0.8), fontSize: 12)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.6, end: 1.0),
+                      duration: Duration(milliseconds: 400 + i * 200),
+                      builder: (_, val, __) {
+                        return Transform.scale(
+                          scale: val,
+                          child: Container(
+                            width: 6, height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: colors.textTertiary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+              ),
             ]),
           ),
 
@@ -303,17 +336,17 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
 
     if (isGranted) {
       accentColor = const Color(0xFF02C076);
-      icon = HugeIconsSolid.checkmarkCircle01;
+      icon = Icons.check_circle_outline;
       title = 'Time Extended';
       subtitle = '+$addedMinutes minutes added to the timer';
     } else if (isRequest && status == 'APPROVED') {
       accentColor = const Color(0xFF02C076);
-      icon = HugeIconsSolid.checkmarkCircle01;
+      icon = Icons.check_circle_outline;
       title = isVendor ? 'Fulfilled' : 'Request Approved';
       subtitle = '+$addedMinutes minutes granted';
     } else if (isRequest && status == 'DECLINED') {
       accentColor = const Color(0xFFEF4444);
-      icon = HugeIconsSolid.cancel01;
+      icon = Icons.cancel_outlined;
       title = isVendor ? 'Cancelled' : 'Request Declined';
       subtitle = isVendor
           ? 'You declined this request'
@@ -321,7 +354,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     } else {
       // PENDING request
       accentColor = const Color(0xFFFFB800);
-      icon = HugeIconsSolid.clock01;
+      icon = Icons.access_time;
       title = isVendor ? 'Time Extension Requested' : 'Awaiting Vendor Response';
       subtitle = '+$addedMinutes minutes requested';
     }
@@ -333,14 +366,14 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: accentColor.withOpacity(0.10),
+          color: accentColor.withValues(alpha: 0.10),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(14),
             topRight: const Radius.circular(14),
             bottomLeft: Radius.circular(isMe ? 14 : 4),
             bottomRight: Radius.circular(isMe ? 4 : 14),
           ),
-          border: Border.all(color: accentColor.withOpacity(0.4)),
+          border: Border.all(color: accentColor.withValues(alpha: 0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,8 +556,8 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     final String timeStr = _formatTime(msg['time'] ?? msg['createdAt']);
 
     final Color baseColor = part == 3 ? colors.danger : colors.warning;
-    final Color bgColor = baseColor.withOpacity(0.15);
-    final Color borderColor = baseColor.withOpacity(0.7);
+    final Color bgColor = baseColor.withValues(alpha: 0.15);
+    final Color borderColor = baseColor.withValues(alpha: 0.7);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -541,7 +574,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                part == 3 ? HugeIconsSolid.alertCircle : HugeIconsSolid.alarmClock,
+                part == 3 ? Icons.error_outline : Icons.alarm,
                 color: baseColor,
                 size: 18,
               ),
@@ -571,7 +604,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 6),
           Text(
             timeStr,
-            style: TextStyle(color: baseColor.withOpacity(0.6), fontSize: 10),
+            style: TextStyle(color: baseColor.withValues(alpha: 0.6), fontSize: 10),
           ),
         ],
       ),
@@ -608,7 +641,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                urgency >= 3 ? HugeIconsSolid.alertCircle : HugeIconsSolid.alertCircle,
+                urgency >= 3 ? Icons.error_outline : Icons.error_outline,
                 color: baseColor,
                 size: 20,
               ),
@@ -676,7 +709,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(HugeIconsSolid.wifi01, color: colors.warning, size: 18),
+              Icon(Icons.wifi, color: colors.warning, size: 18),
               const SizedBox(width: 8),
               Text(
                 'VENDOR OFFLINE',
@@ -744,7 +777,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(HugeIconsSolid.checkmarkCircle01, size: 14, color: colors.isDark ? Colors.black : Colors.white),
+                    Icon(Icons.check_circle_outline, size: 14, color: colors.isDark ? Colors.black : Colors.white),
                     const SizedBox(width: 4),
                     Text(
                       'ADMIN',
@@ -779,7 +812,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(HugeIconsSolid.judge, size: 14, color: colors.accent),
+              Icon(Icons.gavel, size: 14, color: colors.accent),
               const SizedBox(width: 4),
               Text(
                 'Admin Intervention',
@@ -803,7 +836,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       margin: const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.12),
+        color: colors.danger.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.danger, width: 1.5),
       ),
@@ -811,7 +844,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 16),
+            Icon(Icons.error_outline, color: colors.danger, size: 16),
             const SizedBox(width: 5),
             Text("SYSTEM ADMIN",
                 style: TextStyle(color: colors.danger, fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 11)),
@@ -824,7 +857,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           ),
           const SizedBox(height: 6),
           Text(_formatTime(msg['time'] ?? msg['createdAt']),
-              style: TextStyle(color: colors.danger.withOpacity(0.6), fontSize: 10)),
+              style: TextStyle(color: colors.danger.withValues(alpha: 0.6), fontSize: 10)),
         ],
       ),
     );
@@ -836,9 +869,9 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colors.accent.withOpacity(0.25)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
       ),
       child: Text(
         msg['text'] ?? '',
@@ -890,7 +923,7 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
                           children: [
-                            Icon(HugeIconsSolid.user, size: 12, color: isMe ? metaColor : colors.textSecondary),
+                            Icon(Icons.person_outline, size: 12, color: isMe ? metaColor : colors.textSecondary),
                             const SizedBox(width: 4),
                             Text(
                               'Sender Account Name: $senderName',
@@ -905,23 +938,20 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                       ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        mediaUrl!.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
+                      child: CachedNetworkImage(imageUrl: 
+                        mediaUrl.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
                         height: 180, width: 200, fit: BoxFit.cover,
-                        loadingBuilder: (c, child, progress) {
-                          if (progress == null) return child;
-                          return Container(
+                        placeholder: (c, url) => Container(
                             height: 180, width: 200, color: colors.background,
                             child: Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2)),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
+                          ),
+                        errorWidget: (context, error, stackTrace) {
                           if (File(mediaUrl).existsSync()) {
                             return Image.file(File(mediaUrl), height: 180, width: 200, fit: BoxFit.cover);
                           }
                           return Container(
                             height: 180, width: 200, color: colors.background,
-                            child: Icon(HugeIconsSolid.image01, color: colors.textTertiary, size: 36),
+                            child: Icon(Icons.image_outlined, color: colors.textTertiary, size: 36),
                           );
                         },
                       ),
@@ -1045,7 +1075,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _SheetAction(
-                  icon: HugeIconsSolid.camera01,
+                  icon: Icons.camera_alt_outlined,
                   label: 'Camera',
                   color: c.accent,
                   colors: c,
@@ -1055,7 +1085,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                   },
                 ),
                 _SheetAction(
-                  icon: HugeIconsSolid.image01,
+                  icon: Icons.image_outlined,
                   label: 'Gallery',
                   color: const Color(0xFF02C076),
                   colors: c,
@@ -1066,7 +1096,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                 ),
                 if (widget.onTimeExtension != null)
                   _SheetAction(
-                    icon: HugeIconsSolid.clock01,
+                    icon: Icons.access_time,
                     label: isVendor ? 'Extend Time' : 'Request Time',
                     color: const Color(0xFFFFB800),
                     colors: c,
@@ -1109,17 +1139,16 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // ── + button (non-admin only) — opens action sheet ──────────────
+          // ── + button (non-admin only) — ChatPlusMenu ────────────────────
           if (!isAdmin)
-            SizedBox(
-              width: 38,
-              height: 38,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: Icon(HugeIconsSolid.add01, color: c.accent, size: 22),
-                onPressed: widget.isUploading ? null : _showAttachmentSheet,
-                tooltip: 'Attach',
-              ),
+            ChatPlusMenu(
+              onImageTap: widget.onPickGallery,
+              onDocumentTap: () {},
+              onStickerTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Stickers coming soon')),
+                );
+              },
             ),
 
           // ── Text input field ─────────────────────────────────────────────
@@ -1155,7 +1184,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _hasText ? accentColor : accentColor.withOpacity(0.3),
+              color: _hasText ? accentColor : accentColor.withValues(alpha: 0.3),
             ),
             child: IconButton(
               icon: widget.isUploading
@@ -1168,7 +1197,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                       ),
                     )
                   : Icon(
-                      HugeIconsSolid.sent,
+                      Icons.send_outlined,
                       color: _hasText
                           ? (c.isDark ? Colors.black : Colors.white)
                           : (c.isDark ? Colors.black45 : Colors.white60),
@@ -1209,7 +1238,7 @@ class _SheetAction extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1250,7 +1279,7 @@ class _AttachButton extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
           ),
           child: Icon(icon, color: color, size: 19),
         ),
@@ -1300,9 +1329,9 @@ class VendorPayeeDetails extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.accent.withOpacity(0.08),
+        color: colors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1310,7 +1339,7 @@ class VendorPayeeDetails extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.wallet01,
+              Icon(Icons.account_balance_wallet_outlined,
                   size: 16, color: colors.accent),
               const SizedBox(width: 8),
               Text(
@@ -1376,7 +1405,7 @@ class VendorPayeeDetails extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  icon: const Icon(HugeIconsSolid.copy01, size: 16),
+                  icon: const Icon(Icons.copy_outlined, size: 16),
                   label: const Text('Copy Tag',
                       style: TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 12)),
@@ -1406,7 +1435,7 @@ class VendorPayeeDetails extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    icon: const Icon(HugeIconsSolid.share01, size: 16),
+                    icon: const Icon(Icons.share_outlined, size: 16),
                     label: Text(
                       'Open ${_appLabel(paymentMethod)}',
                       style: const TextStyle(
@@ -1423,7 +1452,7 @@ class VendorPayeeDetails extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(HugeIconsSolid.informationCircle,
+                Icon(Icons.info_outline,
                     size: 14, color: colors.textTertiary),
                 const SizedBox(width: 6),
                 Expanded(

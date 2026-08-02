@@ -5,13 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/admin/profit_dashboard.dart';
 import 'package:azaman/screens/admin/users_dashboard.dart';
 import 'package:azaman/screens/admin/volume_dashboard.dart';
 import 'package:azaman/screens/admin_war_room_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -153,10 +152,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.accent.withOpacity(0.15),
+                color: colors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(HugeIconsSolid.radar01, color: colors.accent, size: 18),
+              child: Icon(Icons.radar, color: colors.accent, size: 18),
             ),
           ),
           const SizedBox(width: 10),
@@ -175,7 +174,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
       actions: [
         IconButton(
           onPressed: _fetchAll,
-          icon: Icon(HugeIconsSolid.refresh01, color: colors.accent),
+          icon: Icon(Icons.refresh, color: colors.accent),
           tooltip: 'Refresh',
         ),
       ],
@@ -206,7 +205,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 48),
+              Icon(Icons.error_outline, color: colors.danger, size: 48),
               const SizedBox(height: 16),
               Text(
                 'Failed to load data',
@@ -226,7 +225,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
               ElevatedButton.icon(
                 onPressed: _fetchAll,
-                icon: const Icon(HugeIconsSolid.refresh01),
+                icon: const Icon(Icons.refresh),
                 label: const Text('RETRY'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
@@ -273,7 +272,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: 'Profit\n(PnL)',
             value: _formatUsd(_stats['totalAdminProfit']),
-            icon: HugeIconsSolid.analytics01,
+            icon: Icons.analytics_outlined,
             accentColor: colors.accent,
             colors: colors,
             onTap: () {
@@ -290,7 +289,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: 'Total\nUsers',
             value: _formatNumber(_stats['totalUsers']),
-            icon: HugeIconsSolid.userGroup,
+            icon: Icons.group_outlined,
             accentColor: colors.success,
             colors: colors,
             onTap: () {
@@ -307,7 +306,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           child: _triumvirateCard(
             title: '24h\nVolume',
             value: _formatGhs(_stats['fiatVolume24h']),
-            icon: HugeIconsSolid.bank,
+            icon: Icons.account_balance_outlined,
             accentColor: colors.warning,
             colors: colors,
 
@@ -339,10 +338,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accentColor.withOpacity(0.25)),
+          border: Border.all(color: accentColor.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.06),
+              color: accentColor.withValues(alpha: 0.06),
               blurRadius: 20,
               spreadRadius: -2,
             ),
@@ -355,7 +354,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.12),
+                color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: accentColor, size: 22),
@@ -384,7 +383,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               ),
             ),
             const SizedBox(height: 4),
-            Icon(HugeIconsSolid.arrowRight01, size: 10, color: colors.textTertiary),
+            Icon(Icons.arrow_forward, size: 10, color: colors.textTertiary),
           ],
         ),
       ),
@@ -399,7 +398,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'SYSTEM HEALTH',
-      icon: HugeIconsSolid.favourite,
+      icon: Icons.favorite_outline,
       colors: colors,
       child: Column(
         children: [
@@ -524,7 +523,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'ORACLE STATUS',
-      icon: HugeIconsSolid.cloud,
+      icon: Icons.cloud_outlined,
       colors: colors,
       child: Column(
         children: [
@@ -542,7 +541,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -556,7 +555,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
               ),
               const Spacer(),
 
-              Icon(HugeIconsSolid.clock01, size: 11, color: colors.textTertiary),
+              Icon(Icons.access_time, size: 11, color: colors.textTertiary),
               const SizedBox(width: 4),
               Text(
                 _formatTimestamp(lastSync),
@@ -617,7 +616,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
 
     return _sectionContainer(
       title: 'ENGINE STATUS',
-      icon: HugeIconsSolid.cpu,
+      icon: Icons.memory_outlined,
       colors: colors,
       child: Column(
         children: [
@@ -627,11 +626,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: (isOnline ? colors.success : colors.danger)
-                      .withOpacity(0.15),
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: (isOnline ? colors.success : colors.danger)
-                        .withOpacity(0.4),
+                        .withValues(alpha: 0.4),
                   ),
                 ),
                 child: Row(
@@ -669,10 +668,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           const SizedBox(height: 14),
           Row(
             children: [
-              _engineMetric('Uptime', uptime, HugeIconsSolid.clock01, colors),
+              _engineMetric('Uptime', uptime, Icons.access_time, colors),
               const SizedBox(width: 16),
               _engineMetric(
-                  'Memory', memory, HugeIconsSolid.sdCard, colors),
+                  'Memory', memory, Icons.sd_card_outlined, colors),
             ],
           ),
         ],
@@ -812,25 +811,25 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              colors.danger.withOpacity(0.8),
+              colors.danger.withValues(alpha: 0.8),
               colors.danger,
             ],
           ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: colors.danger.withOpacity(0.3),
+              color: colors.danger.withValues(alpha: 0.3),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(HugeIconsSolid.medal01, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            const Text(
+            Icon(Icons.military_tech_outlined, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text(
               'OPEN WAR ROOM',
               style: TextStyle(
                 color: Colors.white,

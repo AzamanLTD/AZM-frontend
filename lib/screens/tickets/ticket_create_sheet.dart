@@ -1,45 +1,51 @@
 // =============================================================================
-// TICKET CREATE SHEET — Phase UI-4 (2026-05-26)
+// TICKET CREATE SHEET — Redesigned 2026-07-11
 //
-// Bottom sheet form for spawning a new ticket workspace inside a friendship.
-// Required fields:
-//   • Ticket Name           (1–80 chars)
-//   • Transaction Type      (Buy / Sell / Escrow / Service Swap)
-//   • Target Amount         (positive decimal)
-//   • Asset Currency        (USD, GHS, USDC, USDT, AZM, +)
-//   • Memo / Terms of Deal  (optional, ≤500 chars)
+// Context-aware escrow / deal creator for 1-on-1 friend chats.
+// The sheet NEVER asks the user for AZM-IDs or Business IDs — those are
+// derived from the chat context (chatId = friendshipId, peer info passed in).
+//
+// Required fields from caller:
+//   • friendshipId  — the chat / friendship ID
+//   • peerName      — display name of the other person
+//
+// What the user fills in:
+//   1. Ticket title / deal description  (1–80 chars)
+//   2. Amount + currency                (numeric keypad)
+//   3. Escrow toggle                    (yes / no — simplifies the UX)
+//   4. Terms / memo                     (optional, 500 chars)
+//
+// Visual language mirrors the deposit screen:
+//   dark surface card, accent border, same input decoration style.
 // =============================================================================
-
-import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
-import 'package:azaman/services/api_client.dart';
-import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 
-const _kCurrencies = ['USD', 'GHS', 'USDC', 'USDT', 'AZM', 'EUR', 'GBP', 'NGN'];
+// Supported currencies — shown as horizontal pill selectors.
+const _kCurrencies = ['USDC', 'USD', 'GHS', 'USDT', 'AZM'];
 
 class TicketCreateSheet extends ConsumerStatefulWidget {
-  // V3 Marketplace Sprint: friendshipId is now optional. When the sheet is
-  // opened in business mode (preselectedBusiness != null, or the user flips
-  // the Friend/Business toggle) the ticket is bound to a businessProfileId
-  // instead of a friendshipId.
+  /// The friendship / chat ID — used as the ticket's friendshipId.
   final String? friendshipId;
-  final BusinessProfile? preselectedBusiness;
-  final BusinessProduct? preselectedProduct;
+
+  /// Display name of the other person in this chat.
+  final String peerName;
+
+  // Kept for marketplace compat — ignored in the new friend-chat flow.
+  final dynamic preselectedBusiness;
+  final dynamic preselectedProduct;
 
   const TicketCreateSheet({
     super.key,
     this.friendshipId,
+    this.peerName = 'Other party',
     this.preselectedBusiness,
     this.preselectedProduct,
   });
@@ -48,132 +54,67 @@ class TicketCreateSheet extends ConsumerStatefulWidget {
   ConsumerState<TicketCreateSheet> createState() => _TicketCreateSheetState();
 }
 
-class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
+class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
-  TicketType _type = TicketType.buy;
-  String _currency = 'USD';
+
+  String _currency = 'USDC';
+  bool _enableEscrow = true; // default ON — the primary use-case
   bool _submitting = false;
 
-  // ── V3 Marketplace Sprint: business mode + escrow fields ──
-  bool _isBusinessMode = false;
-  BusinessProfile? _selectedBusiness;
-  BusinessProduct? _selectedProduct;
-  final _escrowAmountCtrl = TextEditingController();
-  final _deliveryTermsCtrl = TextEditingController();
-  DateTime? _dueDate;
-
-  // Business search (only used when business mode and no preselected business).
-  final _bizSearchCtrl = TextEditingController();
-  Timer? _bizDebounce;
-  List<BusinessProfile> _bizResults = const [];
-  bool _bizSearching = false;
+  // Subtle shake animation on validation fail
+  late final AnimationController _shakeCtrl;
+  late final Animation<double> _shakeAnim;
 
   @override
   void initState() {
     super.initState();
-    // Seed from preselected business / product when opened from the marketplace.
-    if (widget.preselectedBusiness != null) {
-      _isBusinessMode = true;
-      _selectedBusiness = widget.preselectedBusiness;
-    }
-    if (widget.preselectedProduct != null) {
-      _isBusinessMode = true;
-      _selectedProduct = widget.preselectedProduct;
-      _type = TicketType.escrow;
-      _nameCtrl.text = widget.preselectedProduct!.name;
-      _escrowAmountCtrl.text =
-          widget.preselectedProduct!.priceUsdc.toStringAsFixed(2);
-      if (widget.preselectedProduct!.deliveryTerms != null) {
-        _deliveryTermsCtrl.text = widget.preselectedProduct!.deliveryTerms!;
-      }
-    }
+    _shakeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
+    );
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
+    _titleCtrl.dispose();
     _amountCtrl.dispose();
     _memoCtrl.dispose();
-    _escrowAmountCtrl.dispose();
-    _deliveryTermsCtrl.dispose();
-    _bizSearchCtrl.dispose();
-    _bizDebounce?.cancel();
+    _shakeCtrl.dispose();
     super.dispose();
   }
 
-  void _onBizSearchChanged(String value) {
-    _bizDebounce?.cancel();
-    _bizDebounce = Timer(const Duration(milliseconds: 400), () async {
-      final q = value.trim();
-      if (q.isEmpty) {
-        if (mounted) setState(() => _bizResults = const []);
-        return;
-      }
-      setState(() => _bizSearching = true);
-      try {
-        final page = await BusinessService().searchBusinesses(q: q, limit: 5);
-        if (!mounted) return;
-        setState(() {
-          _bizResults = page.businesses.take(5).toList();
-          _bizSearching = false;
-        });
-      } catch (_) {
-        if (mounted) setState(() => _bizSearching = false);
-      }
-    });
-  }
-
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null) return;
-
-    final business = widget.preselectedBusiness ?? _selectedBusiness;
-    if (_isBusinessMode && business == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Pick a business first.'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+    if (!_formKey.currentState!.validate()) {
+      _shakeCtrl.forward(from: 0);
+      AzamanHaptics.warn();
       return;
     }
-    if (!_isBusinessMode && widget.friendshipId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('No friendship context for this deal.'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+    if (amount <= 0) {
+      _shakeCtrl.forward(from: 0);
       return;
     }
-    // Escrow amount is required (> 0) when the type is escrow.
-    double? escrowAmount;
-    if (_type == TicketType.escrow) {
-      escrowAmount = double.tryParse(_escrowAmountCtrl.text.trim());
-      if (escrowAmount == null || escrowAmount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Enter a valid escrow amount.'),
-          backgroundColor: ref.read(themeProvider).colors.danger,
-        ));
-        return;
-      }
+    if (widget.friendshipId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No chat context found.')),
+      );
+      return;
     }
 
     setState(() => _submitting = true);
     try {
-      if (_isBusinessMode && business != null) {
-        final ticket = await _createBusinessTicket(amount, business, escrowAmount);
-        if (!mounted) return;
-        AzamanHaptics.commit();
-        Navigator.of(context).pop(ticket);
-        return;
-      }
-
       final notifier =
           ref.read(ticketDashboardProvider(widget.friendshipId!).notifier);
       final ticket = await notifier.createTicket(
-        name: _nameCtrl.text.trim(),
-        type: _type,
+        name: _titleCtrl.text.trim(),
+        type: _enableEscrow ? TicketType.escrow : TicketType.buy,
         targetAmount: amount,
         targetCurrency: _currency,
         memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
@@ -183,516 +124,466 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet> {
       Navigator.of(context).pop(ticket);
     } catch (e) {
       if (!mounted) return;
+      final colors = ref.read(themeProvider).colors;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not create ticket: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
+        backgroundColor: colors.danger,
       ));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  /// Business-mode create. The backend /tickets endpoint accepts either a
-  /// friendshipId OR a businessProfileId; here we send the latter plus the
-  /// escrow fields, and parse the returned ticket directly (the friendship
-  /// dashboard notifier doesn't apply because there is no friendship).
-  Future<Ticket> _createBusinessTicket(
-    double amount,
-    BusinessProfile business,
-    double? escrowAmount,
-  ) async {
-    final body = <String, dynamic>{
-      'name': _nameCtrl.text.trim(),
-      'type': _type.wire,
-      'targetAmount': amount,
-      'targetCurrency': _currency,
-      'businessProfileId': business.id,
-    };
-    if (_type == TicketType.escrow) {
-      body['escrowAmount'] = escrowAmount;
-      if (_deliveryTermsCtrl.text.trim().isNotEmpty) {
-        body['deliveryTerms'] = _deliveryTermsCtrl.text.trim();
-      }
-      if (_dueDate != null) body['dueDate'] = _dueDate!.toIso8601String();
-      final product = widget.preselectedProduct ?? _selectedProduct;
-      if (product != null) body['productId'] = product.id;
-    } else if (_memoCtrl.text.trim().isNotEmpty) {
-      body['memo'] = _memoCtrl.text.trim();
-    }
-    final res = await apiClient.post('/tickets', body);
-    final decoded = jsonDecode(res.body);
-    if (res.statusCode != 201 || decoded['ticket'] == null) {
-      throw Exception(decoded['message']?.toString() ?? 'Create failed');
-    }
-    return Ticket.fromJson(decoded['ticket'] as Map<String, dynamic>);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(
           color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Drag handle
                 Center(
                   child: Container(
                     width: 40,
                     height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
                       color: colors.divider,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Icon(HugeIconsSolid.ticket01,
-                        color: colors.accent, size: 20),
-                    const SizedBox(width: 8),
-                    Text('New Ticket',
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        )),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Create an isolated workspace to track this deal.',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                ),
-                const SizedBox(height: 18),
 
-                // ── V3: Friend vs Business mode toggle (hidden when a business
-                //    was preselected from the marketplace). ──
-                if (widget.preselectedBusiness == null &&
-                    widget.preselectedProduct == null) ...[
-                  _modeToggle(colors),
-                  const SizedBox(height: 16),
-                ],
+                // ── Header ─────────────────────────────────────────────────
+                _Header(colors: colors, peerName: widget.peerName),
+                const SizedBox(height: 24),
 
-                // ── V3: Business selector (search or selected card). ──
-                if (_isBusinessMode) ...[
-                  _businessSelector(colors),
-                  const SizedBox(height: 16),
-                ],
-
-                _Label('Ticket Name', colors),
+                // ── Deal title ─────────────────────────────────────────────
+                _FieldLabel(label: 'What is this deal about?', colors: colors),
                 const SizedBox(height: 6),
-                TextFormField(
-                  controller: _nameCtrl,
-                  maxLength: 80,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: _decoration(colors, 'e.g. "AAPL stock buy" or "Logo redesign deal"'),
-                  validator: (v) {
-                    final t = (v ?? '').trim();
-                    if (t.isEmpty) return 'Required';
-                    if (t.length > 80) return 'Max 80 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                _Label('Transaction Type', colors),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: TicketType.values.map((t) {
-                    final selected = t == _type;
-                    return ChoiceChip(
-                      label: Text(t.label),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _type = t),
-                      backgroundColor: colors.card,
-                      selectedColor: colors.accent.withOpacity(0.18),
-                      side: BorderSide(
-                        color: selected ? colors.accent : colors.divider,
-                        width: selected ? 1.4 : 1,
-                      ),
-                      labelStyle: TextStyle(
-                        color: selected ? colors.accent : colors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    );
-                  }).toList(),
+                AnimatedBuilder(
+                  animation: _shakeAnim,
+                  builder: (ctx, child) => Transform.translate(
+                    offset: Offset(
+                        8 * _shakeAnim.value * (1 - _shakeAnim.value) * 4, 0),
+                    child: child,
+                  ),
+                  child: TextFormField(
+                    controller: _titleCtrl,
+                    maxLength: 80,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(color: colors.textPrimary),
+                    decoration: _inputDeco(colors,
+                        hint: 'e.g. "Payment for logo design"'),
+                    validator: (v) {
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty) return 'Please describe the deal';
+                      if (t.length > 80) return 'Max 80 characters';
+                      return null;
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
 
-                _Label('Target Amount', colors),
+                // ── Amount ─────────────────────────────────────────────────
+                _FieldLabel(label: 'Amount', colors: colors),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _amountCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d{0,8}')),
-                        ],
-                        decoration: _decoration(colors, '0.00'),
-                        validator: (v) {
-                          final amt = double.tryParse((v ?? '').trim());
-                          if (amt == null || amt <= 0) return 'Positive number';
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        value: _currency,
-                        decoration: _decoration(colors, ''),
-                        items: _kCurrencies
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c,
-                                      style: TextStyle(
-                                          color: colors.textPrimary)),
-                                ))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() => _currency = v);
-                        },
-                        dropdownColor: colors.card,
-                      ),
-                    ),
-                  ],
+                _AmountRow(
+                  colors: colors,
+                  amountCtrl: _amountCtrl,
+                  currency: _currency,
+                  onCurrencyChanged: (c) => setState(() => _currency = c),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
 
-                // ── V3: Escrow-specific fields (amount + fee preview + terms
-                //    + due date) shown only when the type is Escrow. ──
-                if (_type == TicketType.escrow) ...[
-                  _escrowFields(colors),
-                  const SizedBox(height: 14),
-                ],
+                // ── Escrow toggle ──────────────────────────────────────────
+                _EscrowToggle(
+                  colors: colors,
+                  enabled: _enableEscrow,
+                  onChanged: (v) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _enableEscrow = v);
+                  },
+                ),
+                const SizedBox(height: 20),
 
-                _Label('Memo / Terms of Deal (optional)', colors),
+                // ── Memo ───────────────────────────────────────────────────
+                _FieldLabel(
+                    label: 'Terms / Notes  (optional)', colors: colors),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _memoCtrl,
                   maxLength: 500,
-                  maxLines: 4,
+                  maxLines: 3,
                   minLines: 2,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: _decoration(
-                    colors,
-                    'Specifics, timeline, escrow conditions, etc.',
-                  ),
+                  style: TextStyle(color: colors.textPrimary),
+                  decoration: _inputDeco(colors,
+                      hint: 'Delivery timeline, conditions, or anything else…'),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
 
+                // ── CTA ────────────────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
+                  height: 52,
+                  child: ElevatedButton(
                     onPressed: _submitting ? null : _submit,
-                    icon: _submitting
-                        ? SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colors.isDark ? Colors.black : Colors.white,
-                            ),
-                          )
-                        : const Icon(HugeIconsSolid.ticket01, size: 18),
-                    label: Text(_submitting ? 'Creating…' : 'Create Ticket'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                      foregroundColor: Colors.white,
                       elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _enableEscrow
+                                    ? Icons.lock_outline_rounded
+                                    : Icons.receipt_long_outlined,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _enableEscrow
+                                    ? 'Create Escrow Deal'
+                                    : 'Create Ticket',
+                                style: const TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+
+                // Small reassurance text
+                if (_enableEscrow) ...[
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Text(
+                      '🔒 Funds are locked until both parties confirm.',
+                      style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── V3 Marketplace Sprint — business mode + escrow UI builders ──
-
-  Widget _modeToggle(AzamanColors colors) {
-    Widget seg(String label, bool active, VoidCallback onTap) {
-      return Expanded(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: active ? colors.accent : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active
-                    ? (colors.isDark ? Colors.black : Colors.white)
-                    : colors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          seg('Friend Deal', !_isBusinessMode, () {
-            AzamanHaptics.toggle();
-            setState(() => _isBusinessMode = false);
-          }),
-          seg('Business Deal', _isBusinessMode, () {
-            AzamanHaptics.toggle();
-            setState(() => _isBusinessMode = true);
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _businessSelector(AzamanColors colors) {
-    final business = widget.preselectedBusiness ?? _selectedBusiness;
-    if (business != null) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: colors.accentSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.accent.withOpacity(0.4)),
-        ),
-        child: Row(
-          children: [
-            Icon(HugeIconsSolid.store01, color: colors.accent, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(business.businessName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      )),
-                  Text(business.bizId,
-                      style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11)),
                 ],
-              ),
-            ),
-            // Only allow clearing when the business wasn't preselected.
-            if (widget.preselectedBusiness == null)
-              GestureDetector(
-                onTap: () => setState(() {
-                  _selectedBusiness = null;
-                  _bizResults = const [];
-                  _bizSearchCtrl.clear();
-                }),
-                child: Icon(HugeIconsStroke.cancelCircle,
-                    color: colors.textTertiary, size: 20),
-              ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Label('Business', colors),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _bizSearchCtrl,
-          onChanged: _onBizSearchChanged,
-          decoration: _decoration(colors, 'Search business or BIZ-ID'),
-        ),
-        if (_bizSearching)
-          const Padding(
-            padding: EdgeInsets.all(10),
-            child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
-        ..._bizResults.map((b) => ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading:
-                  Icon(HugeIconsSolid.store01, color: colors.accent, size: 18),
-              title: Text(b.businessName,
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700)),
-              subtitle: Text(b.bizId,
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-              onTap: () => setState(() {
-                _selectedBusiness = b;
-                _bizResults = const [];
-              }),
-            )),
-      ],
-    );
-  }
-
-  Widget _escrowFields(AzamanColors colors) {
-    final amt = double.tryParse(_escrowAmountCtrl.text.trim()) ?? 0;
-    final fee = amt * 0.005;
-    final total = amt + fee;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Label('Escrow Amount (USDC)', colors),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _escrowAmountCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,8}')),
-          ],
-          onChanged: (_) => setState(() {}),
-          decoration: _decoration(colors, '0.00'),
-        ),
-        if (amt > 0) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Platform fee: ${fee.toStringAsFixed(2)} USDC — Total: ${total.toStringAsFixed(2)} USDC',
-            style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
-          ),
-        ],
-        const SizedBox(height: 12),
-        _Label('Delivery Terms (optional)', colors),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _deliveryTermsCtrl,
-          maxLength: 1000,
-          maxLines: 3,
-          minLines: 2,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: _decoration(colors, 'Scope, timeline, conditions…'),
-        ),
-        const SizedBox(height: 12),
-        _Label('Due Date (optional)', colors),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: () async {
-            final now = DateTime.now();
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _dueDate ?? now.add(const Duration(days: 7)),
-              firstDate: now,
-              lastDate: now.add(const Duration(days: 365)),
-            );
-            if (picked != null) setState(() => _dueDate = picked);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(HugeIconsStroke.calendar03,
-                    size: 18, color: colors.textTertiary),
-                const SizedBox(width: 10),
-                Text(
-                  _dueDate == null
-                      ? 'Select a due date'
-                      : '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}',
-                  style: TextStyle(
-                    color: _dueDate == null
-                        ? colors.textTertiary
-                        : colors.textPrimary,
-                    fontSize: 14,
-                  ),
-                ),
               ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 
-  InputDecoration _decoration(AzamanColors colors, String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
-      filled: true,
-      fillColor: colors.card,
-      counterText: '',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: colors.accent, width: 1.2),
-      ),
+  InputDecoration _inputDeco(AzamanColors colors, {String hint = ''}) =>
+      InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+        filled: true,
+        fillColor: colors.card,
+        counterStyle:
+            TextStyle(color: colors.textTertiary, fontSize: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.accent, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.danger),
+        ),
+      );
+}
+
+// ── Sub-widgets ──────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final AzamanColors colors;
+  final String peerName;
+  const _Header({required this.colors, required this.peerName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                colors.accent.withValues(alpha: 0.85),
+                colors.accent.withValues(alpha: 0.4),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Icon(Icons.lock_outline_rounded,
+              color: Colors.white, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'New Deal',
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'With $peerName',
+                style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _Label extends StatelessWidget {
-  final String text;
+class _FieldLabel extends StatelessWidget {
+  final String label;
   final AzamanColors colors;
-  const _Label(this.text, this.colors);
+  const _FieldLabel({required this.label, required this.colors});
+
+  @override
+  Widget build(BuildContext context) => Text(
+        label,
+        style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3),
+      );
+}
+
+class _AmountRow extends StatelessWidget {
+  final AzamanColors colors;
+  final TextEditingController amountCtrl;
+  final String currency;
+  final ValueChanged<String> onCurrencyChanged;
+  const _AmountRow({
+    required this.colors,
+    required this.amountCtrl,
+    required this.currency,
+    required this.onCurrencyChanged,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        color: colors.textTertiary,
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.8,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 5,
+          child: TextFormField(
+            controller: amountCtrl,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,8}')),
+            ],
+            style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800),
+            decoration: InputDecoration(
+              hintText: '0.00',
+              hintStyle: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800),
+              filled: true,
+              fillColor: colors.card,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colors.divider),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colors.divider),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colors.accent, width: 1.5),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colors.danger),
+              ),
+            ),
+            validator: (v) {
+              final amt = double.tryParse((v ?? '').trim());
+              if (amt == null || amt <= 0) return 'Enter an amount';
+              return null;
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Currency picker column
+        Expanded(
+          flex: 3,
+          child: Container(
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.divider),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: currency,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                borderRadius: BorderRadius.circular(14),
+                dropdownColor: colors.card,
+                isExpanded: true,
+                items: _kCurrencies
+                    .map((c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(c,
+                              style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14)),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) onCurrencyChanged(v);
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EscrowToggle extends StatelessWidget {
+  final AzamanColors colors;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  const _EscrowToggle({
+    required this.colors,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!enabled),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: enabled
+              ? colors.accent.withValues(alpha: 0.10)
+              : colors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: enabled
+                ? colors.accent.withValues(alpha: 0.55)
+                : colors.divider,
+            width: enabled ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled
+                    ? colors.accent.withValues(alpha: 0.18)
+                    : colors.softSurface,
+              ),
+              child: Icon(
+                enabled ? Icons.lock_rounded : Icons.lock_open_rounded,
+                color: enabled ? colors.accent : colors.textSecondary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enable Escrow',
+                    style: TextStyle(
+                        color: enabled
+                            ? colors.accent
+                            : colors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    enabled
+                        ? 'Funds are held securely until you both confirm.'
+                        : 'No fund lock — this is a tracked deal only.',
+                    style: TextStyle(
+                        color: colors.textSecondary, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: enabled,
+              onChanged: onChanged,
+              activeThumbColor: colors.accent,
+            ),
+          ],
+        ),
       ),
     );
   }

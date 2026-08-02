@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class SusuWarningScreen extends ConsumerStatefulWidget {
   final String susuGroupId;
@@ -84,7 +84,7 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Susu Contract',
@@ -98,13 +98,13 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
               margin: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: colors.danger.withOpacity(0.08),
+                color: colors.danger.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withOpacity(0.30)),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.30)),
               ),
               child: Row(
                 children: [
-                  Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 18),
+                  Icon(Icons.error_outline, color: colors.danger, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -205,7 +205,7 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.danger,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: colors.danger.withOpacity(0.3),
+                        disabledBackgroundColor: colors.danger.withValues(alpha: 0.3),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape:
                             RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

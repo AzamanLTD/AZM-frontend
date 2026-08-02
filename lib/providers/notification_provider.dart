@@ -73,6 +73,16 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     }
   }
 
+  @override
+  void dispose() {
+    final socket = SocketService.instance.rawSocket;
+    if (socket != null) {
+      socket.off('new_notification');
+      socket.off('notifications_updated');
+    }
+    super.dispose();
+  }
+
   /// Fetch notifications from the backend API.
   Future<void> fetchNotifications() async {
     try {
@@ -197,6 +207,10 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     state = state.where((n) => n.id != id).toList();
   }
 
+  void deleteNotification(String id) {
+    removeNotification(id);
+  }
+
   /// Refresh notifications from the backend (pull-to-refresh).
   Future<void> refresh() async {
     await fetchNotifications();
@@ -209,33 +223,52 @@ final notificationProvider =
 });
 
 final unreadCountProvider = Provider<int>((ref) {
-  return ref.watch(notificationProvider).where((n) => !n.isRead).length;
+  return ref.watch(notificationProvider)
+      .where((n) => !n.isRead && n.category != NotificationCategory.general)
+      .length;
 });
 
 final generalNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref
-      .watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.general)
-      .toList();
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.general).toList();
 });
 
 final securityNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref
-      .watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.securityAccount)
-      .toList();
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.securityAccount).toList();
 });
 
 final vendorNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref
-      .watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.vendorPriority)
-      .toList();
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.vendorPriority).toList();
 });
 
 final adminNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref
-      .watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.adminSystem)
-      .toList();
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.adminSystem).toList();
+});
+
+// ── New category providers (used by notification_hub_screen) ──────────────────
+final moneyNotificationsProvider = Provider<List<AppNotification>>((ref) {
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.money).toList();
+});
+
+final socialNotificationsProvider = Provider<List<AppNotification>>((ref) {
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.social).toList();
+});
+
+final chatNotificationsProvider = Provider<List<AppNotification>>((ref) {
+  return ref.watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.chat).toList();
+});
+
+final systemNotificationsProvider = Provider<List<AppNotification>>((ref) {
+  return ref.watch(notificationProvider)
+      .where((n) =>
+        n.category == NotificationCategory.system ||
+        n.category == NotificationCategory.adminSystem ||
+        n.category == NotificationCategory.vendorPriority
+      ).toList();
 });

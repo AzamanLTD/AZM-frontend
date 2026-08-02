@@ -1,0 +1,171 @@
+Section 43: React Portal — NEW PAGE: Marketing.jsx
+File: src/pages/Marketing.jsx (NEW)
+Structured ad composer with 4 templates (PROMO, NEW_ITEM, EVENT, FLASH_SALE). NOT free-text — the business picks a template and fills structured fields. The backend creates a Story from this and pushes to all followers.
+// src/pages/Marketing.jsx
+import { useState, useEffect } from 'react';
+import { Megaphone, Image as ImageIcon, Send, TrendingUp } from 'lucide-react';
+import { marketplaceApi } from '../lib/marketplaceApi';
+
+const TEMPLATES = [
+  { key: 'PROMO', label: 'Promotion', desc: 'Discount or special offer',
+    fields: [{ name: 'discountPct', label: 'Discount %', type: 'number' },
+             { name: 'item', label: 'Item (optional)', type: 'text' }] },
+  { key: 'NEW_ITEM', label: 'New Item', desc: 'New product/menu/room listing',
+    fields: [{ name: 'itemName', label: 'Item name', type: 'text' },
+             { name: 'priceUsdc', label: 'Price (USDC)', type: 'number' }] },
+  { key: 'EVENT', label: 'Event', desc: 'Special event or live music',
+    fields: [{ name: 'eventName', label: 'Event name', type: 'text' },
+             { name: 'date', label: 'Date', type: 'date' }] },
+  { key: 'FLASH_SALE', label: 'Flash Sale', desc: 'Time-limited offer',
+    fields: [{ name: 'discountPct', label: 'Discount %', type: 'number' },
+             { name: 'durationHours', label: 'Duration (hours)', type: 'number' }] },
+];
+
+export default function Marketing({ businessId }) {
+  const [template, setTemplate] = useState('PROMO');
+  const [fields, setFields] = useState({});
+  const [caption, setCaption] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [followers, setFollowers] = useState(0);
+  const [recentAds, setRecentAds] = useState([]);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    loadStats();
+    loadRecentAds();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const res = await marketplaceApi.getFollowerStats(businessId);
+      setFollowers(res.data?.followerCount || 0);
+    } catch (e) { console.error(e); }
+  };
+
+  const loadRecentAds = async () => {
+    try {
+      const res = await marketplaceApi.getAdPosts(businessId);
+      setRecentAds(res.data || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const sendAd = async () => {
+    setSending(true);
+    try {
+      await marketplaceApi.createAdPost(businessId, {
+        template, caption, imageUrl, metadata: fields,
+      });
+      alert(`Ad sent to ${followers} followers`);
+      setCaption(''); setImageUrl(''); setFields({});
+      loadRecentAds();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to send ad');
+    }
+    setSending(false);
+  };
+
+  const activeTemplate = TEMPLATES.find(t => t.key === template);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Marketing</h1>
+        <p className="text-sm text-muted-foreground mt-1">Post structured ads to your followers</p>
+      </div>
+
+      {/* Follower stats */}
+      <div className="rounded-lg border bg-card p-4 flex items-center gap-3">
+        <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
+          <TrendingUp className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-foreground">{followers}</p>
+          <p className="text-xs text-muted-foreground">Followers</p>
+        </div>
+      </div>
+
+      {/* Template selector */}
+      <div className="rounded-lg border bg-card">
+        <div className="px-4 py-3 border-b">
+          <h3 className="font-medium text-foreground flex items-center gap-2">
+            <Megaphone className="h-4 w-4" /> Choose Ad Template
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 gap-3 p-4">
+          {TEMPLATES.map(t => (
+            <button key={t.key} onClick={() => { setTemplate(t.key); setFields({}); }}
+              className={`p-4 rounded-md border text-left transition-colors ${
+                template === t.key
+                  ? 'border-primary bg-primary/5'
+                  : 'border-input hover:bg-accent/5'
+              }`}>
+              <p className="font-medium text-foreground text-sm">{t.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Template fields */}
+      {activeTemplate && (
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <h3 className="font-medium text-foreground">{activeTemplate.label} Details</h3>
+          {activeTemplate.fields.map(f => (
+            <div key={f.name}>
+              <label className="text-sm font-medium text-muted-foreground">{f.label}</label>
+              <input type={f.type} value={fields[f.name] ?? ''}
+                onChange={(e) => setFields(prev => ({ ...prev, [f.name]: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm" />
+            </div>
+          ))}
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Caption (optional)</label>
+            <textarea value={caption} onChange={(e) => setCaption(e.target.value)}
+              rows={2} placeholder="Add a personal message..."
+              className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Image URL (optional)</label>
+            <div className="mt-1 flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+              <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm" />
+            </div>
+          </div>
+          <button onClick={sendAd} disabled={sending}
+            className="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2">
+            <Send className="h-4 w-4" />
+            {sending ? 'Sending...' : `Send to ${followers} Followers`}
+          </button>
+        </div>
+      )}
+
+      {/* Recent ads */}
+      {recentAds.length > 0 && (
+        <div className="rounded-lg border bg-card">
+          <div className="px-4 py-3 border-b">
+            <h3 className="font-medium text-foreground">Recent Ads</h3>
+          </div>
+          <div className="divide-y">
+            {recentAds.map(ad => (
+              <div key={ad.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {TEMPLATES.find(t => t.key === ad.template)?.label || ad.template}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{ad.caption || 'No caption'}</p>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(ad.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+

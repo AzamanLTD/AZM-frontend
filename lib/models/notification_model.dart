@@ -1,10 +1,14 @@
 import 'dart:convert';
 
 enum NotificationCategory {
-  general,
-  securityAccount,
-  vendorPriority,
-  adminSystem,
+  general,         // catch-all / legacy
+  securityAccount, // logins, password changes, 2FA
+  vendorPriority,  // vendor-specific alerts
+  adminSystem,     // system/admin alerts
+  money,           // deposits, withdrawals, transfers
+  social,          // stories, follows, reactions
+  chat,            // messages, replies
+  system,          // system-wide announcements
 }
 
 class AppNotification {
@@ -64,11 +68,41 @@ class AppNotification {
 
   static NotificationCategory _parseCategory(dynamic value) {
     if (value is String) {
-      final normalized = value.toUpperCase().replaceAll('-', '_');
-      return NotificationCategory.values.firstWhere(
-        (e) => e.name.toUpperCase().replaceAll('-', '_') == normalized,
-        orElse: () => NotificationCategory.general,
-      );
+      final v = value.toUpperCase().replaceAll('-', '_');
+      // Map backend category strings → Flutter enum values
+      switch (v) {
+        case 'SECURITY_ACCOUNT':
+        case 'SECURITYACCOUNT':
+          return NotificationCategory.securityAccount;
+        case 'VENDOR_PRIORITY':
+        case 'VENDORPRIORITY':
+          return NotificationCategory.vendorPriority;
+        case 'ADMIN_SYSTEM':
+        case 'ADMINSYSTEM':
+        case 'SYSTEM':
+          return NotificationCategory.system;
+        case 'MONEY':
+        case 'DEPOSIT':
+        case 'WITHDRAWAL':
+        case 'TRANSFER':
+        case 'VAULT':
+        case 'SUSU':
+        case 'AUCTION':
+          return NotificationCategory.money;
+        case 'CHAT':
+        case 'MESSAGE':
+          return NotificationCategory.chat;
+        case 'SOCIAL':
+        case 'STORY':
+        case 'FOLLOW':
+          return NotificationCategory.social;
+        default:
+          // Try direct enum name match, fall back to general
+          return NotificationCategory.values.firstWhere(
+            (e) => e.name.toUpperCase() == v,
+            orElse: () => NotificationCategory.general,
+          );
+      }
     }
     return NotificationCategory.general;
   }

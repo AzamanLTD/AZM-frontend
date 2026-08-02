@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:record/record.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AccountDeactivationScreen extends ConsumerStatefulWidget {
   const AccountDeactivationScreen({super.key});
@@ -56,7 +56,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         return;
       }
 
-      final path = '/tmp/azaman_deletion_audio.m4a';
+      const path = '/tmp/azaman_deletion_audio.m4a';
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: path,
@@ -99,7 +99,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(HugeIconsSolid.alertCircle, color: colors.danger, size: 22),
+            Icon(Icons.error_outline, color: colors.danger, size: 22),
             const SizedBox(width: 10),
             Text(
               'Delete Account?',
@@ -166,13 +166,13 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colors.danger.withOpacity(0.06),
+              color: colors.danger.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.danger.withOpacity(0.2)),
+              border: Border.all(color: colors.danger.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
-                Icon(HugeIconsSolid.shield01, color: colors.danger, size: 24),
+                Icon(Icons.shield_outlined, color: colors.danger, size: 24),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -248,7 +248,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(HugeIconsSolid.delete01, size: 20),
+              icon: const Icon(Icons.delete_outline, size: 20),
               label: const Text(
                 'CONFIRM DELETION',
                 style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -268,7 +268,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _isRecording ? colors.danger.withOpacity(0.5) : colors.divider,
+          color: _isRecording ? colors.danger.withValues(alpha: 0.5) : colors.divider,
         ),
       ),
       child: Column(
@@ -289,7 +289,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                     boxShadow: _isRecording
                         ? [
                             BoxShadow(
-                              color: colors.danger.withOpacity(0.4),
+                              color: colors.danger.withValues(alpha: 0.4),
                               blurRadius: 16,
                               spreadRadius: 2,
                             ),
@@ -297,7 +297,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                         : _hasRecording
                             ? [
                                 BoxShadow(
-                                  color: colors.success.withOpacity(0.3),
+                                  color: colors.success.withValues(alpha: 0.3),
                                   blurRadius: 12,
                                   spreadRadius: 1,
                                 ),
@@ -305,7 +305,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                             : [],
                   ),
                   child: Icon(
-                    _hasRecording ? HugeIconsSolid.checkmarkCircle01 : HugeIconsSolid.mic01,
+                    _hasRecording ? Icons.check_circle_outline : Icons.mic_none_outlined,
                     color: _isRecording
                         ? Colors.white
                         : _hasRecording
@@ -325,7 +325,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                     : _hasRecording
                         ? Row(
                             children: [
-                              Icon(HugeIconsSolid.musicNote01, color: colors.success, size: 18),
+                              Icon(Icons.music_note_outlined, color: colors.success, size: 18),
                               const SizedBox(width: 8),
                               Text(
                                 'Recording captured',
@@ -338,7 +338,7 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                               const Spacer(),
                               GestureDetector(
                                 onTap: _clearRecording,
-                                child: Icon(HugeIconsSolid.cancel01, color: colors.textTertiary, size: 18),
+                                child: Icon(Icons.cancel_outlined, color: colors.textTertiary, size: 18),
                               ),
                             ],
                           )
@@ -404,11 +404,11 @@ class _WaveformPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.7)
+      ..color = color.withValues(alpha: 0.7)
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
-    final barCount = 32;
+    const barCount = 32;
     final barSpacing = size.width / barCount;
     final barWidth = barSpacing * 0.55;
 

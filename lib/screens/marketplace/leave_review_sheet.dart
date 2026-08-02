@@ -13,11 +13,15 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/animated_rating_stars.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/business_service.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 class LeaveReviewSheet extends ConsumerStatefulWidget {
@@ -42,6 +46,9 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
   int _rating = 0;
   final _commentCtrl = TextEditingController();
   bool _submitting = false;
+  bool _submitted = false;
+  String? _reviewId;
+  bool _sharing = false;
   String? _error;
 
   @override
@@ -60,7 +67,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
       _error = null;
     });
     try {
-      await BusinessService().createReview({
+      final result = await BusinessService().createReview({
         'businessProfileId': widget.business.id,
         'rating': _rating,
         'comment': _commentCtrl.text.trim().isEmpty
@@ -68,7 +75,12 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
             : _commentCtrl.text.trim(),
       });
       AzamanHaptics.commit();
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        setState(() {
+          _submitted = true;
+          _reviewId = result.id;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -83,62 +95,46 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final onAccent = colors.isDark ? Colors.black : Colors.white;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+    return PremiumGlassContainer(
+      blur: 30, opacity: 0.12, borderRadius: 24,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 24, left: 24, right: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: colors.divider,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              'Rate ${widget.business.businessName}',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Rate ${widget.business.businessName}',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Share your experience with this business.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Share your experience with this business.',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
             // Star row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final star = i + 1;
-                return GestureDetector(
-                  onTap: () {
-                    AzamanHaptics.toggle();
-                    setState(() => _rating = star);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      HugeIconsSolid.star,
-                      size: 38,
-                      color: star <= _rating ? colors.warning : colors.divider,
-                    ),
-                  ),
-                );
-              }),
+            Center(
+              child: AnimatedRatingStars.interactive(
+                initialRating: _rating.toDouble(), size: 40,
+                onRatingChanged: (r) => setState(() => _rating = r.toInt()),
+                filledColor: colors.accent,
+              ),
             ),
             if (_rating > 0) ...[
               const SizedBox(height: 6),
@@ -207,13 +203,76 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                       ),
               ),
             ),
+            // ── Share as Story option (Marketplace Overhaul 2026-07-02) ──────
+            if (_submitted) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.celebration, color: colors.accent, size: 32),
+                    const SizedBox(height: 8),
+                    Text('Review submitted!',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text('Share your review as a Story so friends can discover this business.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _sharing ? null : () async {
+                              setState(() => _sharing = true);
+                              try {
+                                if (_reviewId != null) {
+                                  await ref.read(marketplaceBookingServiceProvider).promoteReviewToStory(_reviewId!);
+                                }
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: const Text('Shared as Story!'), backgroundColor: colors.accent),
+                                  );
+                                  Navigator.pop(context, true);
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() => _sharing = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Could not share: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            icon: _sharing
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : Icon(Icons.share, color: colors.accent),
+                            label: Text('Share as Story', style: TextStyle(color: colors.accent)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text('Not now', style: TextStyle(color: colors.textSecondary)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
-      ),
-    );
+      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOutCubic);
   }
 
   String _ratingLabel(int r) {
+
+
     switch (r) {
       case 1:
         return 'Poor';

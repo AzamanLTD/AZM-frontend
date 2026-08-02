@@ -13,7 +13,9 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/azm_reward_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -22,6 +24,7 @@ import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AzmRewardsScreen extends ConsumerStatefulWidget {
   const AzmRewardsScreen({super.key});
@@ -72,7 +75,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 20),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -97,10 +100,43 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
+                  // 0. Auction entry card
+                  SliverToBoxAdapter(
+                    child: GestureDetector(
+                      onTap: () { HapticFeedback.lightImpact(); context.push("/azm-auction"); },
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            colors.accent.withValues(alpha: 0.15),
+                            colors.accentSecondary.withValues(alpha: 0.08)]),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.accent.withValues(alpha: 0.3))),
+                        child: Row(children: [
+                          Container(width: 44, height: 44,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent.withValues(alpha: 0.15)),
+                            child: Icon(Icons.campaign_outlined, color: colors.accent, size: 22)),
+                          const SizedBox(width: 14),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text("AZM Auction", style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+                            Text("Bid with AZM to boost your ads", style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                          ])),
+                          Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
+                        ]),
+                      ),
+                    ),
+                  ),
                   // 1. Summary card
                   SliverToBoxAdapter(
                     child: _buildSummaryCard(colors, azmBalance, state.summary),
                   ),
+
+                  // 1b. Friends leaderboard (2026-07-06)
+                  if (state.leaderboard.entries.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildFriendsLeaderboardCard(colors, state.leaderboard),
+                    ),
 
                   // 2. How to earn (collapsible)
                   SliverToBoxAdapter(
@@ -160,20 +196,17 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.accent.withOpacity(0.15),
-            colors.accent.withOpacity(0.05),
+            colors.accent.withValues(alpha: 0.15),
+            colors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withOpacity(0.3)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
           // Big balance display
-          Text(
-            '💎',
-            style: const TextStyle(fontSize: 32),
-          ),
+          Icon(HugeIconsSolid.diamond, color: colors.accent, size: 32),
           const SizedBox(height: 8),
           Text(
             '${azmBalance.toStringAsFixed(1)} AZM',
@@ -193,16 +226,47 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
             ),
           ),
 
+          // Login streak (2026-07-06) — the backend has tracked this
+          // correctly since the /auth/refresh recording fix, but nothing on
+          // this page ever showed it. Only rendered once we have a summary
+          // with an actual streak so a fresh/never-set account doesn't show
+          // a hollow "0 day streak" chip.
+          if (summary != null && summary.loginStreak > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(HugeIconsSolid.fire, color: colors.accent, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${summary.loginStreak}-day login streak',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           if (summary != null) ...[
             const SizedBox(height: 16),
-            Divider(color: colors.accent.withOpacity(0.2)),
+            Divider(color: colors.accent.withValues(alpha: 0.2)),
             const SizedBox(height: 12),
 
             // Stats row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statColumn(colors, '${summary.totalEarned.toStringAsFixed(0)}', 'Total Earned'),
+                _statColumn(colors, summary.totalEarned.toStringAsFixed(0), 'Total Earned'),
                 _statColumn(colors, '${summary.bySource.length}', 'Sources'),
                 _statColumn(
                   colors,
@@ -212,6 +276,109 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // ─── Friends Leaderboard Card (2026-07-06) ─────────────────────────────────
+
+  Widget _buildFriendsLeaderboardCard(AzamanColors colors, AzmFriendsLeaderboard board) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(HugeIconsSolid.crown, color: colors.accent, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Friends Leaderboard',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                if (board.myRank != null)
+                  Text(
+                    'Your rank: #${board.myRank}',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...board.entries.map((entry) => _leaderboardRow(colors, entry)),
+        ],
+      ),
+    );
+  }
+
+  Widget _leaderboardRow(AzamanColors colors, AzmLeaderboardEntry entry) {
+    final isTop3 = entry.rank <= 3;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: entry.isMe ? colors.accent.withValues(alpha: 0.08) : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: isTop3
+                ? Icon(
+                    HugeIconsSolid.medalFirstPlace,
+                    size: 16,
+                    color: entry.rank == 1
+                        ? const Color(0xFFD4AF37)
+                        : entry.rank == 2
+                            ? colors.textSecondary
+                            : const Color(0xFFB87333),
+                  )
+                : Text(
+                    '${entry.rank}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              entry.isMe ? '${entry.username} (You)' : entry.username,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: entry.isMe ? FontWeight.w700 : FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '${entry.totalEarned.toStringAsFixed(0)} AZM',
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -329,7 +496,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.divider.withOpacity(0.5)),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [

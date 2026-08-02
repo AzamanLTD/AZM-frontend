@@ -8,13 +8,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/screens/orders/order_tracking_screen.dart';
+import 'package:azaman/screens/storefront_screen.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key});
@@ -96,38 +104,39 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
         ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemHeight: 72, count: 5)
           : orders.isEmpty
-              ? AzamanEmptyState(
-                  icon: HugeIconsSolid.shoppingBag01,
+              ? const AzamanEmptyState(
+                  icon: Icons.shopping_bag_outlined,
                   title: 'No orders here',
                   subtitle: 'Your marketplace orders will appear here.',
                 )
-              : RefreshIndicator(
-                  onRefresh: () =>
+              : AzPullToRefresh(
+        onRefresh: () =>
                       ref.read(myOrdersProvider.notifier).load(),
-                  child: ListView.separated(
+        child: ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: orders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _OrderCard(
+                    itemBuilder: (_, i) => StaggeredItem(
+                      index: i,
+                      child: _OrderCard(
                       order: orders[i],
                       colors: colors,
                       onTap: () {
                         final tid = orders[i].ticketId;
                         if (tid != null && tid.isNotEmpty) {
-                          Navigator.push(
+                          pushWithVerticalTransition(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => TicketWorkspaceScreen(
-                                ticketId: tid,
-                                friendUsername: orders[i].title,
-                              ),
+                            TicketWorkspaceScreen(
+                              ticketId: tid,
+                              friendUsername: orders[i].title,
                             ),
                           );
                         }
                       },
+                    ),
                     ),
                   ),
                 ),
@@ -148,86 +157,103 @@ class _OrderCard extends StatelessWidget {
 
   Color _statusColor() {
     switch (order.status) {
-      case BusinessOrderStatus.awaitingPayment:
-        return colors.warning;
+      case BusinessOrderStatus.awaitingPayment: return colors.warning;
       case BusinessOrderStatus.paid:
-      case BusinessOrderStatus.delivered:
-        return colors.accent;
-      case BusinessOrderStatus.completed:
-        return colors.success;
-      case BusinessOrderStatus.disputed:
-        return colors.danger;
+      case BusinessOrderStatus.delivered: return colors.accent;
+      case BusinessOrderStatus.completed: return colors.success;
+      case BusinessOrderStatus.disputed: return colors.danger;
       case BusinessOrderStatus.refunded:
-      case BusinessOrderStatus.cancelled:
-        return colors.textTertiary;
+      case BusinessOrderStatus.cancelled: return colors.textTertiary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tint = _statusColor();
+    final statusColor = _statusColor();
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    order.orderRef,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                _Badge(label: order.status.label, tint: tint),
-              ],
-            ),
+      child: PremiumGlassContainer(
+        blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(16), margin: const EdgeInsets.only(bottom: 10),
+        child: Row(children: [
+          AnimatedContainer(duration: 300.ms, width: 3, height: 48, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(order.orderRef, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 3),
+            Text(order.title, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
-            Text(
-              order.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '${order.amountUsdc.toStringAsFixed(2)} USDC',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+            Row(children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text(order.status.label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor))),
+              const SizedBox(width: 8),
+              Text(_fmtDate(order.createdAt), style: TextStyle(fontSize: 10.5, color: colors.textTertiary)),
+            ]),
+          ])),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('\$${order.amountUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: colors.accent)),
+            if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => pushWithVerticalTransition(context,
+                  OrderTrackingScreen(
+                    orderId: order.id,
+                    orderRef: order.orderRef,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  _fmtDate(order.createdAt),
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delivery_dining, size: 12, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text('Track', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ] else if (order.status == BusinessOrderStatus.completed) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () {
+                  // Reorder: navigate to the business storefront for re-ordering
+                  // The cart system handles adding items from the storefront
+                  if (order.businessProfileId.isNotEmpty) {
+                    pushWithVerticalTransition(context,
+                      StorefrontScreen(
+                        businessProfileId: order.businessProfileId,
+                        businessName: order.title,
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.replay_rounded, size: 12, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text('Reorder', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                    ],
+                  ),
+                ),
+              ),
+            ] else
+              Icon(Icons.chevron_right_rounded, size: 18, color: colors.textTertiary),
+          ]),
+        ]),
       ),
-    );
+    ).animate().fadeIn(delay: 50.ms, duration: 250.ms).slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
   }
 
   String _fmtDate(DateTime d) {
@@ -236,30 +262,5 @@ class _OrderCard extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[d.month - 1]} ${d.day}';
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String label;
-  final Color tint;
-  const _Badge({required this.label, required this.tint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: tint,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
   }
 }

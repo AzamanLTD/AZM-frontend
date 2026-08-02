@@ -15,11 +15,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 class P2PFilterSheet extends ConsumerStatefulWidget {
   const P2PFilterSheet({super.key});
@@ -280,7 +281,7 @@ class _P2PFilterSheetState extends ConsumerState<P2PFilterSheet> {
                     AzamanHaptics.toggle();
                     setState(() => _onlineOnly = v);
                   },
-                  activeColor: colors.accent,
+                  activeThumbColor: colors.accent,
                 ),
               ],
             ),

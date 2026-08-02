@@ -9,7 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/screens/vault/vault_yield_screen.dart';
+import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
   final String vaultId;
@@ -103,7 +106,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Vault',
@@ -141,6 +144,31 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                   colors: colors,
                 ).animate().fadeIn(delay: 160.ms, duration: 320.ms),
               ],
+              // ── Phase 3: DeFi Yield + Wallet Pass ──
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionChip(
+                      icon: v.yieldEnabled ? Icons.flash_on : Icons.flash_off,
+                      label: v.yieldEnabled ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%' : 'DeFi Yield',
+                      onTap: () => pushWithVerticalTransition(context, VaultYieldScreen(vault: v, vaultId: v.id)),
+                      colors: colors,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ActionChip(
+                      icon: Icons.wallet,
+                      label: 'Wallet Pass',
+                      onTap: () => pushWithVerticalTransition(context, WalletPassScreen(passType: 'vault',
+                          itemId: v.id,
+                          title: v.name,)),
+                      colors: colors,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Text(
                 'Recent Deposits',
@@ -176,13 +204,13 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => _confirmBreak(v, colors),
-                  icon: Icon(HugeIconsSolid.lockKey, color: colors.danger, size: 16),
+                  icon: Icon(Icons.key_outlined, color: colors.danger, size: 16),
                   label: Text(
                     'Break Vault Early',
                     style: TextStyle(color: colors.danger, fontWeight: FontWeight.w800),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.danger.withOpacity(0.30)),
+                    side: BorderSide(color: colors.danger.withValues(alpha: 0.30)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -217,19 +245,19 @@ class _Hero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.accent.withOpacity(0.18),
-            colors.accentSecondary.withOpacity(0.05),
+            colors.accent.withValues(alpha: 0.18),
+            colors.accentSecondary.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.accent.withOpacity(0.30), width: 0.8),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.30), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(HugeIconsSolid.lock, color: colors.accent, size: 18),
+              Icon(Icons.lock_outline, color: colors.accent, size: 18),
               const SizedBox(width: 8),
               Text(
                 v.name,
@@ -296,11 +324,11 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Streak', '${v.streakCount}', HugeIconsSolid.fire, colors.warning),
-      ('Best', '${v.longestStreak}', HugeIconsSolid.award01, colors.accent),
-      ('AZM', v.totalAzmEarned.toStringAsFixed(0), HugeIconsSolid.flash, colors.accentSecondary),
+      ('Streak', '${v.streakCount}', Icons.local_fire_department_outlined, colors.warning),
+      ('Best', '${v.longestStreak}', Icons.emoji_events_outlined, colors.accent),
+      ('AZM', v.totalAzmEarned.toStringAsFixed(0), Icons.bolt_outlined, colors.accentSecondary),
       ('Score', '${v.consistencyScore.toStringAsFixed(0)}%',
-          HugeIconsSolid.analytics01, colors.success),
+          Icons.analytics_outlined, colors.success),
     ];
     return Row(
       children: items
@@ -413,9 +441,9 @@ class _DepositTile extends StatelessWidget {
   const _DepositTile({required this.d, required this.colors});
 
   IconData get _icon => switch (d.type) {
-        'AUTO_RULE' => HugeIconsSolid.refresh01,
-        'BONUS' => HugeIconsSolid.gift,
-        _ => HugeIconsSolid.arrowDown01,
+        'AUTO_RULE' => Icons.refresh,
+        'BONUS' => Icons.card_giftcard_outlined,
+        _ => Icons.arrow_downward,
       };
 
   Color get _color => switch (d.status) {
@@ -441,7 +469,7 @@ class _DepositTile extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: _color.withOpacity(0.10),
+              color: _color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(_icon, color: _color, size: 14),
@@ -483,5 +511,47 @@ class _DepositTile extends StatelessWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     return '${diff.inDays}d';
+  }
+}
+
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final AzamanColors colors;
+
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.divider, width: 0.6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: colors.accent),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(label,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

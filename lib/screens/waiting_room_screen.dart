@@ -21,7 +21,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class WaitingRoomScreen extends ConsumerStatefulWidget {
   final int queuePosition;
@@ -264,7 +264,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: colors.glow.withOpacity(0.15),
+                color: colors.glow.withValues(alpha: 0.15),
                 width: 3,
               ),
             ),
@@ -275,7 +275,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: colors.glow.withOpacity(0.3),
+                    color: colors.glow.withValues(alpha: 0.3),
                     width: 3,
                   ),
                 ),
@@ -287,8 +287,8 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          colors.glow.withOpacity(0.6),
-                          colors.glow.withOpacity(0.0),
+                          colors.glow.withValues(alpha: 0.6),
+                          colors.glow.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -340,16 +340,16 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.warning.withOpacity(0.1),
+        color: colors.warning.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colors.warning.withOpacity(0.25),
+          color: colors.warning.withValues(alpha: 0.25),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(HugeIconsSolid.alertCircle, color: colors.warning, size: 18),
+          Icon(Icons.error_outline, color: colors.warning, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -375,11 +375,11 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
         height: 52,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: colors.danger.withOpacity(0.15),
+            backgroundColor: colors.danger.withValues(alpha: 0.15),
             foregroundColor: colors.danger,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colors.danger.withOpacity(0.4)),
+              side: BorderSide(color: colors.danger.withValues(alpha: 0.4)),
             ),
             elevation: 0,
           ),

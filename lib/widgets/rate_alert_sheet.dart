@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/rate_alert_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/rate_alert_service.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 // =============================================================================
 // AZAMAN — RATE ALERT SHEET (Phase Q12-FE)
@@ -132,7 +132,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                 // Title
                 Row(
                   children: [
-                    Icon(HugeIconsSolid.notification01,
+                    Icon(Icons.notifications_outlined,
                         color: colors.accent, size: 22),
                     const SizedBox(width: 10),
                     Text(
@@ -149,7 +149,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: colors.accent.withOpacity(0.1),
+                          color: colors.accent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -205,7 +205,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         decoration: InputDecoration(
                           hintText: 'Target rate (e.g. 15.50)',
                           hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(HugeIconsSolid.exchange01,
+                          prefixIcon: Icon(Icons.swap_horiz,
                               color: colors.accent, size: 20),
                           filled: true,
                           fillColor: colors.background,
@@ -224,7 +224,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         children: [
                           _DirectionChip(
                             label: 'ABOVE',
-                            icon: HugeIconsSolid.analytics01,
+                            icon: Icons.analytics_outlined,
                             isSelected: _direction == 'ABOVE',
                             colors: colors,
                             onTap: () =>
@@ -233,7 +233,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                           const SizedBox(width: 10),
                           _DirectionChip(
                             label: 'BELOW',
-                            icon: HugeIconsSolid.analytics01,
+                            icon: Icons.analytics_outlined,
                             isSelected: _direction == 'BELOW',
                             colors: colors,
                             onTap: () =>
@@ -251,7 +251,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         decoration: InputDecoration(
                           hintText: 'Label (optional)',
                           hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(HugeIconsSolid.label,
+                          prefixIcon: Icon(Icons.label_outline,
                               color: colors.textTertiary, size: 18),
                           filled: true,
                           fillColor: colors.background,
@@ -276,7 +276,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                             foregroundColor:
                                 colors.isDark ? Colors.black : Colors.white,
                             disabledBackgroundColor:
-                                colors.accent.withOpacity(0.3),
+                                colors.accent.withValues(alpha: 0.3),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -340,7 +340,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          Icon(HugeIconsSolid.notification01,
+                          Icon(Icons.notifications_outlined,
                               size: 36, color: colors.textTertiary),
                           const SizedBox(height: 8),
                           Text(
@@ -398,7 +398,7 @@ class _DirectionChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? colors.accent.withOpacity(0.12)
+                ? colors.accent.withValues(alpha: 0.12)
                 : colors.background,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
@@ -450,14 +450,14 @@ class _AlertTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isTriggered ? colors.card.withOpacity(0.5) : colors.card,
+        color: isTriggered ? colors.card.withValues(alpha: 0.5) : colors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isTriggered
-              ? colors.divider.withOpacity(0.5)
+              ? colors.divider.withValues(alpha: 0.5)
               : alert.direction == 'ABOVE'
-                  ? colors.success.withOpacity(0.3)
-                  : colors.danger.withOpacity(0.3),
+                  ? colors.success.withValues(alpha: 0.3)
+                  : colors.danger.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -470,13 +470,13 @@ class _AlertTile extends StatelessWidget {
               color: (alert.direction == 'ABOVE'
                       ? colors.success
                       : colors.danger)
-                  .withOpacity(isTriggered ? 0.05 : 0.1),
+                  .withValues(alpha: isTriggered ? 0.05 : 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               alert.direction == 'ABOVE'
-                  ? HugeIconsSolid.analytics01
-                  : HugeIconsSolid.analytics01,
+                  ? Icons.analytics_outlined
+                  : Icons.analytics_outlined,
               size: 16,
               color: isTriggered
                   ? colors.textTertiary
@@ -511,7 +511,7 @@ class _AlertTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: colors.success.withOpacity(0.1),
+                          color: colors.success.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -544,7 +544,7 @@ class _AlertTile extends StatelessWidget {
           // Delete button (only for active)
           if (!isTriggered)
             IconButton(
-              icon: Icon(HugeIconsSolid.cancel01,
+              icon: Icon(Icons.cancel_outlined,
                   size: 18, color: colors.textTertiary),
               onPressed: onDelete,
               splashRadius: 18,

@@ -21,9 +21,10 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 
 import 'package:go_router/go_router.dart';
-import 'package:azaman/config.dart';
 import 'package:azaman/screens/trade_summary_screen.dart';
+import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class ActiveTradeScreen extends ConsumerStatefulWidget {
   final double amount;
@@ -581,7 +582,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(HugeIconsSolid.clock01, color: const Color(0xFFFFB800), size: 22),
+                  const Icon(HugeIconsSolid.clock01, color: Color(0xFFFFB800), size: 22),
                   const SizedBox(width: 10),
                   Text('Request More Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
@@ -622,7 +623,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                       });
                       if (response.statusCode == 200 && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: const Text('✓ Request sent to vendor'), backgroundColor: const Color(0xFF02C076)),
+                          const SnackBar(content: Text('✓ Request sent to vendor'), backgroundColor: Color(0xFF02C076)),
                         );
                       }
                     } catch (e) {
@@ -757,15 +758,17 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
         _tradePaymentMethod.split(' - ').last.replaceAll('\$', '');
 
     if (url.isEmpty) {
-      if (_tradePaymentMethod.contains("CashApp"))
-        url = "https://cash.app/\$$handle/${_tradeAmount}";
-      if (_tradePaymentMethod.contains("PayPal"))
-        url = "https://www.paypal.me/$handle/${_tradeAmount}";
+      if (_tradePaymentMethod.contains("CashApp")) {
+        url = "https://cash.app/\$$handle/$_tradeAmount";
+      }
+      if (_tradePaymentMethod.contains("PayPal")) {
+        url = "https://www.paypal.me/$handle/$_tradeAmount";
+      }
     }
 
     if (isSharing) {
       await Share.share(
-          "Please pay \$${_tradeAmount} for Azaman Trade ${widget.orderId}. Method: ${_tradePaymentMethod}");
+          "Please pay \$$_tradeAmount for Azaman Trade ${widget.orderId}. Method: $_tradePaymentMethod");
     } else {
       if (url.isNotEmpty && await canLaunchUrl(Uri.parse(url))) {
         await launchUrl(Uri.parse(url),
@@ -945,7 +948,11 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           Column(
             children: [
               if (!_isChatOpen) const TradeDisclaimer(compact: true),
-              if (!_isChatOpen) const RateLockDisclaimer(compact: true),
+              if (!_isChatOpen) RateLockDisclaimer(
+                compact: true,
+                lockedRate: ref.read(tradeProvider).yellowCardRate,
+                lockExpiresAt: _tradeExpiresAt,
+              ),
               if (_isDisputed && !_isChatOpen) _buildDisputeBanner(),
               Expanded(
                 child: _isChatOpen
@@ -987,9 +994,9 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: colors.accent.withOpacity(0.1),
+            color: colors.accent.withValues(alpha: 0.1),
             border: Border(
-                bottom: BorderSide(color: colors.accent.withOpacity(0.3))),
+                bottom: BorderSide(color: colors.accent.withValues(alpha: 0.3))),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1120,7 +1127,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                   height: 100,
                   width: 100,
                   child: CircularProgressIndicator(
-                      color: colors.success.withOpacity(0.2),
+                      color: colors.success.withValues(alpha: 0.2),
                       strokeWidth: 8),
                 ),
                 Icon(HugeIconsSolid.lock, color: colors.success, size: 40),
@@ -1183,11 +1190,10 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("\$${_tradeAmount.toStringAsFixed(2)}",
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold)),
+              DualCurrencyText(
+                usdc: _tradeAmount,
+                style: TextStyle(color: colors.accent, fontSize: 32, fontWeight: FontWeight.bold),
+              ),
               IconButton(
                   onPressed: () => _handlePaymentAction(isSharing: true),
                   icon: Icon(HugeIconsSolid.share01, color: colors.textSecondary)),
@@ -1202,7 +1208,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           else ...[
             Text("Payment Method",
                 style: TextStyle(
-                    color: colors.textPrimary.withOpacity(0.9),
+                    color: colors.textPrimary.withValues(alpha: 0.9),
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
             _buildHorizontalSteps(colors),
@@ -1214,7 +1220,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                   color: colors.card,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: colors.accent.withOpacity(0.4), width: 1.5)),
+                      color: colors.accent.withValues(alpha: 0.4), width: 1.5)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1225,7 +1231,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                       const SizedBox(width: 8),
                       Text("VENDOR ACCOUNT DETAILS",
                           style: TextStyle(
-                              color: colors.accent.withOpacity(0.9),
+                              color: colors.accent.withValues(alpha: 0.9),
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1)),
@@ -1243,7 +1249,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
                                   fontWeight: FontWeight.bold))),
                       Container(
                         decoration: BoxDecoration(
-                            color: colors.textPrimary.withOpacity(0.05),
+                            color: colors.textPrimary.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8)),
                         child: IconButton(
                             icon: Icon(HugeIconsSolid.copy01, color: colors.accent, size: 20),
@@ -1358,8 +1364,8 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
     List<Map<String, dynamic>> steps = [
       {"icon": HugeIconsSolid.copy01, "label": "Copy Info"},
       {"icon": HugeIconsSolid.share01, "label": "Open App"},
-      {"icon": HugeIconsSolid.creditCard, "label": "Pay Vendor"},
-      {"icon": HugeIconsSolid.checkmarkCircle01, "label": "Upload Proof"},
+      {"icon": Icons.credit_card_outlined, "label": "Pay Vendor"},
+      {"icon": Icons.check_circle_outline, "label": "Upload Proof"},
     ];
 
     return SingleChildScrollView(
@@ -1444,7 +1450,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: accent.withOpacity(0.12),
+      color: accent.withValues(alpha: 0.12),
       child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1481,8 +1487,8 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.1),
-        border: Border(bottom: BorderSide(color: colors.danger.withOpacity(0.3))),
+        color: colors.danger.withValues(alpha: 0.1),
+        border: Border(bottom: BorderSide(color: colors.danger.withValues(alpha: 0.3))),
       ),
       child: Row(
         children: [
@@ -1509,8 +1515,8 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: colors.danger.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(HugeIconsSolid.shield01, color: colors.danger, size: 56),
+              decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: Icon(Icons.shield_outlined, color: colors.danger, size: 56),
             ),
             const SizedBox(height: 24),
             Text("Dispute Active", style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
@@ -1555,8 +1561,8 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
             : null,
         style: ElevatedButton.styleFrom(
             backgroundColor: _isDisputed
-                ? colors.textTertiary.withOpacity(0.4)
-                : colors.danger.withOpacity(0.85),
+                ? colors.textTertiary.withValues(alpha: 0.4)
+                : colors.danger.withValues(alpha: 0.85),
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 55),
             shape: RoundedRectangleBorder(

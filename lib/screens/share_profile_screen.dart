@@ -17,7 +17,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/qr_scanner_screen.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+
 
 class ShareProfileScreen extends ConsumerWidget {
   const ShareProfileScreen({super.key});
@@ -47,14 +48,11 @@ class ShareProfileScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-          );
+          pushWithVerticalTransition(context, const QrScannerScreen());
         },
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
-        icon: const Icon(HugeIconsSolid.qrCode, size: 20),
+        icon: const Icon(Icons.qr_code_outlined, size: 20),
         label: const Text('Scan', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: Center(
@@ -68,9 +66,9 @@ class ShareProfileScreen extends ConsumerWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.12),
+                  color: colors.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: colors.accent.withOpacity(0.3), width: 2),
+                  border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2),
                 ),
                 child: Center(
                   child: Text(
@@ -116,7 +114,7 @@ class ShareProfileScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.accent.withOpacity(0.08),
+                      color: colors.accent.withValues(alpha: 0.08),
                       blurRadius: 30,
                       spreadRadius: 0,
                       offset: const Offset(0, 8),
@@ -161,7 +159,7 @@ class ShareProfileScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: Icon(HugeIconsSolid.copy01, color: colors.accent, size: 18),
+                  icon: Icon(Icons.copy_outlined, color: colors.accent, size: 18),
                   label: Text(
                     'Copy Username',
                     style: TextStyle(
@@ -170,7 +168,7 @@ class ShareProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.accent.withOpacity(0.4)),
+                    side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -200,7 +198,7 @@ class ShareProfileScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(HugeIconsSolid.share01, size: 18),
+                  icon: const Icon(Icons.share_outlined, size: 18),
                   label: const Text(
                     'Share Invite Link',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -223,13 +221,13 @@ class ShareProfileScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.06),
+                  color: colors.accent.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.accent.withOpacity(0.15)),
+                  border: Border.all(color: colors.accent.withValues(alpha: 0.15)),
                 ),
                 child: Row(
                   children: [
-                    Icon(HugeIconsSolid.informationCircle, color: colors.accent, size: 18),
+                    Icon(Icons.info_outline, color: colors.accent, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

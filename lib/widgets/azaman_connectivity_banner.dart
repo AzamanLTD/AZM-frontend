@@ -26,7 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/connectivity_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
+
 
 class AzamanConnectivityBanner extends ConsumerStatefulWidget {
   /// The actual app body. The banner is overlaid above it so the user's
@@ -128,8 +128,8 @@ class _BannerStrip extends StatelessWidget {
     final isOffline = state == _BannerState.offline;
     final bgColor = isOffline ? colors.danger : colors.success;
     final icon = isOffline
-        ? HugeIconsSolid.cloud
-        : HugeIconsSolid.cloud;
+        ? Icons.cloud_outlined
+        : Icons.cloud_outlined;
     final label = isOffline
         ? 'You are offline'
         : 'Reconnected';
@@ -152,7 +152,7 @@ class _BannerStrip extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: bgColor.withOpacity(0.35),
+              color: bgColor.withValues(alpha: 0.35),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
