@@ -453,10 +453,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                             Container(
                               decoration: BoxDecoration(
                                 color: colors.accent,
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: colors.surface, width: 2),
                               ),
-                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+                              child: Icon(Icons.add, size: 16, color: colors.isDark ? Colors.black : Colors.white),
                             ),
                           ],
                         ),

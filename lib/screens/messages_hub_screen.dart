@@ -594,10 +594,10 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                           Container(
                             decoration: BoxDecoration(
                               color: colors.accent,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(6),
                               border: Border.all(color: colors.surface, width: 2),
                             ),
-                            child: const Icon(Icons.add, size: 16, color: Colors.white),
+                            child: Icon(Icons.add, size: 16, color: colors.isDark ? Colors.black : Colors.white),
                           ),
                         ],
                       ),
@@ -1022,17 +1022,17 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
         padding: const EdgeInsets.only(left: 20),
         margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.85),
+          color: colors.success.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(chat.unreadCount > 0 ? Icons.mark_chat_read : Icons.mark_chat_unread,
-                color: Colors.white, size: 20),
+                color: colors.isDark ? Colors.black : Colors.white, size: 20),
             const SizedBox(width: 6),
             Text(chat.unreadCount > 0 ? 'Read' : 'Unread',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: 12, fontWeight: FontWeight.w600))
           ],
         ),
       ),
@@ -1087,7 +1087,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                 height: 48,
                 decoration: BoxDecoration(
                   color: colors.softSurface,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
                 child: Text(
