@@ -1,7 +1,7 @@
 // =============================================================================
-// AZAMAN — 5-Tab Adaptive Bottom Navigation with Per-Tab Badges
+// AZAMAN — 4-Tab Adaptive Bottom Navigation with Per-Tab Badges
 //
-// Tabs: Home · Chat · P2P · Vault · Market
+// Tabs: Home · Chat · P2P · Market
 // Each tab shows a live badge (unread counts, active trades, vault goals, etc.)
 // The nav is a floating glass pill that adapts to safe-area.
 // =============================================================================
@@ -26,7 +26,6 @@ const _kNavItems = [
   _NavItem(icon: HugeIconsStroke.home01, activeIcon: HugeIconsSolid.home01, label: 'Home'),
   _NavItem(icon: HugeIconsStroke.message01, activeIcon: HugeIconsSolid.message01, label: 'Chat'),
   _NavItem(icon: HugeIconsStroke.creditCard, activeIcon: HugeIconsSolid.creditCard, label: 'P2P'),
-  _NavItem(icon: HugeIconsStroke.safeBox, activeIcon: HugeIconsSolid.safeBox, label: 'Vault'),
   _NavItem(icon: HugeIconsStroke.store01, activeIcon: HugeIconsSolid.store01, label: 'Market'),
 ];
 
@@ -168,20 +167,8 @@ class _NavButton extends StatelessWidget {
       );
     }
 
-    // Tab 3 (Vault) — active vault goals count (dot indicator)
+    // Tab 3 (Market) — notification count for marketplace orders
     if (index == 3) {
-      return Consumer(
-        builder: (_, ref, child) {
-          // Vault badge: show dot if there are active vaults
-          // Uses a simple provider check — replace with actual vault provider
-          return child!;
-        },
-        child: icon,
-      );
-    }
-
-    // Tab 4 (Market) — notification count for marketplace orders
-    if (index == 4) {
       return Consumer(
         builder: (_, ref, child) {
           final c = ref.watch(unreadCountProvider);
