@@ -181,7 +181,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                           width: 60, height: 60,
                           decoration: BoxDecoration(
                             color: colors.accentSurface,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 1.5),
                           ),
                           child: Icon(Icons.explore_rounded, color: colors.accent, size: 26),
@@ -209,7 +209,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                         width: 60, height: 60,
                         decoration: BoxDecoration(
                           color: colors.softSurface,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(18),
                         ),
                       )
                         .animate().shimmer(delay: (index * 200).ms, duration: 1200.ms),

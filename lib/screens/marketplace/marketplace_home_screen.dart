@@ -144,12 +144,6 @@ class _MarketplaceHomeScreenState
 
   // ── Query plumbing ─────────────────────────────────────────────────────────
 
-  bool get _isIdle =>
-      _searchCtrl.text.trim().isEmpty &&
-      _selectedCategory == null &&
-      !_verifiedOnly &&
-      _filters.isEmpty;
-
   void _onScroll() {
     if (_viewMode == _ViewMode.list &&
         _scrollCtrl.position.pixels >=
@@ -807,53 +801,6 @@ class _MarketplaceHomeScreenState
     }
   }
 
-  Widget _featuredCarouselLegacy(AzamanColors colors) {
-    final state = ref.watch(businessSearchProvider);
-
-    if (state.isLoading) return _featuredShimmer(colors);
-
-    final featured = _topRated(state.results);
-    if (featured.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Featured Near You',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary)),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 196,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: featured.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, i) {
-                final b = featured[i];
-                return _FeaturedBusinessCard(
-                  business: b,
-                  colors: colors,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
-                  },
-                )
-                    .animate()
-                    .fadeIn(delay: (i * 70).ms, duration: 320.ms)
-                    .slideX(begin: 0.15, end: 0, delay: (i * 70).ms, duration: 320.ms, curve: Curves.easeOutCubic);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _featuredShimmer(AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 12),
@@ -879,56 +826,6 @@ class _MarketplaceHomeScreenState
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(18)),
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Active category chip ────────────────────────────────────────────────────
-
-  Widget _activeCategoryChip(AzamanColors colors) {
-    final wire = _selectedCategory!;
-    final cat = BusinessCategories.fromWire(wire);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategory = null;
-                _expandedBizId = null;
-              });
-              _fireSearch();
-            },
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
-              decoration: BoxDecoration(
-                color: cat.color.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: cat.color.withValues(alpha: 0.3), width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(cat.icon, size: 13, color: cat.color),
-                  const SizedBox(width: 5),
-                  Text(
-                    cat.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: cat.color,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.close_rounded,
-                      size: 13, color: cat.color.withValues(alpha: 0.6)),
-                ],
               ),
             ),
           ),
