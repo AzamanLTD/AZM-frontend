@@ -49,7 +49,6 @@ import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:azaman/widgets/in_app_push_banner.dart';
-import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
@@ -310,7 +309,7 @@ class AzamanApp extends ConsumerWidget {
 }
 
 // =============================================================================
-// MAIN WRAPPER — 5-tab layout (Home | Chat | P2P | Vault | Market)
+// MAIN WRAPPER — 4-tab layout (Home | Chat | P2P | Market)
 // =============================================================================
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -335,7 +334,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       const AzamanHomePage(),
       const FriendsHubScreen(),
       const P2PMarketplaceScreen(),
-      const VaultListScreen(),
       const MarketplaceHomeScreen(),
     ];
 
@@ -505,7 +503,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 _pages[1],
                 _pages[2],
                 _pages[3],
-                _pages[4],
               ],
             ),
           ),
