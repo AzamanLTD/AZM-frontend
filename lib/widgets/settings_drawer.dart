@@ -88,9 +88,14 @@ class SettingsDrawer extends ConsumerWidget {
             children: [
               // Tinted glass card — semi-opaque so the blur still reads
               // but contrast stays AA-compliant against the foreground.
+              // FIX (2026-08-11): In light mode, 72% opacity on a near-white
+              // background was barely visible — only text showed, the glass
+              // surface itself read as transparent. Bump to 92% in light mode
+              // for a proper frosted-but-readable surface; keep 72% in dark/midnight
+              // where the dark background already provides enough contrast.
               Positioned.fill(
                 child: ColoredBox(
-                  color: colors.background.withValues(alpha: 0.72),
+                  color: colors.background.withValues(alpha: colors.isDark ? 0.72 : 0.92),
                 ),
               ),
               const Positioned.fill(child: _EclipseGlow()),
