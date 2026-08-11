@@ -27,6 +27,8 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 
 // Azaman brand purple — used for SELECTED tint overlay
 const _kSelectedPurple = Color(0xFF7C3AED);
@@ -279,36 +281,20 @@ class _TransitSeatSelectionScreenState
             ],
           ),
         ),
-        data: (availability) => Column(
+        data: (availability) {
+          final tripDetail = ref.watch(tripDetailProvider(widget.tripId)).valueOrNull;
+          return Column(
           children: [
             _bookingListener(availability),
 
-            // Trip info header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: colors.surface,
-              child: Row(children: [
-                Icon(Icons.event_seat, color: colors.accent),
-                const SizedBox(width: 8),
-                Text(
-                    '${availability.availableCount} of ${availability.totalSeats} available',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary)),
-                const Spacer(),
-                Text(
-                  availability.tierFares.isEmpty
-                      ? '\$${availability.fareUsdc.toStringAsFixed(2)}/seat'
-                      : 'from \$${_minFare(availability).toStringAsFixed(2)}/seat',
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontWeight: FontWeight.bold),
-                ),
-              ]),
+            // ── Trip / vehicle header card ──────────────────────────────
+            _TripVehicleHeader(
+              trip: tripDetail,
+              availability: availability,
+              colors: colors,
             ),
 
-            // ── Pinch-to-zoom seat map ──────────────────────────────────
+            // ── Pinch-to-zoom seat map inside vehicle body ─────────────
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -325,6 +311,7 @@ class _TransitSeatSelectionScreenState
                         seats: availability.seats,
                         selectedSeats: selectedSeats,
                         onSeatTap: _onSeatTap,
+                        colors: colors,
                       ),
                     ),
                   ),
@@ -404,7 +391,8 @@ class _TransitSeatSelectionScreenState
               ),
             ],
           ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -416,17 +404,18 @@ class _SeatMapGrid extends StatelessWidget {
   final List<TransitSeat> seats;
   final Set<String> selectedSeats;
   final void Function(String seatId, SeatStatus status) onSeatTap;
+  final AzamanColors colors;
 
   const _SeatMapGrid({
     required this.seats,
     required this.selectedSeats,
     required this.onSeatTap,
+    required this.colors,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ref = ProviderScope.containerOf(context);
-    final colors = ref.read(themeProvider.select((t) => t.colors));
+    final colors = this.colors;
 
     // Group seats by row
     final rowMap = <int, List<TransitSeat>>{};
@@ -437,73 +426,93 @@ class _SeatMapGrid extends StatelessWidget {
 
     final hasTiers = seats.any((s) => s.tier != SeatTier.economy);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Driver indicator
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(8),
+    return Container(
+      // ── Vehicle body outline ────────────────────────────────────────
+      decoration: BoxDecoration(
+        color: colors.card.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: colors.accent.withValues(alpha: 0.05),
+            blurRadius: 20,
+            spreadRadius: 1,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.airline_seat_recline_normal,
-                  color: colors.textSecondary, size: 20),
-              const SizedBox(width: 4),
-              Text('Driver',
-                  style: TextStyle(
-                      color: colors.textSecondary, fontSize: 12)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Seat rows
-        ...sortedRows.map((rowNum) {
-          final rowSeats = rowMap[rowNum]!
-            ..sort((a, b) => a.col.compareTo(b.col));
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Windshield / front of vehicle
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.surface.withValues(alpha: 0.6),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children:
-                  _buildRowWithAisle(rowSeats, selectedSeats),
+              children: [
+                Icon(Icons.directions_bus_rounded,
+                    color: colors.accent, size: 18),
+                const SizedBox(width: 6),
+                Text('Front of Vehicle',
+                    style: TextStyle(
+                        color: colors.textSecondary, fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ],
             ),
-          );
-        }),
+          ),
+          const SizedBox(height: 16),
 
-        const SizedBox(height: 24),
+          // Seat rows
+          ...sortedRows.map((rowNum) {
+            final rowSeats = rowMap[rowNum]!
+              ..sort((a, b) => a.col.compareTo(b.col));
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children:
+                    _buildRowWithAisle(rowSeats, selectedSeats),
+              ),
+            );
+          }),
 
-        // Legend — uses mini seat images instead of colour chips
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 20,
-          runSpacing: 8,
-          children: [
-            _legendItem(
-                image: 'assets/images/unbooked.png',
-                label: hasTiers ? 'Economy' : 'Available',
-                colors: colors),
-            _legendItem(
-                color: _kSelectedPurple.withValues(alpha: 0.8),
-                label: 'Selected',
-                colors: colors),
-            _legendItem(
-                image: 'assets/images/booked.png',
-                label: 'Occupied',
-                colors: colors),
-            if (seats.any((s) => s.status == SeatStatus.blocked))
+          const SizedBox(height: 24),
+
+          // Legend — uses mini seat images instead of colour chips
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 8,
+            children: [
               _legendItem(
-                  color: colors.danger,
-                  label: 'Blocked',
+                  image: 'assets/images/unbooked.png',
+                  label: hasTiers ? 'Economy' : 'Available',
                   colors: colors),
-          ],
-        ),
-      ],
+              _legendItem(
+                  color: _kSelectedPurple.withValues(alpha: 0.8),
+                  label: 'Selected',
+                  colors: colors),
+              _legendItem(
+                  image: 'assets/images/booked.png',
+                  label: 'Occupied',
+                  colors: colors),
+              if (seats.any((s) => s.status == SeatStatus.blocked))
+                _legendItem(
+                    color: colors.danger,
+                    label: 'Blocked',
+                    colors: colors),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -690,5 +699,200 @@ class _SeatWidget extends StatelessWidget {
         child: child,
       ),
     );
+  }
+}
+
+
+// ── TRIP / VEHICLE HEADER ─────────────────────────────────────────────────────
+
+class _TripVehicleHeader extends StatelessWidget {
+  final TransitTrip? trip;
+  final SeatAvailability availability;
+  final AzamanColors colors;
+
+  const _TripVehicleHeader({
+    required this.trip,
+    required this.availability,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTiers = availability.tierFares.isNotEmpty;
+    final dateFormat = DateFormat('EEE, MMM d · h:mm a');
+    final departure = trip?.departureAt ?? DateTime.now();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(
+          bottom: BorderSide(color: colors.divider, width: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Route + vehicle
+          Row(
+            children: [
+              // Vehicle image
+              if (trip?.vehicleImageUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: trip!.vehicleImageUrl!,
+                    width: 52, height: 52, fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      width: 52, height: 52,
+                      color: colors.card,
+                      child: Icon(Icons.directions_bus, color: colors.accent, size: 24),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 52, height: 52,
+                      color: colors.card,
+                      child: Icon(Icons.directions_bus, color: colors.accent, size: 24),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ] else ...[
+                Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.directions_bus_rounded, color: colors.accent, size: 24),
+                ),
+                const SizedBox(width: 12),
+              ],
+              // Route info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (trip != null)
+                      Text(
+                        '\${trip!.origin} → \${trip!.destination}',
+                        style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w800,
+                          color: colors.textPrimary,
+                        ),
+                      )
+                    else
+                      Text('Select Your Seats',
+                        style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w800,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    const SizedBox(height: 2),
+                    if (trip?.vehicleMake != null && trip?.vehicleModel != null)
+                      Text(
+                        '\${trip!.vehicleMake} \${trip!.vehicleModel}',
+                        style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                      )
+                    else
+                      Text(
+                        '\${availability.availableCount} of \${availability.totalSeats} seats available',
+                        style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dateFormat.format(departure),
+                      style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+              // Fare
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    hasTiers
+                        ? 'from \$\${_minFareStr(availability)}/seat'
+                        : '\$\${availability.fareUsdc.toStringAsFixed(0)}/seat',
+                    style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w800, color: colors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '\${availability.availableCount} avail',
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (trip?.driverName != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: colors.card.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  // Driver avatar
+                  if (trip?.driverPhotoUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: CachedNetworkImage(
+                        imageUrl: trip!.driverPhotoUrl!,
+                        width: 28, height: 28, fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: 28, height: 28,
+                          color: colors.surface,
+                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: 28, height: 28,
+                          color: colors.surface,
+                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    trip!.driverName!,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                  ),
+                  const SizedBox(width: 4),
+                  Text('· Driver',
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.verified_rounded, size: 14, color: colors.accent),
+                  const SizedBox(width: 4),
+                  Text('Verified',
+                    style: TextStyle(fontSize: 10, color: colors.accent, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _minFareStr(SeatAvailability a) {
+    if (a.tierFares.isEmpty) return a.fareUsdc.toStringAsFixed(0);
+    final fares = a.tierFares.values.toList()..sort();
+    return fares.first.toStringAsFixed(0);
   }
 }

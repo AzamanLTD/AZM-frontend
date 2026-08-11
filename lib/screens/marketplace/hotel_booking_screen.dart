@@ -16,6 +16,25 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/models/business_models.dart';
+
+// Top-level amenity icon helper — shared across hotel widgets
+IconData _hotelAmenityIcon(String amenity) {
+  final a = amenity.toLowerCase();
+  if (a.contains('wifi') || a.contains('internet')) return Icons.wifi;
+  if (a.contains('ac') || a.contains('air')) return Icons.ac_unit;
+  if (a.contains('tv')) return Icons.tv;
+  if (a.contains('pool') || a.contains('spa')) return Icons.pool;
+  if (a.contains('gym') || a.contains('fitness')) return Icons.fitness_center;
+  if (a.contains('breakfast')) return Icons.free_breakfast;
+  if (a.contains('parking')) return Icons.local_parking;
+  if (a.contains('balcony') || a.contains('terrace')) return Icons.balcony;
+  if (a.contains('kitchen') || a.contains('kitchenette')) return Icons.kitchen;
+  if (a.contains('bar')) return Icons.local_bar;
+  if (a.contains('pet')) return Icons.pets;
+  if (a.contains('smoke')) return Icons.smoke_free;
+  return Icons.check_circle_outline;
+}
 
 class HotelBookingScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -48,22 +67,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (picked != null) setState(() { _checkIn = picked.start; _checkOut = picked.end; });
   }
 
-  IconData _amenityIcon(String amenity) {
-    final a = amenity.toLowerCase();
-    if (a.contains('wifi') || a.contains('internet')) return Icons.wifi;
-    if (a.contains('ac') || a.contains('air')) return Icons.ac_unit;
-    if (a.contains('tv')) return Icons.tv;
-    if (a.contains('pool') || a.contains('spa')) return Icons.pool;
-    if (a.contains('gym') || a.contains('fitness')) return Icons.fitness_center;
-    if (a.contains('breakfast')) return Icons.free_breakfast;
-    if (a.contains('parking')) return Icons.local_parking;
-    if (a.contains('balcony') || a.contains('terrace')) return Icons.balcony;
-    if (a.contains('kitchen') || a.contains('kitchenette')) return Icons.kitchen;
-    if (a.contains('bar')) return Icons.local_bar;
-    if (a.contains('pet')) return Icons.pets;
-    if (a.contains('smoke')) return Icons.smoke_free;
-    return Icons.check_circle_outline;
-  }
+  // _amenityIcon moved to top-level _hotelAmenityIcon below
 
   int get _nightsCount {
     if (_checkIn == null || _checkOut == null) return 0;
@@ -179,113 +183,14 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
               ),
             ),
           ),
-          // Room type cards
+          // 2D Floor Plan + Room cards
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('Available Rooms', style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+            child: _HotelFloorPlan(
+              products: products.cast<BusinessProduct>().toList(),
+              selectedRoomId: _selectedRoomId,
+              onRoomSelected: (id) => setState(() => _selectedRoomId = id),
+              colors: colors,
             ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate((context, i) {
-              final room = products[i];
-              final isSelected = _selectedRoomId == room.id;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedRoomId = room.id),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected ? colors.accent : colors.divider,
-                      width: isSelected ? 2 : 0.5,
-                    ),
-                    boxShadow: isSelected ? [
-                      BoxShadow(
-                        color: colors.accent.withValues(alpha: 0.12),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ] : null,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Stack(children: [
-                        if (room.imageUrl != null)
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                            child: CachedNetworkImage(imageUrl: room.imageUrl!,
-                              height: 160, width: double.infinity, fit: BoxFit.cover),
-                          ),
-                        // Selected checkmark overlay
-                        if (isSelected)
-                          Positioned(top: 10, right: 10,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: colors.accent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.check, color: Colors.white, size: 16),
-                            )).animate().scale(duration: 200.ms),
-                      ]),
-                      Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              // Room type badge
-                              if (room.category != null)
-                                Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: colors.accent.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(room.category!,
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
-                                ),
-                              Expanded(child: Text(room.name, style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary))),
-                            ]),
-                            if (room.description != null) ...[
-                              const SizedBox(height: 6),
-                              Text(room.description!, style: TextStyle(
-                                fontSize: 13, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ],
-                            const SizedBox(height: 10),
-                            // Amenities with icons
-                            if (room.amenities != null && room.amenities!.isNotEmpty)
-                              Wrap(spacing: 12, runSpacing: 6, children: room.amenities!.map((a) {
-                                final icon = _amenityIcon(a);
-                                return Row(mainAxisSize: MainAxisSize.min, children: [
-                                  Icon(icon, size: 14, color: colors.textTertiary),
-                                  const SizedBox(width: 4),
-                                  Text(a, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
-                                ]);
-                              }).toList()),
-                            const SizedBox(height: 12),
-                            Row(children: [
-                              Text('${room.priceUsdc.toStringAsFixed(2)} USDC',
-                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.accent)),
-                              const SizedBox(width: 4),
-                              Text('/ night',
-                                style: TextStyle(fontSize: 11, color: colors.textTertiary)),
-                            ]),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }, childCount: products.length),
           ),
           // Date picker + penalty policy + CTA
           SliverToBoxAdapter(
@@ -430,5 +335,340 @@ class _ShowcaseSliderState extends State<_ShowcaseSlider> {
             ))).toList(),
       )),
     ]);
+  }
+}
+
+// ── 2D HOTEL FLOOR PLAN ────────────────────────────────────────────────────────
+
+class _HotelFloorPlan extends StatefulWidget {
+  final List<BusinessProduct> products;
+  final String? selectedRoomId;
+  final void Function(String id) onRoomSelected;
+  final AzamanColors colors;
+
+  const _HotelFloorPlan({
+    required this.products,
+    required this.selectedRoomId,
+    required this.onRoomSelected,
+    required this.colors,
+  });
+
+  @override
+  State<_HotelFloorPlan> createState() => _HotelFloorPlanState();
+}
+
+class _HotelFloorPlanState extends State<_HotelFloorPlan> {
+  int _selectedFloor = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final products = widget.products;
+
+    if (products.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.hotel_outlined, size: 40, color: colors.textTertiary),
+              const SizedBox(height: 10),
+              Text('No rooms available', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Parse room numbers from product names (e.g. "Room 101" → floor 1, room 1)
+    final floorMap = <int, List<BusinessProduct>>{};
+    for (final p in products) {
+      final match = RegExp(r'Room\s+(\d+)').firstMatch(p.name);
+      int floor = 1;
+      if (match != null) {
+        final roomNum = int.tryParse(match.group(1)!) ?? 1;
+        floor = roomNum ~/ 100;
+        if (floor < 1) floor = 1;
+      }
+      floorMap.putIfAbsent(floor, () => []).add(p);
+    }
+
+    final floors = floorMap.keys.toList()..sort();
+    if (floors.isEmpty) {
+      // Fallback: just show a list
+      return Column(
+        children: products.map((p) => _roomCard(p, colors)).toList(),
+      );
+    }
+
+    final floorRooms = floorMap[_selectedFloor] ?? [];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title
+          Text('Available Rooms', style: TextStyle(
+            fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+          const SizedBox(height: 12),
+
+          // Floor selector tabs
+          Row(
+            children: floors.map((f) {
+              final isSel = f == _selectedFloor;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedFloor = f),
+                  child: AnimatedContainer(
+                    duration: 200.ms,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? colors.accent : colors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSel ? colors.accent : colors.divider,
+                        width: isSel ? 0 : 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      'Floor \$f',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isSel ? Colors.white : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+
+          // 2D floor plan — hallway with rooms on both sides
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.card.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colors.divider.withValues(alpha: 0.3), width: 1),
+            ),
+            child: Column(
+              children: [
+                // Floor label
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.stairs_outlined, size: 16, color: colors.textTertiary),
+                    const SizedBox(width: 6),
+                    Text('Floor \$_selectedFloor — \${floorRooms.length} rooms',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textTertiary)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Rooms grid — 2 columns representing left/right side of hallway
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left side rooms
+                    Expanded(
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < floorRooms.length; i += 2)
+                            _floorRoomTile(floorRooms[i], colors),
+                        ],
+                      ),
+                    ),
+                    // Hallway
+                    Container(
+                      width: 24,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: colors.divider.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          Icon(Icons.elevator_outlined, size: 14, color: colors.textTertiary),
+                          const SizedBox(height: 40),
+                          Icon(Icons.stairs_outlined, size: 14, color: colors.textTertiary),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                    // Right side rooms
+                    Expanded(
+                      child: Column(
+                        children: [
+                          for (int i = 1; i < floorRooms.length; i += 2)
+                            _floorRoomTile(floorRooms[i], colors),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Selected room detail card
+          if (widget.selectedRoomId != null)
+            ...widget.products.where((p) => p.id == widget.selectedRoomId).map((p) => _roomCard(p, colors))
+          else
+            ...floorRooms.take(2).map((p) => _roomCard(p, colors)),
+        ],
+      ),
+    );
+  }
+
+  // ── Floor room tile (compact, in the floor plan) ──────────────────────
+  Widget _floorRoomTile(BusinessProduct room, AzamanColors colors) {
+    final isSelected = widget.selectedRoomId == room.id;
+    final match = RegExp(r'(\d+)').firstMatch(room.name);
+    final roomNum = match?.group(1) ?? '?';
+
+    // Parse room type for color
+    final isDeluxe = room.tags.any((t) => t.toLowerCase().contains('deluxe'));
+    final isStandard = room.tags.any((t) => t.toLowerCase().contains('standard'));
+    Color typeColor = colors.accent;
+    if (isDeluxe) typeColor = const Color(0xFFF59E0B);
+    else if (isStandard) typeColor = const Color(0xFF3B82F6);
+
+    return GestureDetector(
+      onTap: () => widget.onRoomSelected(room.id),
+      child: AnimatedContainer(
+        duration: 200.ms,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? typeColor.withValues(alpha: 0.12) : colors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? typeColor : colors.divider.withValues(alpha: 0.3),
+            width: isSelected ? 1.5 : 0.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Room number
+            Text(roomNum,
+              style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w900,
+                color: isSelected ? typeColor : colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            // Price
+            Text('\$\${room.priceUsdc.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w600,
+                color: isSelected ? typeColor : colors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Room detail card (expanded, below floor plan) ─────────────────────
+  Widget _roomCard(BusinessProduct room, AzamanColors colors) {
+    final isSelected = widget.selectedRoomId == room.id;
+    return GestureDetector(
+      onTap: () => widget.onRoomSelected(room.id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? colors.accent : colors.divider,
+            width: isSelected ? 2 : 0.5,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: colors.accent.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ] : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(children: [
+              if (room.primaryImage != null)
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  child: CachedNetworkImage(imageUrl: room.primaryImage!,
+                    height: 160, width: double.infinity, fit: BoxFit.cover),
+                ),
+              if (isSelected)
+                Positioned(top: 10, right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 16),
+                  )).animate().scale(duration: 200.ms),
+            ]),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    if (room.category != null)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(room.category!,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
+                      ),
+                    Expanded(child: Text(room.name, style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary))),
+                  ]),
+                  if (room.description != null) ...[
+                    const SizedBox(height: 6),
+                    Text(room.description!, style: TextStyle(
+                      fontSize: 13, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                  const SizedBox(height: 10),
+                  if (room.tags.isNotEmpty)
+                    Wrap(spacing: 12, runSpacing: 6, children: room.tags.map((a) {
+                      final icon = _hotelAmenityIcon(a);
+                      return Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(icon, size: 14, color: colors.textTertiary),
+                        const SizedBox(width: 4),
+                        Text(a, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                      ]);
+                    }).toList()),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Text('\${room.priceUsdc.toStringAsFixed(2)} USDC',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.accent)),
+                    const SizedBox(width: 4),
+                    Text('/ night',
+                      style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

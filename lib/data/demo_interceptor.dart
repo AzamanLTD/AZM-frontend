@@ -13,6 +13,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:azaman/data/demo_seed_data.dart';
+import 'package:azaman/data/demo_seed_marketplace.dart';
 
 class DemoInterceptor {
   DemoInterceptor._();
@@ -205,6 +206,11 @@ class DemoInterceptor {
         return {'results': []};
       case '/showcases':
         return DemoSeedData.emptyData();
+      // ── Marketplace endpoints (exact) ─────────────────────────────
+      case '/business/search':
+        return DemoMarketplaceSeed.searchBusinesses();
+      case '/users/invoices':
+        return DemoMarketplaceSeed.getMyInvoices();
     }
 
     // ── Pattern matches (with path params) ──────────────────────────────
@@ -286,30 +292,77 @@ class DemoInterceptor {
     // /marketplace/business/{bizId}
     final bizMatch = RegExp(r'^/marketplace/business/([^/]+)$').firstMatch(path);
     if (bizMatch != null) {
-      return {
-        'data': {
-          'id': bizMatch.group(1),
-          'name': 'Crypto GH Ventures',
-          'description': 'Your trusted P2P crypto partner in Ghana',
-          'logoUrl': null,
-          'accentColor': '#FFD700',
-          'verified': true,
-          'rating': 4.8,
-          'reviewCount': 145,
-          'followerCount': 1200,
-          'isFollowing': false,
-        },
-      };
+      return DemoMarketplaceSeed.getBusinessByBizId(bizMatch.group(1)!);
     }
 
     // /business/{bizId}/menu
-    if (path.contains('/business/') && path.endsWith('/menu')) {
-      return DemoSeedData.emptyData();
+    final menuMatch = RegExp(r'^/business/([^/]+)/menu$').firstMatch(path);
+    if (menuMatch != null) {
+      return DemoMarketplaceSeed.getMenu(menuMatch.group(1)!);
+    }
+
+    // /business/{bizId}/products
+    final productsMatch = RegExp(r'^/business/([^/]+)/products$').firstMatch(path);
+    if (productsMatch != null) {
+      return DemoMarketplaceSeed.getProducts(productsMatch.group(1)!);
+    }
+
+    // /business/{bizId}/locations
+    final locationsMatch = RegExp(r'^/business/([^/]+)/locations$').firstMatch(path);
+    if (locationsMatch != null) {
+      return DemoMarketplaceSeed.getLocations(locationsMatch.group(1)!);
+    }
+
+    // /business/{bizId}/reviews
+    final reviewsMatch = RegExp(r'^/business/([^/]+)/reviews$').firstMatch(path);
+    if (reviewsMatch != null) {
+      return {'reviews': [], 'hasMore': false, 'nextCursor': null};
+    }
+
+    // /business/invoices/{invoiceId}
+    final invoiceMatch = RegExp(r'^/business/invoices/(.+)$').firstMatch(path);
+    if (invoiceMatch != null) {
+      return DemoMarketplaceSeed.getInvoice(invoiceMatch.group(1)!);
+    }
+
+    // /business/{bizId} (but NOT /business/{bizId}/menu etc.)
+    final businessMatch = RegExp(r'^/business/([^/]+)$').firstMatch(path);
+    if (businessMatch != null) {
+      return DemoMarketplaceSeed.getBusinessByBizId(businessMatch.group(1)!);
+    }
+
+    // /business/search/nearby
+    if (path == '/business/search/nearby') {
+      return DemoMarketplaceSeed.searchNearby();
     }
 
     // /showcases/{bizId}
-    if (path.startsWith('/showcases/')) {
-      return DemoSeedData.emptyData();
+    final showcaseMatch = RegExp(r'^/showcases/(.+)$').firstMatch(path);
+    if (showcaseMatch != null) {
+      return DemoMarketplaceSeed.getShowcase(showcaseMatch.group(1)!);
+    }
+
+    // /marketplace/transit/trips
+    if (path == '/marketplace/transit/trips') {
+      return DemoMarketplaceSeed.getTransitTrips();
+    }
+
+    // /marketplace/transit/trips/{tripId}/seats
+    final transitSeatsMatch = RegExp(r'^/marketplace/transit/trips/([^/]+)/seats$').firstMatch(path);
+    if (transitSeatsMatch != null) {
+      return DemoMarketplaceSeed.getTripSeats(transitSeatsMatch.group(1)!);
+    }
+
+    // /marketplace/reservations/{reservationId}/checkin-qr
+    if (path.contains('/marketplace/reservations/') && path.endsWith('/checkin-qr')) {
+      return {
+        'success': true,
+        'token': 'demo-token-123',
+        'qrPayload': 'azaman:checkin:demo',
+        'azamanId': 'AZM-000123456',
+        'reservationRef': 'AZM-RES-001',
+        'expiresAt': DateTime.now().add(const Duration(hours: 24)).toUtc().toIso8601String(),
+      };
     }
 
     // /storefront/{id}/render, /theme
@@ -360,6 +413,22 @@ class DemoInterceptor {
   // ── POST endpoint matching ────────────────────────────────────────────
   static Map<String, dynamic>? _matchPost(String endpoint) {
     final path = endpoint.split('?').first;
+
+    // /marketplace/transit/trips/{tripId}/book
+    final bookMatch = RegExp(r'^/marketplace/transit/trips/([^/]+)/book$').firstMatch(path);
+    if (bookMatch != null) {
+      return {
+        'success': true,
+        'bookingRef': 'AZM-BOOK-${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}',
+        'seatIds': ['1A', '1B'],
+      };
+    }
+
+    // /business/invoices/{invoiceId}/pay
+    final payMatch = RegExp(r'^/business/invoices/(.+)/pay$').firstMatch(path);
+    if (payMatch != null) {
+      return {'invoice': DemoMarketplaceSeed.getInvoice(payMatch.group(1)!)['invoice']};
+    }
 
     // Stories view/reply/boost
     if (path.startsWith('/stories/') && (path.endsWith('/view') || path.endsWith('/reply') || path.endsWith('/boost'))) {

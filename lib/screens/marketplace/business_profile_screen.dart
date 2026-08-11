@@ -42,6 +42,7 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
+import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -1507,10 +1508,189 @@ class _BusinessProfileScreenState
         const SizedBox(height: 16),
         _hoursOverview(colors),
         const SizedBox(height: 16),
+        _unpaidInvoicesSection(business, colors),
+        const SizedBox(height: 16),
         _products(business, colors),
         const SizedBox(height: 16),
         _loyaltySection(business, colors),
       ],
+    );
+  }
+
+  // ── Unpaid Invoices / Receipt Cards ──────────────────────────────────────
+  Widget _unpaidInvoicesSection(BusinessProfile business, AzamanColors colors) {
+    if (_unpaidInvoices == 0) return const SizedBox.shrink();
+
+    return FutureBuilder<List<BusinessInvoice>>(
+      future: _loadUnpaidInvoiceDetails(business.id),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final invoices = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.receipt_long_rounded, size: 18, color: colors.accent),
+                const SizedBox(width: 6),
+                Text('Outstanding Bills',
+                  style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w800,
+                    color: colors.textPrimary)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.danger.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('${invoices.length}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.danger)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...invoices.map((inv) => _receiptCard(inv, colors)),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<List<BusinessInvoice>> _loadUnpaidInvoiceDetails(String businessId) async {
+    try {
+      final page = await BusinessService().getMyInvoices(status: 'SENT');
+      return page.invoices.where((i) => i.businessProfileId == businessId).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Widget _receiptCard(BusinessInvoice invoice, AzamanColors colors) {
+    final isPaid = invoice.status == InvoiceStatus.paid;
+    final statusColor = isPaid ? Colors.green : colors.danger;
+    return GestureDetector(
+      onTap: () {
+        pushWithVerticalTransition(context, InvoiceDetailScreen(invoiceId: invoice.id));
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isPaid ? colors.divider : statusColor.withValues(alpha: 0.3),
+            width: isPaid ? 0.5 : 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Business logo
+                if (invoice.businessLogoUrl != null && invoice.businessLogoUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: CachedNetworkImage(
+                      imageUrl: invoice.businessLogoUrl!,
+                      width: 28, height: 28, fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(Icons.receipt_outlined, size: 16, color: colors.accent),
+                  ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(invoice.invoiceRef,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                      if (invoice.locationLabel != null && invoice.locationLabel!.isNotEmpty)
+                        Text(invoice.locationLabel!,
+                          style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                    ],
+                  ),
+                ),
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    isPaid ? 'PAID' : 'UNPAID',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Line items preview
+            if (invoice.lineItems.isNotEmpty) ...[
+              ...invoice.lineItems.take(3).map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('${item.quantity}x ${item.description}',
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                    Text('${item.lineTotalUsdc.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                  ],
+                ),
+              )),
+              if (invoice.lineItems.length > 3)
+                Text('+ ${invoice.lineItems.length - 3} more items',
+                  style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+              const SizedBox(height: 8),
+            ],
+            // Total + pay button
+            Row(
+              children: [
+                Text('Total',
+                  style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+                const SizedBox(width: 4),
+                Text('${invoice.billTotalUsdc.toStringAsFixed(2)} USDC',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.accent)),
+                const Spacer(),
+                if (!isPaid)
+                  GestureDetector(
+                    onTap: () => pushWithVerticalTransition(
+                      context, InvoiceDetailScreen(invoiceId: invoice.id)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('Pay Now',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
