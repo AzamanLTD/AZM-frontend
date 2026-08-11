@@ -236,7 +236,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   height: 56,
                   decoration: BoxDecoration(
                     color: colors.softSurface,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -651,7 +651,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: colors.softSurface,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -1180,7 +1180,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 height: 46,
                 decoration: BoxDecoration(
                   color: colors.card,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -1420,7 +1420,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
     return Container(
       width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(size * 0.3),
         gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [
           HSLColor.fromAHSL(1.0, hue1, 0.55, 0.45).toColor(),
           HSLColor.fromAHSL(1.0, hue2, 0.50, 0.35).toColor(),
@@ -1436,8 +1436,8 @@ class _GroupBubbleAvatar extends StatelessWidget {
     if (photoUrl != null && photoUrl.isNotEmpty) {
       return Container(
         width: size, height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: colors.background, width: 1.5)),
-        child: ClipOval(child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.3), border: Border.all(color: colors.background, width: 1.5)),
+        child: ClipRRect(borderRadius: BorderRadius.circular(size * 0.3 - 1.5), child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
           placeholder: (_, __) => _countBubble(name, size, fallbackColor),
           errorWidget: (_, __, ___) => _countBubble(name, size, fallbackColor))),
       );
@@ -1448,7 +1448,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
   Widget _countBubble(String char, double size, Color color) {
     return Container(
       width: size, height: size, alignment: Alignment.center,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15), border: Border.all(color: colors.background, width: 1.5)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.3), color: color.withValues(alpha: 0.15), border: Border.all(color: colors.background, width: 1.5)),
       child: Text(char.isNotEmpty ? char[0].toUpperCase() : '?', style: TextStyle(color: color, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
     );
   }
