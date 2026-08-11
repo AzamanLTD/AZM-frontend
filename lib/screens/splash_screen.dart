@@ -14,6 +14,8 @@ import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/data/demo_seed_data.dart';
+import 'package:azaman/router/auth_guard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 
@@ -87,6 +89,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
 
     final auth = ref.read(authProvider);
+    // Demo mode: bypass auth and go straight to the app with seeded data
+    if (AppConfig.demoMode) {
+      auth.setUser(User(
+        id: DemoSeedData.demoUserId,
+        username: DemoSeedData.demoUsername,
+        email: 'kwesi.mensah@demo.azaman.app',
+        token: DemoSeedData.demoToken,
+        role: 'USER',
+        azmBalance: 12450.00,
+        availableBalance: 12450.00,
+        kycStatus: KycStatus.verified,
+      ));
+      // Set the auth guard so GoRouter lets us through
+      AuthGuard.isAuthenticated = true;
+      // Skip version gate, onboarding — go straight to the app
+      ref.read(themeProvider).loadFromBackend();
+      ref.read(settingsProvider).loadFromBackend();
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(
+        builder: (_) => const MainNavigationWrapper()));
+      return;
+    }
     final isAuthenticated = await auth.checkAuthStatus();
     if (!mounted) return;
 

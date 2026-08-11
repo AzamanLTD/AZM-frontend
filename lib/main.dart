@@ -140,6 +140,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
+  // Check for ?demo=true URL param on web to enable demo mode at runtime
+  if (kIsWeb) {
+    try {
+      final uri = Uri.base;
+      if (uri.queryParameters["demo"] == "true") {
+        AppConfig.enableDemoMode();
+      }
+    } catch (_) {}
+  }
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
       (options) {

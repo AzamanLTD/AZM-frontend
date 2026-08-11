@@ -33,6 +33,20 @@ class AppConfig {
   /// Whether we're in production mode
   static bool get isProduction => _env == 'prod';
 
+  /// Whether we are in demo mode (seeded data, no real backend).
+  /// Activated via --dart-define=DEMO_MODE=true or URL param ?demo=true on web.
+  /// In demo mode, all API calls are intercepted and served from DemoSeedData.
+  static const bool _demoModeCompileTime = bool.fromEnvironment('DEMO_MODE', defaultValue: false);
+  
+  /// Runtime override for web URL param ?demo=true
+  static bool? _demoModeOverride;
+  
+  /// Whether we are in demo mode (seeded data, no real backend).
+  static bool get demoMode => _demoModeOverride ?? _demoModeCompileTime;
+  
+  /// Enable demo mode at runtime (e.g. from URL query param on web).
+  static void enableDemoMode() => _demoModeOverride = true;
+
   /// The resolved API base URL (includes /api suffix)
   static String get apiUrl => '$baseUrl/api';
 

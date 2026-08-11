@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/data/demo_interceptor.dart';
 
 /// A centralized API client for handling HTTP requests to the Azaman backend.
 /// Provides consistent error handling, authentication headers, timeouts,
@@ -53,6 +54,7 @@ class ApiClient {
     Map<String, String>? headers,
     bool requireAuth = true,
   }) async {
+    if (AppConfig.demoMode) { final m = DemoInterceptor.tryGet(endpoint); if (m != null) return m; }
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
@@ -78,6 +80,7 @@ class ApiClient {
     Map<String, String>? headers,
     bool requireAuth = true,
   }) async {
+    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPost(endpoint, body); if (m != null) return m; }
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
@@ -104,6 +107,7 @@ class ApiClient {
     Map<String, String>? headers,
     bool requireAuth = true,
   }) async {
+    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPut(endpoint, body); if (m != null) return m; }
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
@@ -130,6 +134,7 @@ class ApiClient {
     Map<String, String>? headers,
     bool requireAuth = true,
   }) async {
+    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPatch(endpoint); if (m != null) return m; }
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
@@ -156,6 +161,7 @@ class ApiClient {
     Map<String, String>? headers,
     bool requireAuth = true,
   }) async {
+    if (AppConfig.demoMode) { final m = DemoInterceptor.tryDelete(endpoint); if (m != null) return m; }
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',

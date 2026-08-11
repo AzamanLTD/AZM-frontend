@@ -1,0 +1,948 @@
+// =============================================================================
+// AZAMAN — DEMO SEED DATA
+//
+// Comprehensive mock data for demo mode. Every endpoint the app calls
+// is intercepted by DemoInterceptor (in api_client.dart) and served
+// from these maps. Data is realistic: Ghanaian names, GHS currency,
+// real-looking AZM IDs, plausible balances, timestamps within the last
+// few days, etc.
+//
+// The demo user is "Kwesi Mensah" (AZM-000123456), a verified user with
+// 12,450 AZM balance, 3 friends, 2 group chats, 4 marketplace ads,
+// 2 savings goals, 1 active vault, 1 active susu, and a leaderboard rank.
+// =============================================================================
+
+class DemoSeedData {
+  DemoSeedData._();
+
+  // ── Demo User ─────────────────────────────────────────────────────────
+  static const String demoUserId = '1';
+  static const String demoUsername = 'kwesi_mensah';
+  static const String demoToken = 'demo-token-not-real';
+
+  // ── /auth/me/{id} ─────────────────────────────────────────────────────
+  static Map<String, dynamic> authMe() => {
+    'user': {
+      'id': 1,
+      'username': demoUsername,
+      'email': 'kwesi.mensah@demo.azaman.app',
+      'role': 'USER',
+      'profilePictureUrl': null,
+      'azamanId': 'AZM-000123456',
+      'availableBalance': 12450.00,
+      'vendorUnallocatedBalance': 0,
+      'escrowLockedBalance': 350.00,
+      'disputeEscrowBalance': 0,
+      'azmBalance': 12450.00,
+      'kycStatus': 'VERIFIED',
+      'banStatus': 'ACTIVE',
+    }
+  };
+
+  // ── /users/dashboard ──────────────────────────────────────────────────
+  static Map<String, dynamic> dashboard() => {
+    'data': {
+      'totalBalance': 12450.00,
+      'availableBalance': 12450.00,
+      'escrowLocked': 350.00,
+      'azmBalance': 12450.00,
+      'yellowCardRate': 15.42,
+      'ghsEquivalent': 192045.90,
+    },
+  };
+
+  // ── /users/preferences ────────────────────────────────────────────────
+  static Map<String, dynamic> preferences() => {
+    'data': {
+      'theme': 'system',
+      'vendorTagEnabled': true,
+      'shortcuts': ['deposit', 'withdraw', 'send', 'susu'],
+      'notifications': {
+        'trades': true,
+        'messages': true,
+        'marketing': false,
+      },
+    },
+  };
+
+  // ── /users/onboarding ────────────────────────────────────────────────
+  static Map<String, dynamic> onboarding() => {
+    'data': {'completed': true}
+  };
+
+  // ── /friends ─────────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> friends() => [
+    {
+      'friendshipId': 101,
+      'friend': {
+        'id': 2,
+        'username': 'ama_osei',
+        'profilePictureUrl': null,
+      },
+      'latestMessage': {
+        'content': 'Hey Kwesi! Are we still on for Friday?',
+        'createdAt': _hoursAgo(2),
+        'messageType': 'TEXT',
+      },
+      'unreadCount': 3,
+    },
+    {
+      'friendshipId': 102,
+      'friend': {
+        'id': 3,
+        'username': 'kojo_darko',
+        'profilePictureUrl': null,
+      },
+      'latestMessage': {
+        'content': 'Sent you the GHS 200 for the susu',
+        'createdAt': _hoursAgo(5),
+        'messageType': 'TEXT',
+      },
+      'unreadCount': 0,
+    },
+    {
+      'friendshipId': 103,
+      'friend': {
+        'id': 4,
+        'username': 'akua_baah',
+        'profilePictureUrl': null,
+      },
+      'latestMessage': {
+        'content': '',
+        'createdAt': _hoursAgo(28),
+        'messageType': 'IMAGE',
+        'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+      },
+      'unreadCount': 1,
+    },
+  ];
+
+  // ── /friends/chat/{id}/messages ──────────────────────────────────────
+  static Map<String, dynamic> friendMessages(String friendshipId) {
+    switch (friendshipId) {
+      case '101':
+        return {
+          'messages': [
+            {
+              'id': 'm101-1',
+              'senderId': 2,
+              'senderUsername': 'ama_osei',
+              'content': 'Hey Kwesi! Are we still on for Friday?',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(2),
+              'status': 'DELIVERED',
+            },
+            {
+              'id': 'm101-2',
+              'senderId': 1,
+              'senderUsername': demoUsername,
+              'content': 'Yes! 6pm at Republic Bar right?',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(1, 55),
+              'status': 'READ',
+            },
+            {
+              'id': 'm101-3',
+              'senderId': 2,
+              'senderUsername': 'ama_osei',
+              'content': "Perfect! Don't forget to bring the speaker",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(1, 50),
+              'status': 'DELIVERED',
+            },
+            {
+              'id': 'm101-4',
+              'senderId': 2,
+              'senderUsername': 'ama_osei',
+              'content': '',
+              'messageType': 'PEER_TRANSFER',
+              'metadata': {
+                'amount': 150.00,
+                'currency': 'GHS',
+                'type': 'sent',
+                'note': 'For the speaker rental',
+              },
+              'createdAt': _hoursAgo(1, 45),
+              'status': 'DELIVERED',
+            },
+          ],
+          'hasMore': false,
+        };
+      case '102':
+        return {
+          'messages': [
+            {
+              'id': 'm102-1',
+              'senderId': 3,
+              'senderUsername': 'kojo_darko',
+              'content': "Bro, the susu this month - I'll pay on Monday",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(6),
+              'status': 'READ',
+            },
+            {
+              'id': 'm102-2',
+              'senderId': 1,
+              'senderUsername': demoUsername,
+              'content': "No worries, I've got you covered",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(5, 50),
+              'status': 'READ',
+            },
+            {
+              'id': 'm102-3',
+              'senderId': 3,
+              'senderUsername': 'kojo_darko',
+              'content': 'Sent you the GHS 200 for the susu',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(5),
+              'status': 'READ',
+            },
+          ],
+          'hasMore': false,
+        };
+      case '103':
+        return {
+          'messages': [
+            {
+              'id': 'm103-1',
+              'senderId': 4,
+              'senderUsername': 'akua_baah',
+              'content': 'Check out this place I found for the team meetup!',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(28),
+              'status': 'DELIVERED',
+            },
+            {
+              'id': 'm103-2',
+              'senderId': 4,
+              'senderUsername': 'akua_baah',
+              'content': '',
+              'messageType': 'IMAGE',
+              'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+              'createdAt': _hoursAgo(27, 55),
+              'status': 'DELIVERED',
+            },
+          ],
+          'hasMore': false,
+        };
+      default:
+        return {'messages': [], 'hasMore': false};
+    }
+  }
+
+  // ── /friends/requests ────────────────────────────────────────────────
+  static Map<String, dynamic> friendRequests() => {
+    'requests': [
+      {
+        'id': 201,
+        'fromUser': {
+          'id': 5,
+          'username': 'yaw_asante',
+          'profilePictureUrl': null,
+        },
+        'createdAt': _hoursAgo(12),
+        'status': 'PENDING',
+      },
+    ],
+  };
+
+  // ── /friends/chat/unread-count ───────────────────────────────────────
+  static Map<String, dynamic> unreadCount() => {'unreadCount': 4};
+
+  // ── /group-chats ─────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> groupChats() => [
+    {
+      'id': 'grp-1',
+      'name': 'Friday Squad',
+      'description': 'Weekend plans and chill',
+      'avatarUrl': null,
+      'status': 'ACTIVE',
+      'susuGroupId': null,
+      'susuStatus': null,
+      'members': [
+        {'id': 1, 'username': demoUsername, 'role': 'ADMIN'},
+        {'id': 2, 'username': 'ama_osei', 'role': 'MEMBER'},
+        {'id': 3, 'username': 'kojo_darko', 'role': 'MEMBER'},
+        {'id': 4, 'username': 'akua_baah', 'role': 'MEMBER'},
+      ],
+      'updatedAt': _hoursAgo(1),
+    },
+    {
+      'id': 'grp-2',
+      'name': 'Susu Circle - August',
+      'description': 'Monthly rotational savings group',
+      'avatarUrl': null,
+      'status': 'ACTIVE',
+      'susuGroupId': 'susu-1',
+      'susuStatus': 'ACTIVE',
+      'members': [
+        {'id': 1, 'username': demoUsername, 'role': 'ADMIN'},
+        {'id': 3, 'username': 'kojo_darko', 'role': 'MEMBER'},
+        {'id': 5, 'username': 'yaw_asante', 'role': 'MEMBER'},
+        {'id': 6, 'username': 'adwoa_boateng', 'role': 'MEMBER'},
+      ],
+      'updatedAt': _hoursAgo(3),
+    },
+  ];
+
+  // ── /group-chats/{id}/messages ───────────────────────────────────────
+  static Map<String, dynamic> groupMessages(String groupId) {
+    switch (groupId) {
+      case 'grp-1':
+        return {
+          'messages': [
+            {
+              'id': 'g1-1',
+              'senderId': 2,
+              'senderUsername': 'ama_osei',
+              'content': "Who's bringing the Jollof?",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(3),
+              'status': 'READ',
+            },
+            {
+              'id': 'g1-2',
+              'senderId': 3,
+              'senderUsername': 'kojo_darko',
+              'content': 'I got the drinks covered',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(2, 45),
+              'status': 'READ',
+            },
+            {
+              'id': 'g1-3',
+              'senderId': 1,
+              'senderUsername': demoUsername,
+              'content': "I'll bring the speaker and playlist",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(2, 30),
+              'status': 'READ',
+            },
+            {
+              'id': 'g1-4',
+              'senderId': 4,
+              'senderUsername': 'akua_baah',
+              'content': 'Legend!',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(1),
+              'status': 'READ',
+            },
+          ],
+          'hasMore': false,
+        };
+      case 'grp-2':
+        return {
+          'messages': [
+            {
+              'id': 'g2-1',
+              'senderId': 1,
+              'senderUsername': demoUsername,
+              'content': 'Susu cycle 2 starts Monday! Everyone ready?',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(24),
+              'status': 'READ',
+            },
+            {
+              'id': 'g2-2',
+              'senderId': 3,
+              'senderUsername': 'kojo_darko',
+              'content': "Ready! I'll pay Monday morning",
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(20),
+              'status': 'READ',
+            },
+            {
+              'id': 'g2-3',
+              'senderId': 6,
+              'senderUsername': 'adwoa_boateng',
+              'content': 'Same here. Thanks for organizing this',
+              'messageType': 'TEXT',
+              'createdAt': _hoursAgo(5),
+              'status': 'READ',
+            },
+          ],
+          'hasMore': false,
+        };
+      default:
+        return {'messages': [], 'hasMore': false};
+    }
+  }
+
+  // ── /oracle/rates ─────────────────────────────────────────────────────
+  static Map<String, dynamic> oracleRates() => {
+    'success': true,
+    'data': {
+      'liveUsdToGhs': 15.42,
+      'liveRetailRate': 15.38,
+      'liveCorporateRate': 15.45,
+      'rateSource': 'YELLOWCARD',
+      'lastSync': _minutesAgo(3),
+    },
+  };
+
+  // ── /trades/active ───────────────────────────────────────────────────
+  static Map<String, dynamic> activeTrades() => {
+    'trades': [
+      {
+        'id': 'trade-1',
+        'status': 'IN_PROGRESS',
+        'amountFiat': 1542.00,
+        'amountCrypto': 100.00,
+        'vendorUsername': 'crypto_gh',
+        'isDisputed': false,
+      },
+    ],
+  };
+
+  // ── /trades/history ──────────────────────────────────────────────────
+  static Map<String, dynamic> tradeHistory() => {
+    'trades': [
+      {
+        'id': 'trade-1',
+        'status': 'IN_PROGRESS',
+        'amountFiat': 1542.00,
+        'amountCrypto': 100.00,
+        'vendorUsername': 'crypto_gh',
+        'createdAt': _hoursAgo(20),
+        'iAmVendor': false,
+      },
+      {
+        'id': 'trade-2',
+        'status': 'COMPLETED',
+        'amountFiat': 771.00,
+        'amountCrypto': 50.00,
+        'vendorUsername': 'pay_fast',
+        'createdAt': _hoursAgo(72),
+        'iAmVendor': false,
+      },
+      {
+        'id': 'trade-3',
+        'status': 'COMPLETED',
+        'amountFiat': 308.40,
+        'amountCrypto': 20.00,
+        'vendorUsername': 'crypto_gh',
+        'createdAt': _hoursAgo(120),
+        'iAmVendor': false,
+      },
+    ],
+  };
+
+  // ── /wallet/history ──────────────────────────────────────────────────
+  static Map<String, dynamic> walletHistory() => {
+    'data': [
+      {
+        'id': 'w-1',
+        'type': 'WITHDRAWAL',
+        'amount': 500.00,
+        'currency': 'GHS',
+        'status': 'PENDING',
+        'payoutMethod': 'MOMO',
+        'network': 'MTN',
+        'createdAt': _hoursAgo(4),
+      },
+      {
+        'id': 'w-2',
+        'type': 'DEPOSIT',
+        'amount': 200.00,
+        'currency': 'USDC',
+        'status': 'COMPLETED',
+        'createdAt': _hoursAgo(48),
+      },
+      {
+        'id': 'w-3',
+        'type': 'PEER_TRANSFER',
+        'amount': 150.00,
+        'currency': 'GHS',
+        'status': 'COMPLETED',
+        'createdAt': _hoursAgo(72),
+      },
+    ],
+  };
+
+  // ── /finance/transactions ────────────────────────────────────────────
+  static Map<String, dynamic> financeTransactions() => {
+    'data': [
+      {
+        'id': 't-1',
+        'type': 'DEPOSIT_CRYPTO',
+        'amount': 200.00,
+        'currency': 'USDC',
+        'status': 'COMPLETED',
+        'createdAt': _hoursAgo(48),
+        'description': 'Polygon USDC deposit',
+      },
+      {
+        'id': 't-2',
+        'type': 'WITHDRAWAL',
+        'amount': 500.00,
+        'currency': 'GHS',
+        'status': 'PENDING',
+        'createdAt': _hoursAgo(4),
+        'description': 'MTN MoMo withdrawal',
+      },
+      {
+        'id': 't-3',
+        'type': 'TRADE',
+        'amount': 1542.00,
+        'currency': 'GHS',
+        'status': 'IN_PROGRESS',
+        'createdAt': _hoursAgo(20),
+        'description': 'P2P trade with crypto_gh',
+      },
+    ],
+  };
+
+  // ── /notifications ──────────────────────────────────────────────────
+  static Map<String, dynamic> notifications() => {
+    'data': [
+      {
+        'id': 'n-1',
+        'type': 'TRADE',
+        'title': 'Trade in progress',
+        'body': 'Your trade with crypto_gh is now in progress',
+        'read': false,
+        'createdAt': _hoursAgo(18),
+      },
+      {
+        'id': 'n-2',
+        'type': 'FRIEND_REQUEST',
+        'title': 'New friend request',
+        'body': 'yaw_asante wants to be your friend',
+        'read': false,
+        'createdAt': _hoursAgo(12),
+      },
+      {
+        'id': 'n-3',
+        'type': 'MESSAGE',
+        'title': 'New message',
+        'body': 'ama_osei: Hey Kwesi! Are we still on for Friday?',
+        'read': false,
+        'createdAt': _hoursAgo(2),
+      },
+    ],
+  };
+
+  // ── /notifications/unread-count ─────────────────────────────────────
+  static Map<String, dynamic> unreadNotifications() => {'count': 3};
+
+  // ── /savings/overview ───────────────────────────────────────────────
+  static Map<String, dynamic> savingsOverview() => {
+    'data': {
+      'totalSavedGhs': 3200.00,
+      'goals': [
+        {
+          'id': 'g-1',
+          'name': 'New Laptop',
+          'currentAmountGhs': 1800.00,
+          'targetAmountGhs': 3500.00,
+          'frequency': 'WEEKLY',
+        },
+        {
+          'id': 'g-2',
+          'name': 'Accra Trip',
+          'currentAmountGhs': 1400.00,
+          'targetAmountGhs': 2000.00,
+          'frequency': 'MONTHLY',
+        },
+      ],
+    },
+  };
+
+  // ── /vaults ──────────────────────────────────────────────────────────
+  static Map<String, dynamic> vaults() => {
+    'data': [
+      {
+        'id': 'v-1',
+        'name': 'Emergency Fund',
+        'balance': 2000.00,
+        'currency': 'GHS',
+        'lockedUntil': _daysFromNow(30),
+        'apy': 8.5,
+        'yieldEnabled': true,
+        'autoRule': null,
+      },
+    ],
+  };
+
+  // ── /susu/me ─────────────────────────────────────────────────────────
+  static Map<String, dynamic> susuGroups() => {
+    'data': [
+      {
+        'id': 'susu-1',
+        'name': 'Susu Circle - August',
+        'status': 'ACTIVE',
+        'contributionAmount': 200.00,
+        'currency': 'GHS',
+        'cycle': 2,
+        'totalCycles': 4,
+        'memberCount': 4,
+        'nextPayoutUser': 'kojo_darko',
+        'nextPayoutDate': _daysFromNow(7),
+        'createdAt': _hoursAgo(240),
+      },
+    ],
+  };
+
+  // ── /azm/summary ─────────────────────────────────────────────────────
+  static Map<String, dynamic> azmSummary() => {
+    'data': {
+      'azmBalance': 12450.00,
+      'totalEarned': 1860.00,
+      'totalSpent': 410.00,
+      'stakingTier': 'GOLD',
+      'stakingApy': 12.5,
+      'loginStreak': 7,
+      'rewardsAvailable': 45.00,
+    },
+  };
+
+  // ── /azm/rates ───────────────────────────────────────────────────────
+  static Map<String, dynamic> azmRates() => {
+    'data': {
+      'azmToGhs': 1.0,
+      'azmToUsd': 0.0649,
+      'lastUpdated': _minutesAgo(5),
+    },
+  };
+
+  // ── /azm/friends-leaderboard ─────────────────────────────────────────
+  static Map<String, dynamic> leaderboard() => {
+    'data': {
+      'entries': [
+        {'userId': 1, 'username': demoUsername, 'azmBalance': 12450.00, 'rank': 1},
+        {'userId': 2, 'username': 'ama_osei', 'azmBalance': 8200.00, 'rank': 2},
+        {'userId': 5, 'username': 'yaw_asante', 'azmBalance': 5600.00, 'rank': 3},
+        {'userId': 3, 'username': 'kojo_darko', 'azmBalance': 4300.00, 'rank': 4},
+        {'userId': 6, 'username': 'adwoa_boateng', 'azmBalance': 2100.00, 'rank': 5},
+      ],
+    },
+  };
+
+  // ── /azm/spend/options ──────────────────────────────────────────────
+  static Map<String, dynamic> spendOptions() => {
+    'data': [
+      {'id': 'airtime', 'label': 'Airtime', 'icon': 'phone'},
+      {'id': 'data', 'label': 'Data Bundle', 'icon': 'wifi'},
+      {'id': 'electricity', 'label': 'Electricity', 'icon': 'bolt'},
+      {'id': 'water', 'label': 'Water', 'icon': 'water_drop'},
+    ],
+  };
+
+  // ── /azm/spend/card-skins ───────────────────────────────────────────
+  static Map<String, dynamic> cardSkins() => {
+    'data': [
+      {'id': 'default', 'name': 'Classic Gold', 'price': 0, 'owned': true, 'equipped': true},
+      {'id': 'midnight', 'name': 'Midnight', 'price': 50, 'owned': true, 'equipped': false},
+      {'id': 'sunset', 'name': 'Sunset', 'price': 100, 'owned': false, 'equipped': false},
+      {'id': 'ocean', 'name': 'Ocean Depth', 'price': 150, 'owned': false, 'equipped': false},
+    ],
+  };
+
+  // ── /p2p/ads ─────────────────────────────────────────────────────────
+  static Map<String, dynamic> p2pAds() => {
+    'ads': [
+      {
+        'id': 'ad-1',
+        'vendorUsername': 'crypto_gh',
+        'vendorId': '10',
+        'type': 'SELL',
+        'pricePerUSD': 15.42,
+        'minLimit': 50,
+        'maxLimit': 500,
+        'availableUsdc': 2000.00,
+        'paymentMethod': 'MTN_MOMO',
+        'queueFull': false,
+        'queueDepth': 1,
+        'completedTrades': 145,
+        'completionRate': 0.98,
+        'aiScore': 0.92,
+        'isOnline': true,
+        'lastSeen': _minutesAgo(5),
+        'terms': 'Fast payment. Release within 10 minutes.',
+      },
+      {
+        'id': 'ad-2',
+        'vendorUsername': 'pay_fast',
+        'vendorId': '11',
+        'type': 'SELL',
+        'pricePerUSD': 15.45,
+        'minLimit': 20,
+        'maxLimit': 300,
+        'availableUsdc': 800.00,
+        'paymentMethod': 'TELEKEL_CASH',
+        'queueFull': false,
+        'queueDepth': 0,
+        'completedTrades': 89,
+        'completionRate': 0.95,
+        'aiScore': 0.88,
+        'isOnline': true,
+        'lastSeen': _minutesAgo(2),
+        'terms': 'Telecel Cash only. No third-party payments.',
+      },
+      {
+        'id': 'ad-3',
+        'vendorUsername': 'quick_trade',
+        'vendorId': '12',
+        'type': 'BUY',
+        'pricePerUSD': 15.38,
+        'minLimit': 30,
+        'maxLimit': 200,
+        'availableUsdc': 500.00,
+        'paymentMethod': 'VODAFONE_CASH',
+        'queueFull': false,
+        'queueDepth': 0,
+        'completedTrades': 56,
+        'completionRate': 0.97,
+        'aiScore': 0.85,
+        'isOnline': false,
+        'lastSeen': _hoursAgo(1),
+        'terms': 'Buying USDC. Quick payment.',
+      },
+      {
+        'id': 'ad-4',
+        'vendorUsername': 'crypto_gh',
+        'vendorId': '10',
+        'type': 'BUY',
+        'pricePerUSD': 15.40,
+        'minLimit': 100,
+        'maxLimit': 1000,
+        'availableUsdc': 5000.00,
+        'paymentMethod': 'BANK_TRANSFER',
+        'queueFull': false,
+        'queueDepth': 2,
+        'completedTrades': 145,
+        'completionRate': 0.98,
+        'aiScore': 0.91,
+        'isOnline': true,
+        'lastSeen': _minutesAgo(5),
+        'terms': 'Bank transfer only. GCB, Ecobank, Stanbic.',
+      },
+    ],
+  };
+
+  // ── /stories/feed ───────────────────────────────────────────────────
+  static Map<String, dynamic> storiesFeed() => {
+    'groups': [
+      {
+        'authorId': 2,
+        'authorUsername': 'ama_osei',
+        'authorAvatarUrl': null,
+        'hasUnseen': true,
+        'isBoosted': false,
+        'stories': [
+          {
+            'id': 's-1',
+            'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+            'mediaType': 'IMAGE',
+            'caption': 'Friday vibes',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(3),
+          },
+        ],
+      },
+      {
+        'authorId': 3,
+        'authorUsername': 'kojo_darko',
+        'authorAvatarUrl': null,
+        'hasUnseen': true,
+        'isBoosted': false,
+        'stories': [
+          {
+            'id': 's-2',
+            'mediaUrl': 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
+            'mediaType': 'IMAGE',
+            'caption': 'New office setup',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(8),
+          },
+        ],
+      },
+      {
+        'authorId': 10,
+        'authorUsername': 'crypto_gh',
+        'authorAvatarUrl': null,
+        'hasUnseen': false,
+        'isBoosted': true,
+        'stories': [
+          {
+            'id': 's-3',
+            'mediaUrl': 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400',
+            'mediaType': 'IMAGE',
+            'caption': 'New rates just dropped!',
+            'durationSeconds': 5,
+            'boosted': true,
+            'seen': true,
+            'createdAt': _hoursAgo(20),
+          },
+        ],
+      },
+    ],
+  };
+
+  // ── /storefront/discover ─────────────────────────────────────────────
+  static Map<String, dynamic> storefrontDiscover() => {
+    'data': [
+      {
+        'id': 'biz-1',
+        'name': 'Crypto GH Ventures',
+        'logoUrl': null,
+        'accentColor': '#FFD700',
+        'verified': true,
+        'rating': 4.8,
+        'followerCount': 1200,
+        'isFollowing': false,
+        'category': 'CRYPTO',
+      },
+      {
+        'id': 'biz-2',
+        'name': 'Accra Foods',
+        'logoUrl': null,
+        'accentColor': '#FF6B35',
+        'verified': true,
+        'rating': 4.6,
+        'followerCount': 850,
+        'isFollowing': true,
+        'category': 'FOOD',
+      },
+      {
+        'id': 'biz-3',
+        'name': 'Kente Customs',
+        'logoUrl': null,
+        'accentColor': '#7B2FBE',
+        'verified': false,
+        'rating': 4.3,
+        'followerCount': 340,
+        'isFollowing': false,
+        'category': 'FASHION',
+      },
+    ],
+  };
+
+  // ── /azm-stake/tier ──────────────────────────────────────────────────
+  static Map<String, dynamic> stakingTier() => {
+    'data': {
+      'tier': 'GOLD',
+      'apy': 12.5,
+      'minimumStake': 1000.00,
+      'currentStake': 5000.00,
+      'rewardsEarned': 1860.00,
+    },
+  };
+
+  // ── /azm-stake/stakes ────────────────────────────────────────────────
+  static Map<String, dynamic> stakes() => {
+    'data': [
+      {
+        'id': 'st-1',
+        'amount': 5000.00,
+        'tier': 'GOLD',
+        'apy': 12.5,
+        'startDate': _daysFromNow(-30),
+        'endDate': _daysFromNow(335),
+        'rewardsEarned': 1860.00,
+        'status': 'ACTIVE',
+      },
+    ],
+  };
+
+  // ── /azm-auction/current ─────────────────────────────────────────────
+  static Map<String, dynamic> auctionCurrent() => {
+    'data': {
+      'id': 'auc-1',
+      'title': 'Rare Gold Skin NFT',
+      'description': 'Limited edition gold card skin',
+      'currentBid': 250.00,
+      'bidders': 12,
+      'endsAt': _daysFromNow(2),
+      'image': null,
+    },
+  };
+
+  // ── /azm/spend/history ───────────────────────────────────────────────
+  static Map<String, dynamic> spendHistory() => {
+    'data': [
+      {'id': 'sp-1', 'category': 'Airtime', 'amount': 20.00, 'date': _hoursAgo(48)},
+      {'id': 'sp-2', 'category': 'Data Bundle', 'amount': 35.00, 'date': _hoursAgo(96)},
+    ],
+  };
+
+  // ── /trade-accounts/supported-methods ───────────────────────────────
+  static Map<String, dynamic> supportedMethods() => {
+    'data': [
+      {'id': 'MTN_MOMO', 'label': 'MTN Mobile Money'},
+      {'id': 'TELEKEL_CASH', 'label': 'Telecel Cash'},
+      {'id': 'VODAFONE_CASH', 'label': 'Vodafone Cash'},
+      {'id': 'BANK_TRANSFER', 'label': 'Bank Transfer'},
+    ],
+  };
+
+  // ── /kyc/status ──────────────────────────────────────────────────────
+  static Map<String, dynamic> kycStatus() => {'data': {'status': 'VERIFIED'}};
+
+  // ── /users/profile ───────────────────────────────────────────────────
+  static Map<String, dynamic> userProfile() => {
+    'data': {
+      'id': 1,
+      'username': demoUsername,
+      'email': 'kwesi.mensah@demo.azaman.app',
+      'role': 'USER',
+      'profilePictureUrl': null,
+      'azamanId': 'AZM-000123456',
+      'kycStatus': 'VERIFIED',
+    },
+  };
+
+  // ── /users/me/milestones ────────────────────────────────────────────
+  static Map<String, dynamic> milestones() => {
+    'data': [
+      {'id': 'ms-1', 'title': 'First Trade', 'completed': true, 'date': _daysFromNow(-60)},
+      {'id': 'ms-2', 'title': 'First Deposit', 'completed': true, 'date': _daysFromNow(-90)},
+      {'id': 'ms-3', 'title': '7-Day Login Streak', 'completed': true, 'date': _hoursAgo(1)},
+      {'id': 'ms-4', 'title': 'First Susu Cycle', 'completed': false, 'date': null},
+    ],
+  };
+
+  // ── /vaults/yield/strategies ────────────────────────────────────────
+  static Map<String, dynamic> yieldStrategies() => {
+    'data': [
+      {'id': 'conservative', 'name': 'Conservative', 'apy': 5.5, 'risk': 'LOW'},
+      {'id': 'balanced', 'name': 'Balanced', 'apy': 8.5, 'risk': 'MEDIUM'},
+      {'id': 'aggressive', 'name': 'Aggressive', 'apy': 12.0, 'risk': 'HIGH'},
+    ],
+  };
+
+  // ── /round-up ────────────────────────────────────────────────────────
+  static Map<String, dynamic> roundUp() => {'data': {'enabled': true, 'totalSaved': 42.50}};
+
+  // ── /wallet/deposit-address/polygon ─────────────────────────────────
+  static Map<String, dynamic> depositAddress() => {
+    'data': {'address': '0xDemo1234567890abcdef1234567890abcdef1234'}
+  };
+
+  // ── Empty/generic responses ──────────────────────────────────────────
+  static Map<String, dynamic> emptyData() => {'data': []};
+  static Map<String, dynamic> nullData() => {'data': null};
+  static Map<String, dynamic> okSuccess() => {'data': {'ok': true}};
+
+  // ── Helper: timestamps ───────────────────────────────────────────────
+  static String _hoursAgo(int hours, [int addMinutes = 0]) {
+    final now = DateTime.now();
+    final t = now.subtract(Duration(hours: hours, minutes: addMinutes));
+    return t.toUtc().toIso8601String();
+  }
+
+  static String _minutesAgo(int minutes) {
+    final t = DateTime.now().subtract(Duration(minutes: minutes));
+    return t.toUtc().toIso8601String();
+  }
+
+  static String _daysFromNow(int days) {
+    final t = DateTime.now().add(Duration(days: days));
+    return t.toUtc().toIso8601String();
+  }
+}
