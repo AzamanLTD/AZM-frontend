@@ -184,7 +184,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label, style: TextStyle(
-          color: active ? Colors.white : colors.textPrimary,
+          color: active ? (colors.isDark ? Colors.black : Colors.white) : colors.textPrimary,
           fontWeight: active ? FontWeight.bold : FontWeight.normal,
         )),
       ),
@@ -360,11 +360,11 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
             // Checkmark animation
             Container(
               width: 80, height: 80,
-              decoration: const BoxDecoration(
-                color: Colors.green,
+              decoration: BoxDecoration(
+                color: colors.success,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check, color: Colors.white, size: 48),
+              child: Icon(Icons.check, color: colors.isDark ? Colors.black : Colors.white, size: 48),
             ),
             const SizedBox(height: 24),
 

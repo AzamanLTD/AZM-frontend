@@ -71,8 +71,8 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
                   Expanded(child: Text(tab.businessName,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary))),
                   Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                    child: Text(tab.status, style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600))),
+                    decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+                    child: Text(tab.status, style: TextStyle(fontSize: 11, color: colors.success, fontWeight: FontWeight.w600))),
                 ]),
               ),
               // Items list
@@ -111,7 +111,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
                   SizedBox(width: double.infinity, child: ElevatedButton(
                     onPressed: tab.status == 'OPEN' ? _confirmAndPay : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent, foregroundColor: Colors.white,
+                      backgroundColor: colors.accent, foregroundColor: colors.isDark ? Colors.black : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     child: Text(tab.status == 'OPEN' ? 'Confirm & Pay' : 'Tab Closed',

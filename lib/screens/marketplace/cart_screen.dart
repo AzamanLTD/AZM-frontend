@@ -43,6 +43,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Future<void> _placeOrder() async {
     final cart = ref.read(cartProvider);
     if (cart.isEmpty || cart.businessProfileId == null) return;
+    final colors = ref.read(themeProvider).colors;
 
     AzamanHaptics.confirm();
     setState(() => _isPlacingOrder = true);
@@ -88,6 +89,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           cart.items.length,
           cart.businessName,
           orderRef: orderData?['orderRef'] as String?,
+          colors: colors,
         );
         widget.onCheckoutComplete?.call();
       }
@@ -97,7 +99,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Order failed: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: colors.danger,
           ),
         );
       }
@@ -107,7 +109,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  void _showOrderConfirmation(int itemCount, String? businessName, {String? orderRef}) {
+  void _showOrderConfirmation(int itemCount, String? businessName, {String? orderRef, required AzamanColors colors}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -120,17 +122,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: colors.success.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 HugeIconsSolid.checkmarkCircle02,
-                color: Colors.green.shade600,
+                color: colors.success,
                 size: 36,
               ),
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Order Placed!',
               style: TextStyle(
                 fontSize: 20,
@@ -143,7 +145,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade600,
+                color: colors.textSecondary,
               ),
             ),
             if (orderRef != null) ...[
@@ -151,7 +153,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: colors.softSurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -159,7 +161,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: colors.textPrimary,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -185,6 +187,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   void _confirmClearCart() {
     AzamanHaptics.nav();
+    final colors = ref.read(themeProvider).colors;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -201,7 +204,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Navigator.pop(ctx);
               Navigator.pop(context); // close cart screen too
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: colors.danger),
             child: const Text('Clear'),
           ),
         ],
@@ -431,7 +434,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: colors.isDark ? Colors.black : Colors.white,
                     ),
                   )
                 : Row(
@@ -442,7 +445,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: colors.isDark ? Colors.black : Colors.white,
                         ),
                       ),
                     ],

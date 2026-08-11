@@ -84,7 +84,6 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
       if (mounted) {
         // Show celebration sheet, then navigate to QR
         final nights = _checkOut!.difference(_checkIn!).inDays;
-        ref.read(themeProvider).colors;
         final products = ref.read(marketplaceBookingProvider).products ?? [];
         final room = products.firstWhere((p) => p.id == _selectedRoomId, orElse: () => products.first);
         BookingSuccessSheet.show(

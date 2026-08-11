@@ -260,11 +260,11 @@ class _BusinessRegisterScreenState
                   ),
                 ),
                 child: _submitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2, color: colors.isDark ? Colors.black : Colors.white),
                       )
                     : const Text('Create Business',
                         style: TextStyle(

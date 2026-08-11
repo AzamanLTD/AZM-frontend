@@ -110,7 +110,7 @@ class _SavedBusinessesScreenState
                     return Dismissible(
                       key: ValueKey(bizId), direction: DismissDirection.up,
                       background: Container(decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                        child: const Align(alignment: Alignment.topCenter, child: Padding(padding: EdgeInsets.only(top: 12), child: Icon(Icons.delete_outline_rounded, color: Colors.red)))),
+                        child: Align(alignment: Alignment.topCenter, child: Padding(padding: const EdgeInsets.only(top: 12), child: Icon(Icons.delete_outline_rounded, color: colors.danger)))),
                       onDismissed: (_) {
                         AzamanHaptics.toggle();
                         ref.read(savedBusinessesProvider.notifier).remove(bizId);
