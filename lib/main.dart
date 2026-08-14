@@ -176,12 +176,13 @@ Future<void> _bootstrap() async {
     debugPrint('[AZM-FATAL] ${details.exception}');
     _lastFrameworkError.value = details.exception;
   };
-
   // ── 2. ISOLATE ERROR GUARD ───────────────────────────────────────────────
-  Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
-    final list = data as List;
-    debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
-  }).sendPort);
+  if (!kIsWeb) {
+    Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
+      final list = data as List;
+      debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
+    }).sendPort);
+  }
 
   // ── 3. ERROR WIDGET BUILDER ──────────────────────────────────────────────
   ErrorWidget.builder = (FlutterErrorDetails details) {
