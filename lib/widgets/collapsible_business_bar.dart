@@ -146,9 +146,24 @@ class CollapsibleBusinessBar extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
         height: 90,
         decoration: BoxDecoration(
-          color: colors.card,
+          // Subtle purple hue tint on vendor cards — blends the category
+          // color with the card surface for a cohesive brand feel.
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cat.color.withValues(alpha: colors.isDark ? 0.08 : 0.05),
+              colors.card,
+            ],
+            stops: const [0.0, 0.35],
+          ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
+            BoxShadow(
+              color: cat.color.withValues(alpha: 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
             BoxShadow(
               color: Colors.black.withValues(alpha: colors.isDark ? 0.22 : 0.07),
               blurRadius: 14,

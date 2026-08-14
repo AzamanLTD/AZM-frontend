@@ -44,7 +44,7 @@ class StoryGroup {
   factory StoryGroup.fromJson(Map<String, dynamic> j) {
     final author = j['author'] as Map<String, dynamic>? ?? {};
     return StoryGroup(
-      authorId: (j['authorId'] as num).toInt(),
+      authorId: (j['authorId'] as num?)?.toInt() ?? 0,
       authorUsername: author['username']?.toString() ?? '',
       authorAvatarUrl: author['profilePictureUrl']?.toString(),
       hasUnseen: j['hasUnseen'] == true,

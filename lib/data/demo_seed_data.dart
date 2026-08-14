@@ -302,10 +302,10 @@ class DemoSeedData {
       'susuGroupId': null,
       'susuStatus': null,
       'members': [
-        {'id': 1, 'username': demoUsername, 'role': 'ADMIN'},
-        {'id': 2, 'username': 'ama_osei', 'role': 'MEMBER'},
-        {'id': 3, 'username': 'kojo_darko', 'role': 'MEMBER'},
-        {'id': 4, 'username': 'akua_baah', 'role': 'MEMBER'},
+        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': null}, 'role': 'ADMIN'},
+        {'id': 2, 'userId': 2, 'user': {'username': 'ama_osei', 'profilePictureUrl': null}, 'role': 'MEMBER'},
+        {'id': 3, 'userId': 3, 'user': {'username': 'kojo_darko', 'profilePictureUrl': null}, 'role': 'MEMBER'},
+        {'id': 4, 'userId': 4, 'user': {'username': 'akua_baah', 'profilePictureUrl': null}, 'role': 'MEMBER'},
       ],
       'updatedAt': _hoursAgo(1),
     },
@@ -316,12 +316,12 @@ class DemoSeedData {
       'avatarUrl': null,
       'status': 'ACTIVE',
       'susuGroupId': 'susu-1',
-      'susuStatus': 'ACTIVE',
+      'susuGroup': {'status': 'ACTIVE', 'initiationDeadline': null},
       'members': [
-        {'id': 1, 'username': demoUsername, 'role': 'ADMIN'},
-        {'id': 3, 'username': 'kojo_darko', 'role': 'MEMBER'},
-        {'id': 5, 'username': 'yaw_asante', 'role': 'MEMBER'},
-        {'id': 6, 'username': 'adwoa_boateng', 'role': 'MEMBER'},
+        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': null}, 'role': 'ADMIN'},
+        {'id': 3, 'userId': 3, 'user': {'username': 'kojo_darko', 'profilePictureUrl': null}, 'role': 'MEMBER'},
+        {'id': 5, 'userId': 5, 'user': {'username': 'yaw_asante', 'profilePictureUrl': null}, 'role': 'MEMBER'},
+        {'id': 6, 'userId': 6, 'user': {'username': 'adwoa_boateng', 'profilePictureUrl': null}, 'role': 'MEMBER'},
       ],
       'updatedAt': _hoursAgo(3),
     },
@@ -769,8 +769,10 @@ class DemoSeedData {
     'groups': [
       {
         'authorId': 2,
-        'authorUsername': 'ama_osei',
-        'authorAvatarUrl': null,
+        'author': {
+          'username': 'ama_osei',
+          'profilePictureUrl': null,
+        },
         'hasUnseen': true,
         'isBoosted': false,
         'stories': [
@@ -788,8 +790,10 @@ class DemoSeedData {
       },
       {
         'authorId': 3,
-        'authorUsername': 'kojo_darko',
-        'authorAvatarUrl': null,
+        'author': {
+          'username': 'kojo_darko',
+          'profilePictureUrl': null,
+        },
         'hasUnseen': true,
         'isBoosted': false,
         'stories': [
@@ -807,8 +811,10 @@ class DemoSeedData {
       },
       {
         'authorId': 10,
-        'authorUsername': 'crypto_gh',
-        'authorAvatarUrl': null,
+        'author': {
+          'username': 'crypto_gh',
+          'profilePictureUrl': null,
+        },
         'hasUnseen': false,
         'isBoosted': true,
         'stories': [

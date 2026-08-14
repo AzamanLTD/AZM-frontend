@@ -327,6 +327,44 @@ class DemoMarketplaceSeed {
     'table': {'label': 'Table 12'},
   };
 
+
+  // ── Following list (marketplace story rail) ────────────────────────────
+
+  static List<Map<String, dynamic>> getFollowing() => [
+    {
+      'id': restaurantBizId,
+      'businessName': 'B Tales Restaurant',
+      'logoUrl': _img('btales-logo', w: 200, h: 200),
+      'isVerified': true,
+      'lastStoryAt': _hoursAgo(2),
+      'lastViewedAt': _hoursAgo(3),
+    },
+    {
+      'id': hotelBizId,
+      'businessName': 'Grand Ridge Hotel',
+      'logoUrl': _img('grand-ridge-logo', w: 200, h: 200),
+      'isVerified': true,
+      'lastStoryAt': _hoursAgo(8),
+      'lastViewedAt': _hoursAgo(1),
+    },
+    {
+      'id': cryptoBizId,
+      'businessName': 'Crypto GH Ventures',
+      'logoUrl': _img('crypto-gh-logo', w: 200, h: 200),
+      'isVerified': false,
+      'lastStoryAt': _hoursAgo(20),
+      'lastViewedAt': _hoursAgo(20),
+    },
+    {
+      'id': fashionBizId,
+      'businessName': 'Accra Threads',
+      'logoUrl': _img('accra-threads-logo', w: 200, h: 200),
+      'isVerified': true,
+      'lastStoryAt': _hoursAgo(48),
+      'lastViewedAt': null,
+    },
+  ];
+
   // ── Helpers ───────────────────────────────────────────────────────────
 
   static Map<String, dynamic> _dish(String id, String name, String description, double price, List<String> tags, String img) => {

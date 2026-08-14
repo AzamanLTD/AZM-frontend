@@ -211,6 +211,8 @@ class DemoInterceptor {
       // ── Marketplace endpoints (exact) ─────────────────────────────
       case '/business/search':
         return DemoMarketplaceSeed.searchBusinesses();
+      case '/business/me':
+        return {'business': null};
       case '/users/invoices':
         return DemoMarketplaceSeed.getMyInvoices();
     }
@@ -372,9 +374,14 @@ class DemoInterceptor {
       return DemoSeedData.nullData();
     }
 
+    // /follows/following
+    if (path == '/follows/following') {
+      return {'following': DemoMarketplaceSeed.getFollowing()};
+    }
+
     // /follows/check/{bizId}
     if (path.startsWith('/follows/check/')) {
-      return {'data': {'isFollowing': false}};
+      return {'isFollowing': false};
     }
 
     // /stories/analytics/business/{bizId}
