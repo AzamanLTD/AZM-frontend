@@ -69,6 +69,8 @@ class DemoInterceptor {
         return DemoSeedData.friendRequests();
       case '/friends/chat/unread-count':
         return DemoSeedData.unreadCount();
+      case '/friends/chat/conversations':
+        return DemoSeedData.personalChatConversations();
       case '/group-chats':
         return {'groups': DemoSeedData.groupChats()};
       case '/oracle/rates':

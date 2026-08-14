@@ -219,6 +219,7 @@ class SocketService {
   // Internal connect helpers
   // -------------------------------------------------------------------------
   Future<void> _connect() async {
+    if (AppConfig.demoMode) return; // Skip socket in demo mode
     // Skip if a socket already exists or connection is in progress
     if (_socket != null || _connecting) return;
     _connecting = true;
@@ -247,6 +248,7 @@ class SocketService {
   }
 
   Future<void> _connectWithRef(Ref ref) async {
+    if (AppConfig.demoMode) return; // Skip socket in demo mode
     // Skip if a socket already exists or connection is in progress
     if (_socket != null || _connecting) return;
     _connecting = true;

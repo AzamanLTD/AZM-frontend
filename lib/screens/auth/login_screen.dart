@@ -11,6 +11,9 @@ import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
 import 'package:azaman/widgets/google_logo.dart';
+import 'package:azaman/data/demo_seed_data.dart';
+import 'package:azaman/router/auth_guard.dart';
+import 'package:azaman/config.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 
@@ -203,6 +206,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _enterDemoMode() {
+    AppConfig.enableDemoMode();
+    final user = User(
+      id: DemoSeedData.demoUserId,
+      username: DemoSeedData.demoUsername,
+      email: 'kwesi.mensah@demo.azaman.app',
+      token: DemoSeedData.demoToken,
+      role: 'USER',
+      azmBalance: 12450.00,
+      availableBalance: 12450.00,
+    );
+    ref.read(authProvider).setUser(user);
+    AuthGuard.isAuthenticated = true;
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
+    );
   }
 
   @override
@@ -441,6 +464,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
           ],
+        ),
+
+        const SizedBox(height: 18),
+
+        // ── Demo mode entry ──────────────────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _enterDemoMode,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: BorderSide(
+                color: colors.accent.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            icon: Icon(Icons.play_circle_outline, size: 22, color: colors.accent),
+            label: Text(
+              'Try Demo (No Account Needed)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.accent,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            'Explore the full Azaman experience with seeded demo data — no signup required.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: colors.textTertiary,
+            ),
+          ),
         ),
 
         const SizedBox(height: 24),

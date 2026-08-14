@@ -140,6 +140,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
+  // Ensure bindings are initialized before any zone wrapping (fixes Zone mismatch on web)
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Check for ?demo=true URL param on web to enable demo mode at runtime
   if (kIsWeb) {
     try {
@@ -168,8 +171,6 @@ void main() async {
 /// All app initialisation, factored out so it can run with or without the
 /// Sentry zone wrapper above.
 Future<void> _bootstrap() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
   // ── 1. GLOBAL ERROR BOUNDARY ─────────────────────────────────────────────
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);

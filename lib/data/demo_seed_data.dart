@@ -231,12 +231,53 @@ class DemoSeedData {
     }
   }
 
+  // ── /friends/chat/conversations ────────────────────────────────────
+  static Map<String, dynamic> personalChatConversations() => {
+    'success': true,
+    'chats': [
+      {
+        'id': 'chat-1',
+        'contactId': 3,
+        'contactAzamanId': 'AZM-000000003',
+        'contactName': 'ama_serwaa',
+        'lastMessage': 'Hey! Are we still on for Friday?',
+        'lastMessageTime': _hoursAgo(2),
+        'unreadCount': 2,
+      },
+      {
+        'id': 'chat-2',
+        'contactId': 5,
+        'contactAzamanId': 'AZM-000000005',
+        'contactName': 'yaw_asante',
+        'lastMessage': 'Sent you the GHS 150 for lunch 🙏',
+        'lastMessageTime': _hoursAgo(8),
+        'unreadCount': 0,
+      },
+      {
+        'id': 'chat-3',
+        'contactId': 7,
+        'contactAzamanId': 'AZM-000000007',
+        'contactName': 'kofi_danku',
+        'lastMessage': 'The USDT rate is looking good today',
+        'lastMessageTime': _hoursAgo(26),
+        'unreadCount': 0,
+      },
+    ],
+  };
+
   // ── /friends/requests ────────────────────────────────────────────────
   static Map<String, dynamic> friendRequests() => {
+    'success': true,
+    'total': 1,
     'requests': [
       {
         'id': 201,
         'fromUser': {
+          'id': 5,
+          'username': 'yaw_asante',
+          'profilePictureUrl': null,
+        },
+        'requester': {
           'id': 5,
           'username': 'yaw_asante',
           'profilePictureUrl': null,
@@ -397,7 +438,8 @@ class DemoSeedData {
 
   // ── /trades/history ──────────────────────────────────────────────────
   static Map<String, dynamic> tradeHistory() => {
-    'trades': [
+    'success': true,
+    'history': [
       {
         'id': 'trade-1',
         'status': 'IN_PROGRESS',
@@ -430,7 +472,8 @@ class DemoSeedData {
 
   // ── /wallet/history ──────────────────────────────────────────────────
   static Map<String, dynamic> walletHistory() => {
-    'data': [
+    'success': true,
+    'history': [
       {
         'id': 'w-1',
         'type': 'WITHDRAWAL',
@@ -524,7 +567,7 @@ class DemoSeedData {
   };
 
   // ── /notifications/unread-count ─────────────────────────────────────
-  static Map<String, dynamic> unreadNotifications() => {'count': 3};
+  static Map<String, dynamic> unreadNotifications() => {'success': true, 'count': 3};
 
   // ── /savings/overview ───────────────────────────────────────────────
   static Map<String, dynamic> savingsOverview() => {
