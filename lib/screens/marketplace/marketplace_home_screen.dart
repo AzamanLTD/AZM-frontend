@@ -29,6 +29,10 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
+import 'package:azaman/models/story_model.dart';
+import 'dart:convert';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -368,7 +372,7 @@ class _MarketplaceHomeScreenState
                           maxHeight: 96,
                           child: MarketplaceExpandedStories(
                             onOpenBusiness: (bizId) {
-                              pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+                              _openBusinessStories(context, bizId);
                             },
                             onBrowsePressed: () {
                               setState(() => _selectedCategory = null);
@@ -378,8 +382,6 @@ class _MarketplaceHomeScreenState
                       ),
                     ),
                     _categoryStrip(colors),
-                    if (_selectedCategory == null && _searchCtrl.text.isEmpty)
-                      _featuredCarousel(colors),
                     const SizedBox(height: 2),
                     _resultsBar(colors),
                     Expanded(
@@ -474,7 +476,7 @@ class _MarketplaceHomeScreenState
                         ),
                       )
                     else
-                      const SizedBox(width: 4),
+                      const Spacer(),
                     const SizedBox(width: 8),
 
                     // Search — directly after the title/avatars slot, in line with the view toggle.
@@ -759,6 +761,25 @@ class _MarketplaceHomeScreenState
     return rated.take(10).toList();
   }
 
+  /// Opens the story viewer for a business's stories (not their profile).
+  void _openBusinessStories(BuildContext context, String bizId) async {
+    try {
+      final res = await apiClient.get('/stories/business/$bizId');
+      final body = jsonDecode(res.body);
+      final groups = (body['groups'] as List? ?? [])
+          .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
+          .toList();
+      if (groups.isNotEmpty && context.mounted) {
+        StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0);
+      }
+    } catch (_) {
+      // Fallback: open the business profile if no stories available
+      if (context.mounted) {
+        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+      }
+    }
+  }
+
   Widget _featuredCarousel(AzamanColors colors) {
     final state = ref.watch(businessSearchProvider);
 
@@ -1003,7 +1024,11 @@ class _MarketplaceHomeScreenState
 
     final results = _applySortFilter(state.results);
 
-    if (results.isEmpty) {
+    // Featured carousel shows as first scrollable item when no filter/search
+    final showCarousel = _selectedCategory == null && _searchCtrl.text.isEmpty;
+    final featured = showCarousel ? _topRated(state.results) : <BusinessProfile>[];
+
+    if (results.isEmpty && !showCarousel) {
       return AzPullToRefresh(
         onRefresh: _refresh,
         child: ListView(
@@ -1036,15 +1061,23 @@ class _MarketplaceHomeScreenState
       );
     }
 
+    final hasCarousel = showCarousel && featured.isNotEmpty;
+    final extraCount = hasCarousel ? 1 : 0;
+
     return AzPullToRefresh(
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollCtrl,
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 120),
-        itemCount: results.length + (state.hasMore ? 1 : 0),
+        itemCount: results.length + (state.hasMore ? 1 : 0) + extraCount,
         itemBuilder: (ctx, i) {
+          // Featured carousel as first scrollable item
+          if (hasCarousel && i == 0) {
+            return _FeaturedCarousel(colors: colors, featured: featured);
+          }
+          final bizIndex = hasCarousel ? i - 1 : i;
           // Infinite-scroll loader sentinel
-          if (i >= results.length) {
+          if (bizIndex >= results.length) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -1056,7 +1089,7 @@ class _MarketplaceHomeScreenState
               ),
             );
           }
-          final b = results[i];
+          final b = results[bizIndex];
           return CollapsibleBusinessBar(
             key: ValueKey(b.bizId),
             business: b,
@@ -1067,7 +1100,7 @@ class _MarketplaceHomeScreenState
               });
             },
             distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,
-          ).animate().fadeIn(delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
+          ).animate().fadeIn(delay: (bizIndex * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (bizIndex * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
         },
       ),
     );

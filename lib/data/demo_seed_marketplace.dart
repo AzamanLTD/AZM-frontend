@@ -370,6 +370,174 @@ class DemoMarketplaceSeed {
     },
   ];
 
+  // ── Business Stories ──────────────────────────────────────────────────
+  /// Returns story groups for a specific business. Each business has 2-3
+  /// stories showcasing their products/services.
+  static Map<String, dynamic> getBusinessStories(String bizId) {
+    final businesses = {
+      restaurantBizId: {
+        'name': 'B Tales Restaurant',
+        'logo': _img('btales-logo', w: 200, h: 200),
+        'stories': [
+          {
+            'id': 'bs-r1',
+            'mediaUrl': _img('ghanaian-jollof-rice', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'Fresh jollof straight from the kitchen 🔥',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(2),
+          },
+          {
+            'id': 'bs-r2',
+            'mediaUrl': _img('restaurant-grilled-fish', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'Tonight\'s special: grilled tilapia',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(2),
+          },
+          {
+            'id': 'bs-r3',
+            'mediaUrl': _img('ghanaian-food-spread', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'Weekend buffet is back!',
+            'durationSeconds': 5,
+            'boosted': true,
+            'seen': false,
+            'createdAt': _hoursAgo(1),
+          },
+        ],
+      },
+      hotelBizId: {
+        'name': 'Grand Ridge Hotel',
+        'logo': _img('grand-ridge-logo', w: 200, h: 200),
+        'stories': [
+          {
+            'id': 'bs-h1',
+            'mediaUrl': _img('hotel-pool-rooftop', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'Rooftop pool now open',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(8),
+          },
+          {
+            'id': 'bs-h2',
+            'mediaUrl': _img('hotel-room-suite', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'New deluxe suites available',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(7),
+          },
+        ],
+      },
+      transitBizId: {
+        'name': 'Adansi Travel & Tours',
+        'logo': _img('adansi-logo', w: 200, h: 200),
+        'stories': [
+          {
+            'id': 'bs-t1',
+            'mediaUrl': _img('mercedes-sprinter-bus', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'New fleet just arrived!',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(20),
+          },
+          {
+            'id': 'bs-t2',
+            'mediaUrl': _img('bus-interior-comfort', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'AC + WiFi + USB on every seat',
+            'durationSeconds': 5,
+            'boosted': true,
+            'seen': true,
+            'createdAt': _hoursAgo(19),
+          },
+        ],
+      },
+      cryptoBizId: {
+        'name': 'Crypto GH Ventures',
+        'logo': _img('crypto-gh-logo', w: 200, h: 200),
+        'stories': [
+          {
+            'id': 'bs-c1',
+            'mediaUrl': _img('crypto-trading-desk', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'New rates just dropped!',
+            'durationSeconds': 5,
+            'boosted': true,
+            'seen': true,
+            'createdAt': _hoursAgo(20),
+          },
+          {
+            'id': 'bs-c2',
+            'mediaUrl': _img('crypto-chart-screen', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'USDC pairs now live',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(5),
+          },
+        ],
+      },
+      fashionBizId: {
+        'name': 'Accra Threads',
+        'logo': _img('accra-threads-logo', w: 200, h: 200),
+        'stories': [
+          {
+            'id': 'bs-f1',
+            'mediaUrl': _img('kente-fashion-display', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'New kente collection dropping soon',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(48),
+          },
+          {
+            'id': 'bs-f2',
+            'mediaUrl': _img('african-print-fashion', w: 600, h: 900),
+            'mediaType': 'IMAGE',
+            'caption': 'Custom orders now available',
+            'durationSeconds': 5,
+            'boosted': false,
+            'seen': false,
+            'createdAt': _hoursAgo(47),
+          },
+        ],
+      },
+    };
+
+    final biz = businesses[bizId];
+    if (biz == null) {
+      return {'groups': []};
+    }
+
+    return {
+      'groups': [
+        {
+          'authorId': 0,
+          'author': {
+            'username': biz['name'],
+            'profilePictureUrl': biz['logo'],
+          },
+          'hasUnseen': (biz['stories'] as List).any((s) => s['seen'] == false),
+          'isBoosted': (biz['stories'] as List).any((s) => s['boosted'] == true),
+          'stories': biz['stories'],
+        },
+      ],
+    };
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────
 
   static Map<String, dynamic> _dish(String id, String name, String description, double price, List<String> tags, String img) => {

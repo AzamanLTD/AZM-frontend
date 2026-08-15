@@ -94,7 +94,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       auth.setUser(User(
         id: DemoSeedData.demoUserId,
         username: DemoSeedData.demoUsername,
-        email: 'kwesi.mensah@demo.azaman.app',
+        email: 'pyrax@demo.azaman.app',
         token: DemoSeedData.demoToken,
         role: 'USER',
         azmBalance: 12450.00,
@@ -172,7 +172,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0B0F),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -196,8 +196,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFD4AF37).withValues(alpha: 0.15 + glow * 0.25),
-                                    blurRadius: 30 + glow * 20,
+                                    color: Colors.black.withValues(alpha: 0.06 + glow * 0.10),
+                                    blurRadius: 25 + glow * 15,
                                     spreadRadius: 2,
                                   ),
                                 ],
@@ -205,7 +205,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               child: Hero(
                                 tag: 'azaman_logo',
                                 child: Image.asset(
-                                  'assets/images/azaman_logo_padded.png',
+                                  'assets/images/azaman_logo_black.png',
                                   width: 72,
                                   height: 72,
                                   fit: BoxFit.contain,
@@ -222,9 +222,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                               colors: [
-                                const Color(0xFFD4AF37).withValues(alpha: 0.4),
-                                const Color(0xFFFFD700),
-                                const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                                Colors.black.withValues(alpha: 0.3),
+                                Colors.black,
+                                Colors.black.withValues(alpha: 0.3),
                               ],
                               stops: const [0.0, 0.5, 1.0],
                             ).createShader(bounds);
@@ -232,7 +232,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           child: const Text(
                             'AZAMAN',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.black,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 4,
@@ -240,7 +240,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           ),
                         )
                         .animate(onPlay: (c) => c.repeat())
-                        .shimmer(duration: 2200.ms, color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+                        .shimmer(duration: 2200.ms, color: Colors.black.withValues(alpha: 0.15)),
                       ],
                     ),
                   ),
@@ -255,9 +255,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      backgroundColor: Colors.black.withValues(alpha: 0.06),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        const Color(0xFFD4AF37).withValues(alpha: 0.7 + _glowController.value * 0.3),
+                        Colors.black.withValues(alpha: 0.4 + _glowController.value * 0.2),
                       ),
                       minHeight: 3,
                     ),
@@ -266,7 +266,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   Text(
                     'Securing your session...',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.5,

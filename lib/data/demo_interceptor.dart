@@ -247,6 +247,12 @@ class DemoInterceptor {
       return {'group': grp};
     }
 
+    // /stories/business/{bizId}
+    final bizStoryMatch = RegExp(r'^/stories/business/(.+)$').firstMatch(path);
+    if (bizStoryMatch != null) {
+      return DemoMarketplaceSeed.getBusinessStories(bizStoryMatch.group(1)!);
+    }
+
     // /group-chats/{groupId}/susu/status
     if (path.contains('/group-chats/') && path.endsWith('/susu/status')) {
       return {'status': 'ACTIVE', 'cycle': 2, 'totalCycles': 4};
