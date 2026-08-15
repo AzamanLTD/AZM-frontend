@@ -38,11 +38,11 @@ class VendorAdCard extends ConsumerWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.lerp(colors.surface, _purple, colors.isDark ? 0.10 : 0.05)!,
-                  Color.lerp(colors.surface, _magenta, colors.isDark ? 0.06 : 0.03)!,
+                  Color.lerp(colors.surface, _purple, 0.12)!,
+                  Color.lerp(colors.surface, _magenta, 0.08)!,
                 ],
               ),
-              border: Border.all(color: _purple.withValues(alpha: colors.isDark ? 0.22 : 0.14), width: 1),
+              border: Border.all(color: _purple.withValues(alpha: 0.25), width: 1),
               boxShadow: [
                 BoxShadow(color: _purple.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8)),
               ],

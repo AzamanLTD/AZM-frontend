@@ -79,7 +79,7 @@ class _BusinessProfileScreenState
   // content (e.g. the restaurant flip-book menu) no longer fights with
   // swiping between tabs, since there's no PageView-style gesture anymore.
   // Catalog/Menu is no longer a tab at all — it moved to a floating bubble.
-  int _currentTab = 0; // 0=Overview 1=Locations 2=Reviews 3=Book
+  int _currentTab = 0; // 0=Overview 1=Locations 2=Reviews 3=Book/Trips
 
   // Info popover (replaces the old always-visible "About" section) —
   // auto-opens briefly right after the business loads, then auto-closes,
@@ -650,7 +650,9 @@ class _BusinessProfileScreenState
     final cat = _business?.category;
     final items = <({IconData icon, String emoji, String label})>[
       (icon: Icons.grid_view_rounded, emoji: '📋', label: 'Overview'),
-      (icon: Icons.menu_book_rounded, emoji: '📖', label: _catalogTabLabel(cat)),
+      // Catalog pill removed — catalog opens via floating action bubble.
+      // This keeps pill indices aligned with _tabBody: 0=Overview, 1=Locations,
+      // 2=Reviews, 3=Book/Trips.
       (icon: Icons.place_rounded, emoji: '📍', label: 'Locations'),
       (icon: Icons.star_rounded, emoji: '⭐', label: 'Reviews'),
       if (cat == 'HOSPITALITY' || cat == 'REAL_ESTATE')

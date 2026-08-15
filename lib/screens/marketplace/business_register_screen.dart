@@ -480,7 +480,7 @@ class _BusinessRegisterScreenState
     }
 
     // HOTELS — room & amenity info
-    if (_category == 'REAL_ESTATE') {
+    if (_category == 'HOSPITALITY' || _category == 'REAL_ESTATE') {
       return Column(
         children: [
           const SizedBox(height: 12),

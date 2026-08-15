@@ -18,22 +18,13 @@ import 'package:azaman/utils/azaman_page_transitions.dart';
 // ============================================================
 
 enum AzamanTheme {
-  // Master Sprint v2 (2026-05-27): the theme catalogue is intentionally
-  // small. Three identities, each with a strong, distinct character:
-  //   • light    — clean white surface with deep navy text + gold accent (default)
-  //   • dark     — the canonical Binance-tier dark UI
-  //   • midnight — deep blackout with violet accent for night-shift use
-  //
-  // The previous catalogue (cyberBlue, mars, saturn, snow, neonTokyo,
-  // deepOcean, volcanic, aurora, system) was retired because they all
-  // resolved as colour filters on top of the same widget tree, which
-  // produced an "AI-built generic" feel instead of a real visual
-  // identity. We migrate any persisted index to one of the three
-  // canonical values in `_loadSavedTheme` so users on those old indices
-  // don't crash on app launch.
+  // V4 (2026-08-15): Two identities only. The midnight/purple theme was
+  // removed per founder request — the dark theme is now the true-black
+  // night experience.
+  //   • light — clean white surface with deep navy text + gold accent (default)
+  //   • dark  — true black with teal/emerald accent (NOT gold, NOT Binance)
   light,
   dark,
-  midnight,
 }
 
 class ThemeProvider with ChangeNotifier {
@@ -56,13 +47,15 @@ class ThemeProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final savedIndex = prefs.getInt('azaman_theme') ?? 0; // Default
 
-    // Migrate old indices. The previous catalogue had 12 themes; we now
-    // have 3 (light=0, dark=1, midnight=2). Anything outside that range
-    // maps to light so the user lands on the default after upgrade.
-    final clamped = (savedIndex >= 0 && savedIndex < AzamanTheme.values.length)
-        ? savedIndex
-        : 0;
-    _currentTheme = AzamanTheme.values[clamped];
+    // Migration: midnight (old index 2) → dark (new index 1).
+    // Anything else outside range → light (default).
+    if (savedIndex == 2) {
+      _currentTheme = AzamanTheme.dark;
+    } else if (savedIndex >= 0 && savedIndex < AzamanTheme.values.length) {
+      _currentTheme = AzamanTheme.values[savedIndex];
+    } else {
+      _currentTheme = AzamanTheme.light;
+    }
     _isLoaded = true;
     notifyListeners();
   }
@@ -237,76 +230,36 @@ class ThemeProvider with ChangeNotifier {
         );
 
       case AzamanTheme.dark:
-        // Backlog item 11 -- full intentional dark mode redesign
-        // (2026-07-06). The previous palette had three real, measurable
-        // defects that made "dark mode" feel like a flat filter instead
-        // of a designed theme:
-        //   1. `card` was byte-for-byte identical to `surface` -- so
-        //      elevated cards never actually read as elevated above the
-        //      screens they sat on. Now there's a real 3-step ramp:
-        //      background (deepest) -> surface -> card (most elevated).
-        //   2. `warning` was byte-for-byte identical to `accentSecondary`
-        //      -- a warning chip and a plain secondary-accent button were
-        //      visually the same color, losing all semantic meaning.
-        //      Warning is now its own distinct amber-orange.
-        //   3. `glow` was byte-for-byte identical to `accent` -- every
-        //      "glow" halo/border effect (used 40+ places across the app)
-        //      was just the flat accent color re-used, so nothing ever
-        //      actually *glowed*. `glow` is now a lighter, luminous gold
-        //      that reads as a genuine radiant highlight at low opacity.
-        // The accent itself is warmed and brightened slightly so it pops
-        // harder against the deeper background -- since every screen
-        // pulls from these same tokens, this single palette change
-        // carries the redesign across buttons, badges, borders and
-        // accents app-wide for free.
-        return AzamanColors(
+        // V4 redesign (2026-08-15): True black background with
+        // teal/emerald primary accent — deliberately NOT the gold-on-black
+        // Binance palette. Amber stays as a secondary accent for warmth.
+        //   background: #000000 (true black, not dark gray)
+        //   accent: #2DD4BF (teal — fresh, modern, distinctly non-Binance)
+        //   accentSecondary: #F59E0B (amber — provides warmth without gold-dominance)
+        // 3-step elevation ramp: background → surface → card.
+        return const AzamanColors(
           isDark: true,
           name: "Dark",
           icon: Icons.dark_mode_outlined,
-          background: const Color(0xFF0A0D11),
-          surface: const Color(0xFF151A20),
-          card: const Color(0xFF1D232B),
-          softSurface: const Color(0xFF11151B),
-          divider: Colors.white.withValues(alpha: 0.07),
-          accent: const Color(0xFFE3BE58),
-          accentSecondary: const Color(0xFFF4B93D),
-          accentSurface: const Color(0xFFE3BE58).withValues(alpha: 0.10),
-          success: const Color(0xFF1CDB94),
-          danger: const Color(0xFFFF5C72),
-          warning: const Color(0xFFFFA726),
+          background: Color(0xFF000000),
+          surface: Color(0xFF0A0A0A),
+          card: Color(0xFF161616),
+          softSurface: Color(0xFF0F0F0F),
+          divider: Color(0x12FFFFFF),       // white @ 7%
+          accent: Color(0xFF2DD4BF),         // teal — primary CTA color
+          accentSecondary: Color(0xFFF59E0B), // amber — warm secondary
+          accentSurface: Color(0x1A2DD4BF),  // teal @ 10%
+          success: Color(0xFF34D399),
+          danger: Color(0xFFF87171),
+          warning: Color(0xFFFBBF24),
           textPrimary: Colors.white,
           textSecondary: Colors.white70,
           textTertiary: Colors.white38,
-          glow: const Color(0xFFF5D580),
-          scaffoldBackground: const Color(0xFF0A0D11),
-          border: Colors.white.withValues(alpha: 0.08),
+          glow: Color(0xFF2DD4BF),           // luminous teal glow
+          scaffoldBackground: Color(0xFF000000),
+          border: Color(0x14FFFFFF),          // white @ 8%
         );
 
-      case AzamanTheme.midnight:
-        return AzamanColors(
-          isDark: true,
-          name: "Midnight",
-          icon: Icons.dark_mode_outlined,
-          // True blackout — almost zero ambient light. Violet accent so
-          // numbers and CTAs read with weight against pitch black.
-          background: const Color(0xFF000000),
-          surface: const Color(0xFF0A0612),
-          card: const Color(0xFF0F0820),
-          softSurface: const Color(0xFF0A0614),
-          divider: const Color(0xFFBB86FC).withValues(alpha: 0.08),
-          accent: const Color(0xFFBB86FC),
-          accentSecondary: const Color(0xFFE040FB),
-          accentSurface: const Color(0xFFBB86FC).withValues(alpha: 0.06),
-          success: const Color(0xFF69F0AE),
-          danger: const Color(0xFFFF5252),
-          warning: const Color(0xFFFFAB40),
-          textPrimary: const Color(0xFFF3E5F5),
-          textSecondary: const Color(0xFFCE93D8),
-          textTertiary: const Color(0xFF9C27B0).withValues(alpha: 0.55),
-          glow: const Color(0xFFBB86FC),
-          scaffoldBackground: const Color(0xFF000000),
-          border: const Color(0xFFBB86FC).withValues(alpha: 0.08),
-        );
     }
   }
 }

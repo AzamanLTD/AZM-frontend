@@ -177,11 +177,11 @@ class _CashBalanceCard extends ConsumerWidget {
   const _CashBalanceCard();
 
   // FIX (2026-07-06): this card must look identical no matter which app
-  // theme (Light / Dark / Midnight) is active — it's a "physical bank
+  // theme (Light / Dark) is active — it's a "physical bank
   // card" metaphor, like the plastic card in your wallet doesn't change
   // color when your phone switches to dark mode. Previously it read
   // colors.accent + colors.isDark from the live theme, which meant the
-  // Midnight theme's violet accent (0xFFBB86FC) bled into what's supposed
+  // Dark theme's old gold accent bled into what's supposed
   // to be a fixed gold-on-carbon card, and the Light theme softened the
   // sheen/gradient. Fixed by hardcoding a permanent brand palette here
   // instead of reading from ref.watch(themeProvider) for anything visual.

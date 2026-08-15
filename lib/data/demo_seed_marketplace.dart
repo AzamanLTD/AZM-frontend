@@ -12,13 +12,11 @@ class DemoMarketplaceSeed {
   static const restaurantBizId = 'BIZ-REST-001';
   static const hotelBizId = 'BIZ-HOTEL-001';
   static const transitBizId = 'BIZ-TRANS-001';
-  static const cryptoBizId = 'BIZ-CRYPTO-001';
-  static const fashionBizId = 'BIZ-FASH-001';
 
   static Map<String, dynamic> searchBusinesses() => {
     'businesses': [
       _restaurantBusiness(), _hotelBusiness(), _transitBusiness(),
-      _cryptoBusiness(), _fashionBusiness(),
+      _retailBusiness(),
     ],
     'hasMore': false, 'nextCursor': null,
   };
@@ -33,8 +31,6 @@ class DemoMarketplaceSeed {
       case restaurantBizId: return {'business': _restaurantBusiness()};
       case hotelBizId: return {'business': _hotelBusiness()};
       case transitBizId: return {'business': _transitBusiness()};
-      case cryptoBizId: return {'business': _cryptoBusiness()};
-      case fashionBizId: return {'business': _fashionBusiness()};
       default: return {'business': _restaurantBusiness()};
     }
   }
@@ -88,7 +84,7 @@ class DemoMarketplaceSeed {
        'departureAt': _hoursFromNow(3), 'arrivalAt': _hoursFromNow(6),
        'fareUsdc': 15.00, 'availableSeats': 22, 'status': 'SCHEDULED',
        'vehicle': {'type': 'COACH', 'make': 'Mercedes-Benz', 'model': 'Sprinter 450',
-         'imageUrl': _img('mercedes-sprinter-bus'),
+         'imageUrl': 'https://picsum.photos/seed/coach-bus-fleet/600/400',
          'driverName': 'Kwabena Owusu', 'driverPhotoUrl': _img('driver-kwabena', w: 200, h: 200)},
        '_count': {'bookings': 12}},
       {'id': 'trip-002', 'businessProfileId': 'transit-001', 'vehicleId': 'veh-002',
@@ -145,54 +141,54 @@ class DemoMarketplaceSeed {
   }
 
   static Map<String, dynamic> getShowcase(String bizId) {
-    if (bizId == hotelBizId) return {'data': [_img('hotel-lobby-luxury'), _img('hotel-pool-rooftop'), _img('hotel-room-suite'), _img('hotel-restaurant-fine'), _img('hotel-exterior-night')]};
-    if (bizId == restaurantBizId) return {'data': [_img('restaurant-interior-warm'), _img('ghanaian-food-spread'), _img('restaurant-bar-area')]};
-    if (bizId == transitBizId) return {'data': [_img('mercedes-sprinter-bus'), _img('bus-interior-comfort')]};
+    if (bizId == hotelBizId) return {'data': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400']};
+    if (bizId == restaurantBizId) return {'data': ['https://picsum.photos/seed/restaurant-warm-interior/600/400', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Waakye101.jpg/600px-Waakye101.jpg', 'https://picsum.photos/seed/restaurant-bar-counter/600/400']};
+    if (bizId == transitBizId) return {'data': ['https://picsum.photos/seed/coach-bus-fleet/600/400', 'https://picsum.photos/seed/bus-interior-seats/600/400']};
     return {'data': []};
   }
 
   // ── Business definitions ──────────────────────────────────────────────
 
   static Map<String, dynamic> _restaurantBusiness() => {
-    'id': 'restaurant-001', 'bizId': restaurantBizId, 'businessName': 'B Tales Restaurant',
+    'id': 'restaurant-001', 'bizId': restaurantBizId, 'businessName': "Chef Abby's",
     'category': 'FOOD_BEVERAGE', 'description': 'Authentic Ghanaian cuisine in the heart of Accra. From jollof to waakye, every plate tells a story.',
-    'website': 'https://btales.gh', 'logoUrl': _img('btales-logo', w: 200, h: 200),
-    'coverImageUrl': _img('restaurant-interior-warm', w: 800, h: 400),
+    'website': 'https://chefabbys.gh', 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
+    'coverImageUrl': 'https://picsum.photos/seed/restaurant-warm-interior/800/400',
     'phoneNumber': '+233 24 123 4567', 'address': 'Oxford Street, Osu, Accra', 'country': 'Ghana',
     'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
     'totalEscrows': 340, 'completedEscrows': 335, 'userId': 201,
     'totalVolume': 125000.00, 'averageRating': 4.7, 'reviewCount': 234,
     'subcategory': 'Restaurant', 'priceRange': 2,
-    'amenities': ['WiFi','Dine-in','Takeaway','Parking'],
+    'amenities': ['WiFi','Dine-in','Takeaway','Delivery','Parking'],
     'cuisineTypes': ['Ghanaian','African','Continental'],
     'adAccentColor': '#FF6B35',
-    'user': {'id': 201, 'username': 'b_tales', 'profilePictureUrl': null},
+    'user': {'id': 201, 'username': 'chef_abbys', 'profilePictureUrl': null},
     'products': [], 'locations': [_restaurantLocation()],
   };
 
   static Map<String, dynamic> _hotelBusiness() {
-    return {'id': 'hotel-001', 'bizId': hotelBizId, 'businessName': 'Golden Pillars Hotel',
-      'category': 'HOSPITALITY', 'description': 'A 4-floor boutique hotel in East Legons finest district. 24 rooms, rooftop pool, fine dining, and premium service.',
-      'website': 'https://goldenpillars.gh', 'logoUrl': _img('golden-pillars-logo', w: 200, h: 200),
-      'coverImageUrl': _img('hotel-lobby-luxury', w: 800, h: 400),
+    return {'id': 'hotel-001', 'bizId': hotelBizId, 'businessName': 'The Gallery',
+      'category': 'HOSPITALITY', 'description': 'Boutique apartments in East Legon. Fully furnished studios and 1-bedroom suites with 24/7 concierge.',
+      'website': 'https://thegallery.gh', 'logoUrl': 'https://picsum.photos/seed/the-gallery-logo/200/200',
+      'coverImageUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/800px-2012-01-21_Hotelhalle_in_Saigon.jpg',
       'phoneNumber': '+233 26 987 6543', 'address': 'East Legon, Greater Accra', 'country': 'Ghana',
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
       'totalEscrows': 180, 'completedEscrows': 175, 'userId': 202,
       'totalVolume': 85000.00, 'averageRating': 4.8, 'reviewCount': 156,
-      'subcategory': 'Hotel', 'priceRange': 3,
+      'subcategory': 'Apartments', 'priceRange': 3,
       'amenities': ['Pool','Gym','Spa','WiFi','Restaurant','Bar','Parking','Concierge'],
       'cuisineTypes': [], 'adAccentColor': '#1A8FE3',
-      'user': {'id': 202, 'username': 'golden_pillars', 'profilePictureUrl': null},
+      'user': {'id': 202, 'username': 'the_gallery', 'profilePictureUrl': null},
       'products': _hotelRooms(), 'locations': [_hotelLocation()],
-      'businessMeta': {'showcaseUrls': [_img('hotel-lobby-luxury'), _img('hotel-pool-rooftop'), _img('hotel-room-suite'), _img('hotel-restaurant-fine'), _img('hotel-exterior-night')]},
+      'businessMeta': {'showcaseUrls': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400']},
     };
   }
 
   static Map<String, dynamic> _transitBusiness() {
-    return {'id': 'transit-001', 'bizId': transitBizId, 'businessName': 'Adansi Travel & Tours',
-      'category': 'LOGISTICS', 'description': 'Ghanas trusted intercity travel service. Modern fleet, professional drivers, on-time departures.',
-      'website': 'https://adansi.gh', 'logoUrl': _img('adansi-logo', w: 200, h: 200),
-      'coverImageUrl': _img('mercedes-sprinter-bus', w: 800, h: 400),
+    return {'id': 'transit-001', 'bizId': transitBizId, 'businessName': 'Advenr',
+      'category': 'LOGISTICS', 'description': 'Premium intercity travel. Modern fleet, professional drivers, on-time departures, comfortable seats.',
+      'website': 'https://advenr.gh', 'logoUrl': 'https://picsum.photos/seed/advenr-logo/200/200',
+      'coverImageUrl': 'https://picsum.photos/seed/coach-bus-fleet/800/400',
       'phoneNumber': '+233 20 555 0199', 'address': 'Circle Station, Accra', 'country': 'Ghana',
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
       'totalEscrows': 520, 'completedEscrows': 515, 'userId': 203,
@@ -200,34 +196,23 @@ class DemoMarketplaceSeed {
       'subcategory': 'Intercity Bus', 'priceRange': 1,
       'amenities': ['AC','WiFi','USB Charging','Refreshments'],
       'cuisineTypes': [], 'adAccentColor': '#10B981',
-      'user': {'id': 203, 'username': 'adansi_travel', 'profilePictureUrl': null},
+      'user': {'id': 203, 'username': 'advenr', 'profilePictureUrl': null},
       'products': _transitProducts(), 'locations': [_transitLocation()],
     };
   }
 
-  static Map<String, dynamic> _cryptoBusiness() {
-    return {'id': 'crypto-001', 'bizId': cryptoBizId, 'businessName': 'Crypto GH Ventures',
-      'category': 'FINANCIAL_SERVICES', 'description': 'Your trusted P2P crypto partner in Ghana',
-      'logoUrl': _img('crypto-gh-logo', w: 200, h: 200), 'coverImageUrl': _img('crypto-trading-desk', w: 800, h: 400),
+  static Map<String, dynamic> _retailBusiness() {
+    return {'id': 'retail-001', 'bizId': 'BIZ-RETAIL-001', 'businessName': 'Mr. Price',
+      'category': 'RETAIL', 'description': 'Fashion, homeware & lifestyle at everyday prices',
+      'logoUrl': _img('mr-price-logo', w: 200, h: 200), 'coverImageUrl': _img('clothing-store-racks', w: 800, h: 400),
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
-      'totalEscrows': 89, 'completedEscrows': 87, 'userId': 204,
-      'totalVolume': 45000.00, 'averageRating': 4.8, 'reviewCount': 145,
-      'adAccentColor': '#FFD700',
-      'user': {'id': 204, 'username': 'crypto_gh', 'profilePictureUrl': null},
-      'products': [], 'locations': [],
-    };
-  }
-
-  static Map<String, dynamic> _fashionBusiness() {
-    return {'id': 'fashion-001', 'bizId': fashionBizId, 'businessName': 'Kente Customs',
-      'category': 'RETAIL', 'description': 'Premium kente and African print fashion',
-      'logoUrl': _img('kente-customs-logo', w: 200, h: 200), 'coverImageUrl': _img('kente-fashion-display', w: 800, h: 400),
-      'isVerified': false, 'isSuspended': false, 'kybStatus': 'PENDING',
-      'totalEscrows': 42, 'completedEscrows': 40, 'userId': 205,
-      'totalVolume': 12000.00, 'averageRating': 4.3, 'reviewCount': 88,
-      'adAccentColor': '#7B2FBE',
-      'user': {'id': 205, 'username': 'kente_customs', 'profilePictureUrl': null},
-      'products': [], 'locations': [],
+      'totalEscrows': 320, 'completedEscrows': 315, 'userId': 205,
+      'totalVolume': 45000.00, 'averageRating': 4.4, 'reviewCount': 210,
+      'subcategory': 'Fashion Retail', 'priceRange': 1,
+      'amenities': ['Changing Rooms','Click & Collect','Returns'],
+      'cuisineTypes': [], 'adAccentColor': '#00D97E',
+      'user': {'id': 205, 'username': 'mr_price', 'profilePictureUrl': null},
+      'products': _retailProducts(), 'locations': [],
     };
   }
 
@@ -235,31 +220,31 @@ class DemoMarketplaceSeed {
 
   static Map<String, dynamic> _restaurantLocation() => {
     'id': 'loc-rest-001', 'businessProfileId': 'restaurant-001',
-    'label': 'B Tales - Osu', 'address': 'Oxford Street, Osu, Accra',
+    'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra',
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.5550, 'longitude': -0.1800,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': [_img('restaurant-interior-warm'), _img('ghanaian-food-spread'), _img('restaurant-bar-area')],
+    'galleryUrls': ['https://picsum.photos/seed/restaurant-warm-interior/600/400', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Waakye101.jpg/600px-Waakye101.jpg', 'https://picsum.photos/seed/restaurant-bar-counter/600/400'],
     'distanceKm': 1.2,
   };
 
   static Map<String, dynamic> _hotelLocation() => {
     'id': 'loc-hotel-001', 'businessProfileId': 'hotel-001',
-    'label': 'Golden Pillars - East Legon', 'address': 'East Legon, Greater Accra',
+    'label': 'The Gallery - East Legon', 'address': 'East Legon, Greater Accra',
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.6400, 'longitude': -0.1680,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': [_img('hotel-lobby-luxury'), _img('hotel-pool-rooftop'), _img('hotel-room-suite'), _img('hotel-restaurant-fine'), _img('hotel-exterior-night')],
+    'galleryUrls': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400'],
     'distanceKm': 3.8,
   };
 
   static Map<String, dynamic> _transitLocation() => {
     'id': 'loc-transit-001', 'businessProfileId': 'transit-001',
-    'label': 'Adansi - Circle Station', 'address': 'Circle Station, Accra',
+    'label': 'Advenr - Circle Station', 'address': 'Circle Station, Accra',
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.5700, 'longitude': -0.2050,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': [_img('mercedes-sprinter-bus'), _img('bus-interior-comfort')],
+    'galleryUrls': ['https://picsum.photos/seed/coach-bus-fleet/600/400', 'https://picsum.photos/seed/bus-interior-seats/600/400'],
     'distanceKm': 2.5,
   };
 
@@ -288,9 +273,20 @@ class DemoMarketplaceSeed {
   // ── Transit Products ──────────────────────────────────────────────────
 
   static List<Map<String, dynamic>> _transitProducts() => [
-    {'id': 'prod-ticket-eco', 'businessProfileId': 'transit-001', 'name': 'Economy Ticket', 'slug': 'economy-ticket', 'description': 'Standard seat with AC and USB charging', 'priceUsdc': 15.00, 'totalRevenue': 12000, 'imageUrls': [_img('bus-economy-seat')], 'isActive': true, 'totalOrders': 800, 'tags': ['Economy']},
-    {'id': 'prod-ticket-std', 'businessProfileId': 'transit-001', 'name': 'Standard Ticket', 'slug': 'standard-ticket', 'description': 'Wider seat, priority boarding, refreshments', 'priceUsdc': 18.00, 'totalRevenue': 8000, 'imageUrls': [_img('bus-standard-seat')], 'isActive': true, 'totalOrders': 440, 'tags': ['Standard']},
-    {'id': 'prod-ticket-vip', 'businessProfileId': 'transit-001', 'name': 'VIP Ticket', 'slug': 'vip-ticket', 'description': 'Lie-flat seat, privacy curtain, meal included', 'priceUsdc': 25.00, 'totalRevenue': 5000, 'imageUrls': [_img('bus-vip-seat')], 'isActive': true, 'totalOrders': 200, 'tags': ['VIP']},
+    {'id': 'prod-ticket-eco', 'businessProfileId': 'transit-001', 'name': 'Economy Ticket', 'slug': 'economy-ticket', 'description': 'Standard seat with AC and USB charging', 'priceUsdc': 15.00, 'totalRevenue': 12000, 'imageUrls': ['https://picsum.photos/seed/bus-economy-seat/400/300'], 'isActive': true, 'totalOrders': 800, 'tags': ['Economy']},
+    {'id': 'prod-ticket-std', 'businessProfileId': 'transit-001', 'name': 'Standard Ticket', 'slug': 'standard-ticket', 'description': 'Wider seat, priority boarding, refreshments', 'priceUsdc': 18.00, 'totalRevenue': 8000, 'imageUrls': ['https://picsum.photos/seed/bus-standard-seat/400/300'], 'isActive': true, 'totalOrders': 440, 'tags': ['Standard']},
+    {'id': 'prod-ticket-vip', 'businessProfileId': 'transit-001', 'name': 'VIP Ticket', 'slug': 'vip-ticket', 'description': 'Lie-flat seat, privacy curtain, meal included', 'priceUsdc': 25.00, 'totalRevenue': 5000, 'imageUrls': ['https://picsum.photos/seed/bus-vip-seat/400/300'], 'isActive': true, 'totalOrders': 200, 'tags': ['VIP']},
+  ];
+
+  // ── Retail Products ───────────────────────────────────────────────────
+
+  static List<Map<String, dynamic>> _retailProducts() => [
+    {'id': 'prod-tshirt', 'businessProfileId': 'retail-001', 'name': 'Cotton Crew Tee', 'slug': 'cotton-crew-tee', 'description': 'Soft 100% cotton t-shirt in classic colours', 'priceUsdc': 8.00, 'totalRevenue': 2400, 'imageUrls': [_img('cotton-tee-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 300, 'tags': ['Tops', 'Unisex']},
+    {'id': 'prod-jeans', 'businessProfileId': 'retail-001', 'name': 'Slim Fit Jeans', 'slug': 'slim-fit-jeans', 'description': 'Stretch denim with modern slim silhouette', 'priceUsdc': 22.00, 'totalRevenue': 4400, 'imageUrls': [_img('slim-jeans-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 200, 'tags': ['Bottoms', 'Denim']},
+    {'id': 'prod-hoodie', 'businessProfileId': 'retail-001', 'name': 'Fleece Hoodie', 'slug': 'fleece-hoodie', 'description': 'Warm fleece-lined hoodie with kangaroo pocket', 'priceUsdc': 28.00, 'totalRevenue': 2800, 'imageUrls': [_img('fleece-hoodie-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 100, 'tags': ['Outerwear', 'Unisex']},
+    {'id': 'prod-sneakers', 'businessProfileId': 'retail-001', 'name': 'Canvas Sneakers', 'slug': 'canvas-sneakers', 'description': 'Lightweight canvas sneakers, vulcanised rubber sole', 'priceUsdc': 35.00, 'totalRevenue': 3500, 'imageUrls': [_img('canvas-sneakers-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 100, 'tags': ['Footwear']},
+    {'id': 'prod-watch', 'businessProfileId': 'retail-001', 'name': 'Minimalist Watch', 'slug': 'minimalist-watch', 'description': 'Slim analogue watch with leather strap', 'priceUsdc': 45.00, 'totalRevenue': 2250, 'imageUrls': [_img('minimalist-watch-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 50, 'tags': ['Accessories']},
+    {'id': 'prod-tote', 'businessProfileId': 'retail-001', 'name': 'Canvas Tote Bag', 'slug': 'canvas-tote-bag', 'description': 'Durable canvas tote with reinforced straps', 'priceUsdc': 12.00, 'totalRevenue': 1200, 'imageUrls': [_img('tote-bag-product', w: 400, h: 400)], 'isActive': true, 'totalOrders': 100, 'tags': ['Accessories', 'Bags']},
   ];
 
   // ── Invoices ──────────────────────────────────────────────────────────
@@ -309,8 +305,8 @@ class DemoMarketplaceSeed {
       {'id': 'li-4', 'description': 'Sobolo', 'quantity': 2, 'unitPrice': 3.00, 'lineTotal': 6.00},
     ],
     'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 2.63}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': 'B Tales Restaurant', 'logoUrl': _img('btales-logo', w: 200, h: 200)},
-    'location': {'label': 'B Tales - Osu', 'address': 'Oxford Street, Osu, Accra'},
+    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200'},
+    'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
     'table': {'label': 'Table 7'},
   };
 
@@ -327,8 +323,8 @@ class DemoMarketplaceSeed {
       {'id': 'li-3', 'description': 'Palm Wine', 'quantity': 1, 'unitPrice': 3.00, 'lineTotal': 3.00},
     ],
     'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 1.55}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': 'B Tales Restaurant', 'logoUrl': _img('btales-logo', w: 200, h: 200)},
-    'location': {'label': 'B Tales - Osu', 'address': 'Oxford Street, Osu, Accra'},
+    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200'},
+    'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
     'table': {'label': 'Table 12'},
   };
 
@@ -338,34 +334,26 @@ class DemoMarketplaceSeed {
   static List<Map<String, dynamic>> getFollowing() => [
     {
       'id': restaurantBizId,
-      'businessName': 'B Tales Restaurant',
-      'logoUrl': _img('btales-logo', w: 200, h: 200),
+      'businessName': "Chef Abby's",
+      'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
       'isVerified': true,
       'lastStoryAt': _hoursAgo(2),
       'lastViewedAt': _hoursAgo(3),
     },
     {
       'id': hotelBizId,
-      'businessName': 'Grand Ridge Hotel',
-      'logoUrl': _img('grand-ridge-logo', w: 200, h: 200),
+      'businessName': 'The Gallery',
+      'logoUrl': 'https://picsum.photos/seed/the-gallery-logo/200/200',
       'isVerified': true,
       'lastStoryAt': _hoursAgo(8),
       'lastViewedAt': _hoursAgo(1),
     },
     {
-      'id': cryptoBizId,
-      'businessName': 'Crypto GH Ventures',
-      'logoUrl': _img('crypto-gh-logo', w: 200, h: 200),
-      'isVerified': false,
-      'lastStoryAt': _hoursAgo(20),
-      'lastViewedAt': _hoursAgo(20),
-    },
-    {
-      'id': fashionBizId,
-      'businessName': 'Accra Threads',
-      'logoUrl': _img('accra-threads-logo', w: 200, h: 200),
+      'id': 'BIZ-RETAIL-001',
+      'businessName': 'Mr. Price',
+      'logoUrl': _img('mr-price-logo', w: 200, h: 200),
       'isVerified': true,
-      'lastStoryAt': _hoursAgo(48),
+      'lastStoryAt': _hoursAgo(3),
       'lastViewedAt': null,
     },
   ];
@@ -376,8 +364,8 @@ class DemoMarketplaceSeed {
   static Map<String, dynamic> getBusinessStories(String bizId) {
     final businesses = {
       restaurantBizId: {
-        'name': 'B Tales Restaurant',
-        'logo': _img('btales-logo', w: 200, h: 200),
+        'name': "Chef Abby's",
+        'logo': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
         'stories': [
           {
             'id': 'bs-r1',
@@ -412,12 +400,12 @@ class DemoMarketplaceSeed {
         ],
       },
       hotelBizId: {
-        'name': 'Grand Ridge Hotel',
-        'logo': _img('grand-ridge-logo', w: 200, h: 200),
+        'name': 'The Gallery',
+        'logo': 'https://picsum.photos/seed/the-gallery-logo/200/200',
         'stories': [
           {
             'id': 'bs-h1',
-            'mediaUrl': _img('hotel-pool-rooftop', w: 600, h: 900),
+            'mediaUrl': 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg',
             'mediaType': 'IMAGE',
             'caption': 'Rooftop pool now open',
             'durationSeconds': 5,
@@ -427,7 +415,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-h2',
-            'mediaUrl': _img('hotel-room-suite', w: 600, h: 900),
+            'mediaUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg',
             'mediaType': 'IMAGE',
             'caption': 'New deluxe suites available',
             'durationSeconds': 5,
@@ -438,12 +426,12 @@ class DemoMarketplaceSeed {
         ],
       },
       transitBizId: {
-        'name': 'Adansi Travel & Tours',
-        'logo': _img('adansi-logo', w: 200, h: 200),
+        'name': 'Advenr',
+        'logo': 'https://picsum.photos/seed/advenr-logo/200/200',
         'stories': [
           {
             'id': 'bs-t1',
-            'mediaUrl': _img('mercedes-sprinter-bus', w: 600, h: 900),
+            'mediaUrl': 'https://picsum.photos/seed/coach-bus-exterior/600/900',
             'mediaType': 'IMAGE',
             'caption': 'New fleet just arrived!',
             'durationSeconds': 5,
@@ -453,7 +441,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-t2',
-            'mediaUrl': _img('bus-interior-comfort', w: 600, h: 900),
+            'mediaUrl': 'https://picsum.photos/seed/bus-interior-seats/600/900',
             'mediaType': 'IMAGE',
             'caption': 'AC + WiFi + USB on every seat',
             'durationSeconds': 5,
@@ -463,55 +451,29 @@ class DemoMarketplaceSeed {
           },
         ],
       },
-      cryptoBizId: {
-        'name': 'Crypto GH Ventures',
-        'logo': _img('crypto-gh-logo', w: 200, h: 200),
+      'BIZ-RETAIL-001': {
+        'name': 'Mr. Price',
+        'logo': _img('mr-price-logo', w: 200, h: 200),
         'stories': [
           {
-            'id': 'bs-c1',
-            'mediaUrl': _img('crypto-trading-desk', w: 600, h: 900),
+            'id': 'bs-r1',
+            'mediaUrl': _img('clothing-store-racks', w: 600, h: 900),
             'mediaType': 'IMAGE',
-            'caption': 'New rates just dropped!',
+            'caption': 'New season drop is here!',
             'durationSeconds': 5,
             'boosted': true,
-            'seen': true,
-            'createdAt': _hoursAgo(20),
+            'seen': false,
+            'createdAt': _hoursAgo(3),
           },
           {
-            'id': 'bs-c2',
-            'mediaUrl': _img('crypto-chart-screen', w: 600, h: 900),
+            'id': 'bs-r2',
+            'mediaUrl': _img('fashion-sale-display', w: 600, h: 900),
             'mediaType': 'IMAGE',
-            'caption': 'USDC pairs now live',
+            'caption': 'Up to 40% off all items',
             'durationSeconds': 5,
             'boosted': false,
             'seen': false,
-            'createdAt': _hoursAgo(5),
-          },
-        ],
-      },
-      fashionBizId: {
-        'name': 'Accra Threads',
-        'logo': _img('accra-threads-logo', w: 200, h: 200),
-        'stories': [
-          {
-            'id': 'bs-f1',
-            'mediaUrl': _img('kente-fashion-display', w: 600, h: 900),
-            'mediaType': 'IMAGE',
-            'caption': 'New kente collection dropping soon',
-            'durationSeconds': 5,
-            'boosted': false,
-            'seen': false,
-            'createdAt': _hoursAgo(48),
-          },
-          {
-            'id': 'bs-f2',
-            'mediaUrl': _img('african-print-fashion', w: 600, h: 900),
-            'mediaType': 'IMAGE',
-            'caption': 'Custom orders now available',
-            'durationSeconds': 5,
-            'boosted': false,
-            'seen': false,
-            'createdAt': _hoursAgo(47),
+            'createdAt': _hoursAgo(2),
           },
         ],
       },

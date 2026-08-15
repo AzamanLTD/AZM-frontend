@@ -1,7 +1,7 @@
 // =============================================================================
 // THEME PICKER SCREEN  (Master Sprint v2, 2026-05-27)
 //
-// Three explicit themes only — light, dark, midnight. Each renders as a
+// Two explicit themes — light and dark. Each renders as a
 // generous preview card showing the actual gradient halo, accent colour,
 // card surface and typography sample so users see what they're picking.
 // =============================================================================
@@ -85,8 +85,7 @@ class _ThemePreviewCard extends StatelessWidget {
 
   String _description() => switch (theme) {
         AzamanTheme.light => 'Clean white surface with deep navy text and gold accent.',
-        AzamanTheme.dark => 'The signature Azaman dark UI. Default.',
-        AzamanTheme.midnight => 'Pitch black with violet accent. Easiest on the eyes at night.',
+        AzamanTheme.dark => 'True black with teal accent. Easiest on the eyes at night.',
       };
 
   @override

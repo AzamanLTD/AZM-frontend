@@ -107,14 +107,14 @@ class BusinessCategories {
     icon: Icons.grid_view_outlined,
   );
 
-  /// The 11 real backend categories — reorganized with proper icons,
-  /// colors, and primary/secondary priority. Wire values are unchanged
-  /// so no backend migration is needed.
+  /// V2 (2026-08-15): Simplified to 4 categories only.
+  /// Wire values are unchanged so no backend migration is needed.
+  /// HOSPITALITY wire is kept for hotels (matches existing backend records).
+  /// OTHER is kept as a hidden fallback for fromWire() only.
   static const List<BusinessCategory> values = [
-    // ── PRIMARY: Transit, Restaurants, Hotels ──────────────────────────
     BusinessCategory(
         wire: 'LOGISTICS',
-        label: 'Transit & Transport',
+        label: 'Transit',
         icon: Icons.directions_bus,
         color: Color(0xFF4F8EF7),
         isPrimary: true,
@@ -127,54 +127,19 @@ class BusinessCategories {
         isPrimary: true,
         subtitle: 'Reserve tables & order meals'),
     BusinessCategory(
-        wire: 'REAL_ESTATE',
-        label: 'Hotels & Stays',
+        wire: 'HOSPITALITY',
+        label: 'Hotels',
         icon: Icons.hotel_outlined,
         color: Color(0xFFA78BFA),
         isPrimary: true,
         subtitle: 'Book rooms & check availability'),
-    // ── SECONDARY ───────────────────────────────────────────────────────
     BusinessCategory(
         wire: 'RETAIL',
         label: 'Retail',
         icon: Icons.shopping_bag_outlined,
-        color: Color(0xFF00D97E)),
-    BusinessCategory(
-        wire: 'HEALTH_WELLNESS',
-        label: 'Health & Wellness',
-        icon: Icons.local_hospital_outlined,
-        color: Color(0xFF00B8D9)),
-    BusinessCategory(
-        wire: 'EDUCATION',
-        label: 'Education',
-        icon: Icons.school_outlined,
-        color: Color(0xFFF43F5E)),
-    BusinessCategory(
-        wire: 'ENTERTAINMENT',
-        label: 'Entertainment',
-        icon: Icons.music_note_outlined,
-        color: Color(0xFFEC4899)),
-    BusinessCategory(
-        wire: 'FREELANCE_SERVICES',
-        label: 'Services',
-        icon: Icons.work_outline,
-        color: Color(0xFF8B5CF6)),
-    BusinessCategory(
-        wire: 'TECHNOLOGY',
-        label: 'Technology',
-        icon: Icons.memory_outlined,
-        color: Color(0xFF06B6D4)),
-    BusinessCategory(
-        wire: 'FINANCIAL_SERVICES',
-        label: 'Financial',
-        icon: Icons.account_balance_outlined,
-        color: Color(0xFFEAB308)),
-    BusinessCategory(
-        wire: 'HOSPITALITY',
-        label: 'Hospitality',
-        icon: Icons.holiday_village_outlined,
-        color: Color(0xFFD946EF),
-        subtitle: 'Hotels, guesthouses & lodging'),
+        color: Color(0xFF00D97E),
+        isPrimary: true),
+    // Hidden fallback — not shown in UI but fromWire needs it.
     BusinessCategory(
         wire: 'OTHER',
         label: 'Other',
@@ -198,7 +163,7 @@ class BusinessCategories {
     if (wire == null || wire.isEmpty) return all;
     return values.firstWhere(
       (c) => c.wire == wire,
-      orElse: () => values.last, // OTHER
+      orElse: () => values.last  // OTHER fallback
     );
   }
 
