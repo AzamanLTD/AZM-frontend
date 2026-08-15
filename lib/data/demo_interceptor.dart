@@ -118,7 +118,7 @@ class DemoInterceptor {
       case '/p2p/my-ads':
         return DemoSeedData.emptyData();
       case '/ads/mine':
-        return DemoSeedData.emptyData();
+        return DemoSeedData.myAds();
       case '/stories/feed':
         return DemoSeedData.storiesFeed();
       case '/stories/highlights':

@@ -900,7 +900,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         .toString();
     final lastTime = _formatRelativeTime(
         latestMessage?['createdAt'] ?? friend['lastMessageTime']);
-    final unread = (friend['unreadCount'] ?? 0) is int
+    final unread = friend['unreadCount'] is int
         ? friend['unreadCount'] as int
         : int.tryParse('${friend['unreadCount']}') ?? 0;
     final currentUsername = ref.watch(authProvider).user?.username ?? '';
@@ -915,10 +915,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         ? friendIdRaw
         : int.tryParse(friendIdRaw.toString()) ?? 0;
 
-    final completedTransactions =
-        (friendObj['completedTransactions'] ?? 0) is int
-            ? friendObj['completedTransactions'] as int
-            : int.tryParse('${friendObj['completedTransactions']}') ?? 0;
+    final completedTransactions = friendObj['completedTransactions'] is int
+        ? friendObj['completedTransactions'] as int
+        : int.tryParse('${friendObj['completedTransactions']}') ?? 0;
     final ratingRaw = friendObj['rating'];
     final rating = ratingRaw is num ? ratingRaw.toDouble() : null;
     final isVerifiedVendor = friendObj['isVerifiedVendor'] == true;

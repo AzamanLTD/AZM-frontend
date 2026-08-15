@@ -459,44 +459,53 @@ class _MarketplaceHomeScreenState
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Single flexible slot: either the "Explore" title+subtitle
+                    // (top of scroll, stories shown as their own full-size row
+                    // below) OR the collapsed story avatars (scrolled down —
+                    // stories dock into the header). They never compete for
+                    // width at the same time, so "Explore" can never be
+                    // squeezed into a narrow column and wrap letter-by-letter.
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ShaderMask(
-                            shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
-                            child: const Text('Explore', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
-                          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
-                          Text(
-                            'Find trusted businesses',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: _storiesCollapsed
+                            ? Align(
+                                key: const ValueKey('collapsed-avatars'),
+                                alignment: Alignment.centerLeft,
+                                child: MarketplaceCollapsedAvatars(
+                                  onTap: () {
+                                    _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+                                  },
+                                ),
+                              )
+                            : Column(
+                                key: const ValueKey('explore-title'),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
+                                    child: const Text('Explore', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
+                                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
+                                  Text(
+                                    'Find trusted businesses',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colors.textTertiary,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
+                    const SizedBox(width: 8),
 
-                    // Collapsed avatars between Explore text and Search button
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      child: _storiesCollapsed
-                          ? Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: MarketplaceCollapsedAvatars(
-                                onTap: () {
-                                  _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-                                },
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-
-                    // Search — directly after "Explore", in line with the view toggle.
+                    // Search — directly after the title/avatars slot, in line with the view toggle.
                     // Tapping it morphs this whole row into an inline search field.
                     _iconAction(
                       icon: Icons.search_rounded,

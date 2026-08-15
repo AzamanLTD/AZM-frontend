@@ -111,7 +111,7 @@ class FriendProvider with ChangeNotifier {
                 DateTime.now().toIso8601String(),
             'isFromMe': false,
           };
-          final unreadInt = (friends[idx]['unreadCount'] ?? 0) is int
+          final unreadInt = friends[idx]['unreadCount'] is int
               ? friends[idx]['unreadCount'] as int
               : int.tryParse('${friends[idx]['unreadCount']}') ?? 0;
           friends[idx] = {

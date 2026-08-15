@@ -764,6 +764,60 @@ class DemoSeedData {
     ],
   };
 
+  // ── /ads/mine (vendor dashboard — the demo user's own P2P ads) ──────
+  static Map<String, dynamic> myAds() => {
+    'ads': [
+      {
+        'id': 1,
+        'type': 'SELL',
+        'crypto': 'USDT',
+        'pricePerUSD': 15.42,
+        'margin': 2.8,
+        'minLimit': 50,
+        'maxLimit': 500,
+        'paymentMethod': 'MTN_MOMO',
+        'terms': 'Fast payment. Release within 10 minutes.',
+        'status': 'ACTIVE',
+        'createdAt': _hoursAgo(2),
+        'activeHoursStart': '08:00',
+        'activeHoursEnd': '22:00',
+        'maxPaymentWindow': 15,
+      },
+      {
+        'id': 2,
+        'type': 'SELL',
+        'crypto': 'USDT',
+        'pricePerUSD': 15.50,
+        'margin': 3.3,
+        'minLimit': 100,
+        'maxLimit': 1000,
+        'paymentMethod': 'BANK_TRANSFER',
+        'terms': 'Bank transfer only. GCB, Ecobank, Stanbic.',
+        'status': 'ACTIVE',
+        'createdAt': _hoursAgo(5),
+        'activeHoursStart': '09:00',
+        'activeHoursEnd': '21:00',
+        'maxPaymentWindow': 20,
+      },
+      {
+        'id': 3,
+        'type': 'BUY',
+        'crypto': 'USDT',
+        'pricePerUSD': 15.35,
+        'margin': 1.9,
+        'minLimit': 30,
+        'maxLimit': 300,
+        'paymentMethod': 'TELECEL_CASH',
+        'terms': 'Telecel Cash only. No third-party payments.',
+        'status': 'PAUSED',
+        'createdAt': _daysAgo(1),
+        'activeHoursStart': '08:00',
+        'activeHoursEnd': '20:00',
+        'maxPaymentWindow': 15,
+      },
+    ],
+  };
+
   // ── /stories/feed ───────────────────────────────────────────────────
   static Map<String, dynamic> storiesFeed() => {
     'groups': [
@@ -987,6 +1041,11 @@ class DemoSeedData {
 
   static String _minutesAgo(int minutes) {
     final t = DateTime.now().subtract(Duration(minutes: minutes));
+    return t.toUtc().toIso8601String();
+  }
+
+  static String _daysAgo(int days) {
+    final t = DateTime.now().subtract(Duration(days: days));
     return t.toUtc().toIso8601String();
   }
 
