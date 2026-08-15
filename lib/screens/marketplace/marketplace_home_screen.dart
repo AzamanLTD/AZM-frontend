@@ -152,7 +152,7 @@ class _MarketplaceHomeScreenState
     }
     
     // Collapse stories if scrolled down by more than 10 pixels
-    final shouldCollapse = _scrollCtrl.offset > 10;
+    final shouldCollapse = _scrollCtrl.offset > 40;
     if (_storiesCollapsed != shouldCollapse) {
       setState(() => _storiesCollapsed = shouldCollapse);
     }
@@ -368,7 +368,7 @@ class _MarketplaceHomeScreenState
                           maxHeight: 96,
                           child: MarketplaceExpandedStories(
                             onOpenBusiness: (bizId) {
-                              setState(() => _expandedBizId = bizId);
+                              pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
                             },
                             onBrowsePressed: () {
                               setState(() => _selectedCategory = null);
@@ -459,50 +459,22 @@ class _MarketplaceHomeScreenState
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Single flexible slot: either the "Explore" title+subtitle
-                    // (top of scroll, stories shown as their own full-size row
-                    // below) OR the collapsed story avatars (scrolled down —
-                    // stories dock into the header). They never compete for
-                    // width at the same time, so "Explore" can never be
-                    // squeezed into a narrow column and wrap letter-by-letter.
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        child: _storiesCollapsed
-                            ? Align(
-                                key: const ValueKey('collapsed-avatars'),
-                                alignment: Alignment.centerLeft,
-                                child: MarketplaceCollapsedAvatars(
-                                  onTap: () {
-                                    _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-                                  },
-                                ),
-                              )
-                            : Column(
-                                key: const ValueKey('explore-title'),
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ShaderMask(
-                                    shaderCallback: (bounds) => LinearGradient(colors: [colors.accent, colors.accent]).createShader(bounds),
-                                    child: const Text('Explore', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6, height: 1.1)),
-                                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutCubic),
-                                  Text(
-                                    'Find trusted businesses',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colors.textTertiary,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
+                    // Stories shown as collapsed avatars in the header when scrolled
+                    // down. At top, the full stories row appears below the header
+                    // so no title text is needed here — removing the "Explore"
+                    // text eliminates the vertical-letter-wrap bug on scroll.
+                    if (_storiesCollapsed)
+                      Expanded(
+                        child: MarketplaceCollapsedAvatars(
+                          onTap: () {
+                            _scrollCtrl.animateTo(0,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOut);
+                          },
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 4),
                     const SizedBox(width: 8),
 
                     // Search — directly after the title/avatars slot, in line with the view toggle.
@@ -1380,7 +1352,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coverUrl = business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl;
+    final coverUrl = business.coverImageUrl ?? (business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl);
     final cat = BusinessCategories.fromWire(business.category);
 
     return ScaleTap(
@@ -1549,15 +1521,26 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
               itemCount: widget.featured.length,
               itemBuilder: (context, i) {
                 final b = widget.featured[i];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: _FeaturedBusinessCard(
-                    business: b,
-                    colors: widget.colors,
-                    onTap: () {
-                      AzamanHaptics.nav();
-                      pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
-                    },
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    double scale = 0.92;
+                    if (_pageController.hasClients) {
+                      final page = _pageController.page ?? 0.0;
+                      scale = (1.0 - (0.08 * (page - i).abs())).clamp(0.92, 1.0);
+                    }
+                    return Transform.scale(scale: scale, child: child);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _FeaturedBusinessCard(
+                      business: b,
+                      colors: widget.colors,
+                      onTap: () {
+                        AzamanHaptics.nav();
+                        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
+                      },
+                    ),
                   ),
                 );
               },

@@ -1041,38 +1041,21 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           ),
                         ),
                       ),
-                      if (hasUnread) ...[
+                      if (isMentioned) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isMentioned ? colors.warning : colors.accent,
+                            color: colors.warning,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isMentioned) ...[
-                                Text(
-                                  '@',
-                                  style: TextStyle(
-                                    color: colors.isDark ? Colors.black : Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                const SizedBox(width: 2),
-                              ],
-                              Text(
-                                unread > 99 ? '99+' : '$unread',
-                                style: TextStyle(
-                                  color: colors.isDark ? Colors.black : Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            '@',
+                            style: TextStyle(
+                              color: colors.isDark ? Colors.black : Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ],

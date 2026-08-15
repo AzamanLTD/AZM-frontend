@@ -448,6 +448,7 @@ class BusinessProfile {
   final String? description;
   final String? website;
   final String? logoUrl;
+  final String? coverImageUrl; // Banner shown at top of StorefrontScreen AND marketplace accordion drop-down
   final String? contactEmail;
   final String? phoneNumber;
   final String? address;
@@ -526,6 +527,7 @@ class BusinessProfile {
     this.description,
     this.website,
     this.logoUrl,
+    this.coverImageUrl,
     this.contactEmail,
     this.phoneNumber,
     this.address,
@@ -558,6 +560,7 @@ class BusinessProfile {
       description: json['description']?.toString(),
       website: json['website']?.toString(),
       logoUrl: json['logoUrl']?.toString(),
+      coverImageUrl: json['coverImageUrl']?.toString(),
       contactEmail: json['contactEmail']?.toString(),
       phoneNumber: json['phoneNumber']?.toString(),
       address: json['address']?.toString(),

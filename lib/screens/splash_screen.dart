@@ -172,67 +172,110 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Logo with pulsing glow ──────────────────────────────
-                AnimatedBuilder(
-                  animation: _glowController,
-                  builder: (_, __) {
-                    return Stack(
-                      alignment: Alignment.center,
+      backgroundColor: const Color(0xFF0A0B0F),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Center: Logo + wordmark ────────────────────────────────
+            Expanded(
+              child: Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo — Hero tagged for morph to login screen
-                        Hero(
-                          tag: 'azaman_logo',
-                          child: Image.asset(
-                            'assets/images/azaman_logo_black.png',
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.contain,
-                          ),
+                        // ── Logo with real pulsing glow ─────────────────────
+                        AnimatedBuilder(
+                          animation: _glowController,
+                          builder: (_, __) {
+                            final glow = _glowController.value;
+                            return Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFD4AF37).withValues(alpha: 0.15 + glow * 0.25),
+                                    blurRadius: 30 + glow * 20,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Hero(
+                                tag: 'azaman_logo',
+                                child: Image.asset(
+                                  'assets/images/azaman_logo_padded.png',
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            );
+                          },
                         ),
+                        const SizedBox(height: 16),
+                        // ── Smaller wordmark with gold shimmer ───────────────
+                        ShaderMask(
+                          shaderCallback: (bounds) {
+                            return LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                                const Color(0xFFFFD700),
+                                const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                              ],
+                              stops: const [0.0, 0.5, 1.0],
+                            ).createShader(bounds);
+                          },
+                          child: const Text(
+                            'AZAMAN',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 4,
+                            ),
+                          ),
+                        )
+                        .animate(onPlay: (c) => c.repeat())
+                        .shimmer(duration: 2200.ms, color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 28),
-                // ── "AZAMAN" text with shimmer ───────────────────────────
-                ShaderMask(
-                  shaderCallback: (bounds) {
-                    return LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.3),
-                        Colors.black,
-                        Colors.black.withValues(alpha: 0.3),
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ).createShader(bounds);
-                  },
-                  child: const Text(
-                    'AZAMAN',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 6,
                     ),
                   ),
-                )
-                .animate(onPlay: (c) => c.repeat())
-                .fadeIn(duration: 400.ms, delay: 400.ms)
-                .shimmer(duration: 2000.ms, color: const Color(0xFFD4AF37).withValues(alpha: 0.4)),
-              ],
+                ),
+              ),
             ),
-          ),
+            // ── Bottom: indeterminate progress bar ──────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(80, 0, 80, 40),
+              child: Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        const Color(0xFFD4AF37).withValues(alpha: 0.7 + _glowController.value * 0.3),
+                      ),
+                      minHeight: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Securing your session...',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -103,6 +103,7 @@ import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 import 'package:azaman/screens/orders/order_tracking_screen.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
+import 'package:azaman/config.dart';
 
 
 /// Global navigator key — set on the GoRouter so notification handlers
@@ -116,6 +117,8 @@ final GoRouter appRouter = GoRouter(
     final path = state.uri.path;
     // Public routes always pass
     if (path == '/' || path.startsWith('/susu/invite/')) return null;
+    // Demo mode: bypass auth gating entirely — demo build has no real session to protect.
+    if (AppConfig.demoMode) return null;
     // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
     // and go to splash rather than letting a red error screen bounce home.
     try {
