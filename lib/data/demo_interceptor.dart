@@ -32,7 +32,7 @@ class DemoInterceptor {
 
   /// Returns a synthetic 200 OK for POST, or null if not mocked.
   static http.Response? tryPost(String endpoint, Map<String, dynamic> body) {
-    final mock = _matchPost(endpoint);
+    final mock = _matchPost(endpoint, body);
     if (mock == null) return null;
     final path = endpoint.split('?').first;
     // /saved-momo POST expects 201 Created with an 'account' key.
@@ -429,7 +429,7 @@ class DemoInterceptor {
   }
 
   // ── POST endpoint matching ────────────────────────────────────────────
-  static Map<String, dynamic>? _matchPost(String endpoint) {
+  static Map<String, dynamic>? _matchPost(String endpoint, Map<String, dynamic> body) {
     final path = endpoint.split('?').first;
 
     // /marketplace/transit/trips/{tripId}/book

@@ -111,7 +111,6 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
                             width: widget.width,
                             height: widget.height,
                             fit: BoxFit.cover,
-                            memCacheWidth: (widget.width * 2).round(),
                             placeholder: (_, __) => Container(
                               width: widget.width, height: widget.height,
                               color: colors.softSurface,
