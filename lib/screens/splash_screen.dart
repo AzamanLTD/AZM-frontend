@@ -74,23 +74,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _checkAuthStatus() async {
     await Future.delayed(const Duration(seconds: 2));
 
-    final versionResult = await versionGateService.check(AppConfig.appVersion);
-    if (!mounted) return;
-
-    if (versionResult.updateRequired) {
-      Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_) => ForceUpdateScreen(
-          message: versionResult.message ?? 'A new version of Azaman is available. Please update to continue.',
-          updateUrl: versionResult.updateUrl,
-          minVersion: versionResult.minVersion,
-        ),
-      ));
-      return;
-    }
-
-    final auth = ref.read(authProvider);
-    // Demo mode: bypass auth and go straight to the app with seeded data
+    // Demo mode: skip version gate + auth, go straight to the app with seeded data
     if (AppConfig.demoMode) {
+      final auth = ref.read(authProvider);
       auth.setUser(User(
         id: DemoSeedData.demoUserId,
         username: DemoSeedData.demoUsername,
@@ -111,6 +97,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         builder: (_) => const MainNavigationWrapper()));
       return;
     }
+
+    // Version gate (only for non-demo mode)
+    final versionResult = await versionGateService.check(AppConfig.appVersion);
+    if (!mounted) return;
+
+    if (versionResult.updateRequired) {
+      Navigator.pushReplacement(context, MaterialPageRoute(
+        builder: (_) => ForceUpdateScreen(
+          message: versionResult.message ?? 'A new version of Azaman is available. Please update to continue.',
+          updateUrl: versionResult.updateUrl,
+          minVersion: versionResult.minVersion,
+        ),
+      ));
+      return;
+    }
+
+    final auth = ref.read(authProvider);
     final isAuthenticated = await auth.checkAuthStatus();
     if (!mounted) return;
 

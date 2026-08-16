@@ -66,6 +66,9 @@ class DemoInterceptor {
 
     // ── Exact matches ────────────────────────────────────────────────────
     switch (path) {
+      // ── Health/version gate (fail-open in demo) ──────────────────────
+      case '/health':
+        return {'status': 'ok', 'versionGate': null};
       case '/friends':
         return {'friends': DemoSeedData.friends()};
       case '/friends/requests':
