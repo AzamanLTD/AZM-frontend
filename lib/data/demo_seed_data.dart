@@ -1101,6 +1101,60 @@ class DemoSeedData {
 
   // ── Empty/generic responses ──────────────────────────────────────────
   static Map<String, dynamic> emptyData() => {'data': []};
+
+  /// Pre-seeded saved MoMo accounts for the deposit flow (demo mode).
+  static Map<String, dynamic> savedMomoAccounts() => {
+    'accounts': [
+      {
+        'id': 'momo-001',
+        'nickname': 'My MTN',
+        'provider': 'MTN',
+        'phoneNumber': '+233244123456',
+        'accountName': 'Kwame Mensah',
+        'isVerified': true,
+        'isPrimary': true,
+        'lastUsedAt': DateTime.now().subtract(const Duration(hours: 2)).toUtc().toIso8601String(),
+        'createdAt': DateTime.now().subtract(const Duration(days: 30)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'momo-002',
+        'nickname': 'Telecel Acct',
+        'provider': 'TELECEL',
+        'phoneNumber': '+233500987654',
+        'accountName': 'Ama Boateng',
+        'isVerified': true,
+        'isPrimary': false,
+        'lastUsedAt': DateTime.now().subtract(const Duration(days: 5)).toUtc().toIso8601String(),
+        'createdAt': DateTime.now().subtract(const Duration(days: 15)).toUtc().toIso8601String(),
+      },
+    ],
+  };
+
+  /// Demo deposit validation response — simulates a successful name lookup.
+  static Map<String, dynamic> depositValidateName() => {
+    'success': true,
+    'data': 'Kwame Mensah',
+  };
+
+  /// Demo Moolre deposit initiation — no OTP required, returns a reference.
+  static Map<String, dynamic> depositInitiated() => {
+    'success': true,
+    'data': {
+      'reference': 'DEP-DEMO-\${DateTime.now().millisecondsSinceEpoch}',
+      'amountGhs': null, // filled by the interceptor from the request body
+      'instructions': 'Approve the mobile money prompt on your phone to complete the deposit.',
+      'requiresOtp': false,
+    },
+  };
+
+  /// Demo deposit OTP confirmation.
+  static Map<String, dynamic> depositOtpConfirmed() => {
+    'success': true,
+    'data': {
+      'reference': 'DEP-DEMO-CONFIRMED',
+      'status': 'COMPLETED',
+    },
+  };
   static Map<String, dynamic> nullData() => {'data': null};
   static Map<String, dynamic> okSuccess() => {'data': {'ok': true}};
 

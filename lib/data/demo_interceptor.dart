@@ -34,9 +34,12 @@ class DemoInterceptor {
   static http.Response? tryPost(String endpoint, Map<String, dynamic> body) {
     final mock = _matchPost(endpoint);
     if (mock == null) return null;
+    final path = endpoint.split('?').first;
+    // /saved-momo POST expects 201 Created with an 'account' key.
+    final status = path == '/saved-momo' ? 201 : 200;
     return http.Response(
       jsonEncode(mock),
-      200,
+      status,
       headers: {'content-type': 'application/json'},
     );
   }
@@ -148,9 +151,9 @@ class DemoInterceptor {
       case '/trade-accounts/supported-methods':
         return DemoSeedData.supportedMethods();
       case '/saved-momo':
-        return DemoSeedData.emptyData();
+        return DemoSeedData.savedMomoAccounts();
       case '/wallet/saved':
-        return DemoSeedData.emptyData();
+        return {'wallets': []}; // No legacy wallets in demo — all MoMo via /saved-momo
       case '/smart-routes':
         return DemoSeedData.emptyData();
       case '/round-up':
@@ -448,6 +451,44 @@ class DemoInterceptor {
     // Stories view/reply/boost
     if (path.startsWith('/stories/') && (path.endsWith('/view') || path.endsWith('/reply') || path.endsWith('/boost'))) {
       return DemoSeedData.okSuccess();
+    }
+
+    // /saved-momo — create a new saved MoMo account
+    if (path == '/saved-momo') {
+      return {
+        'account': {
+          'id': 'momo-${DateTime.now().millisecondsSinceEpoch}',
+          'nickname': body['nickname'] ?? 'New Account',
+          'provider': body['provider'] ?? 'MTN',
+          'phoneNumber': body['phoneNumber'] ?? '',
+          'accountName': body['nickname'] ?? 'Verified User',
+          'isVerified': true,
+          'isPrimary': body['isPrimary'] ?? false,
+          'lastUsedAt': null,
+          'createdAt': DateTime.now().toUtc().toIso8601String(),
+        },
+      };
+    }
+
+    // /deposit/validate-name — name lookup for MoMo account
+    if (path == '/deposit/validate-name') {
+      return DemoSeedData.depositValidateName();
+    }
+
+    // /deposit/fiat/initiate/moolre — start a MoMo deposit
+    if (path == '/deposit/fiat/initiate/moolre') {
+      final result = DemoSeedData.depositInitiated();
+      // Inject the amount from the request body if available
+      final amountGhs = body['amountGhs'];
+      if (amountGhs != null) {
+        (result['data'] as Map<String, dynamic>)['amountGhs'] = amountGhs;
+      }
+      return result;
+    }
+
+    // /deposit/fiat/initiate/moolre/otp — confirm deposit with OTP
+    if (path == '/deposit/fiat/initiate/moolre/otp') {
+      return DemoSeedData.depositOtpConfirmed();
     }
 
     // Any other POST — return generic success
