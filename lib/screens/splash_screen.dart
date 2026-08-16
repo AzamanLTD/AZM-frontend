@@ -17,6 +17,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/router/auth_guard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/foundation.dart';
 
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -73,6 +74,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _checkAuthStatus() async {
     await Future.delayed(const Duration(seconds: 2));
+
+    // ── Auto-demo fallback for web ──────────────────────────────────────
+    // If demoMode isn't already on, probe the backend with a short timeout.
+    // If unreachable, auto-enable demo mode so the app isn't stuck on splash.
+    if (!AppConfig.demoMode && kIsWeb) {
+      try {
+        await apiClient.get('/health', requireAuth: false)
+            .timeout(const Duration(seconds: 3));
+        debugPrint('[Splash] Backend reachable, staying in live mode');
+      } catch (_) {
+        debugPrint('[Splash] Backend unreachable, enabling demo mode');
+        AppConfig.enableDemoMode();
+      }
+    }
 
     // Demo mode: skip version gate + auth, go straight to the app with seeded data
     if (AppConfig.demoMode) {
