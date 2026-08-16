@@ -34,6 +34,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class CollapsibleBusinessBar extends ConsumerWidget {
   final BusinessProfile business;
@@ -182,7 +183,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                   width: 90,
                   height: double.infinity,
                   child: coverUrl != null
-                      ? CachedNetworkImage(
+                      ? AzamanNetworkImage(
                           imageUrl: coverUrl,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => _imgPlaceholder(cat),
@@ -447,7 +448,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                 children: [
                   // Photo or placeholder
                   if (cover != null)
-                    CachedNetworkImage(
+                    AzamanNetworkImage(
                       imageUrl: cover,
                       fit: BoxFit.cover,
                       placeholder: (_, __) =>
@@ -677,7 +678,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.24),
         child: business.logoUrl != null && business.logoUrl!.isNotEmpty
-            ? CachedNetworkImage(
+            ? AzamanNetworkImage(
                 imageUrl: business.logoUrl!,
                 width: size,
                 height: size,
@@ -891,7 +892,7 @@ class _ExpandableProfilePic extends StatelessWidget {
                   tag: 'biz-pic-${business.bizId}',
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: CachedNetworkImage(
+                    child: AzamanNetworkImage(
                       imageUrl: business.logoUrl!,
                       fit: BoxFit.contain,
                     ),
@@ -920,7 +921,7 @@ class _ExpandableProfilePic extends StatelessWidget {
           width: width,
           height: double.infinity,
           child: hasPic
-              ? CachedNetworkImage(
+              ? AzamanNetworkImage(
                   imageUrl: business.logoUrl!,
                   width: width,
                   height: double.infinity,
@@ -989,7 +990,7 @@ class _ExpandedAvatar extends StatelessWidget {
                   ),
                 ),
                 child: hasPic
-                    ? CachedNetworkImage(
+                    ? AzamanNetworkImage(
                         imageUrl: business.logoUrl!,
                         fit: BoxFit.cover,
                         width: size,

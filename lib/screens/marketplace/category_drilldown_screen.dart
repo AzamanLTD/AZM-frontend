@@ -15,6 +15,7 @@ import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Subcategory provider — fetches subcategories for a given parent category wire
@@ -395,7 +396,7 @@ class _CategoryDrilldownScreenState
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 child: b.logoUrl != null
-                  ? CachedNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity,
+                  ? AzamanNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity,
                       placeholder: (_, __) => const PremiumShimmerBox(width: double.infinity, height: 100, radius: 0))
                   : _categoryGradient(b.category, colors),
               ),

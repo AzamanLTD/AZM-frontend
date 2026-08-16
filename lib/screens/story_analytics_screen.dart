@@ -17,6 +17,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── Stats fetch ────────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
             child: SizedBox(
               width: 72, height: 72,
               child: mediaUrl != null
-                  ? CachedNetworkImage(imageUrl: mediaUrl, fit: BoxFit.cover,
+                  ? AzamanNetworkImage(imageUrl: mediaUrl, fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(color: colors.softSurface))
                   : Container(color: colors.softSurface),
             ),

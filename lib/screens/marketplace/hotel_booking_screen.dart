@@ -17,6 +17,7 @@ import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // Top-level amenity icon helper — shared across hotel widgets
 IconData _hotelAmenityIcon(String amenity) {
@@ -322,7 +323,7 @@ class _ShowcaseSliderState extends State<_ShowcaseSlider> {
       SizedBox(height: 220, child: PageView.builder(
         itemCount: widget.images.length,
         onPageChanged: (i) => setState(() => _index = i),
-        itemBuilder: (_, i) => CachedNetworkImage(imageUrl: widget.images[i],
+        itemBuilder: (_, i) => AzamanNetworkImage(imageUrl: widget.images[i],
           height: 220, width: double.infinity, fit: BoxFit.cover),
       )),
       Positioned(bottom: 10, left: 0, right: 0, child: Row(
@@ -606,7 +607,7 @@ class _HotelFloorPlanState extends State<_HotelFloorPlan> {
               if (room.primaryImage != null)
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                  child: CachedNetworkImage(imageUrl: room.primaryImage!,
+                  child: AzamanNetworkImage(imageUrl: room.primaryImage!,
                     height: 160, width: double.infinity, fit: BoxFit.cover),
                 ),
               if (isSelected)

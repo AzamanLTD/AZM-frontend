@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/rating_stars.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class ReviewCard extends ConsumerWidget {
   final BusinessReview review;
@@ -133,7 +134,7 @@ class ReviewCard extends ConsumerWidget {
     );
     if (url == null || url.isEmpty) return placeholder;
     return ClipOval(
-      child: CachedNetworkImage(
+      child: AzamanNetworkImage(
         imageUrl: url,
         width: 32,
         height: 32,

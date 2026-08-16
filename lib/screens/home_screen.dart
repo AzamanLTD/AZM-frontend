@@ -29,6 +29,7 @@ import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -164,7 +165,7 @@ class _GreetingHeader extends ConsumerWidget {
                 child: ClipOval(
                   child: (user?.profilePictureUrl != null &&
                           user!.profilePictureUrl!.isNotEmpty)
-                      ? CachedNetworkImage(
+                      ? AzamanNetworkImage(
                           imageUrl: user.profilePictureUrl!,
                           width: 42, height: 42,
                           fit: BoxFit.cover,

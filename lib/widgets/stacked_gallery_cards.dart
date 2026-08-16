@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/image_lightbox.dart'; // existing lightbox — reused as-is
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class StackedGalleryCards extends ConsumerStatefulWidget {
   final List<String> urls;
@@ -105,7 +106,7 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
                           decoration: BoxDecoration(
                             border: Border.all(color: colors.divider, width: 0.6),
                           ),
-                          child: CachedNetworkImage(
+                          child: AzamanNetworkImage(
                             imageUrl: _order[i],
                             width: widget.width,
                             height: widget.height,

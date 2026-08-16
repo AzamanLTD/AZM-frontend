@@ -42,6 +42,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
@@ -644,7 +645,7 @@ class _MediaTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (item.type == 'IMAGE' && url != null)
-              CachedNetworkImage(imageUrl: 
+              AzamanNetworkImage(imageUrl: 
                 _resolve(url),
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(

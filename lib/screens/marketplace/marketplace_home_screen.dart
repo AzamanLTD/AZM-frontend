@@ -50,6 +50,8 @@ import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/border_beam.dart';
 
 enum _ViewMode { list, map }
 
@@ -1399,17 +1401,21 @@ class _FeaturedBusinessCard extends StatelessWidget {
 
     return ScaleTap(
       onTap: onTap,
-      child: Container(
-        width: 240,
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
+      child: BorderBeam(
+        borderRadius: BorderRadius.circular(14),
+        beamColor: cat.color,
+        duration: const Duration(seconds: 4),
+        child: Container(
+          width: 240,
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1421,7 +1427,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                   height: 88,
                   width: double.infinity,
                   child: coverUrl != null
-                      ? CachedNetworkImage(
+                      ? AzamanNetworkImage(
                           imageUrl: coverUrl,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => Container(color: cat.color.withValues(alpha: 0.15)),
@@ -1484,7 +1490,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                     ),
                   ),
                   child: business.logoUrl != null
-                      ? CachedNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
+                      ? AzamanNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
                       : Container(
                           color: cat.color.withValues(alpha: 0.2),
                           child: Icon(cat.icon, size: 20, color: cat.color),
@@ -1494,6 +1500,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── StoryRing ─────────────────────────────────────────────────────────────────
 //
@@ -67,7 +68,7 @@ class StoryRing extends ConsumerWidget {
               ),
             ),
             child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? CachedNetworkImage(imageUrl: 
+                ? AzamanNetworkImage(imageUrl: 
                     avatarUrl!,
                     fit: BoxFit.cover,
                     width: size,

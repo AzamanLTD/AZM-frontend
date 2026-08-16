@@ -22,6 +22,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 
 
@@ -470,7 +471,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 backgroundColor: colors.card,
                 child: ClipOval(
                   child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                    ? CachedNetworkImage(
+                    ? AzamanNetworkImage(
                         imageUrl: _avatarUrl!,
                         width: 88, height: 88,
                         fit: BoxFit.cover,

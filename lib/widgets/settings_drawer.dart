@@ -50,6 +50,7 @@ import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 
 class SettingsDrawer extends ConsumerWidget {
@@ -417,7 +418,7 @@ class SettingsDrawer extends ConsumerWidget {
                 child: (user?.profilePictureUrl != null &&
                         user!.profilePictureUrl!.isNotEmpty)
                     ? ClipOval(
-                        child: CachedNetworkImage(
+                        child: AzamanNetworkImage(
                           imageUrl: user.profilePictureUrl!,
                           width: 64, height: 64,
                           fit: BoxFit.cover,

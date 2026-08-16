@@ -15,6 +15,7 @@ import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/widgets/liquid_tab_backdrop.dart';
 
 class _NavItem {
   final IconData icon, activeIcon;
@@ -59,17 +60,33 @@ class PremiumBottomNav extends ConsumerWidget {
             ),
           ],
         ),
-        child: Row(
-          children: List.generate(
-            _kNavItems.length,
-            (i) => _NavButton(
-              item: _kNavItems[i],
-              isSelected: selectedIndex == i,
-              index: i,
-              colors: colors,
-              onTap: () => _handleTap(i),
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final innerWidth = constraints.maxWidth;
+            return Stack(
+              children: [
+                LiquidTabBackdrop(
+                  selectedIndex: selectedIndex,
+                  tabCount: _kNavItems.length,
+                  totalWidth: innerWidth,
+                  barHeight: 62,
+                  color: colors.accent,
+                ),
+                Row(
+                  children: List.generate(
+                    _kNavItems.length,
+                    (i) => _NavButton(
+                      item: _kNavItems[i],
+                      isSelected: selectedIndex == i,
+                      index: i,
+                      colors: colors,
+                      onTap: () => _handleTap(i),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

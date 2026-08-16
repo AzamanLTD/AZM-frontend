@@ -59,6 +59,7 @@ import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -1068,7 +1069,7 @@ class _BusinessProfileScreenState
         fit: StackFit.expand,
         children: [
           if (heroUrl != null)
-            CachedNetworkImage(
+            AzamanNetworkImage(
               imageUrl: heroUrl,
               fit: BoxFit.cover,
               placeholder: (_, __) => _heroGradient(colors),
@@ -1604,7 +1605,7 @@ class _BusinessProfileScreenState
                 if (invoice.businessLogoUrl != null && invoice.businessLogoUrl!.isNotEmpty)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
+                    child: AzamanNetworkImage(
                       imageUrl: invoice.businessLogoUrl!,
                       width: 28, height: 28, fit: BoxFit.cover,
                     ),
@@ -1747,7 +1748,7 @@ class _BusinessProfileScreenState
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedNetworkImage(
+                    AzamanNetworkImage(
                       imageUrl: slide['mediaUrl'] ?? '',
                       fit: BoxFit.cover,
                       placeholder: (_, __) => ColoredBox(color: colors.divider),

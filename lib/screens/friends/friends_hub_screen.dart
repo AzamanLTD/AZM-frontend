@@ -25,6 +25,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -1368,7 +1369,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (group.avatarUrl != null && group.avatarUrl!.isNotEmpty) {
       return ClipOval(
-        child: CachedNetworkImage(
+        child: AzamanNetworkImage(
           imageUrl: group.avatarUrl!,
           fit: BoxFit.cover,
           width: 50, height: 50,
@@ -1419,7 +1420,7 @@ class _GroupBubbleAvatar extends StatelessWidget {
       return Container(
         width: size, height: size,
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.3), border: Border.all(color: colors.background, width: 1.5)),
-        child: ClipRRect(borderRadius: BorderRadius.circular(size * 0.3 - 1.5), child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
+        child: ClipRRect(borderRadius: BorderRadius.circular(size * 0.3 - 1.5), child: AzamanNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
           placeholder: (_, __) => _countBubble(name, size, fallbackColor),
           errorWidget: (_, __, ___) => _countBubble(name, size, fallbackColor))),
       );

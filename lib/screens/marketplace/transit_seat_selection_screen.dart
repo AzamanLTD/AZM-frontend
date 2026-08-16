@@ -29,6 +29,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // Azaman brand purple — used for SELECTED tint overlay
 const _kSelectedPurple = Color(0xFF7C3AED);
@@ -617,14 +618,12 @@ class _SeatWidget extends StatelessWidget {
           Colors.red.withValues(alpha: 0.55),
           BlendMode.srcATop,
         ),
-        child: Opacity(
-          opacity: 0.5,
-          child: Image.asset(
-            'assets/images/unbooked.png',
-            width: 50,
-            height: 50,
-            fit: BoxFit.contain,
-          ),
+        child: Image.asset(
+          'assets/images/unbooked.png',
+          width: 50,
+          height: 50,
+          fit: BoxFit.contain,
+          opacity: const AlwaysStoppedAnimation<double>(0.5),
         ),
       );
     } else {
@@ -741,7 +740,7 @@ class _TripVehicleHeader extends StatelessWidget {
               if (trip?.vehicleImageUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
+                  child: AzamanNetworkImage(
                     imageUrl: trip!.vehicleImageUrl!,
                     width: 52, height: 52, fit: BoxFit.cover,
                     placeholder: (_, __) => Container(
@@ -842,7 +841,7 @@ class _TripVehicleHeader extends StatelessWidget {
                   if (trip?.driverPhotoUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: CachedNetworkImage(
+                      child: AzamanNetworkImage(
                         imageUrl: trip!.driverPhotoUrl!,
                         width: 28, height: 28, fit: BoxFit.cover,
                         placeholder: (_, __) => Container(

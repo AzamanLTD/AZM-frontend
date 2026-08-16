@@ -15,6 +15,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -282,7 +283,7 @@ class _PositionDot extends StatelessWidget {
                     border: Border.all(color: colors.border, width: 1.5),
                   ),
                   child: member!['avatarUrl'] != null
-                      ? ClipOval(child: CachedNetworkImage(imageUrl: member!['avatarUrl'], fit: BoxFit.cover,
+                      ? ClipOval(child: AzamanNetworkImage(imageUrl: member!['avatarUrl'], fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => _initials()))
                       : _initials(),
                 ),

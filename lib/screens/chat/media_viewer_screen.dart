@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class MediaViewerScreen extends StatefulWidget {
   final List<MediaViewerItem> items;
@@ -275,7 +276,7 @@ class _ImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget image = CachedNetworkImage(
+    Widget image = AzamanNetworkImage(
       imageUrl: url,
       fit: BoxFit.contain,
       placeholder: (_, __) => const Center(

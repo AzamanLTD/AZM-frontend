@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class ChatAvatar extends StatelessWidget {
   final String? imageUrl;
@@ -56,7 +57,7 @@ class ChatAvatar extends StatelessWidget {
             child: ClipPath(
               clipper: ShapeBorderClipper(shape: shape),
               child: hasImage
-                  ? CachedNetworkImage(
+                  ? AzamanNetworkImage(
                       imageUrl: imageUrl!,
                       fit: BoxFit.cover,
                       width: size,

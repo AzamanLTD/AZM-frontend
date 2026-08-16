@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── URL Detection ───────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
             if (preview.image != null && preview.image!.isNotEmpty)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: CachedNetworkImage(imageUrl: 
+                child: AzamanNetworkImage(imageUrl: 
                   preview.image!,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => const SizedBox.shrink(),

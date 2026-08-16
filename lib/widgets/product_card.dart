@@ -18,6 +18,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/image_lightbox.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class ProductCard extends ConsumerWidget {
   final BusinessProduct product;
@@ -143,7 +144,7 @@ class ProductCard extends ConsumerWidget {
       onTap: () => ImageLightbox.show(context, urls: urls, initialIndex: 0),
       child: Hero(
         tag: 'lightbox_${urls.first}',
-        child: CachedNetworkImage(
+        child: AzamanNetworkImage(
           imageUrl: urls.first,
           fit: BoxFit.cover,
           placeholder: (_, __) => _placeholder(colors),

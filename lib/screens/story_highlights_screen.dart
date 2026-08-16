@@ -17,6 +17,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -276,7 +277,7 @@ class _HighlightTile extends StatelessWidget {
             ),
             child: ClipOval(
               child: coverUrl != null && coverUrl.isNotEmpty
-                  ? CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+                  ? AzamanNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => _placeholder())
                   : _placeholder(),
             ),

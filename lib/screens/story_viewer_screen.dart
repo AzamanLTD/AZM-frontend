@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:video_player/video_player.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 // Note: VendorPage and StoryVideoPlayer imports may be needed depending on project structure
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
@@ -172,7 +173,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     child: VideoPlayer(_videoController!),
                   ))
                 : const Center(child: CircularProgressIndicator(color: Colors.white70)))
-            : CachedNetworkImage(
+            : AzamanNetworkImage(
                 imageUrl: _story.mediaUrl, fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: Colors.black),
                 errorWidget: (_, __, ___) => Container(color: Colors.black12, child: const Center(child: Icon(Icons.broken_image, color: Colors.white30, size: 48))),

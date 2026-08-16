@@ -14,6 +14,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class ImageLightbox extends StatefulWidget {
   final List<String> urls;
@@ -102,7 +103,7 @@ class _ImageLightboxState extends State<ImageLightbox> {
                 child: Center(
                   child: Hero(
                     tag: 'lightbox_${widget.urls[i]}',
-                    child: CachedNetworkImage(
+                    child: AzamanNetworkImage(
                       imageUrl: widget.urls[i],
                       fit: BoxFit.contain,
                       placeholder: (_, __) => const Center(

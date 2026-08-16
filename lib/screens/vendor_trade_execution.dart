@@ -22,6 +22,7 @@ import 'package:azaman/config.dart';
 
 import 'package:azaman/screens/trade_summary_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 
 class VendorTradeExecution extends ConsumerStatefulWidget {
@@ -423,7 +424,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               maxScale: 4,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(imageUrl: 
+                child: AzamanNetworkImage(imageUrl: 
                   _paymentProofUrl!,
                   fit: BoxFit.contain,
                   errorWidget: (context, error, stackTrace) {

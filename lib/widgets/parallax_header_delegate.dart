@@ -22,6 +22,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String? imageUrl;
@@ -76,7 +77,7 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
                 maxHeight: imageHeight,
                 alignment: Alignment.topCenter,
                 child: imageUrl != null
-                    ? CachedNetworkImage(
+                    ? AzamanNetworkImage(
                         imageUrl: imageUrl!,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => _fallbackGradient(isDark),

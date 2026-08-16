@@ -19,6 +19,7 @@ import 'package:turnable_page/turnable_page.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 /// One flat "page worth" of dishes, built from CatalogSections.
 class _MenuPage {
@@ -201,7 +202,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
           if (heroDish != null && heroDish.primaryImage != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: CachedNetworkImage(
+              child: AzamanNetworkImage(
                 imageUrl: heroDish.primaryImage!,
                 width: 120, height: 120, fit: BoxFit.cover,
               ),
@@ -209,7 +210,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
           else if (widget.logoUrl != null && widget.logoUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: CachedNetworkImage(
+              child: AzamanNetworkImage(
                 imageUrl: widget.logoUrl!,
                 width: 84, height: 84, fit: BoxFit.cover,
               ),
@@ -346,7 +347,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: product.primaryImage != null
-                  ? CachedNetworkImage(
+                  ? AzamanNetworkImage(
                       imageUrl: product.primaryImage!,
                       width: 46,
                       height: 46,
@@ -474,7 +475,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook>
                           child: ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                             child: product.primaryImage != null
-                                ? CachedNetworkImage(
+                                ? AzamanNetworkImage(
                                     imageUrl: product.primaryImage!,
                                     height: 170,
                                     width: double.infinity,

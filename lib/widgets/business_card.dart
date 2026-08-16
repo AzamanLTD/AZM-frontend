@@ -30,6 +30,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/story_ring.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class BusinessCard extends ConsumerWidget {
   final BusinessProfile business;
@@ -94,7 +95,7 @@ class BusinessCard extends ConsumerWidget {
         fit: StackFit.expand,
         children: [
           if (coverUrl != null)
-            CachedNetworkImage(
+            AzamanNetworkImage(
               imageUrl: coverUrl,
               fit: BoxFit.cover,
               placeholder: (_, __) => _coverPlaceholder(colors),

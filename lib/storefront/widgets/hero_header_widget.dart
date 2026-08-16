@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 import '../models/storefront_models.dart';
 
 class HeroHeaderWidget extends StatelessWidget {
@@ -31,16 +32,16 @@ class HeroHeaderWidget extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (mediaUrl != null && mediaUrl.isNotEmpty)
-              CachedNetworkImage(
+              AzamanNetworkImage(
                 imageUrl: mediaUrl,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),
                 errorWidget: (_, __, ___) => business.coverPhotoUrl != null
-                    ? CachedNetworkImage(imageUrl: business.coverPhotoUrl!, fit: BoxFit.cover)
+                    ? AzamanNetworkImage(imageUrl: business.coverPhotoUrl!, fit: BoxFit.cover)
                     : _gradientBackground(context),
               )
             else if (business.coverPhotoUrl != null && business.coverPhotoUrl!.isNotEmpty)
-              CachedNetworkImage(
+              AzamanNetworkImage(
                 imageUrl: business.coverPhotoUrl!,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),

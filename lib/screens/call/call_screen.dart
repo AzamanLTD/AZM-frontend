@@ -18,6 +18,7 @@ import 'package:azaman/services/webrtc_service.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
   final int peerId;
@@ -323,7 +324,7 @@ class _AvatarRings extends StatelessWidget {
                     ],
                   ),
                   child: avatar != null
-                      ? ClipOval(child: CachedNetworkImage(imageUrl: avatar!, fit: BoxFit.cover))
+                      ? ClipOval(child: AzamanNetworkImage(imageUrl: avatar!, fit: BoxFit.cover))
                       : Center(
                           child: Text(
                             name.isNotEmpty ? name[0].toUpperCase() : '?',

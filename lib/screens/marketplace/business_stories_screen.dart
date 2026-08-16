@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class BusinessStoriesScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -92,7 +93,7 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CachedNetworkImage(
+            AzamanNetworkImage(
               imageUrl: widget.storyUrls[_currentIndex],
               fit: BoxFit.cover,
               placeholder: (_, __) => Container(

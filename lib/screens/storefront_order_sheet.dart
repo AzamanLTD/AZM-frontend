@@ -14,6 +14,7 @@ import '../storefront/providers/storefront_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/azaman_haptics.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class StorefrontOrderSheet extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -116,7 +117,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                     child: SizedBox(
                       width: 64, height: 64,
                       child: _imageUrl != null
-                          ? CachedNetworkImage(imageUrl: _imageUrl!, fit: BoxFit.cover,
+                          ? AzamanNetworkImage(imageUrl: _imageUrl!, fit: BoxFit.cover,
                               errorWidget: (_, __, ___) => Container(color: colors.background, child: Icon(Icons.inventory_2, color: colors.textSecondary)))
                           : Container(color: colors.background, child: Icon(Icons.inventory_2, color: colors.textSecondary)),
                     ),
