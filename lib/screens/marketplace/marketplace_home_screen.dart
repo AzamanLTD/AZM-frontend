@@ -52,6 +52,7 @@ import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/border_beam.dart';
+import 'package:azaman/config.dart';
 
 enum _ViewMode { list, map }
 
@@ -765,6 +766,13 @@ class _MarketplaceHomeScreenState
 
   /// Opens the story viewer for a business's stories (not their profile).
   void _openBusinessStories(BuildContext context, String bizId) async {
+    // Demo mode: skip story viewer entirely — go straight to the business
+    // profile. The story viewer auto-closes after ~5s which felt like a
+    // "redirect to home" bug. In demo mode stories add no value.
+    if (AppConfig.demoMode) {
+      context.push('/business/$bizId');
+      return;
+    }
     try {
       final res = await apiClient.get('/stories/business/$bizId');
       final body = jsonDecode(res.body);
@@ -772,21 +780,16 @@ class _MarketplaceHomeScreenState
           .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
           .toList();
       if (groups.isNotEmpty && context.mounted) {
-        // After stories finish (or user dismisses), navigate to the business
-        // profile — previously the story viewer just popped back to the
-        // marketplace home, which felt like a "redirect to home after 5s" bug.
         await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0);
         if (context.mounted) {
-          pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+          context.push('/business/$bizId');
         }
       } else if (context.mounted) {
-        // No stories — go straight to the profile.
-        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+        context.push('/business/$bizId');
       }
     } catch (_) {
-      // Fallback: open the business profile if stories API fails
       if (context.mounted) {
-        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+        context.push('/business/$bizId');
       }
     }
   }

@@ -200,10 +200,30 @@ class _BusinessProfileScreenState
       final res = await apiClient.get('/showcases/$businessId');
       final data = jsonDecode(res.body);
       if (mounted) {
-        final raw = data is List ? data : (data["items"] ?? data["slides"] ?? []);
-        setState(() {
-          _showcaseSlides = (raw as List).cast<Map<String, dynamic>>();
-        });
+        // Handle multiple response shapes: {'data': [...]}, {'items': [...]},
+        // {'slides': [...]}, or a bare List. Also handle URL-string lists
+        // (demo seed returns ['url1', 'url2', ...]) by wrapping them as maps.
+        final List rawList;
+        if (data is List) {
+          rawList = data;
+        } else if (data['data'] is List) {
+          rawList = data['data'] as List;
+        } else if (data['items'] is List) {
+          rawList = data['items'] as List;
+        } else if (data['slides'] is List) {
+          rawList = data['slides'] as List;
+        } else {
+          rawList = [];
+        }
+        final slides = <Map<String, dynamic>>[];
+        for (final item in rawList) {
+          if (item is Map<String, dynamic>) {
+            slides.add(item);
+          } else if (item is String) {
+            slides.add({'mediaUrl': item});
+          }
+        }
+        setState(() => _showcaseSlides = slides);
       }
     } catch (_) {}
   }
