@@ -723,7 +723,7 @@ class _MarketplaceHomeScreenState
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               decoration: BoxDecoration(
                 color: isActive ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(isAll ? 10 : 9),
+                borderRadius: BorderRadius.circular(isAll ? 28 : 24),
                 border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
                 boxShadow: [
                   BoxShadow(
@@ -770,10 +770,19 @@ class _MarketplaceHomeScreenState
           .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
           .toList();
       if (groups.isNotEmpty && context.mounted) {
-        StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0);
+        // After stories finish (or user dismisses), navigate to the business
+        // profile — previously the story viewer just popped back to the
+        // marketplace home, which felt like a "redirect to home after 5s" bug.
+        await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0);
+        if (context.mounted) {
+          pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
+        }
+      } else if (context.mounted) {
+        // No stories — go straight to the profile.
+        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
       }
     } catch (_) {
-      // Fallback: open the business profile if no stories available
+      // Fallback: open the business profile if stories API fails
       if (context.mounted) {
         pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId));
       }
@@ -815,7 +824,7 @@ class _MarketplaceHomeScreenState
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 196,
+            height: 160,
             child: Shimmer.fromColors(
               baseColor: colors.card,
               highlightColor: colors.softSurface,
@@ -824,9 +833,9 @@ class _MarketplaceHomeScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: 4,
                 itemBuilder: (_, __) => Container(
-                  width: 280,
+                  width: 240,
                   margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(18)),
+                  decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
@@ -1391,10 +1400,10 @@ class _FeaturedBusinessCard extends StatelessWidget {
     return ScaleTap(
       onTap: onTap,
       child: Container(
-        width: 280,
+        width: 240,
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
           ],
@@ -1409,7 +1418,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                 Hero(
                   tag: 'biz-logo-${business.id}',
                   child: SizedBox(
-                  height: 118,
+                  height: 88,
                   width: double.infinity,
                   child: coverUrl != null
                       ? CachedNetworkImage(
@@ -1543,11 +1552,11 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text('Featured Near You',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 196,
+            height: 160,
             child: PageView.builder(
               controller: _pageController,
               padEnds: true,
