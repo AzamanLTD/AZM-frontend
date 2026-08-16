@@ -38,6 +38,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/config.dart';
 
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -602,6 +603,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 : data as Map<String, dynamic>;
             _isSubmitting = false;
           });
+          // In demo mode there's no real Moolre prompt to approve — auto-confirm
+          // after a short delay so the user sees the full deposit success flow.
+          if (AppConfig.demoMode) {
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted && _depositResult != null && !_depositConfirmed) {
+                setState(() => _depositConfirmed = true);
+              }
+            });
+          }
         }
       } else {
         setState(() => _isSubmitting = false);
