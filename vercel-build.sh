@@ -1,28 +1,13 @@
 #!/bin/bash
 set -e
 
-# ── Install Flutter SDK ─────────────────────────────────────────────
-FLUTTER_VERSION="3.47.0"
-ARCHIVE_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+echo ">>> Fetching pre-built web app from gh-pages branch..."
+git fetch origin gh-pages:gh-pages 2>/dev/null || true
 
-echo ">>> Downloading Flutter SDK ${FLUTTER_VERSION}..."
-curl -L --progress-bar "$ARCHIVE_URL" -o /tmp/flutter.tar.xz
+# Checkout the pre-built files from gh-pages into the output directory
+mkdir -p build/web
+git archive gh-pages | tar -x -C build/web
 
-echo ">>> Extracting..."
-tar -xf /tmp/flutter.tar.xz -C /tmp/
-rm -f /tmp/flutter.tar.xz
-export PATH="/tmp/flutter/bin:$PATH"
-
-echo ">>> Flutter version:"
-flutter --version
-
-# ── Build web ──────────────────────────────────────────────────────
-echo ">>> Resolving dependencies..."
-flutter pub get
-
-echo ">>> Building Flutter web..."
-flutter build web --release --no-tree-shake-icons
-
-echo ">>> Build output:"
-ls -la build/web/
-echo ">>> Build complete!"
+echo ">>> Pre-built files ready"
+ls -la build/web/ | head -10
+echo ">>> Deploy complete!"
