@@ -1,5 +1,8 @@
 # Azaman Flutter App
 
+> **Live web demo:** https://azm-web-demo.vercel.app
+> (Web build output lives in [pyraxxz/AZM-webdemo](https://github.com/pyraxxz/AZM-webdemo))
+
 Flutter mobile application for the Azaman P2P crypto exchange platform.
 
 ## Stack
