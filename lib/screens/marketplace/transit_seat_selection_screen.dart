@@ -774,7 +774,7 @@ class _TripVehicleHeader extends StatelessWidget {
                   children: [
                     if (trip != null)
                       Text(
-                        '\${trip!.origin} → \${trip!.destination}',
+                        '${trip!.origin} → ${trip!.destination}',
                         style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w800,
                           color: colors.textPrimary,
@@ -790,12 +790,12 @@ class _TripVehicleHeader extends StatelessWidget {
                     const SizedBox(height: 2),
                     if (trip?.vehicleMake != null && trip?.vehicleModel != null)
                       Text(
-                        '\${trip!.vehicleMake} \${trip!.vehicleModel}',
+                        '${trip!.vehicleMake} ${trip!.vehicleModel}',
                         style: TextStyle(fontSize: 11, color: colors.textSecondary),
                       )
                     else
                       Text(
-                        '\${availability.availableCount} of \${availability.totalSeats} seats available',
+                        '${availability.availableCount} of ${availability.totalSeats} seats available',
                         style: TextStyle(fontSize: 11, color: colors.textSecondary),
                       ),
                     const SizedBox(height: 2),
@@ -812,15 +812,15 @@ class _TripVehicleHeader extends StatelessWidget {
                 children: [
                   Text(
                     hasTiers
-                        ? 'from \$\${_minFareStr(availability)}/seat'
-                        : '\$\${availability.fareUsdc.toStringAsFixed(0)}/seat',
+                        ? 'from \$${_minFareStr(availability)}/seat'
+                        : '\$${availability.fareUsdc.toStringAsFixed(0)}/seat',
                     style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w800, color: colors.accent,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '\${availability.availableCount} avail',
+                    '${availability.availableCount} avail',
                     style: TextStyle(fontSize: 11, color: colors.textTertiary),
                   ),
                 ],
