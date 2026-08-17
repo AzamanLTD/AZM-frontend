@@ -201,6 +201,14 @@ flutter:
     - assets/stickers/animated/
     - assets/chat_wallpapers/
 
+  # Bundled Inter variable font (replaces runtime GoogleFonts.inter() fetch
+  # from fonts.gstatic.com — that network round-trip was adding load-time
+  # latency + a flash-of-unstyled-content on first paint, especially on web).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+
 dependency_overrides:
   objective_c: 9.3.0
 flutter_native_splash:

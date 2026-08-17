@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_page_transitions.dart';
@@ -120,7 +119,7 @@ class ThemeProvider with ChangeNotifier {
       // win, but the default is now "let the theme breathe."
       scaffoldBackgroundColor: Colors.transparent,
       canvasColor: c.background,
-      fontFamily: GoogleFonts.inter().fontFamily,
+      fontFamily: 'Inter', // bundled locally — see pubspec.yaml fonts: section
       // Phase H — single cohesive slide+fade transition for every Navigator.push,
       // applied via PageTransitionsTheme so existing imperative MaterialPageRoute
       // calls scattered across the app pick it up automatically.

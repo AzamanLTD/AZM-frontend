@@ -77,3 +77,9 @@ semantic-review/
 AZAMAN_MASTER_SOUL.md
 FRONTEND_AUDIT.md
 API_INTEGRATION_SUMMARY.md
+
+# =============================================================================
+# Web build output — now lives in pyraxxz/AZM-web-demo (separate repo).
+# Keeping build artifacts here just bloats the repo and causes confusion.
+# =============================================================================
+/public/
