@@ -984,24 +984,6 @@ class _MarketplaceHomeScreenState
     ];
   }
 
-  Widget _featuredCarousel(AzamanColors colors) {
-    final state = ref.watch(businessSearchProvider);
-
-    if (state.isLoading) return _featuredShimmer(colors);
-
-    final featured = _topRated(state.results);
-    if (featured.isEmpty) return const SizedBox.shrink();
-
-    return _FeaturedCarousel(
-      colors: colors,
-      featured: featured,
-      isCollapsed: _featuredCollapsed,
-      onToggle: () {
-        AzamanHaptics.toggle();
-        setState(() => _featuredCollapsed = !_featuredCollapsed);
-      },
-    );
-  }
 
   String _categoryLabel(String? cat) {
     switch (cat) {
@@ -1013,39 +995,6 @@ class _MarketplaceHomeScreenState
       case 'HEALTH_WELLNESS': return 'beauty & wellness';
       default: return 'businesses';
     }
-  }
-
-  Widget _featuredShimmer(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(height: 15, width: 140, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(4))),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 160,
-            child: Shimmer.fromColors(
-              baseColor: colors.card,
-              highlightColor: colors.softSurface,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: 4,
-                itemBuilder: (_, __) => Container(
-                  width: 240,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ── Results bar (slim control row) ─────────────────────────────────────────
