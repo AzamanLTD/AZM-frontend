@@ -34,7 +34,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final AnimationController _animController;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
-  late final AnimationController _glowController;
 
   @override
   void initState() {
@@ -46,15 +45,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
-
-    // Glow pulse: continuous 2s loop
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
 
     _animController.forward();
     _checkAuthStatus();
@@ -77,8 +70,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(seconds: 2));
 
     // ── Auto-demo fallback for web ──────────────────────────────────────
-    // If demoMode isn't already on, probe the backend with a short timeout.
-    // If unreachable, auto-enable demo mode so the app isn't stuck on splash.
     if (!AppConfig.demoMode && kIsWeb) {
       try {
         await apiClient.get('/health', requireAuth: false)
@@ -103,9 +94,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         availableBalance: 12450.00,
         kycStatus: KycStatus.verified,
       ));
-      // Set the auth guard so GoRouter lets us through
       AuthGuard.isAuthenticated = true;
-      // Skip version gate, onboarding — go straight to the app
       ref.read(themeProvider).loadFromBackend();
       ref.read(settingsProvider).loadFromBackend();
       if (!mounted) return;
@@ -184,7 +173,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _animController.dispose();
-    _glowController.dispose();
     super.dispose();
   }
 
@@ -193,105 +181,52 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ── Center: Logo + wordmark ────────────────────────────────
-            Expanded(
-              child: Center(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // ── Logo with real pulsing glow ─────────────────────
-                        AnimatedBuilder(
-                          animation: _glowController,
-                          builder: (_, __) {
-                            final glow = _glowController.value;
-                            return Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.06 + glow * 0.10),
-                                    blurRadius: 25 + glow * 15,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Hero(
-                                tag: 'azaman_logo',
-                                child: Image.asset(
-                                  'assets/images/azaman_logo_black.png',
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        // ── Smaller wordmark with gold shimmer ───────────────
-                        ShaderMask(
-                          shaderCallback: (bounds) {
-                            return LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.3),
-                                Colors.black,
-                                Colors.black.withValues(alpha: 0.3),
-                              ],
-                              stops: const [0.0, 0.5, 1.0],
-                            ).createShader(bounds);
-                          },
-                          child: const Text(
-                            'AZAMAN',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 4,
-                            ),
-                          ),
-                        )
-                        .animate(onPlay: (c) => c.repeat())
-                        .shimmer(duration: 2200.ms, color: Colors.black.withValues(alpha: 0.15)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // ── Bottom: Logo trace loader ────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.only(bottom: 48),
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // ── Center: LogoTraceLoader replaces static logo ──────────
                   LogoTraceLoader(
-                    size: 48,
-                    strokeWidth: 3,
-                    color: Colors.black.withValues(alpha: 0.65),
+                    size: 120,
+                    strokeWidth: 4,
+                    color: Colors.black.withValues(alpha: 0.75),
                     loopDurationSeconds: 2.4,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Securing your session...',
-                    style: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.5,
+                  const SizedBox(height: 28),
+                  // ── Azaman wordmark — refined ────────────────────────────
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.35),
+                          Colors.black,
+                          Colors.black.withValues(alpha: 0.35),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ).createShader(bounds);
+                    },
+                    child: const Text(
+                      'AZAMAN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 8,
+                      ),
                     ),
-                  ),
+                  )
+                  .animate(onPlay: (c) => c.repeat())
+                  .shimmer(duration: 2200.ms, color: Colors.black.withValues(alpha: 0.12)),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
