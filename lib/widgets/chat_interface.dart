@@ -11,7 +11,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/widgets/chat_plus_menu.dart';
+import 'package:azaman/widgets/liquid_menu_button.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -1142,7 +1142,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
         children: [
           // ── + button (non-admin only) — ChatPlusMenu ────────────────────
           if (!isAdmin)
-            ChatPlusMenu(
+            LiquidMenuButton(
               onImageTap: widget.onPickGallery,
               onDocumentTap: () {},
               onStickerTap: () {
