@@ -18,6 +18,7 @@ import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/router/auth_guard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/foundation.dart';
+import 'package:azaman/widgets/logo_trace_loader.dart';
 
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -265,22 +266,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ),
               ),
             ),
-            // ── Bottom: indeterminate progress bar ──────────────────────
+            // ── Bottom: Logo trace loader ────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(80, 0, 80, 40),
+              padding: const EdgeInsets.only(bottom: 48),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      backgroundColor: Colors.black.withValues(alpha: 0.06),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.black.withValues(alpha: 0.4 + _glowController.value * 0.2),
-                      ),
-                      minHeight: 3,
-                    ),
+                  LogoTraceLoader(
+                    size: 48,
+                    strokeWidth: 3,
+                    color: Colors.black.withValues(alpha: 0.65),
+                    loopDurationSeconds: 2.4,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Text(
                     'Securing your session...',
                     style: TextStyle(

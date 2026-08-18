@@ -173,6 +173,7 @@ dependencies:
 
   uuid: any
   http_parser: any
+  path_drawing: ^1.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
