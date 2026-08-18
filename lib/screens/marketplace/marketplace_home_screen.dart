@@ -18,7 +18,6 @@
 
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -101,6 +100,10 @@ class _MarketplaceHomeScreenState
 
   // Telegram-style stories collapse state
   bool _storiesCollapsed = false;
+  // Featured Near You section — collapsed by default with expand arrow
+  bool _featuredCollapsed = true;
+  // Location permission requested flag
+  bool _locationRequested = false;
 
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
@@ -136,6 +139,12 @@ class _MarketplaceHomeScreenState
       final biz = ref.read(myBusinessProvider);
       if (!biz.hasLoaded && !biz.isLoading) {
         ref.read(myBusinessProvider.notifier).load();
+      }
+      // Request location permission for "Featured Near You" but don't
+      // block the UI — demo data still shows regardless of permission.
+      if (!_locationRequested) {
+        _locationRequested = true;
+        _requestLocationPermission();
       }
     });
   }
@@ -243,6 +252,27 @@ class _MarketplaceHomeScreenState
     }
   }
 
+  /// Request location permission without blocking — still shows demo data.
+  Future<void> _requestLocationPermission() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever) {
+        final pos = await Geolocator.getCurrentPosition();
+        if (mounted) {
+          setState(() => _position = pos);
+        }
+      }
+    } catch (_) {
+      // Silently fail — demo data shows regardless
+    }
+  }
+
   void _setViewMode(_ViewMode mode) {
     if (_viewMode == mode) return;
     AzamanHaptics.toggle();
@@ -318,7 +348,7 @@ class _MarketplaceHomeScreenState
 
     return Scaffold(
       backgroundColor: colors.background,
-      floatingActionButton: _businessFab(colors),
+      // FAB removed — store management moved to the storefront button (item 9)
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -402,39 +432,158 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  // ── Business registration / dashboard entry point ───────────────────────────
-  // Moved here from the settings drawer (2026-07-06) — lives where businesses
-  // are actually browsed. Shows "Register Business" if the signed-in user has
-  // no business profile yet, or "Your Business" (deep-links to their
-  // dashboard) once they're registered.
-  Widget _businessFab(AzamanColors colors) {
-    final bizState = ref.watch(myBusinessProvider);
-
-    // Avoid a flash of the wrong state while the initial fetch is in flight.
-    if (bizState.isLoading && !bizState.hasLoaded) {
-      return const SizedBox.shrink();
-    }
-
+  // ── Store management sheet (replaces old FAB) ──────────────────────────────
+  // The FAB was removed — store management now lives in the storefront
+  // button in the header. See _showStoreManagementSheet().
+  void _showStoreManagementSheet(AzamanColors colors) {
+    final bizState = ref.read(myBusinessProvider);
     final isRegistered = bizState.profile != null;
 
-    // 2026-07-08: shrunk from a FloatingActionButton.extended (icon+text
-    // pill) to just a circular emoji bubble — same tap target/destination,
-    // less visual weight sitting over the marketplace feed.
-    return Tooltip(
-      message: isRegistered ? 'Your Business' : 'Register Business',
-      child: FloatingActionButton(
-        heroTag: 'marketplace_business_fab',
-        backgroundColor: colors.accent,
-        foregroundColor: Colors.white,
-        onPressed: () {
-          AzamanHaptics.nav();
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => isRegistered
-                ? const BusinessDashboardScreen()
-                : const BusinessRegisterScreen(),
-          ));
-        },
-        child: Text(isRegistered ? '🏬' : '🏪', style: const TextStyle(fontSize: 22)),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Your Stores',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (isRegistered) ...[
+                // Show existing store
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    AzamanHaptics.nav();
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const BusinessDashboardScreen(),
+                    ));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.softSurface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.divider, width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: colors.accentSurface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: bizState.profile?.logoUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: AzamanNetworkImage(
+                                    imageUrl: bizState.profile!.logoUrl!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Icon(Icons.store_rounded, color: colors.accent, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                bizState.profile?.businessName ?? 'My Store',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap to manage',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              // Add store button (always visible)
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  AzamanHaptics.nav();
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const BusinessRegisterScreen(),
+                  ));
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colors.accentSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: colors.accent.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.add_rounded, color: colors.isDark ? Colors.black : Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isRegistered ? 'Add another store' : 'Register your business',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: colors.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -491,10 +640,10 @@ class _MarketplaceHomeScreenState
                     ),
                     const SizedBox(width: 8),
 
-                    // Storefront discovery
+                    // Store management — shows your stores + add button
                     _iconAction(
                       icon: Icons.storefront_rounded,
-                      onTap: () => context.pushNamed('storefront-discovery'),
+                      onTap: () => _showStoreManagementSheet(colors),
                       colors: colors,
                       activeColor: colors.accent,
                     ),
@@ -721,7 +870,12 @@ class _MarketplaceHomeScreenState
               setState(() => _selectedCategory = isAll ? null : (isActive ? null : catItem.$1));
               _fireSearch();
             },
-            child: AnimatedContainer(
+            child: BorderBeam(
+              enabled: isActive,
+              borderRadius: BorderRadius.circular(isAll ? 28 : 24),
+              beamColor: colors.accent,
+              duration: const Duration(seconds: 3),
+              child: AnimatedContainer(
               duration: 300.ms, curve: Curves.easeOutCubic,
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               decoration: BoxDecoration(
@@ -747,6 +901,7 @@ class _MarketplaceHomeScreenState
                 ],
               ),
             ),
+            ),
           ).animate().fadeIn(delay: (i * 60).ms, duration: 250.ms).slideX(begin: 0.2, end: 0, delay: (i * 60).ms, duration: 250.ms, curve: Curves.easeOutCubic);
         },
       ),
@@ -766,11 +921,14 @@ class _MarketplaceHomeScreenState
 
   /// Opens the story viewer for a business's stories (not their profile).
   void _openBusinessStories(BuildContext context, String bizId) async {
-    // Demo mode: skip story viewer entirely — go straight to the business
-    // profile. The story viewer auto-closes after ~5s which felt like a
-    // "redirect to home" bug. In demo mode stories add no value.
     if (AppConfig.demoMode) {
-      context.push('/business/$bizId');
+      // In demo mode, create demo story groups with placeholder content
+      // so the story viewer opens properly instead of redirecting to the
+      // business profile page.
+      final demoGroups = _buildDemoStoryGroups(bizId);
+      if (context.mounted) {
+        await StoryViewerScreen.open(context, groups: demoGroups, initialGroupIndex: 0, heroTag: 'marketplace-story-ring-$bizId');
+      }
       return;
     }
     try {
@@ -780,10 +938,7 @@ class _MarketplaceHomeScreenState
           .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
           .toList();
       if (groups.isNotEmpty && context.mounted) {
-        await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0);
-        if (context.mounted) {
-          context.push('/business/$bizId');
-        }
+        await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0, heroTag: 'marketplace-story-ring-$bizId');
       } else if (context.mounted) {
         context.push('/business/$bizId');
       }
@@ -794,6 +949,41 @@ class _MarketplaceHomeScreenState
     }
   }
 
+  /// Builds demo story groups for a business in demo mode.
+  List<StoryGroup> _buildDemoStoryGroups(String bizId) {
+    return [
+      StoryGroup(
+        authorId: 0,
+        authorUsername: 'Demo Business',
+        authorAvatarUrl: null,
+        hasUnseen: true,
+        isBoosted: false,
+        stories: [
+          StoryItem(
+            id: 'demo-story-1',
+            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800',
+            mediaType: 'IMAGE',
+            caption: 'Welcome to our store! 🎉',
+            durationSeconds: 5,
+            boosted: false,
+            seen: false,
+            createdAt: DateTime.now(),
+          ),
+          StoryItem(
+            id: 'demo-story-2',
+            mediaUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800',
+            mediaType: 'IMAGE',
+            caption: 'Check out our latest products',
+            durationSeconds: 5,
+            boosted: false,
+            seen: false,
+            createdAt: DateTime.now(),
+          ),
+        ],
+      ),
+    ];
+  }
+
   Widget _featuredCarousel(AzamanColors colors) {
     final state = ref.watch(businessSearchProvider);
 
@@ -802,7 +992,15 @@ class _MarketplaceHomeScreenState
     final featured = _topRated(state.results);
     if (featured.isEmpty) return const SizedBox.shrink();
 
-    return _FeaturedCarousel(colors: colors, featured: featured);
+    return _FeaturedCarousel(
+      colors: colors,
+      featured: featured,
+      isCollapsed: _featuredCollapsed,
+      onToggle: () {
+        AzamanHaptics.toggle();
+        setState(() => _featuredCollapsed = !_featuredCollapsed);
+      },
+    );
   }
 
   String _categoryLabel(String? cat) {
@@ -1087,7 +1285,15 @@ class _MarketplaceHomeScreenState
         itemBuilder: (ctx, i) {
           // Featured carousel as first scrollable item
           if (hasCarousel && i == 0) {
-            return _FeaturedCarousel(colors: colors, featured: featured);
+            return _FeaturedCarousel(
+              colors: colors,
+              featured: featured,
+              isCollapsed: _featuredCollapsed,
+              onToggle: () {
+                AzamanHaptics.toggle();
+                setState(() => _featuredCollapsed = !_featuredCollapsed);
+              },
+            );
           }
           final bizIndex = hasCarousel ? i - 1 : i;
           // Infinite-scroll loader sentinel
@@ -1404,106 +1610,108 @@ class _FeaturedBusinessCard extends StatelessWidget {
 
     return ScaleTap(
       onTap: onTap,
-      child: BorderBeam(
-        borderRadius: BorderRadius.circular(14),
-        beamColor: cat.color,
-        duration: const Duration(seconds: 4),
-        child: Container(
-          width: 240,
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
+      // BorderBeam removed from featured cards — now used on active category chips
+      child: Container(
+        width: 240,
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Cover image — Hero transition to business profile
-                Hero(
-                  tag: 'biz-logo-${business.id}',
-                  child: SizedBox(
-                  height: 88,
-                  width: double.infinity,
-                  child: coverUrl != null
-                      ? AzamanNetworkImage(
-                          imageUrl: coverUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: cat.color.withValues(alpha: 0.15)),
-                          errorWidget: (_, __, ___) => Container(color: cat.color.withValues(alpha: 0.15)),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: [cat.color, cat.color.withValues(alpha: 0.5)],
-                            ),
+            // Cover image — Hero transition to business profile
+            Hero(
+              tag: 'biz-logo-${business.id}',
+              child: SizedBox(
+                height: 88,
+                width: double.infinity,
+                child: coverUrl != null
+                    ? AzamanNetworkImage(
+                        imageUrl: coverUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: cat.color.withValues(alpha: 0.15)),
+                        errorWidget: (_, __, ___) => Container(color: cat.color.withValues(alpha: 0.15)),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft, end: Alignment.bottomRight,
+                            colors: [cat.color, cat.color.withValues(alpha: 0.5)],
                           ),
-                          child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withValues(alpha: 0.5))),
                         ),
-                ),
-                ),
-                // Name + rating (indented to make room for the overlapping avatar)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 26, 14, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        business.businessName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                        child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withValues(alpha: 0.5))),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+              ),
+            ),
+            // Avatar + text/rating in a Row (avatar on left, text on right)
+            // Avatar keeps its 3D effect by overlapping the cover image edge
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 3D squircle avatar — overlaps the cover image bottom
+                    Container(
+                      width: 48, height: 48,
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        color: colors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2))],
+                      ),
+                      child: ClipPath(
+                        clipper: ShapeBorderClipper(
+                          shape: ContinuousRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: business.logoUrl != null
+                            ? AzamanNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
+                            : Container(
+                                color: cat.color.withValues(alpha: 0.2),
+                                child: Icon(cat.icon, size: 20, color: cat.color),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Text + rating to the side of the avatar
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          RatingStars(rating: business.averageRating, size: 12, showNumber: true),
-                          if (business.isVerified) ...[
-                            const SizedBox(width: 6),
-                            Icon(Icons.verified_rounded, size: 13, color: colors.accent),
-                          ],
+                          Text(
+                            business.businessName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              RatingStars(rating: business.averageRating, size: 12, showNumber: true),
+                              if (business.isVerified) ...[
+                                const SizedBox(width: 6),
+                                Icon(Icons.verified_rounded, size: 13, color: colors.accent),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            // Avatar — squircle (matches chat story rings)
-            Positioned(
-              left: 14,
-              top: 118 - 24,
-              child: Container(
-                width: 48, height: 48,
-                padding: const EdgeInsets.all(2.5),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2))],
-                ),
-                child: ClipPath(
-                  clipper: ShapeBorderClipper(
-                    shape: ContinuousRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
                     ),
-                  ),
-                  child: business.logoUrl != null
-                      ? AzamanNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
-                      : Container(
-                          color: cat.color.withValues(alpha: 0.2),
-                          child: Icon(cat.icon, size: 20, color: cat.color),
-                        ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
-      ),
       ),
     );
   }
@@ -1514,8 +1722,15 @@ class _FeaturedBusinessCard extends StatelessWidget {
 class _FeaturedCarousel extends StatefulWidget {
   final AzamanColors colors;
   final List<BusinessProfile> featured;
+  final bool isCollapsed;
+  final VoidCallback? onToggle;
 
-  const _FeaturedCarousel({required this.colors, required this.featured});
+  const _FeaturedCarousel({
+    required this.colors,
+    required this.featured,
+    this.isCollapsed = false,
+    this.onToggle,
+  });
 
   @override
   State<_FeaturedCarousel> createState() => _FeaturedCarouselState();
@@ -1555,15 +1770,33 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      padding: EdgeInsets.only(top: 6, bottom: widget.isCollapsed ? 4 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Featured Near You',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
+          // Tappable header with expand/collapse arrow
+          GestureDetector(
+            onTap: widget.onToggle,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('Featured Near You',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
+                  const SizedBox(width: 6),
+                  Icon(
+                    widget.isCollapsed
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_up_rounded,
+                    size: 18,
+                    color: widget.colors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
           ),
+          if (!widget.isCollapsed) ...[
           const SizedBox(height: 10),
           SizedBox(
             height: 160,
@@ -1628,6 +1861,7 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
                 ),
               ),
             ),
+          ],  // end if (!widget.isCollapsed)
         ],
       ),
     );

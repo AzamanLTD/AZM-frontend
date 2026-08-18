@@ -199,7 +199,7 @@ class _State extends ConsumerState<PremiumChatInput> {
         // ── Input row ────────────────────────────────────────────────────
         Container(
           color: c.surface,
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          padding: EdgeInsets.fromLTRB(8, 8, 8, MediaQuery.of(context).padding.bottom + 8),
           child: Stack(
             alignment: Alignment.centerRight,
             clipBehavior: Clip.none,

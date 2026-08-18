@@ -115,11 +115,14 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                       width: 68,
                       child: Column(
                         children: [
-                          StoryRing(
-                            avatarUrl: logoUrl,
-                            hasUnseenStory: hasUnseen,
-                            isBoosted: isVerified,
-                            size: 60,
+                          Hero(
+                            tag: 'marketplace-story-ring-$id',
+                            child: StoryRing(
+                              avatarUrl: logoUrl,
+                              hasUnseenStory: hasUnseen,
+                              isBoosted: isVerified,
+                              size: 60,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(

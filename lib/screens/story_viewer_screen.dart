@@ -13,7 +13,8 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 class StoryViewerScreen extends ConsumerStatefulWidget {
   final List<StoryGroup> groups;
   final int initialGroupIndex;
-  const StoryViewerScreen({super.key, required this.groups, this.initialGroupIndex = 0});
+  final String? heroTag;
+  const StoryViewerScreen({super.key, required this.groups, this.initialGroupIndex = 0, this.heroTag});
 
   /// 2026-07-08: container-transform-style open (fade + scale-up-from-ring)
   /// instead of a flat MaterialPageRoute push. Popping — whether via the
@@ -25,13 +26,14 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
     BuildContext context, {
     required List<StoryGroup> groups,
     int initialGroupIndex = 0,
+    String? heroTag,
   }) {
     return Navigator.of(context).push(PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 260),
       opaque: true,
       pageBuilder: (_, __, ___) =>
-          StoryViewerScreen(groups: groups, initialGroupIndex: initialGroupIndex),
+          StoryViewerScreen(groups: groups, initialGroupIndex: initialGroupIndex, heroTag: heroTag),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
         return FadeTransition(
@@ -155,6 +157,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
 
   @override
   Widget build(BuildContext context) {
+    final heroTag = widget.heroTag;
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
