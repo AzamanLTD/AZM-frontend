@@ -111,7 +111,7 @@ class DemoSeedData {
         'content': '',
         'createdAt': _hoursAgo(28),
         'messageType': 'IMAGE',
-        'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+        'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
       },
       'unreadCount': 1,
     },
@@ -236,7 +236,7 @@ class DemoSeedData {
               'senderUsername': 'Ibrah',
               'content': '',
               'messageType': 'IMAGE',
-              'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+              'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
               'createdAt': _hoursAgo(27, 55),
               'status': 'DELIVERED',
             },
@@ -874,7 +874,7 @@ class DemoSeedData {
         'stories': [
           {
             'id': 's-1',
-            'mediaUrl': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Friday vibes at the spot',
             'durationSeconds': 5,
@@ -884,7 +884,7 @@ class DemoSeedData {
           },
           {
             'id': 's-1b',
-            'mediaUrl': 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2a2ea44bb_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Dinner was unreal',
             'durationSeconds': 5,
@@ -905,7 +905,7 @@ class DemoSeedData {
         'stories': [
           {
             'id': 's-2',
-            'mediaUrl': 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/b9d199e58_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New office setup',
             'durationSeconds': 5,
@@ -915,7 +915,7 @@ class DemoSeedData {
           },
           {
             'id': 's-2b',
-            'mediaUrl': 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Late night grind',
             'durationSeconds': 5,
@@ -936,7 +936,7 @@ class DemoSeedData {
         'stories': [
           {
             'id': 's-3',
-            'mediaUrl': 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New rates just dropped!',
             'durationSeconds': 5,
@@ -946,7 +946,7 @@ class DemoSeedData {
           },
           {
             'id': 's-3b',
-            'mediaUrl': 'https://images.unsplash.com/photo-1640340434855-6084b1f4901c?w=400',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'USDC pairs now live',
             'durationSeconds': 5,
