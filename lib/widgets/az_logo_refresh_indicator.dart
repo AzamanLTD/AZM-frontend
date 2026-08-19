@@ -1,12 +1,16 @@
 // =============================================================================
 // AZAMAN — Custom Pull-to-Refresh with Logo Trace Animation
 //
-// Mini Azaman logo outline that progressively fills with solid black as the
-// user pulls down. When released, a tracing segment animates around the
-// outline to indicate loading. Smaller and cleaner than the default spinner.
+// Three-part Azaman logo that traces all 3 SVG subpaths simultaneously in
+// solid black as the user pulls down. On release, the solid outlines
+// transition to a moving tracer segment that loops around all 3 parts
+// to indicate loading. Overlays ON TOP of the page content (does not
+// push/translate the scroll view). Minimum display time ensures the
+// animation is visible even on instant refresh.
 // =============================================================================
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -30,23 +34,31 @@ class _AzLogoRefreshIndicatorState
     extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
   double _dragOffset = 0;
-  static const double _triggerDistance = 60;
-  static const double _maxDrag = 85;
+  static const double _triggerDistance = 70;
+  static const double _maxDrag = 100;
+  static const double _indicatorSize = 38;
+  static const Duration _minDisplayTime = Duration(milliseconds: 1800);
   bool _isRefreshing = false;
   late final AnimationController _traceController;
+  late final AnimationController _fadeController;
 
   @override
   void initState() {
     super.initState();
     _traceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2000),
+    );
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
   }
 
   @override
   void dispose() {
     _traceController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -71,14 +83,30 @@ class _AzLogoRefreshIndicatorState
   }
 
   Future<void> _triggerRefresh() async {
-    setState(() { _isRefreshing = true; _dragOffset = _triggerDistance; });
+    setState(() {
+      _isRefreshing = true;
+      _dragOffset = _triggerDistance;
+    });
+    _fadeController.forward(from: 0);
+    // Brief delay so the solid-black → tracer transition is visible
+    await Future.delayed(const Duration(milliseconds: 350));
     _traceController.repeat();
     try {
-      await widget.onRefresh();
+      await Future.wait([
+        widget.onRefresh(),
+        Future.delayed(_minDisplayTime),
+      ]);
     } finally {
       if (mounted) {
         _traceController.stop();
-        setState(() { _isRefreshing = false; _dragOffset = 0; });
+        _fadeController.reverse();
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          setState(() {
+            _isRefreshing = false;
+            _dragOffset = 0;
+          });
+        }
       }
     }
   }
@@ -88,71 +116,98 @@ class _AzLogoRefreshIndicatorState
     final colors = ref.watch(themeProvider).colors;
     final indicatorColor = colors.textPrimary;
 
+    final showHeight = _isRefreshing ? _triggerDistance : _dragOffset;
+    final pullProgress = (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
+
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
       child: Stack(
         children: [
-          Transform.translate(
-            offset: Offset(0, _isRefreshing ? _triggerDistance : _dragOffset),
-            child: widget.child,
-          ),
-          Positioned(
-            top: 0, left: 0, right: 0,
-            height: _isRefreshing ? _triggerDistance : _dragOffset,
-            child: ClipRect(
-              child: OverflowBox(
-                minHeight: 0, maxHeight: double.infinity,
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity, alignment: Alignment.center,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: (_dragOffset / _triggerDistance).clamp(0.0, 1.0),
-                    child: _MiniLogoTrace(
-                      size: 26,
-                      traceAnimation: _traceController,
-                      color: indicatorColor,
-                      isRefreshing: _isRefreshing,
-                      pullProgress: (_dragOffset / _triggerDistance).clamp(0.0, 1.0),
+          // Child stays in place — NO Transform.translate
+          widget.child,
+          // Indicator overlays ON TOP of the content, growing from the top edge
+          if (showHeight > 0.5)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: showHeight,
+              child: ClipRect(
+                child: OverflowBox(
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _isRefreshing
+                          ? 1.0
+                          : (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0),
+                      child: _ThreePartLogoTrace(
+                        size: _indicatorSize,
+                        traceAnimation: _traceController,
+                        fadeAnimation: _fadeController,
+                        color: indicatorColor,
+                        isRefreshing: _isRefreshing,
+                        pullProgress: pullProgress,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 }
 
-class _MiniLogoTrace extends StatelessWidget {
+// =============================================================================
+// Three-Part Logo Trace Widget
+// =============================================================================
+
+class _ThreePartLogoTrace extends StatelessWidget {
   final double size;
   final Animation<double> traceAnimation;
+  final Animation<double> fadeAnimation;
   final Color color;
   final bool isRefreshing;
   final double pullProgress;
 
-  const _MiniLogoTrace({
-    required this.size, required this.traceAnimation,
-    required this.color, required this.isRefreshing, required this.pullProgress,
+  const _ThreePartLogoTrace({
+    required this.size,
+    required this.traceAnimation,
+    required this.fadeAnimation,
+    required this.color,
+    required this.isRefreshing,
+    required this.pullProgress,
   });
 
   static const String _viewBox = "20 20 569 553";
-  static const String _tracePathData =
-      "M408.0,167.5 L398.0,166.5 L364.0,150.5 L331.0,139.5 L307.0,136.5 L274.0,140.5 L270.0,143.5 L237.0,153.5 L207.0,167.5 L195.0,164.5 L188.5,152.0 L199.5,130.0 L212.5,115.0 L215.5,108.0 L270.5,45.0 L273.5,39.0 L277.5,37.0 L277.5,34.0 L295.0,20.5 L313.0,19.5 L314.0,21.5 L315.0,19.5 L332.5,36.0 L341.5,49.0 L346.5,52.0 L349.5,58.0 L379.5,91.0 L412.5,136.0 L418.5,148.0 L419.5,156.0 L414.5,164.0 L408.0,167.5 Z M461.0,327.5 L450.0,325.5 L423.0,312.5 L371.0,294.5 L336.0,287.5 L326.0,288.5 L311.0,285.5 L283.0,286.5 L283.0,288.5 L271.0,287.5 L257.0,290.5 L256.0,292.5 L250.0,291.5 L240.0,295.5 L237.0,294.5 L219.0,302.5 L216.0,301.5 L185.0,312.5 L159.0,325.5 L147.0,327.5 L136.0,324.5 L127.5,315.0 L125.5,296.0 L143.5,272.0 L151.5,266.0 L161.0,253.5 L195.0,223.5 L219.0,206.5 L237.0,197.5 L239.0,194.5 L274.0,180.5 L294.0,177.5 L296.0,175.5 L312.0,175.5 L340.0,182.5 L361.0,192.5 L363.0,191.5 L371.0,197.5 L373.0,196.5 L378.0,201.5 L392.0,207.5 L400.0,215.5 L406.0,217.5 L448.5,254.0 L454.5,263.0 L471.5,278.0 L469.5,279.0 L479.5,290.0 L483.5,301.0 L482.5,310.0 L478.5,318.0 L474.0,322.5 L461.0,327.5 Z M563.0,572.5 L551.0,570.5 L539.0,562.5 L537.0,563.5 L531.0,557.5 L485.0,530.5 L414.0,497.5 L408.0,497.5 L402.0,493.5 L363.0,483.5 L359.0,484.5 L358.0,482.5 L348.0,480.5 L317.0,477.5 L267.0,479.5 L251.0,482.5 L250.0,484.5 L236.0,485.5 L195.0,497.5 L165.0,509.5 L123.0,530.5 L69.0,562.5 L58.0,571.5 L56.0,569.5 L46.0,572.5 L34.0,568.5 L21.5,555.0 L19.5,543.0 L21.5,543.0 L24.5,529.0 L38.5,496.0 L37.5,494.0 L42.5,487.0 L41.5,484.0 L53.5,459.0 L54.5,451.0 L71.0,431.5 L108.0,402.5 L110.0,403.5 L123.0,393.5 L160.0,372.5 L185.0,360.5 L190.0,360.5 L196.0,355.5 L198.0,356.5 L214.0,349.5 L239.0,344.5 L240.0,342.5 L282.0,337.5 L283.0,335.5 L325.0,335.5 L327.0,337.5 L345.0,338.5 L381.0,346.5 L397.0,352.5 L401.0,351.5 L400.0,353.5 L403.0,352.5 L417.0,360.5 L423.0,360.5 L444.0,371.5 L449.0,371.5 L456.0,378.5 L466.0,381.5 L477.0,389.5 L479.0,388.5 L488.0,396.5 L503.0,404.5 L542.0,435.5 L554.5,453.0 L557.5,463.0 L559.5,463.0 L562.5,477.0 L582.5,522.0 L584.5,533.0 L588.5,538.0 L587.5,553.0 L582.5,561.0 L577.0,566.5 L563.0,572.5 Z";
+
+  // The 3 subpaths of the Azaman logo, separated.
+  static const String _part1 =
+      "M408.0,167.5 L398.0,166.5 L364.0,150.5 L331.0,139.5 L307.0,136.5 L274.0,140.5 L270.0,143.5 L237.0,153.5 L207.0,167.5 L195.0,164.5 L188.5,152.0 L199.5,130.0 L212.5,115.0 L215.5,108.0 L270.5,45.0 L273.5,39.0 L277.5,37.0 L277.5,34.0 L295.0,20.5 L313.0,19.5 L314.0,21.5 L315.0,19.5 L332.5,36.0 L341.5,49.0 L346.5,52.0 L349.5,58.0 L379.5,91.0 L412.5,136.0 L418.5,148.0 L419.5,156.0 L414.5,164.0 L408.0,167.5 Z";
+  static const String _part2 =
+      "M461.0,327.5 L450.0,325.5 L423.0,312.5 L371.0,294.5 L336.0,287.5 L326.0,288.5 L311.0,285.5 L283.0,286.5 L283.0,288.5 L271.0,287.5 L257.0,290.5 L256.0,292.5 L250.0,291.5 L240.0,295.5 L237.0,294.5 L219.0,302.5 L216.0,301.5 L185.0,312.5 L159.0,325.5 L147.0,327.5 L136.0,324.5 L127.5,315.0 L125.5,296.0 L143.5,272.0 L151.5,266.0 L161.0,253.5 L195.0,223.5 L219.0,206.5 L237.0,197.5 L239.0,194.5 L274.0,180.5 L294.0,177.5 L296.0,175.5 L312.0,175.5 L340.0,182.5 L361.0,192.5 L363.0,191.5 L371.0,197.5 L373.0,196.5 L378.0,201.5 L392.0,207.5 L400.0,215.5 L406.0,217.5 L448.5,254.0 L454.5,263.0 L471.5,278.0 L469.5,279.0 L479.5,290.0 L483.5,301.0 L482.5,310.0 L478.5,318.0 L474.0,322.5 L461.0,327.5 Z";
+  static const String _part3 =
+      "M563.0,572.5 L551.0,570.5 L539.0,562.5 L537.0,563.5 L531.0,557.5 L485.0,530.5 L414.0,497.5 L408.0,497.5 L402.0,493.5 L363.0,483.5 L359.0,484.5 L358.0,482.5 L348.0,480.5 L317.0,477.5 L267.0,479.5 L251.0,482.5 L250.0,484.5 L236.0,485.5 L195.0,497.5 L165.0,509.5 L123.0,530.5 L69.0,562.5 L58.0,571.5 L56.0,569.5 L46.0,572.5 L34.0,568.5 L21.5,555.0 L19.5,543.0 L21.5,543.0 L24.5,529.0 L38.5,496.0 L37.5,494.0 L42.5,487.0 L41.5,484.0 L53.5,459.0 L54.5,451.0 L71.0,431.5 L108.0,402.5 L110.0,403.5 L123.0,393.5 L160.0,372.5 L185.0,360.5 L190.0,360.5 L196.0,355.5 L198.0,356.5 L214.0,349.5 L239.0,344.5 L240.0,342.5 L282.0,337.5 L283.0,335.5 L325.0,335.5 L327.0,337.5 L345.0,338.5 L381.0,346.5 L397.0,352.5 L401.0,351.5 L400.0,353.5 L403.0,352.5 L417.0,360.5 L423.0,360.5 L444.0,371.5 L449.0,371.5 L456.0,378.5 L466.0,381.5 L477.0,389.5 L479.0,388.5 L488.0,396.5 L503.0,404.5 L542.0,435.5 L554.5,453.0 L557.5,463.0 L559.5,463.0 L562.5,477.0 L582.5,522.0 L584.5,533.0 L588.5,538.0 L587.5,553.0 L582.5,561.0 L577.0,566.5 L563.0,572.5 Z";
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: size, height: size,
+      width: size,
+      height: size,
       child: AnimatedBuilder(
-        animation: traceAnimation,
+        animation: Listenable.merge([traceAnimation, fadeAnimation]),
         builder: (context, _) {
           return CustomPaint(
-            painter: _MiniLogoTracePainter(
-              tracePathData: _tracePathData,
+            painter: _ThreePartLogoPainter(
+              partPaths: [_parsePath(_part1), _parsePath(_part2), _parsePath(_part3)],
               loopProgress: isRefreshing ? traceAnimation.value : 0,
+              fadeProgress: fadeAnimation.value,
               isRefreshing: isRefreshing,
               pullProgress: pullProgress,
               color: color,
@@ -166,19 +221,37 @@ class _MiniLogoTrace extends StatelessWidget {
   }
 }
 
-class _MiniLogoTracePainter extends CustomPainter {
-  final String tracePathData;
+// =============================================================================
+// Three-Part Logo Painter
+//
+// Pull phase: all 3 subpaths trace simultaneously from 0→100% in solid black.
+// The trace is proportional — each part fills at the SAME rate, so at 50% pull
+// all 3 parts are half-traced, not one part done and the next empty.
+//
+// Refresh phase: solid black outlines fade to a faint guide, and a bright
+// moving segment (same black, thicker) travels around all 3 parts in
+// sequence to indicate loading.
+// =============================================================================
+
+class _ThreePartLogoPainter extends CustomPainter {
+  final List<Path> partPaths;
   final double loopProgress;
+  final double fadeProgress;
   final bool isRefreshing;
   final double pullProgress;
   final Color color;
   final String viewBox;
   final double strokeWidth;
 
-  _MiniLogoTracePainter({
-    required this.tracePathData, required this.loopProgress,
-    required this.isRefreshing, required this.pullProgress,
-    required this.color, required this.viewBox, required this.strokeWidth,
+  _ThreePartLogoPainter({
+    required this.partPaths,
+    required this.loopProgress,
+    required this.fadeProgress,
+    required this.isRefreshing,
+    required this.pullProgress,
+    required this.color,
+    required this.viewBox,
+    required this.strokeWidth,
   });
 
   @override
@@ -196,31 +269,49 @@ class _MiniLogoTracePainter extends CustomPainter {
     canvas.translate(dx, dy);
     canvas.scale(scale);
 
-    final tracePath = _parsePath(tracePathData);
-
-    // Faint guide path — always visible during pull and refresh
-    final guideOpacity = isRefreshing ? 0.2 : (pullProgress * 0.15);
+    // --- Faint guide outline — always visible during pull and refresh ---
+    final guideOpacity = isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
     final guidePaint = Paint()
       ..color = color.withValues(alpha: guideOpacity)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = (strokeWidth / 2) / scale
+      ..strokeWidth = (strokeWidth * 0.6) / scale
       ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
-    canvas.drawPath(tracePath, guidePaint);
+    for (final p in partPaths) {
+      canvas.drawPath(p, guidePaint);
+    }
 
     if (isRefreshing) {
-      // Animated tracing segment — solid black, loops around the outline
-      final paint = Paint()
-        ..color = color
+      // --- Refresh phase ---
+      // Solid black outlines fade out (the "come back to regular tracer"
+      // transition), then the moving tracer segment takes over.
+
+      // The solid outlines fade from 1.0 → 0.2 over the fade-in period
+      final outlineOpacity = (1.0 - fadeProgress * 0.8).clamp(0.2, 1.0);
+      final outlinePaint = Paint()
+        ..color = color.withValues(alpha: outlineOpacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth / scale
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
-      _drawAnimatedTrace(canvas, tracePath, paint);
+      for (final p in partPaths) {
+        canvas.drawPath(p, outlinePaint);
+      }
+
+      // Moving tracer segment — travels around all 3 parts in sequence
+      final tracerPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (strokeWidth * 1.4) / scale
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..isAntiAlias = true;
+      _drawMovingTracer(canvas, partPaths, tracerPaint, loopProgress);
+
     } else if (pullProgress > 0) {
-      // During pull: progressively trace the outline in solid black
+      // --- Pull phase: trace all 3 parts simultaneously in solid black ---
       final fillPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -228,68 +319,96 @@ class _MiniLogoTracePainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
-      _drawProgressiveTrace(canvas, tracePath, fillPaint, pullProgress);
+
+      for (final p in partPaths) {
+        // Each subpath traces from 0→100% simultaneously
+        _drawSubpathProgress(canvas, p, fillPaint, pullProgress);
+      }
     }
 
     canvas.restore();
   }
 
-  void _drawProgressiveTrace(Canvas canvas, Path path, Paint paint, double progress) {
+  /// Traces a single subpath from 0 to `progress` fraction of its own length.
+  void _drawSubpathProgress(Canvas canvas, Path path, Paint paint, double progress) {
+    if (progress <= 0) return;
     final metrics = path.computeMetrics();
-    double totalLength = 0;
-    for (final m in metrics) {
-      totalLength += m.length;
-    }
-    final targetLength = totalLength * progress;
-    double traveled = 0;
     for (final metric in metrics) {
-      if (traveled >= targetLength) break;
-      final segLen = metric.length;
-      final remaining = targetLength - traveled;
-      if (remaining >= segLen) {
-        canvas.drawPath(metric.extractPath(0, segLen), paint);
-      } else {
-        canvas.drawPath(metric.extractPath(0, remaining), paint);
-      }
-      traveled += segLen;
+      final targetLen = metric.length * progress;
+      if (targetLen <= 0) continue;
+      canvas.drawPath(metric.extractPath(0, targetLen.clamp(0, metric.length)), paint);
     }
   }
 
-  void _drawAnimatedTrace(Canvas canvas, Path tracePath, Paint paint) {
-    final metrics = tracePath.computeMetrics();
+  /// Draws a moving segment that travels around all 3 parts in sequence.
+  /// The total journey is all 3 parts end-to-end; the segment occupies ~18%
+  /// of the total and loops continuously.
+  void _drawMovingTracer(Canvas canvas, List<Path> paths, Paint paint, double loopProgress) {
+    // Collect all path metrics with their total length
+    final allMetrics = <ui.PathMetric>[];
     double totalLength = 0;
-    for (final m in metrics) {
-      totalLength += m.length;
+    for (final p in paths) {
+      for (final m in p.computeMetrics()) {
+        allMetrics.add(m);
+        totalLength += m.length;
+      }
     }
+    if (totalLength <= 0) return;
+
     final segmentLength = totalLength * 0.18;
-    final offset = loopProgress * totalLength;
-    double traveled = 0;
-    for (final metric in metrics) {
-      final segLen = metric.length;
-      for (int i = 0; i < 2; i++) {
-        final segStart = (offset + i * totalLength) % totalLength;
-        final segEnd = segStart + segmentLength;
+    final startPos = loopProgress * totalLength;
+
+    // The segment spans [startPos, startPos + segmentLength]
+    // It may wrap around the end back to the beginning
+    for (int pass = 0; pass < 2; pass++) {
+      final segStart = (startPos + pass * totalLength) % totalLength;
+      final segEnd = segStart + segmentLength;
+
+      double traveled = 0;
+      for (final metric in allMetrics) {
+        final metricEnd = traveled + metric.length;
+        // Check if segment overlaps this metric
         final overlapStart = math.max(segStart, traveled);
-        final overlapEnd = math.min(segEnd, traveled + segLen);
+        final overlapEnd = math.min(segEnd, metricEnd);
         if (overlapStart < overlapEnd) {
           final localStart = overlapStart - traveled;
           final localEnd = overlapEnd - traveled;
-          canvas.drawPath(metric.extractPath(localStart, localEnd), paint);
+          canvas.drawPath(
+            metric.extractPath(localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+            paint,
+          );
         }
+        // Also check wrap-around (segment past end wraps to start)
+        if (segEnd > totalLength) {
+          final wrapEnd = segEnd - totalLength;
+          final wrapStart = math.max(0, traveled);
+          final wrapOverlapEnd = math.min(wrapEnd, metricEnd);
+          if (wrapStart < wrapOverlapEnd) {
+            final localStart = wrapStart - traveled;
+            final localEnd = wrapOverlapEnd - traveled;
+            canvas.drawPath(
+              metric.extractPath(localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+              paint,
+            );
+          }
+        }
+        traveled = metricEnd;
       }
-      traveled += segLen;
     }
   }
 
   @override
-  bool shouldRepaint(covariant _MiniLogoTracePainter old) {
+  bool shouldRepaint(covariant _ThreePartLogoPainter old) {
     return old.loopProgress != loopProgress ||
+        old.fadeProgress != fadeProgress ||
         old.isRefreshing != isRefreshing ||
         old.pullProgress != pullProgress ||
         old.color != color;
   }
 }
 
+/// Parses SVG path data (M, L, Z commands only — the Azaman logo uses
+/// exclusively these three).
 Path _parsePath(String data) {
   final path = Path();
   final commands = data.split(RegExp(r'(?=[MLZ])'));

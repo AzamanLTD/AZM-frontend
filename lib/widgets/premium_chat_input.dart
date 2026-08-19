@@ -10,7 +10,7 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
-import 'package:azaman/widgets/liquid_menu_button.dart';
+import 'package:azaman/widgets/liquid_dropdown_menu.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
   final ChatMessage? replyTo;        // non-null = reply mode active
@@ -193,33 +193,33 @@ class _State extends ConsumerState<PremiumChatInput> {
             children: [
               Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 // Attach button — liquid speed-dial menu (replaces paperclip + sheet)
-                LiquidMenuButton(
+                LiquidDropdownMenu(
                   colors: c,
                   size: 38,
                   items: [
-                    LiquidMenuItem(
+                    LiquidDropdownItem(
                       icon: Icons.camera_alt_outlined,
                       label: 'Camera',
                       onTap: () => _pickImage(ImageSource.camera),
                     ),
-                    LiquidMenuItem(
+                    LiquidDropdownItem(
                       icon: Icons.image_outlined,
                       label: 'Gallery',
                       onTap: () => _pickImage(ImageSource.gallery),
                     ),
-                    LiquidMenuItem(
+                    LiquidDropdownItem(
                       icon: Icons.folder_outlined,
                       label: 'Document',
                       onTap: _pickDocument,
                     ),
                     if (widget.onTransfer != null)
-                      LiquidMenuItem(
+                      LiquidDropdownItem(
                         icon: Icons.compare_arrows_rounded,
                         label: 'Transfer',
                         onTap: widget.onTransfer!,
                       ),
                     if (widget.onTickets != null)
-                      LiquidMenuItem(
+                      LiquidDropdownItem(
                         icon: Icons.confirmation_number_outlined,
                         label: 'Tickets',
                         onTap: widget.onTickets!,

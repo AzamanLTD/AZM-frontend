@@ -43,14 +43,13 @@ import 'package:azaman/widgets/rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/category_speed_dial.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-import 'package:azaman/widgets/border_beam.dart';
 import 'package:azaman/config.dart';
 
 enum _ViewMode { list, map }
@@ -836,85 +835,33 @@ class _MarketplaceHomeScreenState
   }
 
   Widget _categoryStrip(AzamanColors colors) {
-    // "All" is a real first entry now (null wire value) — biggest chip in
-    // the strip, everything else shrinks slightly to make room for it.
-    final categories = <(String?, dynamic, String)>[
-      (null, Icons.apps_rounded, 'All'),
-      ('FOOD_BEVERAGE', HugeIcons.strokeRoundedRestaurant01, 'Restaurants'),
-      // Wire value fixed 2026-07-06: hotels are registered under REAL_ESTATE
-      // (see BusinessCategory enum + business portal Onboarding.jsx) — the
-      // old 'HOSPITALITY' value here was never assigned to any business, so
-      // this chip silently returned zero results. Label kept broad ("Hotels
-      // & Stay") since REAL_ESTATE also covers guesthouses/resorts/short-stay.
-      ('REAL_ESTATE', HugeIcons.strokeRoundedBuilding05, 'Hotels & Stay'),
-      ('LOGISTICS', HugeIcons.strokeRoundedBus01, 'Transit'),
-      ('RETAIL', HugeIcons.strokeRoundedShoppingBag01, 'Retail'),
-      // Same bug, same fix: these two wire values didn't exist in the
-      // backend BusinessCategory enum at all (real values are
-      // FREELANCE_SERVICES / HEALTH_WELLNESS) — both chips returned zero
-      // results no matter what was registered.
-      ('FREELANCE_SERVICES', HugeIcons.strokeRoundedWrench01, 'Services'),
-      ('HEALTH_WELLNESS', HugeIcons.strokeRoundedBlushBrush01, 'Beauty'),
+    // Speed-dial category picker — shows only the current category as a
+    // labeled chip ("Category" label above it). Tapping opens a radial
+    // fan of the other categories using the liquid goo speed-dial.
+    final categories = <CategoryDialItem>[
+      CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
+      CategoryDialItem(wire: 'FOOD_BEVERAGE', icon: Icons.restaurant_rounded, label: 'Restaurants'),
+      CategoryDialItem(wire: 'REAL_ESTATE', icon: Icons.apartment_rounded, label: 'Hotels & Stay'),
+      CategoryDialItem(wire: 'LOGISTICS', icon: Icons.directions_bus_rounded, label: 'Transit'),
+      CategoryDialItem(wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Retail'),
+      CategoryDialItem(wire: 'FREELANCE_SERVICES', icon: Icons.handyman_rounded, label: 'Services'),
+      CategoryDialItem(wire: 'HEALTH_WELLNESS', icon: Icons.spa_rounded, label: 'Beauty'),
     ];
-    // Shrunk 2026-07-08 (Stan: "a bit too big for my liking") — trimmed
-    // height/padding/icon+font sizes across the board, and every chip (not
-    // just the active one) now carries a subtle resting shadow so the strip
-    // reads as a row of small floating cards instead of flat pills.
-    return SizedBox(
-      height: 60,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final catItem = categories[i];
-          final isAll = catItem.$1 == null;
-          final isActive = _selectedCategory == catItem.$1;
-          final iconSize = isAll ? 20.0 : 16.0;
-          final fontSize = isAll ? 12.0 : 11.0;
-          final hPad = isAll ? 14.0 : 12.0;
-          final vPad = isAll ? 10.0 : 8.0;
-          return GestureDetector(
-            onTap: () {
-              AzamanHaptics.toggle();
-              setState(() => _selectedCategory = isAll ? null : (isActive ? null : catItem.$1));
-              _fireSearch();
-            },
-            child: BorderBeam(
-              enabled: isActive,
-              borderRadius: BorderRadius.circular(isAll ? 28 : 24),
-              beamColor: colors.accent,
-              duration: const Duration(seconds: 3),
-              child: AnimatedContainer(
-              duration: 300.ms, curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-              decoration: BoxDecoration(
-                color: isActive ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(isAll ? 28 : 24),
-                border: Border.all(color: isActive ? colors.accent : colors.divider, width: isActive ? 1.2 : 0.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: isActive ? colors.accent.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.06),
-                    blurRadius: isActive ? 8 : 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  isAll
-                      ? Icon(catItem.$2 as IconData, size: iconSize, color: isActive ? colors.accent : colors.textSecondary)
-                      : HugeIcon(icon: catItem.$2, size: iconSize, color: isActive ? colors.accent : colors.textSecondary),
-                  const SizedBox(height: 2),
-                  Text(catItem.$3, style: TextStyle(fontSize: fontSize, fontWeight: isActive || isAll ? FontWeight.w700 : FontWeight.w500, color: isActive ? colors.accent : colors.textSecondary)),
-                ],
-              ),
-            ),
-            ),
-          ).animate().fadeIn(delay: (i * 60).ms, duration: 250.ms).slideX(begin: 0.2, end: 0, delay: (i * 60).ms, duration: 250.ms, curve: Curves.easeOutCubic);
-        },
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: CategorySpeedDial(
+          categories: categories,
+          selectedWire: _selectedCategory,
+          colors: colors,
+          onSelected: (wire) {
+            AzamanHaptics.toggle();
+            setState(() => _selectedCategory = wire);
+            _fireSearch();
+          },
+        ),
       ),
     );
   }

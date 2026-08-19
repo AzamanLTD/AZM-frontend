@@ -11,7 +11,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/widgets/liquid_menu_button.dart';
+import 'package:azaman/widgets/liquid_dropdown_menu.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 
@@ -1073,20 +1073,20 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
         children: [
           // ── + button (non-admin only) — liquid speed-dial menu ──────────
           if (!isAdmin)
-            LiquidMenuButton(
+            LiquidDropdownMenu(
               colors: c,
               items: [
-                LiquidMenuItem(
+                LiquidDropdownItem(
                   icon: Icons.image_outlined,
                   label: 'Image',
                   onTap: widget.onPickGallery,
                 ),
-                LiquidMenuItem(
+                LiquidDropdownItem(
                   icon: Icons.folder_outlined,
                   label: 'Document',
                   onTap: () {},
                 ),
-                LiquidMenuItem(
+                LiquidDropdownItem(
                   icon: Icons.emoji_emotions_outlined,
                   label: 'Sticker',
                   onTap: () {
