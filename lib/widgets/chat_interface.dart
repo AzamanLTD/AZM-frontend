@@ -12,7 +12,6 @@ import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/liquid_menu_button.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 
@@ -1045,74 +1044,6 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
     }
   }
 
-  void _showAttachmentSheet() {
-    final c = widget.colors;
-    final isVendor = widget.myRole == 'vendor';
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: false,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: c.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _SheetAction(
-                  icon: Icons.camera_alt_outlined,
-                  label: 'Camera',
-                  color: c.accent,
-                  colors: c,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    widget.onPickCamera();
-                  },
-                ),
-                _SheetAction(
-                  icon: Icons.image_outlined,
-                  label: 'Gallery',
-                  color: const Color(0xFF02C076),
-                  colors: c,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    widget.onPickGallery();
-                  },
-                ),
-                if (widget.onTimeExtension != null)
-                  _SheetAction(
-                    icon: Icons.access_time,
-                    label: isVendor ? 'Extend Time' : 'Request Time',
-                    color: const Color(0xFFFFB800),
-                    colors: c,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      widget.onTimeExtension!();
-                    },
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1140,16 +1071,30 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // ── + button (non-admin only) — ChatPlusMenu ────────────────────
+          // ── + button (non-admin only) — liquid speed-dial menu ──────────
           if (!isAdmin)
             LiquidMenuButton(
-              onImageTap: widget.onPickGallery,
-              onDocumentTap: () {},
-              onStickerTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Stickers coming soon')),
-                );
-              },
+              items: [
+                LiquidMenuItem(
+                  icon: Icons.image_outlined,
+                  label: 'Image',
+                  onTap: widget.onPickGallery,
+                ),
+                LiquidMenuItem(
+                  icon: Icons.folder_outlined,
+                  label: 'Document',
+                  onTap: () {},
+                ),
+                LiquidMenuItem(
+                  icon: Icons.emoji_emotions_outlined,
+                  label: 'Sticker',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Stickers coming soon')),
+                    );
+                  },
+                ),
+              ],
             ),
 
           // ── Text input field ─────────────────────────────────────────────
@@ -1213,81 +1158,6 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
   }
 }
 
-class _SheetAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final AzamanColors colors;
-  final VoidCallback onTap;
-
-  const _SheetAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AttachButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _AttachButton({
-    required this.icon,
-    required this.color,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: AnimatedOpacity(
-        opacity: enabled ? 0.8 : 0.3,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withValues(alpha: 0.08),
-          ),
-          child: Icon(icon, color: color, size: 19),
-        ),
-      ),
-    );
-  }
-}
 
 class VendorPayeeDetails extends ConsumerWidget {
   final String paymentMethod;

@@ -10,6 +10,7 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
+import 'package:azaman/widgets/liquid_menu_button.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
   final ChatMessage? replyTo;        // non-null = reply mode active
@@ -139,20 +140,6 @@ class _State extends ConsumerState<PremiumChatInput> {
     }
   }
 
-  void _showAttachMenu(BuildContext ctx, AzamanColors c) {
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AttachSheet(
-        colors: c,
-        onCamera:   () { Navigator.pop(ctx); _pickImage(ImageSource.camera); },
-        onGallery:  () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
-        onDocument: () { Navigator.pop(ctx); _pickDocument(); },
-        onTransfer: widget.onTransfer == null ? null : () { Navigator.pop(ctx); widget.onTransfer!(); },
-        onTickets: widget.onTickets == null ? null : () { Navigator.pop(ctx); widget.onTickets!(); },
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,14 +192,38 @@ class _State extends ConsumerState<PremiumChatInput> {
             clipBehavior: Clip.none,
             children: [
               Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                // Attach button
-                GestureDetector(
-                  onTap: () => _showAttachMenu(context, c),
-                  child: Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                      color: c.softSurface, shape: BoxShape.circle),
-                    child: Icon(HugeIconsSolid.attachment01, size: 20, color: c.textSecondary)),
+                // Attach button — liquid speed-dial menu (replaces paperclip + sheet)
+                LiquidMenuButton(
+                  size: 38,
+                  items: [
+                    LiquidMenuItem(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Camera',
+                      onTap: () => _pickImage(ImageSource.camera),
+                    ),
+                    LiquidMenuItem(
+                      icon: Icons.image_outlined,
+                      label: 'Gallery',
+                      onTap: () => _pickImage(ImageSource.gallery),
+                    ),
+                    LiquidMenuItem(
+                      icon: Icons.folder_outlined,
+                      label: 'Document',
+                      onTap: _pickDocument,
+                    ),
+                    if (widget.onTransfer != null)
+                      LiquidMenuItem(
+                        icon: Icons.compare_arrows_rounded,
+                        label: 'Transfer',
+                        onTap: widget.onTransfer!,
+                      ),
+                    if (widget.onTickets != null)
+                      LiquidMenuItem(
+                        icon: Icons.confirmation_number_outlined,
+                        label: 'Tickets',
+                        onTap: widget.onTickets!,
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 8),
                 // Text field
@@ -308,67 +319,6 @@ class _State extends ConsumerState<PremiumChatInput> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── ATTACH SHEET ────────────────────────────────────────────────────────────
-class _AttachSheet extends StatelessWidget {
-  final AzamanColors colors;
-  final VoidCallback onCamera;
-  final VoidCallback onGallery;
-  final VoidCallback onDocument;
-  final VoidCallback? onTransfer;
-  final VoidCallback? onTickets;
-
-  const _AttachSheet({required this.colors, required this.onCamera,
-    required this.onGallery, required this.onDocument, this.onTransfer, this.onTickets});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Wrap(
-          alignment: WrapAlignment.spaceEvenly,
-          spacing: 24,
-          runSpacing: 16,
-          children: [
-            _SheetBtn(icon: HugeIconsSolid.camera01, label: 'Camera', colors: colors, onTap: onCamera),
-            _SheetBtn(icon: HugeIconsSolid.image01, label: 'Gallery', colors: colors, onTap: onGallery),
-            _SheetBtn(icon: HugeIconsSolid.folder01, label: 'Document', colors: colors, onTap: onDocument),
-            if (onTransfer != null)
-              _SheetBtn(icon: HugeIconsStroke.moneySend01, label: 'Transfer', colors: colors, onTap: onTransfer!),
-            if (onTickets != null)
-              _SheetBtn(icon: Icons.confirmation_number_outlined, label: 'Tickets', colors: colors, onTap: onTickets!),
-          ],
-        ),
-      ]),
-    );
-  }
-}
-
-class _SheetBtn extends StatelessWidget {
-  final IconData icon; final String label;
-  final AzamanColors colors; final VoidCallback onTap;
-  const _SheetBtn({required this.icon, required this.label,
-    required this.colors, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 56, height: 56,
-          decoration: BoxDecoration(
-            color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
-          child: Icon(icon, size: 26, color: colors.accent)),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11)),
-      ]),
     );
   }
 }

@@ -11,7 +11,25 @@ import 'package:azaman/providers/theme_provider.dart';
 // overshoot replicate the GSAP CustomEase springs. Two-phase open: ooze
 // (slow bulge) then launch (pop spring past full size). Satellite items
 // swing upright from a resting tilt. Plus icon rotates 135° → ×.
+//
+// Generic item list — any chat surface can pass 1-5 LiquidMenuItems and
+// get the same trigger + fan + goo behavior. Satellite icons render in a
+// NEUTRAL dark/card color, never the gold brand accent (the accent is
+// reserved for the trigger button itself and primary CTAs elsewhere).
 // =============================================================================
+
+/// One entry in the liquid speed-dial fan.
+class LiquidMenuItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const LiquidMenuItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+}
 
 // ---- Spring curves (replicate GSAP CustomEase from liquid-taffy springs.ts) ----
 
@@ -20,10 +38,9 @@ import 'package:azaman/providers/theme_provider.dart';
 class _HouseSpringCurve extends Curve {
   @override
   double transformInternal(double t) {
-    // Damped sinusoidal approximation matching the sampled points
-    final w = 22.46;
-    final z = 0.434;
-    final d = z * w;
+    const w = 22.46;
+    const z = 0.434;
+    const d = z * w;
     final envelope = 1.0 - math.exp(-d * t);
     final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
     return 1.0 - envelope * oscillation;
@@ -35,24 +52,12 @@ class _HouseSpringCurve extends Curve {
 class _PopSpringCurve extends Curve {
   @override
   double transformInternal(double t) {
-    final w = 18.09;
-    final z = 0.479;
-    final d = z * w;
+    const w = 18.09;
+    const z = 0.479;
+    const d = z * w;
     final envelope = 1.0 - math.exp(-d * t);
     final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
     return 1.0 - envelope * oscillation;
-  }
-}
-
-/// Anticipate curve: wind up ~10% the wrong way before collapsing.
-class _AnticipateCurve extends Curve {
-  @override
-  double transformInternal(double t) {
-    // Anticipatory ease: slight overshoot in the negative direction
-    // then strong settle. Matches cubic-bezier(0.36, 0, 0.66, -0.56) approx.
-    if (t < 0.3) return -0.1 * (1 - (t / 0.3) * (t / 0.3));
-    final t2 = (t - 0.3) / 0.7;
-    return -0.1 + 1.1 * (t2 * t2 * (3 - 2 * t2));
   }
 }
 
@@ -64,55 +69,65 @@ const double _gooBlurActive = 7.0;
 /// Blur sigma at rest (small, for soft antialiasing edges).
 const double _gooBlurRest = 1.0;
 
-/// Alpha threshold offset — values from liquid-taffy goo.ts (σ=7).
+/// Alpha threshold offset (values from liquid-taffy goo.ts, σ=7).
 /// Matrix: 0 0 0 30 offset  →  alpha = clamp(alpha * 30 + offset, 0, 1)
-/// Outer rim threshold.
 const double _gooThresholdOuter = -11.6925;
-/// Inner threshold (for the inner edge).
-const double _gooThresholdInner = -13.245;
 
-// ---- Satellite layout ----
+// ---- Layout ----
 
-class _SatelliteConfig {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final double dx; // offset from trigger center
-  final double dy; // offset from trigger center (negative = up)
-  final double restRotation; // degrees, leans toward flight direction
+const double _buttonSize = 40.0;
+const double _satelliteSize = 44.0;
+const double _restScale = 0.14; // shrunk satellites hide inside the trigger
 
-  const _SatelliteConfig({
-    required this.icon,
-    required this.label,
-    required this.onTap,
+/// Internal per-satellite geometry, computed from the item count so the
+/// fan always spreads evenly regardless of how many items are passed (1-5).
+class _SatelliteGeom {
+  final LiquidMenuItem item;
+  final double dx;
+  final double dy;
+  final double restRotation;
+
+  const _SatelliteGeom({
+    required this.item,
     required this.dx,
     required this.dy,
     required this.restRotation,
   });
 }
 
-const double _buttonSize = 40.0;
-const double _satelliteSize = 42.0;
-const double _restScale = 0.14; // shrunk satellites hide inside the trigger
+List<_SatelliteGeom> _layoutSatellites(List<LiquidMenuItem> items) {
+  final n = items.length;
+  if (n == 0) return const [];
+  // Fan spans from -60° to +60° from vertical (straight up = 0°), spread
+  // evenly. A single item goes straight up.
+  const double fanSpanDeg = 120.0;
+  const double radius = 70.0;
+  final geoms = <_SatelliteGeom>[];
+  for (int i = 0; i < n; i++) {
+    final t = n == 1 ? 0.5 : i / (n - 1);
+    final angleDeg = -90.0 + (-fanSpanDeg / 2 + fanSpanDeg * t);
+    final rad = angleDeg * math.pi / 180.0;
+    final dx = radius * math.cos(rad);
+    final dy = radius * math.sin(rad);
+    // Rest tilt leans each drop toward its flight direction.
+    final restRotation = (t - 0.5) * 28.0;
+    geoms.add(_SatelliteGeom(item: items[i], dx: dx, dy: dy, restRotation: restRotation));
+  }
+  return geoms;
+}
 
 // =============================================================================
 // Widget
 // =============================================================================
 
 class LiquidMenuButton extends StatefulWidget {
-  final VoidCallback? onImageTap;
-  final VoidCallback? onDocumentTap;
-  final VoidCallback? onStickerTap;
-  final VoidCallback? onTransferTap;
-  final VoidCallback? onEscrowTap;
+  final List<LiquidMenuItem> items;
+  final double size;
 
   const LiquidMenuButton({
     super.key,
-    this.onImageTap,
-    this.onDocumentTap,
-    this.onStickerTap,
-    this.onTransferTap,
-    this.onEscrowTap,
+    required this.items,
+    this.size = _buttonSize,
   });
 
   @override
@@ -125,9 +140,6 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
   final GlobalKey _anchorKey = GlobalKey();
-
-  // Satellite animation values (0..1 for each satellite)
-  // We drive everything from one AnimationController + Intervals.
 
   @override
   void initState() {
@@ -146,32 +158,6 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
     super.dispose();
   }
 
-  List<_SatelliteConfig> _buildSatellites() {
-    final items = <_SatelliteConfig>[];
-    // Fan layout: one straight up, two flanking at ~45°.
-    // For 5 items: spread them in a fan from left to right.
-    final configs = [
-      (Icons.image_outlined, 'Image', widget.onImageTap, -64.0, -24.0, -14.0),
-      (Icons.folder_outlined, 'Document', widget.onDocumentTap, -36.0, -56.0, -5.0),
-      (Icons.emoji_emotions_outlined, 'Sticker', widget.onStickerTap, 0.0, -68.0, 0.0),
-      (Icons.compare_arrows_rounded, 'Transfer', widget.onTransferTap, 36.0, -56.0, 5.0),
-      (Icons.receipt_long_rounded, 'Ticket', widget.onEscrowTap, 64.0, -24.0, 14.0),
-    ];
-    for (final c in configs) {
-      if (c.$3 != null) {
-        items.add(_SatelliteConfig(
-          icon: c.$1,
-          label: c.$2,
-          onTap: c.$3!,
-          dx: c.$4,
-          dy: c.$5,
-          restRotation: c.$6,
-        ));
-      }
-    }
-    return items;
-  }
-
   void _toggle() {
     if (_isOpen) {
       _close();
@@ -181,8 +167,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
   }
 
   void _open() {
-    final satellites = _buildSatellites();
-    if (satellites.isEmpty) return;
+    if (widget.items.isEmpty) return;
 
     final colors = Theme.of(context).extension<AzamanColors>()!;
     final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
@@ -195,7 +180,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
     _overlayEntry = OverlayEntry(
       builder: (context) => _LiquidOverlay(
         controller: _controller,
-        satellites: satellites,
+        satellites: _layoutSatellites(widget.items),
         colors: colors,
         anchorPos: anchorPos,
         anchorSize: anchorSize,
@@ -224,58 +209,43 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AzamanColors>()!;
+    // While the overlay is open, the real trigger button is redrawn by the
+    // overlay itself (so it can sit above the goo) — hide this one to avoid
+    // a double-render/flash underneath.
     return GestureDetector(
       key: _anchorKey,
       onTap: _toggle,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          // Plus rotates 135° to become ×, on the house spring
-          // Trigger swells to 1.16 then settles to 1.0
-          final triggerScale = _controller.value < 0.25
-              ? 1.0 + 0.16 * (_controller.value / 0.25)
-              : _HouseSpringCurve().transform((_controller.value - 0.25) / 0.75);
-
-          return Transform.scale(
-            scale: triggerScale,
-            child: Transform.rotate(
-              angle: _isOpen ? 135.0 * math.pi / 180.0 : 0.0,
-              child: Container(
-                width: _buttonSize,
-                height: _buttonSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.surface,
-                  border: Border.all(color: colors.accent, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 6.25,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.add,
-                  color: colors.accent,
-                  size: 20,
-                ),
+      child: Opacity(
+        opacity: _isOpen ? 0.0 : 1.0,
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.surface,
+            border: Border.all(color: colors.accent, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 6.25,
+                offset: const Offset(0, 3),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+          child: Icon(Icons.add, color: colors.accent, size: 20),
+        ),
       ),
     );
   }
 }
 
 // =============================================================================
-// Overlay — the goo canvas + satellite buttons
+// Overlay — the goo canvas + satellite buttons + re-rendered trigger
 // =============================================================================
 
 class _LiquidOverlay extends StatelessWidget {
   final AnimationController controller;
-  final List<_SatelliteConfig> satellites;
+  final List<_SatelliteGeom> satellites;
   final AzamanColors colors;
   final Offset anchorPos;
   final Size anchorSize;
@@ -315,7 +285,7 @@ class _LiquidOverlay extends StatelessWidget {
                   curve: const Interval(0.0, 0.15, curve: Curves.easeOut),
                 ),
               ),
-              child: Container(color: Colors.black.withValues(alpha: 0.16)),
+              child: Container(color: Colors.black.withValues(alpha: 0.18)),
             ),
           ),
         ),
@@ -327,18 +297,18 @@ class _LiquidOverlay extends StatelessWidget {
             builder: (context, _) {
               return CustomPaint(
                 painter: _GooPainter(
-                  controller: controller,
+                  progress: controller.value,
                   satellites: satellites,
                   triggerCenter: triggerCenter,
-                  surfaceColor: colors.surface,
-                  accentColor: colors.accent,
+                  triggerSize: anchorSize.width,
+                  surfaceColor: colors.card,
                 ),
               );
             },
           ),
         ),
 
-        // Satellite hit areas + icons (above the goo)
+        // Satellite hit areas + icons + labels (above the goo)
         ...satellites.asMap().entries.map((entry) {
           final i = entry.key;
           final sat = entry.value;
@@ -351,25 +321,24 @@ class _LiquidOverlay extends StatelessWidget {
             colors: colors,
             onTap: () {
               onClose();
-              sat.onTap();
+              sat.item.onTap();
             },
           );
         }),
 
-        // Re-render the trigger button on top of the goo
+        // Re-render the trigger button on top of the goo, so it's crisp and
+        // stays above the blurred layer beneath it.
         Positioned(
           left: anchorPos.dx,
           top: anchorPos.dy,
           child: AnimatedBuilder(
             animation: controller,
             builder: (context, _) {
-              final triggerScale = controller.value < 0.25
-                  ? 1.0 + 0.16 * (controller.value / 0.25)
-                  : _HouseSpringCurve()
-                      .transform((controller.value - 0.25) / 0.75);
-              final iconRotation = _isOpen(controller)
-                  ? _HouseSpringCurve().transform(controller.value) * 135.0
-                  : 0.0;
+              final t = controller.value;
+              final triggerScale = t < 0.25
+                  ? 1.0 + 0.16 * (t / 0.25)
+                  : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
+              final iconRotation = _HouseSpringCurve().transform(t.clamp(0.0, 1.0)) * 135.0;
               return Transform.scale(
                 scale: triggerScale,
                 child: Transform.rotate(
@@ -389,7 +358,7 @@ class _LiquidOverlay extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(Icons.close, color: colors.accent, size: 20),
+                    child: Icon(Icons.add, color: colors.accent, size: 20),
                   ),
                 ),
               );
@@ -399,8 +368,6 @@ class _LiquidOverlay extends StatelessWidget {
       ],
     );
   }
-
-  bool _isOpen(Animation<double> anim) => anim.value > 0.01;
 }
 
 // =============================================================================
@@ -408,127 +375,94 @@ class _LiquidOverlay extends StatelessWidget {
 // =============================================================================
 
 class _GooPainter extends CustomPainter {
-  final AnimationController controller;
-  final List<_SatelliteConfig> satellites;
+  final double progress;
+  final List<_SatelliteGeom> satellites;
   final Offset triggerCenter;
+  final double triggerSize;
   final Color surfaceColor;
-  final Color accentColor;
 
   _GooPainter({
-    required this.controller,
+    required this.progress,
     required this.satellites,
     required this.triggerCenter,
+    required this.triggerSize,
     required this.surfaceColor,
-    required this.accentColor,
   });
 
   @override
   void paint(Canvas canvas, Size canvasSize) {
-    final t = controller.value;
-    if (t < 0.001 && t > -0.001) return; // nothing to draw at rest
+    final t = progress;
+    if (t <= 0.001) return;
 
-    // Compute current satellite positions and scales
     final circles = <_Circle>[];
 
-    // Trigger circle
     final triggerScale = t < 0.25
         ? 1.0 + 0.16 * (t / 0.25)
-        : _HouseSpringCurve().transform((t - 0.25) / 0.75);
-    circles.add(_Circle(
-      center: triggerCenter,
-      radius: (_buttonSize / 2) * triggerScale,
-    ));
+        : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
+    circles.add(_Circle(center: triggerCenter, radius: (triggerSize / 2) * triggerScale));
 
-    // Satellite circles
     for (int i = 0; i < satellites.length; i++) {
       final sat = satellites[i];
       final at = 0.03 + i * 0.045;
       final localT = ((t - at) / 0.5).clamp(0.0, 1.0);
+      if (localT <= 0) continue;
 
-      // Two-phase: ooze (0..0.16) then launch (0.16..0.5)
       double scale;
-      double rotation;
-
       if (localT < 0.32) {
-        // Ooze phase — slow bulge to 0.42
         final oozeT = localT / 0.32;
         scale = _restScale + (0.42 - _restScale) * oozeT;
-        rotation = sat.restRotation * (1 - oozeT * 0.5);
       } else {
-        // Launch phase — pop spring past full size
         final launchT = (localT - 0.32) / 0.68;
         final pop = _PopSpringCurve().transform(launchT);
         scale = 0.42 + (1.0 - 0.42) * pop;
-        rotation = sat.restRotation * 0.5 * (1 - pop);
       }
 
-      final rad = rotation * math.pi / 180.0;
-      final dx = sat.dx * math.cos(rad) - sat.dy * math.sin(rad);
-      final dy = sat.dx * math.sin(rad) + sat.dy * math.cos(rad);
-
       circles.add(_Circle(
-        center: Offset(
-          triggerCenter.dx + dx,
-          triggerCenter.dy + dy,
-        ),
+        center: Offset(triggerCenter.dx + sat.dx, triggerCenter.dy + sat.dy),
         radius: (_satelliteSize / 2) * scale,
       ));
     }
 
-    // Draw with goo effect: blur + alpha threshold
-    final blurSigma = _gooBlurActive * math.min(t * 4, 1.0) +
-        _gooBlurRest * (1 - math.min(t * 4, 1.0));
+    final activeAmount = math.min(t * 4, 1.0);
+    final blurSigma = _gooBlurActive * activeAmount + _gooBlurRest * (1 - activeAmount);
+    final threshold = _gooThresholdOuter * activeAmount;
 
-    // Save layer with alpha threshold color filter
-    final threshold = _gooThresholdOuter * math.min(t * 4, 1.0) + 0 * (1 - math.min(t * 4, 1.0));
-    final thresholdMatrix = [
-      1.0, 0.0, 0.0, 0.0, 0.0, // R identity
-      0.0, 1.0, 0.0, 0.0, 0.0, // G identity
-      0.0, 0.0, 1.0, 0.0, 0.0, // B identity
-      0.0, 0.0, 0.0, 30.0, threshold, // alpha threshold
+    final thresholdMatrix = <double>[
+      1.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 30.0, threshold,
     ];
 
-    final bounds = Rect.fromCenter(
-      center: triggerCenter,
-      width: 400,
-      height: 400,
-    );
+    final bounds = Rect.fromCenter(center: triggerCenter, width: 420, height: 420);
 
     canvas.saveLayer(bounds, Paint()..colorFilter = ColorFilter.matrix(thresholdMatrix));
 
-    // Draw all circles with blur
     final circlePaint = Paint()
       ..color = surfaceColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma)
       ..isAntiAlias = true;
 
     for (final c in circles) {
-      if (c.radius > 0.5) {
-        canvas.drawCircle(c.center, c.radius, circlePaint);
-      }
+      if (c.radius > 0.5) canvas.drawCircle(c.center, c.radius, circlePaint);
     }
 
     canvas.restore();
 
-    // Draw borders on top (crisp circles)
+    // Faint neutral border on top — no gold accent here.
     final borderPaint = Paint()
-      ..color = accentColor.withValues(alpha: 0.3)
+      ..color = Colors.black.withValues(alpha: 0.06)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0
       ..isAntiAlias = true;
 
     for (final c in circles) {
-      if (c.radius > 2.0) {
-        canvas.drawCircle(c.center, c.radius, borderPaint);
-      }
+      if (c.radius > 2.0) canvas.drawCircle(c.center, c.radius, borderPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _GooPainter old) {
-    return old.controller.value != controller.value ||
-        old.satellites != satellites;
-  }
+  bool shouldRepaint(covariant _GooPainter old) => old.progress != progress;
 }
 
 class _Circle {
@@ -545,7 +479,7 @@ class _SatelliteWidget extends StatelessWidget {
   final AnimationController controller;
   final int index;
   final int total;
-  final _SatelliteConfig satellite;
+  final _SatelliteGeom satellite;
   final Offset triggerCenter;
   final AzamanColors colors;
   final VoidCallback onTap;
@@ -562,10 +496,8 @@ class _SatelliteWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Each satellite fires at: at = 0.03 + index * 0.045
-    // Ooze: 0..0.16 of local, Launch: 0.16..0.5
     final at = 0.03 + index * 0.045;
-    final totalDuration = 0.5;
+    const totalDuration = 0.5;
     final start = at;
     final end = at + totalDuration;
 
@@ -574,61 +506,41 @@ class _SatelliteWidget extends StatelessWidget {
       builder: (context, child) {
         final t = controller.value;
         final localT = ((t - start) / (end - start)).clamp(0.0, 1.0);
-
         if (localT <= 0.0) return const SizedBox.shrink();
 
-        // Compute scale and rotation (mirror the goo painter)
-        double scale;
-        double rotation;
-
+        double scaleX;
+        double scaleY;
         if (localT < 0.32) {
           final oozeT = localT / 0.32;
-          scale = _restScale + (0.42 - _restScale) * oozeT;
-          rotation = satellite.restRotation * (1 - oozeT * 0.5);
+          final s = _restScale + (0.42 - _restScale) * oozeT;
+          scaleX = s;
+          scaleY = s;
         } else {
           final launchT = (localT - 0.32) / 0.68;
           final pop = _PopSpringCurve().transform(launchT);
-          scale = 0.42 + (1.0 - 0.42) * pop;
-          rotation = satellite.restRotation * 0.5 * (1 - pop);
-        }
-
-        // Fade in icons during the launch
-        final iconOpacity = localT < 0.36
-            ? 0.0
-            : ((localT - 0.36) / 0.15).clamp(0.0, 1.0);
-
-        // Position
-        final rad = rotation * math.pi / 180.0;
-        final dx = satellite.dx * math.cos(rad) - satellite.dy * math.sin(rad);
-        final dy = satellite.dx * math.sin(rad) + satellite.dy * math.cos(rad);
-
-        final satCenter = Offset(
-          triggerCenter.dx + dx,
-          triggerCenter.dy + dy,
-        );
-
-        // Squash and stretch: height leads, width lags during launch
-        double scaleX = scale;
-        double scaleY = scale;
-        if (localT >= 0.32) {
-          final launchT = (localT - 0.32) / 0.68;
-          final pop = _PopSpringCurve().transform(launchT);
-          // Width lags height by ~40ms (≈0.06 in normalized time)
-          final popLagged = _PopSpringCurve()
-              .transform((launchT - 0.06).clamp(0.0, 1.0));
+          final popLagged = _PopSpringCurve().transform((launchT - 0.06).clamp(0.0, 1.0));
           scaleY = 0.42 + (1.0 - 0.42) * pop;
           scaleX = 0.42 + (1.0 - 0.42) * popLagged;
         }
 
-        // Label position: left sats → label on left, right sats → label on right
-        final isLeft = satellite.dx < -10;
-        final isCenter = satellite.dx.abs() <= 10;
+        final iconOpacity = localT < 0.36 ? 0.0 : ((localT - 0.36) / 0.15).clamp(0.0, 1.0);
+
+        final satCenter = Offset(
+          triggerCenter.dx + satellite.dx,
+          triggerCenter.dy + satellite.dy,
+        );
+
+        // Label sits on the side away from the screen edge the fan leans
+        // toward: satellites left-of-center get their label to the LEFT,
+        // right-of-center get it to the RIGHT, center gets it below.
+        final isLeft = satellite.dx < -8;
+        final isRight = satellite.dx > 8;
 
         return Positioned(
-          left: satCenter.dx - (isLeft ? 90 : _satelliteSize / 2),
+          left: satCenter.dx - (isLeft ? 96 : (isRight ? _satelliteSize / 2 : 55)),
           top: satCenter.dy - _satelliteSize / 2,
           child: SizedBox(
-            width: isCenter ? 200.0 : 110.0,
+            width: isLeft || isRight ? 118 : 110,
             height: _satelliteSize,
             child: Transform.scale(
               scaleX: scaleX,
@@ -640,30 +552,34 @@ class _SatelliteWidget extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: isLeft
-                        ? MainAxisAlignment.end
-                        : MainAxisAlignment.start,
+                    mainAxisAlignment:
+                        isLeft ? MainAxisAlignment.end : MainAxisAlignment.start,
                     children: [
-                      if (isLeft) _labelChip(satellite.label, colors),
-                      if (isLeft) const SizedBox(width: 8),
+                      if (isLeft) ...[
+                        _labelChip(satellite.item.label, colors),
+                        const SizedBox(width: 8),
+                      ],
                       Container(
                         width: _satelliteSize,
                         height: _satelliteSize,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colors.surface.withValues(alpha: 0.95),
+                          // Neutral dark/card surface — never the gold accent.
+                          color: colors.card,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
+                              color: Colors.black.withValues(alpha: 0.14),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-                        child: Icon(satellite.icon, color: colors.accent, size: 19),
+                        child: Icon(satellite.item.icon, color: colors.textPrimary, size: 20),
                       ),
-                      if (!isLeft) const SizedBox(width: 8),
-                      if (!isLeft) _labelChip(satellite.label, colors),
+                      if (!isLeft) ...[
+                        const SizedBox(width: 8),
+                        _labelChip(satellite.item.label, colors),
+                      ],
                     ],
                   ),
                 ),
@@ -679,7 +595,7 @@ class _SatelliteWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.92),
+        color: colors.surface.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.divider),
         boxShadow: [
@@ -700,5 +616,4 @@ class _SatelliteWidget extends StatelessWidget {
       ),
     );
   }
-
 }
