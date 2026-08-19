@@ -527,7 +527,7 @@ class _DropdownRow extends StatelessWidget {
         height: _rowHeight,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          border: isLast ? null : Border(bottom: BorderSide(color: colors.divider, width: 0.6)),
+          border: null,
         ),
         child: Row(
           children: [

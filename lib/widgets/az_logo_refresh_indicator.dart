@@ -128,7 +128,7 @@ class _AzLogoRefreshIndicatorState
           // Indicator overlays ON TOP of the content, growing from the top edge
           if (showHeight > 0.5)
             Positioned(
-              top: 0,
+              top: MediaQuery.of(context).padding.top,
               left: 0,
               right: 0,
               height: showHeight,
@@ -212,7 +212,7 @@ class _ThreePartLogoTrace extends StatelessWidget {
               pullProgress: pullProgress,
               color: color,
               viewBox: _viewBox,
-              strokeWidth: 5,
+              strokeWidth: 2.5,
             ),
           );
         },
