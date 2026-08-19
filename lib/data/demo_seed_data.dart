@@ -27,7 +27,7 @@ class DemoSeedData {
       'username': demoUsername,
       'email': 'pyrax@demo.azaman.app',
       'role': 'USER',
-      'profilePictureUrl': 'https://i.pravatar.cc/150?img=8',
+      'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
       'azamanId': 'AZM-000123456',
       'availableBalance': 12450.00,
       'vendorUnallocatedBalance': 0,
@@ -77,7 +77,7 @@ class DemoSeedData {
       'friend': {
         'id': 2,
         'username': 'Bella',
-        'profilePictureUrl': 'https://i.pravatar.cc/150?img=47',
+        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
       },
       'latestMessage': {
         'content': 'Hey Pyrax! Are we still on for Friday?',
@@ -91,7 +91,7 @@ class DemoSeedData {
       'friend': {
         'id': 3,
         'username': 'Lamar',
-        'profilePictureUrl': 'https://i.pravatar.cc/150?img=53',
+        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
       },
       'latestMessage': {
         'content': 'Sent you the GHS 200 for the susu',
@@ -105,7 +105,7 @@ class DemoSeedData {
       'friend': {
         'id': 4,
         'username': 'Ibrah',
-        'profilePictureUrl': 'https://i.pravatar.cc/150?img=68',
+        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png',
       },
       'latestMessage': {
         'content': '',
@@ -317,12 +317,12 @@ class DemoSeedData {
         'fromUser': {
           'id': 5,
           'username': 'Alfred',
-          'profilePictureUrl': 'https://i.pravatar.cc/150?img=12',
+          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
         },
         'requester': {
           'id': 5,
           'username': 'Alfred',
-          'profilePictureUrl': 'https://i.pravatar.cc/150?img=15',
+          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
         },
         'createdAt': _hoursAgo(12),
         'status': 'PENDING',
@@ -344,10 +344,10 @@ class DemoSeedData {
       'susuGroupId': null,
       'susuStatus': null,
       'members': [
-        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://i.pravatar.cc/150?img=47'}, 'role': 'ADMIN'},
-        {'id': 2, 'userId': 2, 'user': {'username': 'Bella', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=53'}, 'role': 'MEMBER'},
-        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=68'}, 'role': 'MEMBER'},
-        {'id': 4, 'userId': 4, 'user': {'username': 'Ibrah', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=12'}, 'role': 'MEMBER'},
+        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png'}, 'role': 'ADMIN'},
+        {'id': 2, 'userId': 2, 'user': {'username': 'Bella', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png'}, 'role': 'MEMBER'},
+        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png'}, 'role': 'MEMBER'},
+        {'id': 4, 'userId': 4, 'user': {'username': 'Ibrah', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png'}, 'role': 'MEMBER'},
       ],
       'updatedAt': _hoursAgo(1),
     },
@@ -360,10 +360,10 @@ class DemoSeedData {
       'susuGroupId': 'susu-1',
       'susuGroup': {'status': 'ACTIVE', 'initiationDeadline': null},
       'members': [
-        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://i.pravatar.cc/150?img=15'}, 'role': 'ADMIN'},
-        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=47'}, 'role': 'MEMBER'},
-        {'id': 5, 'userId': 5, 'user': {'username': 'Alfred', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=53'}, 'role': 'MEMBER'},
-        {'id': 6, 'userId': 6, 'user': {'username': 'adwoa_boateng', 'profilePictureUrl': 'https://i.pravatar.cc/150?img=68'}, 'role': 'MEMBER'},
+        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png'}, 'role': 'ADMIN'},
+        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png'}, 'role': 'MEMBER'},
+        {'id': 5, 'userId': 5, 'user': {'username': 'Alfred', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png'}, 'role': 'MEMBER'},
+        {'id': 6, 'userId': 6, 'user': {'username': 'adwoa_boateng', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/f0c3891b6_generated_image.png'}, 'role': 'MEMBER'},
       ],
       'updatedAt': _hoursAgo(3),
     },
@@ -867,7 +867,7 @@ class DemoSeedData {
         'authorId': 2,
         'author': {
           'username': 'Bella',
-          'profilePictureUrl': 'https://i.pravatar.cc/150?img=12',
+          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
         },
         'hasUnseen': true,
         'isBoosted': false,
@@ -898,7 +898,7 @@ class DemoSeedData {
         'authorId': 3,
         'author': {
           'username': 'Lamar',
-          'profilePictureUrl': 'https://i.pravatar.cc/150?img=15',
+          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
         },
         'hasUnseen': true,
         'isBoosted': false,
@@ -929,7 +929,7 @@ class DemoSeedData {
         'authorId': 10,
         'author': {
           'username': 'crypto_gh',
-          'profilePictureUrl': 'https://i.pravatar.cc/150?img=47',
+          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2b94a3394_generated_image.png',
         },
         'hasUnseen': false,
         'isBoosted': true,
@@ -965,7 +965,7 @@ class DemoSeedData {
       {
         'id': 'biz-1',
         'name': "Chef Abby's",
-        'logoUrl': null,
+        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
         'accentColor': '#F59E0B',
         'verified': true,
         'rating': 4.8,
@@ -976,7 +976,7 @@ class DemoSeedData {
       {
         'id': 'biz-2',
         'name': 'Advenr',
-        'logoUrl': null,
+        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/9eab4badd_generated_image.png',
         'accentColor': '#4F8EF7',
         'verified': true,
         'rating': 4.6,
@@ -987,7 +987,7 @@ class DemoSeedData {
       {
         'id': 'biz-3',
         'name': 'Mr. Price',
-        'logoUrl': null,
+        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png',
         'accentColor': '#00D97E',
         'verified': false,
         'rating': 4.3,
@@ -1066,7 +1066,7 @@ class DemoSeedData {
       'username': demoUsername,
       'email': 'pyrax@demo.azaman.app',
       'role': 'USER',
-      'profilePictureUrl': 'https://i.pravatar.cc/150?img=8',
+      'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
       'azamanId': 'AZM-000123456',
       'kycStatus': 'VERIFIED',
     },

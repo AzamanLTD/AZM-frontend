@@ -12,6 +12,7 @@ class DemoMarketplaceSeed {
   static const restaurantBizId = 'BIZ-REST-001';
   static const hotelBizId = 'BIZ-HOTEL-001';
   static const transitBizId = 'BIZ-TRANS-001';
+  static const retailBizId = 'BIZ-RETAIL-001';
 
   static Map<String, dynamic> searchBusinesses() => {
     'businesses': [
@@ -22,7 +23,7 @@ class DemoMarketplaceSeed {
   };
 
   static Map<String, dynamic> searchNearby() => {
-    'locations': [_restaurantLocation(), _hotelLocation(), _transitLocation()],
+    'locations': [_restaurantLocation(), _hotelLocation(), _transitLocation(), _retailLocation()],
     'hasMore': false, 'nextPage': null,
   };
 
@@ -31,6 +32,7 @@ class DemoMarketplaceSeed {
       case restaurantBizId: return {'business': _restaurantBusiness()};
       case hotelBizId: return {'business': _hotelBusiness()};
       case transitBizId: return {'business': _transitBusiness()};
+      case retailBizId: return {'business': _retailBusiness()};
       default: return {'business': _restaurantBusiness()};
     }
   }
@@ -84,7 +86,7 @@ class DemoMarketplaceSeed {
        'departureAt': _hoursFromNow(3), 'arrivalAt': _hoursFromNow(6),
        'fareUsdc': 15.00, 'availableSeats': 22, 'status': 'SCHEDULED',
        'vehicle': {'type': 'COACH', 'make': 'Mercedes-Benz', 'model': 'Sprinter 450',
-         'imageUrl': 'https://picsum.photos/seed/coach-bus-fleet/600/400',
+         'imageUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png',
          'driverName': 'Kwabena Owusu', 'driverPhotoUrl': _img('driver-kwabena', w: 200, h: 200)},
        '_count': {'bookings': 12}},
       {'id': 'trip-002', 'businessProfileId': 'transit-001', 'vehicleId': 'veh-002',
@@ -124,6 +126,7 @@ class DemoMarketplaceSeed {
   static Map<String, dynamic> getProducts(String bizId) {
     if (bizId == hotelBizId || bizId == 'hotel-001') return {'products': _hotelRooms()};
     if (bizId == transitBizId || bizId == 'transit-001') return {'products': _transitProducts()};
+    if (bizId == retailBizId || bizId == 'retail-001') return {'products': _retailProducts()};
     if (bizId == restaurantBizId) return {'products': [
       _dish('dish-waakye', 'Waakye & Stew', 'Rice & beans with spaghetti, egg, shito', 14.50, [], 'waakye'),
       _dish('dish-jollof', 'Jollof Rice', 'Smoky one-pot rice', 12.00, ['veg'], 'jollof'),
@@ -136,14 +139,16 @@ class DemoMarketplaceSeed {
       case restaurantBizId: return {'locations': [_restaurantLocation()]};
       case hotelBizId: return {'locations': [_hotelLocation()]};
       case transitBizId: return {'locations': [_transitLocation()]};
+      case retailBizId: return {'locations': [_retailLocation()]};
       default: return {'locations': []};
     }
   }
 
   static Map<String, dynamic> getShowcase(String bizId) {
-    if (bizId == hotelBizId) return {'data': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400']};
-    if (bizId == restaurantBizId) return {'data': ['https://picsum.photos/seed/restaurant-warm-interior/600/400', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Waakye101.jpg/600px-Waakye101.jpg', 'https://picsum.photos/seed/restaurant-bar-counter/600/400']};
-    if (bizId == transitBizId) return {'data': ['https://picsum.photos/seed/coach-bus-fleet/600/400', 'https://picsum.photos/seed/bus-interior-seats/600/400']};
+    if (bizId == hotelBizId) return {'data': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/4c331502c_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png']};
+    if (bizId == restaurantBizId) return {'data': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/ff6392fb0_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png']};
+    if (bizId == transitBizId) return {'data': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png']};
+    if (bizId == retailBizId) return {'data': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/16049fef1_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/595f7c251_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/595f7c251_generated_image.png']};
     return {'data': []};
   }
 
@@ -152,8 +157,8 @@ class DemoMarketplaceSeed {
   static Map<String, dynamic> _restaurantBusiness() => {
     'id': 'restaurant-001', 'bizId': restaurantBizId, 'businessName': "Chef Abby's",
     'category': 'FOOD_BEVERAGE', 'description': 'Authentic Ghanaian cuisine in the heart of Accra. From jollof to waakye, every plate tells a story.',
-    'website': 'https://chefabbys.gh', 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
-    'coverImageUrl': 'https://picsum.photos/seed/restaurant-warm-interior/800/400',
+    'website': 'https://chefabbys.gh', 'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
+    'coverImageUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png',
     'phoneNumber': '+233 24 123 4567', 'address': 'Oxford Street, Osu, Accra', 'country': 'Ghana',
     'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
     'totalEscrows': 340, 'completedEscrows': 335, 'userId': 201,
@@ -169,8 +174,8 @@ class DemoMarketplaceSeed {
   static Map<String, dynamic> _hotelBusiness() {
     return {'id': 'hotel-001', 'bizId': hotelBizId, 'businessName': 'The Gallery',
       'category': 'HOSPITALITY', 'description': 'Boutique apartments in East Legon. Fully furnished studios and 1-bedroom suites with 24/7 concierge.',
-      'website': 'https://thegallery.gh', 'logoUrl': 'https://picsum.photos/seed/the-gallery-logo/200/200',
-      'coverImageUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/800px-2012-01-21_Hotelhalle_in_Saigon.jpg',
+      'website': 'https://thegallery.gh', 'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/456c5962a_generated_image.png',
+      'coverImageUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png',
       'phoneNumber': '+233 26 987 6543', 'address': 'East Legon, Greater Accra', 'country': 'Ghana',
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
       'totalEscrows': 180, 'completedEscrows': 175, 'userId': 202,
@@ -180,15 +185,15 @@ class DemoMarketplaceSeed {
       'cuisineTypes': [], 'adAccentColor': '#1A8FE3',
       'user': {'id': 202, 'username': 'the_gallery', 'profilePictureUrl': null},
       'products': _hotelRooms(), 'locations': [_hotelLocation()],
-      'businessMeta': {'showcaseUrls': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400']},
+      'businessMeta': {'showcaseUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/4c331502c_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png']},
     };
   }
 
   static Map<String, dynamic> _transitBusiness() {
     return {'id': 'transit-001', 'bizId': transitBizId, 'businessName': 'Advenr',
       'category': 'LOGISTICS', 'description': 'Premium intercity travel. Modern fleet, professional drivers, on-time departures, comfortable seats.',
-      'website': 'https://advenr.gh', 'logoUrl': 'https://picsum.photos/seed/advenr-logo/200/200',
-      'coverImageUrl': 'https://picsum.photos/seed/coach-bus-fleet/800/400',
+      'website': 'https://advenr.gh', 'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/9eab4badd_generated_image.png',
+      'coverImageUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png',
       'phoneNumber': '+233 20 555 0199', 'address': 'Circle Station, Accra', 'country': 'Ghana',
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
       'totalEscrows': 520, 'completedEscrows': 515, 'userId': 203,
@@ -202,9 +207,9 @@ class DemoMarketplaceSeed {
   }
 
   static Map<String, dynamic> _retailBusiness() {
-    return {'id': 'retail-001', 'bizId': 'BIZ-RETAIL-001', 'businessName': 'Mr. Price',
+    return {'id': 'retail-001', 'bizId': retailBizId, 'businessName': 'Mr. Price',
       'category': 'RETAIL', 'description': 'Fashion, homeware & lifestyle at everyday prices',
-      'logoUrl': _img('mr-price-logo', w: 200, h: 200), 'coverImageUrl': _img('clothing-store-racks', w: 800, h: 400),
+      'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png', 'coverImageUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/595f7c251_generated_image.png',
       'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
       'totalEscrows': 320, 'completedEscrows': 315, 'userId': 205,
       'totalVolume': 45000.00, 'averageRating': 4.4, 'reviewCount': 210,
@@ -224,7 +229,7 @@ class DemoMarketplaceSeed {
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.5550, 'longitude': -0.1800,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': ['https://picsum.photos/seed/restaurant-warm-interior/600/400', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Waakye101.jpg/600px-Waakye101.jpg', 'https://picsum.photos/seed/restaurant-bar-counter/600/400'],
+    'galleryUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/ff6392fb0_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png'],
     'distanceKm': 1.2,
   };
 
@@ -234,7 +239,7 @@ class DemoMarketplaceSeed {
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.6400, 'longitude': -0.1680,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/2012-01-21_Hotelhalle_in_Saigon.jpg/600px-2012-01-21_Hotelhalle_in_Saigon.jpg', 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg', 'https://picsum.photos/seed/hotel-fine-dining/600/400', 'https://picsum.photos/seed/hotel-building-night/600/400'],
+    'galleryUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/4c331502c_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5877f9e06_generated_image.png'],
     'distanceKm': 3.8,
   };
 
@@ -244,8 +249,18 @@ class DemoMarketplaceSeed {
     'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
     'latitude': 5.5700, 'longitude': -0.2050,
     'isPrimary': true, 'isActive': true,
-    'galleryUrls': ['https://picsum.photos/seed/coach-bus-fleet/600/400', 'https://picsum.photos/seed/bus-interior-seats/600/400'],
+    'galleryUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/38317d8aa_generated_image.png'],
     'distanceKm': 2.5,
+  };
+
+  static Map<String, dynamic> _retailLocation() => {
+    'id': 'loc-retail-001', 'businessProfileId': 'retail-001',
+    'label': 'Mr. Price - Accra Mall', 'address': 'Accra Mall, Tetteh Quarshie, Accra',
+    'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
+    'latitude': 5.6300, 'longitude': -0.1730,
+    'isPrimary': true, 'isActive': true,
+    'galleryUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/16049fef1_generated_image.png', 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/595f7c251_generated_image.png'],
+    'distanceKm': 3.1,
   };
 
   // ── Hotel Rooms ───────────────────────────────────────────────────────
@@ -273,9 +288,9 @@ class DemoMarketplaceSeed {
   // ── Transit Products ──────────────────────────────────────────────────
 
   static List<Map<String, dynamic>> _transitProducts() => [
-    {'id': 'prod-ticket-eco', 'businessProfileId': 'transit-001', 'name': 'Economy Ticket', 'slug': 'economy-ticket', 'description': 'Standard seat with AC and USB charging', 'priceUsdc': 15.00, 'totalRevenue': 12000, 'imageUrls': ['https://picsum.photos/seed/bus-economy-seat/400/300'], 'isActive': true, 'totalOrders': 800, 'tags': ['Economy']},
-    {'id': 'prod-ticket-std', 'businessProfileId': 'transit-001', 'name': 'Standard Ticket', 'slug': 'standard-ticket', 'description': 'Wider seat, priority boarding, refreshments', 'priceUsdc': 18.00, 'totalRevenue': 8000, 'imageUrls': ['https://picsum.photos/seed/bus-standard-seat/400/300'], 'isActive': true, 'totalOrders': 440, 'tags': ['Standard']},
-    {'id': 'prod-ticket-vip', 'businessProfileId': 'transit-001', 'name': 'VIP Ticket', 'slug': 'vip-ticket', 'description': 'Lie-flat seat, privacy curtain, meal included', 'priceUsdc': 25.00, 'totalRevenue': 5000, 'imageUrls': ['https://picsum.photos/seed/bus-vip-seat/400/300'], 'isActive': true, 'totalOrders': 200, 'tags': ['VIP']},
+    {'id': 'prod-ticket-eco', 'businessProfileId': 'transit-001', 'name': 'Economy Ticket', 'slug': 'economy-ticket', 'description': 'Standard seat with AC and USB charging', 'priceUsdc': 15.00, 'totalRevenue': 12000, 'imageUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/05c20579a_generated_image.png'], 'isActive': true, 'totalOrders': 800, 'tags': ['Economy']},
+    {'id': 'prod-ticket-std', 'businessProfileId': 'transit-001', 'name': 'Standard Ticket', 'slug': 'standard-ticket', 'description': 'Wider seat, priority boarding, refreshments', 'priceUsdc': 18.00, 'totalRevenue': 8000, 'imageUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/05c20579a_generated_image.png'], 'isActive': true, 'totalOrders': 440, 'tags': ['Standard']},
+    {'id': 'prod-ticket-vip', 'businessProfileId': 'transit-001', 'name': 'VIP Ticket', 'slug': 'vip-ticket', 'description': 'Lie-flat seat, privacy curtain, meal included', 'priceUsdc': 25.00, 'totalRevenue': 5000, 'imageUrls': ['https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e617a414b_generated_image.png'], 'isActive': true, 'totalOrders': 200, 'tags': ['VIP']},
   ];
 
   // ── Retail Products ───────────────────────────────────────────────────
@@ -305,7 +320,7 @@ class DemoMarketplaceSeed {
       {'id': 'li-4', 'description': 'Sobolo', 'quantity': 2, 'unitPrice': 3.00, 'lineTotal': 6.00},
     ],
     'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 2.63}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200'},
+    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png'},
     'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
     'table': {'label': 'Table 7'},
   };
@@ -323,7 +338,7 @@ class DemoMarketplaceSeed {
       {'id': 'li-3', 'description': 'Palm Wine', 'quantity': 1, 'unitPrice': 3.00, 'lineTotal': 3.00},
     ],
     'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 1.55}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200'},
+    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png'},
     'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
     'table': {'label': 'Table 12'},
   };
@@ -335,7 +350,7 @@ class DemoMarketplaceSeed {
     {
       'id': restaurantBizId,
       'businessName': "Chef Abby's",
-      'logoUrl': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
+      'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
       'isVerified': true,
       'lastStoryAt': _hoursAgo(2),
       'lastViewedAt': _hoursAgo(3),
@@ -343,7 +358,7 @@ class DemoMarketplaceSeed {
     {
       'id': hotelBizId,
       'businessName': 'The Gallery',
-      'logoUrl': 'https://picsum.photos/seed/the-gallery-logo/200/200',
+      'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/456c5962a_generated_image.png',
       'isVerified': true,
       'lastStoryAt': _hoursAgo(8),
       'lastViewedAt': _hoursAgo(1),
@@ -351,7 +366,7 @@ class DemoMarketplaceSeed {
     {
       'id': 'BIZ-RETAIL-001',
       'businessName': 'Mr. Price',
-      'logoUrl': _img('mr-price-logo', w: 200, h: 200),
+      'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png',
       'isVerified': true,
       'lastStoryAt': _hoursAgo(3),
       'lastViewedAt': null,
@@ -365,11 +380,11 @@ class DemoMarketplaceSeed {
     final businesses = {
       restaurantBizId: {
         'name': "Chef Abby's",
-        'logo': 'https://picsum.photos/seed/chef-abbys-logo/200/200',
+        'logo': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
         'stories': [
           {
             'id': 'bs-r1',
-            'mediaUrl': _img('ghanaian-jollof-rice', w: 600, h: 900),
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/ff6392fb0_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Fresh jollof straight from the kitchen 🔥',
             'durationSeconds': 5,
@@ -379,7 +394,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-r2',
-            'mediaUrl': _img('restaurant-grilled-fish', w: 600, h: 900),
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2c637584e_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Tonight\'s special: grilled tilapia',
             'durationSeconds': 5,
@@ -389,7 +404,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-r3',
-            'mediaUrl': _img('ghanaian-food-spread', w: 600, h: 900),
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/c6cfdf741_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Weekend buffet is back!',
             'durationSeconds': 5,
@@ -401,11 +416,11 @@ class DemoMarketplaceSeed {
       },
       hotelBizId: {
         'name': 'The Gallery',
-        'logo': 'https://picsum.photos/seed/the-gallery-logo/200/200',
+        'logo': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/456c5962a_generated_image.png',
         'stories': [
           {
             'id': 'bs-h1',
-            'mediaUrl': 'https://upload.wikimedia.org/wikipedia/commons/7/78/Fm_stirling_pool.jpg',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/75e3637bb_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Rooftop pool now open',
             'durationSeconds': 5,
@@ -415,7 +430,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-h2',
-            'mediaUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Leonardo_Royal_Hotel_Frankfurt_room.jpg/600px-Leonardo_Royal_Hotel_Frankfurt_room.jpg',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/4c331502c_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New deluxe suites available',
             'durationSeconds': 5,
@@ -427,11 +442,11 @@ class DemoMarketplaceSeed {
       },
       transitBizId: {
         'name': 'Advenr',
-        'logo': 'https://picsum.photos/seed/advenr-logo/200/200',
+        'logo': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/9eab4badd_generated_image.png',
         'stories': [
           {
             'id': 'bs-t1',
-            'mediaUrl': 'https://picsum.photos/seed/coach-bus-exterior/600/900',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e617a414b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New fleet just arrived!',
             'durationSeconds': 5,
@@ -441,7 +456,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-t2',
-            'mediaUrl': 'https://picsum.photos/seed/bus-interior-seats/600/900',
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/05c20579a_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'AC + WiFi + USB on every seat',
             'durationSeconds': 5,
@@ -453,11 +468,11 @@ class DemoMarketplaceSeed {
       },
       'BIZ-RETAIL-001': {
         'name': 'Mr. Price',
-        'logo': _img('mr-price-logo', w: 200, h: 200),
+        'logo': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png',
         'stories': [
           {
             'id': 'bs-r1',
-            'mediaUrl': _img('clothing-store-racks', w: 600, h: 900),
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/16049fef1_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New season drop is here!',
             'durationSeconds': 5,
@@ -467,7 +482,7 @@ class DemoMarketplaceSeed {
           },
           {
             'id': 'bs-r2',
-            'mediaUrl': _img('fashion-sale-display', w: 600, h: 900),
+            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2dc7b658f_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Up to 40% off all items',
             'durationSeconds': 5,

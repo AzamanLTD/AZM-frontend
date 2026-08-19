@@ -102,6 +102,8 @@ class _MarketplaceHomeScreenState
   bool _storiesCollapsed = false;
   // Featured Near You section — collapsed by default with expand arrow
   bool _featuredCollapsed = true;
+  // Cooldown to prevent story collapse/expand oscillation when content is short
+  DateTime _lastStoryToggle = DateTime.fromMillisecondsSinceEpoch(0);
   // Location permission requested flag
   bool _locationRequested = false;
 
@@ -166,10 +168,19 @@ class _MarketplaceHomeScreenState
             _scrollCtrl.position.maxScrollExtent - 320) {
       ref.read(businessSearchProvider.notifier).loadMore();
     }
-    
-    // Collapse stories if scrolled down by more than 10 pixels
-    final shouldCollapse = _scrollCtrl.offset > 40;
+
+    // Collapse/expand stories based on scroll position, with hysteresis
+    // and a cooldown to prevent oscillation when the featured carousel
+    // is collapsed and scrollable content is short (the 96px height
+    // change from stories collapsing can otherwise create a loop).
+    final now = DateTime.now();
+    if (now.difference(_lastStoryToggle).inMilliseconds < 500) return;
+
+    // Hysteresis: collapse at >50, expand at <15 — the gap prevents
+    // the layout change from immediately re-triggering the opposite action.
+    final shouldCollapse = _scrollCtrl.offset > (_storiesCollapsed ? 80 : 50);
     if (_storiesCollapsed != shouldCollapse) {
+      _lastStoryToggle = now;
       setState(() => _storiesCollapsed = shouldCollapse);
     }
   }
