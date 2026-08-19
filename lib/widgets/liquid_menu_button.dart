@@ -13,9 +13,8 @@ import 'package:azaman/providers/theme_provider.dart';
 // swing upright from a resting tilt. Plus icon rotates 135° → ×.
 //
 // Generic item list — any chat surface can pass 1-5 LiquidMenuItems and
-// get the same trigger + fan + goo behavior. Satellite icons render in a
-// NEUTRAL dark/card color, never the gold brand accent (the accent is
-// reserved for the trigger button itself and primary CTAs elsewhere).
+// get the same trigger + fan + goo behavior. All colors (trigger, satellites,
+// labels) use NEUTRAL dark/card/text colors — never the gold brand accent.
 // =============================================================================
 
 /// One entry in the liquid speed-dial fan.
@@ -63,24 +62,16 @@ class _PopSpringCurve extends Curve {
 
 // ---- Goo filter constants ----
 
-/// Blur sigma when the goo is active (during open/close flight).
 const double _gooBlurActive = 7.0;
-
-/// Blur sigma at rest (small, for soft antialiasing edges).
 const double _gooBlurRest = 1.0;
-
-/// Alpha threshold offset (values from liquid-taffy goo.ts, σ=7).
-/// Matrix: 0 0 0 30 offset  →  alpha = clamp(alpha * 30 + offset, 0, 1)
 const double _gooThresholdOuter = -11.6925;
 
 // ---- Layout ----
 
 const double _buttonSize = 40.0;
 const double _satelliteSize = 44.0;
-const double _restScale = 0.14; // shrunk satellites hide inside the trigger
+const double _restScale = 0.14;
 
-/// Internal per-satellite geometry, computed from the item count so the
-/// fan always spreads evenly regardless of how many items are passed (1-5).
 class _SatelliteGeom {
   final LiquidMenuItem item;
   final double dx;
@@ -98,8 +89,6 @@ class _SatelliteGeom {
 List<_SatelliteGeom> _layoutSatellites(List<LiquidMenuItem> items) {
   final n = items.length;
   if (n == 0) return const [];
-  // Fan spans from -60° to +60° from vertical (straight up = 0°), spread
-  // evenly. A single item goes straight up.
   const double fanSpanDeg = 120.0;
   const double radius = 70.0;
   final geoms = <_SatelliteGeom>[];
@@ -109,7 +98,6 @@ List<_SatelliteGeom> _layoutSatellites(List<LiquidMenuItem> items) {
     final rad = angleDeg * math.pi / 180.0;
     final dx = radius * math.cos(rad);
     final dy = radius * math.sin(rad);
-    // Rest tilt leans each drop toward its flight direction.
     final restRotation = (t - 0.5) * 28.0;
     geoms.add(_SatelliteGeom(item: items[i], dx: dx, dy: dy, restRotation: restRotation));
   }
@@ -122,11 +110,13 @@ List<_SatelliteGeom> _layoutSatellites(List<LiquidMenuItem> items) {
 
 class LiquidMenuButton extends StatefulWidget {
   final List<LiquidMenuItem> items;
+  final AzamanColors colors;
   final double size;
 
   const LiquidMenuButton({
     super.key,
     required this.items,
+    required this.colors,
     this.size = _buttonSize,
   });
 
@@ -169,7 +159,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
   void _open() {
     if (widget.items.isEmpty) return;
 
-    final colors = Theme.of(context).extension<AzamanColors>()!;
+    final colors = widget.colors;
     final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final anchorPos = renderBox.localToGlobal(Offset.zero);
@@ -208,10 +198,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AzamanColors>()!;
-    // While the overlay is open, the real trigger button is redrawn by the
-    // overlay itself (so it can sit above the goo) — hide this one to avoid
-    // a double-render/flash underneath.
+    final colors = widget.colors;
     return GestureDetector(
       key: _anchorKey,
       onTap: _toggle,
@@ -223,7 +210,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: colors.surface,
-            border: Border.all(color: colors.accent, width: 1.5),
+            border: Border.all(color: colors.textPrimary, width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -232,7 +219,7 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
               ),
             ],
           ),
-          child: Icon(Icons.add, color: colors.accent, size: 20),
+          child: Icon(Icons.add, color: colors.textPrimary, size: 20),
         ),
       ),
     );
@@ -273,7 +260,6 @@ class _LiquidOverlay extends StatelessWidget {
 
     return Stack(
       children: [
-        // Full-screen scrim
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -289,8 +275,6 @@ class _LiquidOverlay extends StatelessWidget {
             ),
           ),
         ),
-
-        // Goo canvas layer — the metaball effect
         Positioned.fill(
           child: AnimatedBuilder(
             animation: controller,
@@ -307,8 +291,6 @@ class _LiquidOverlay extends StatelessWidget {
             },
           ),
         ),
-
-        // Satellite hit areas + icons + labels (above the goo)
         ...satellites.asMap().entries.map((entry) {
           final i = entry.key;
           final sat = entry.value;
@@ -325,9 +307,6 @@ class _LiquidOverlay extends StatelessWidget {
             },
           );
         }),
-
-        // Re-render the trigger button on top of the goo, so it's crisp and
-        // stays above the blurred layer beneath it.
         Positioned(
           left: anchorPos.dx,
           top: anchorPos.dy,
@@ -349,7 +328,7 @@ class _LiquidOverlay extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: colors.surface,
-                      border: Border.all(color: colors.accent, width: 1.5),
+                      border: Border.all(color: colors.textPrimary, width: 1.5),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.08),
@@ -358,7 +337,7 @@ class _LiquidOverlay extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(Icons.add, color: colors.accent, size: 20),
+                    child: Icon(Icons.add, color: colors.textPrimary, size: 20),
                   ),
                 ),
               );
@@ -449,7 +428,6 @@ class _GooPainter extends CustomPainter {
 
     canvas.restore();
 
-    // Faint neutral border on top — no gold accent here.
     final borderPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.06)
       ..style = PaintingStyle.stroke
@@ -530,9 +508,6 @@ class _SatelliteWidget extends StatelessWidget {
           triggerCenter.dy + satellite.dy,
         );
 
-        // Label sits on the side away from the screen edge the fan leans
-        // toward: satellites left-of-center get their label to the LEFT,
-        // right-of-center get it to the RIGHT, center gets it below.
         final isLeft = satellite.dx < -8;
         final isRight = satellite.dx > 8;
 
@@ -564,7 +539,6 @@ class _SatelliteWidget extends StatelessWidget {
                         height: _satelliteSize,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          // Neutral dark/card surface — never the gold accent.
                           color: colors.card,
                           boxShadow: [
                             BoxShadow(

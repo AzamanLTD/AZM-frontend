@@ -1074,6 +1074,7 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
           // ── + button (non-admin only) — liquid speed-dial menu ──────────
           if (!isAdmin)
             LiquidMenuButton(
+              colors: c,
               items: [
                 LiquidMenuItem(
                   icon: Icons.image_outlined,

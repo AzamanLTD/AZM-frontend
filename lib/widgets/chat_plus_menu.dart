@@ -96,7 +96,7 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     final items = _buildItems();
     if (items.isEmpty) return;
 
-    final colors = Theme.of(context).extension<AzamanColors>()!;
+    final colors = ThemeProvider.getColors(AzamanTheme.light);
     final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final anchorPos = renderBox.localToGlobal(Offset.zero);
@@ -167,7 +167,7 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AzamanColors>()!;
+    final colors = ThemeProvider.getColors(AzamanTheme.light);
     return GestureDetector(
       key: _anchorKey,
       onTap: _toggle,

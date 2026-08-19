@@ -194,6 +194,7 @@ class _State extends ConsumerState<PremiumChatInput> {
               Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 // Attach button — liquid speed-dial menu (replaces paperclip + sheet)
                 LiquidMenuButton(
+                  colors: c,
                   size: 38,
                   items: [
                     LiquidMenuItem(

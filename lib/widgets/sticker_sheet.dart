@@ -49,7 +49,7 @@ class _StickerSheetState extends State<StickerSheet>
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AzamanColors>()!;
+    final colors = ThemeProvider.getColors(AzamanTheme.light);
 
     return Container(
       height: 360,
