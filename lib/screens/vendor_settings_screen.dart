@@ -9,6 +9,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class VendorSettingsScreen extends ConsumerStatefulWidget {
@@ -967,7 +968,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         ),
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: _fetchTradeAccounts,
       color: colors.accent,
       child: ListView.separated(
@@ -1006,7 +1007,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         ),
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: _fetchPayoutDestinations,
       color: colors.accent,
       child: ListView.separated(

@@ -18,6 +18,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // ── Stats fetch ────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
     final totals = (_data?['totals'] as Map<String, dynamic>?) ?? {};
     final stories = (_data?['stories'] as List? ?? []);
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: _load,
       color: colors.accent,
       child: ListView(

@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class VendorDepositScreen extends ConsumerStatefulWidget {
@@ -102,7 +103,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.accent))
-          : RefreshIndicator(
+          : AzPullToRefresh(
               onRefresh: _fetchDepositData,
               color: colors.accent,
               child: SingleChildScrollView(

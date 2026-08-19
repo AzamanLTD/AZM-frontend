@@ -15,6 +15,7 @@ import 'vendor_settings_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class VendorDashboard extends ConsumerStatefulWidget {
@@ -1067,7 +1068,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         final ads = trade.myActiveAds;
         if (ads.isEmpty) return const AzamanEmptyState(icon: Icons.layers_outlined, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
 
-        return RefreshIndicator(
+        return AzPullToRefresh(
           color: gold,
           backgroundColor: ref.read(themeProvider).colors.card,
           onRefresh: _fetchVendorAds,

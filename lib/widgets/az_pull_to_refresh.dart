@@ -1,9 +1,10 @@
 // =============================================================================
 // AZAMAN — Custom Pull-to-Refresh Indicator
 //
-// Now uses the AzLogoRefreshIndicator — a mini version of the logo with a
+// Uses the AzLogoRefreshIndicator — a mini version of the logo with a
 // tracing line animation instead of the default Material circular spinner.
-// Respects reduced-motion (falls back to standard RefreshIndicator).
+// Accepts (and ignores) color/backgroundColor for drop-in compatibility
+// with code that previously used RefreshIndicator. Respects reduced-motion.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -15,10 +16,23 @@ class AzPullToRefresh extends ConsumerWidget {
   final Widget child;
   final RefreshCallback onRefresh;
 
+  /// Ignored — kept for drop-in compatibility with RefreshIndicator.
+  final Color? color;
+  /// Ignored — kept for drop-in compatibility with RefreshIndicator.
+  final Color? backgroundColor;
+  /// Ignored — kept for drop-in compatibility with RefreshIndicator.
+  final double displacement;
+  /// Ignored — kept for drop-in compatibility with RefreshIndicator.
+  final double strokeWidth;
+
   const AzPullToRefresh({
     super.key,
     required this.child,
     required this.onRefresh,
+    this.color,
+    this.backgroundColor,
+    this.displacement = 40,
+    this.strokeWidth = 2.0,
   });
 
   @override
@@ -26,7 +40,6 @@ class AzPullToRefresh extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    // Respect reduced-motion: fall back to standard Material indicator
     if (reduceMotion) {
       return RefreshIndicator(
         onRefresh: onRefresh,

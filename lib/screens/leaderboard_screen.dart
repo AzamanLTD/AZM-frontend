@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/leaderboard_provider.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
@@ -108,7 +109,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     }
 
     // Data state with pull-to-refresh
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       backgroundColor: colors.surface,
       onRefresh: () => lb.refresh(),

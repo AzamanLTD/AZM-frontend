@@ -23,6 +23,7 @@ import 'package:azaman/screens/vault/vault_detail_screen.dart';
 import 'package:azaman/screens/vault/shared_vault_screen.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class VaultListScreen extends ConsumerWidget {
@@ -61,7 +62,7 @@ class VaultListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: () => ref.read(vaultsProvider.notifier).refresh(),

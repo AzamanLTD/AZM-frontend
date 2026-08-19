@@ -37,6 +37,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class SusuDashboardScreen extends ConsumerWidget {
@@ -87,7 +88,7 @@ class SusuDashboardScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           color: colors.warning,
           onRefresh: () async {
             // Force-refresh all four data streams in parallel.

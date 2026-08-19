@@ -18,6 +18,7 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/biz_notification_card.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class BusinessNotificationsScreen extends ConsumerStatefulWidget {
   const BusinessNotificationsScreen({super.key});
@@ -188,7 +189,7 @@ class _BusinessNotificationsScreenState
                   title: 'No notifications yet',
                   subtitle: 'Order and payment alerts will appear here.',
                 )
-              : RefreshIndicator(
+              : AzPullToRefresh(
                   onRefresh: _refresh,
                   child: ListView.separated(
                     controller: _scrollCtrl,

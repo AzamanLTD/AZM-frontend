@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/message_action_service.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class StarredMessagesScreen extends ConsumerStatefulWidget {
   const StarredMessagesScreen({super.key});
@@ -60,7 +61,7 @@ class _StarredMessagesScreenState extends ConsumerState<StarredMessagesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Starred Messages')),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         onRefresh: () async => _loadStarred(),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())

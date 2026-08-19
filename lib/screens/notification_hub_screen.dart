@@ -9,6 +9,7 @@ import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 ({IconData icon, Color color}) _notifStyle(
@@ -245,7 +246,7 @@ class _NotificationHubScreenState
       groups.putIfAbsent(key, () => []).add(n);
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       onRefresh: () => ref.read(notificationProvider.notifier).refresh(),
       child: ListView.builder(

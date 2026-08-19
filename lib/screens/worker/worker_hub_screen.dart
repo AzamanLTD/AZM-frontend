@@ -10,6 +10,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/models/employee_models.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class WorkerHubScreen extends ConsumerWidget {
   const WorkerHubScreen({super.key});
@@ -53,7 +54,7 @@ class WorkerHubScreen extends ConsumerWidget {
               ),
             );
           }
-          return RefreshIndicator(
+          return AzPullToRefresh(
             onRefresh: () async => ref.refresh(workerDashboardProvider),
             color: colors.accent,
             child: ListView(

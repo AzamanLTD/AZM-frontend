@@ -23,6 +23,7 @@ import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 
@@ -340,7 +341,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             )
           : _error != null
               ? _buildErrorState(colors)
-              : RefreshIndicator(
+              : AzPullToRefresh(
                   onRefresh: _fetchProfile,
                   color: colors.accent,
                   backgroundColor: colors.surface,

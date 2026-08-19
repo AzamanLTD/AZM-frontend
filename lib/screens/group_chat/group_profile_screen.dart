@@ -23,6 +23,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/susu/initiate_susu_sheet.dart';
 import 'package:azaman/widgets/susu/verification_chip.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class GroupProfileScreen extends ConsumerWidget {
@@ -53,7 +54,7 @@ class GroupProfileScreen extends ConsumerWidget {
                 fontWeight: FontWeight.w800)),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           color: colors.warning,
           onRefresh: () async {
             ref.invalidate(groupDetailProvider(groupId));

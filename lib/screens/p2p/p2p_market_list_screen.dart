@@ -15,6 +15,7 @@ import 'package:azaman/widgets/vendor_ad_card.dart';
 import 'package:azaman/widgets/ad_detail_flip_card.dart';
 import 'package:azaman/widgets/p2p_market_summary_bar.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 const double _kSegmentHeaderHeight = 56.0;
@@ -103,7 +104,7 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         onRefresh: _onRefresh,
         color: colors.accent,
         backgroundColor: colors.card,

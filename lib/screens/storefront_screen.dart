@@ -34,6 +34,7 @@ import 'marketplace/cart_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -238,7 +239,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
           }
 
           // Build the SDUI storefront + products section
-          return RefreshIndicator(
+          return AzPullToRefresh(
             color: colors.accent,
             onRefresh: () async {
               ref.invalidate(storefrontRenderProvider(widget.businessProfileId));

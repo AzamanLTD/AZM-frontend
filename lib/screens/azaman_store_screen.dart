@@ -7,6 +7,7 @@ import 'package:azaman/providers/card_skin_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/widgets/peer_transfer_card.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class AzamanStoreScreen extends ConsumerStatefulWidget {
   const AzamanStoreScreen({super.key});
@@ -82,7 +83,7 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         onRefresh: () => ref.read(cardSkinProvider.notifier).refresh(),
         color: colors.accent,
         child: ListView(

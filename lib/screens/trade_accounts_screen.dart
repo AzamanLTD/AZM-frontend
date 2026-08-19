@@ -25,6 +25,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/trade_account_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/trade_account_service.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class TradeAccountsScreen extends ConsumerStatefulWidget {
@@ -85,7 +86,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         onRefresh: () => ref.read(tradeAccountProvider.notifier).refresh(),
         child: accountState.isLoading && accountState.accounts.isEmpty

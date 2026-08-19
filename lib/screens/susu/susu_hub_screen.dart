@@ -25,6 +25,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/screens/susu/susu_credit_score_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class SusuHubScreen extends ConsumerWidget {
@@ -141,7 +142,7 @@ class SusuHubScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           color: colors.warning,
           onRefresh: () => ref.read(susuListProvider.notifier).refresh(),
           child: listAsync.when(

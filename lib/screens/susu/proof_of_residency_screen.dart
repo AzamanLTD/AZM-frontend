@@ -31,6 +31,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class ProofOfResidencyScreen extends ConsumerStatefulWidget {
@@ -137,7 +138,7 @@ class _ProofOfResidencyScreenState
         ),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           color: colors.warning,
           onRefresh: () => ref.read(proofOfResidencyProvider.notifier).refresh(),
           child: porAsync.when(

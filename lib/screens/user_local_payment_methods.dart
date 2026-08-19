@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class UserLocalPaymentMethodsScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _UserLocalPaymentMethodsScreenState
               fontWeight: FontWeight.bold),
         ),
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         onRefresh: _fetchMethods,
         child: _isLoading

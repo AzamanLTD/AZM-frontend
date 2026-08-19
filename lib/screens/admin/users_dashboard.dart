@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class UsersDashboard extends ConsumerStatefulWidget {
@@ -105,7 +106,7 @@ class _UsersDashboardState extends ConsumerState<UsersDashboard> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         onRefresh: _fetchData,
         color: colors.accent,
         child: _buildBody(colors),

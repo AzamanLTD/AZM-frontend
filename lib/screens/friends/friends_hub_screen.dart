@@ -26,6 +26,7 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -796,7 +797,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     }
 
     final groupsAsync = ref.watch(groupListProvider);
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: () async {
         await ref.read(friendProvider).fetchFriends();
         await ref.read(groupListProvider.notifier).refresh();
@@ -1119,7 +1120,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       );
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: () => ref.read(friendProvider).fetchPendingRequests(),
       color: colors.accent,
       backgroundColor: colors.card,

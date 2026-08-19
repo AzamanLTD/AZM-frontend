@@ -16,6 +16,7 @@ import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class TicketDashboardScreen extends ConsumerStatefulWidget {
@@ -282,7 +283,7 @@ class _List extends StatelessWidget {
         ),
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: () async => onRetry(),
       color: colors.accent,
       backgroundColor: colors.card,

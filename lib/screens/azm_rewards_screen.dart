@@ -24,6 +24,7 @@ import 'package:azaman/services/azm_reward_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class AzmRewardsScreen extends ConsumerStatefulWidget {
@@ -88,7 +89,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: _onRefresh,

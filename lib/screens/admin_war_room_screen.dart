@@ -14,6 +14,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class AdminWarRoomScreen extends ConsumerStatefulWidget {
@@ -384,7 +385,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
   // TAB 1: LIVE NETWORK
   // ============================================================
   Widget _buildLiveNetworkTab(AzamanColors colors) {
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       backgroundColor: colors.card,
       onRefresh: _fetchGodModeData,
@@ -410,7 +411,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
   // TAB 2: DISPUTES
   // ============================================================
   Widget _buildDisputesTab(AzamanColors colors) {
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.danger,
       backgroundColor: colors.card,
       onRefresh: _fetchGodModeData,
@@ -431,7 +432,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
   // TAB 3: KYC APPROVALS
   // ============================================================
   Widget _buildKycTab(AzamanColors colors) {
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.warning,
       backgroundColor: colors.card,
       onRefresh: _fetchGodModeData,
@@ -452,7 +453,7 @@ class _AdminWarRoomScreenState extends ConsumerState<AdminWarRoomScreen> with Si
   // TAB 4: VENDOR APPLICATIONS
   // ============================================================
   Widget _buildVendorsTab(AzamanColors colors) {
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       backgroundColor: colors.card,
       onRefresh: _fetchGodModeData,

@@ -14,6 +14,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/group_chat/group_chat_screen.dart';
 import 'package:azaman/screens/group_chat/group_create_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class GroupListScreen extends ConsumerWidget {
@@ -36,7 +37,7 @@ class GroupListScreen extends ConsumerWidget {
             style: TextStyle(
                 color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: () => ref.read(groupListProvider.notifier).refresh(),

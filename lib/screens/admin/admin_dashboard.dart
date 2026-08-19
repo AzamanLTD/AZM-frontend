@@ -10,6 +10,7 @@ import 'package:azaman/screens/admin/profit_dashboard.dart';
 import 'package:azaman/screens/admin/users_dashboard.dart';
 import 'package:azaman/screens/admin/volume_dashboard.dart';
 import 'package:azaman/screens/admin_war_room_screen.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class AdminDashboard extends ConsumerStatefulWidget {
@@ -238,7 +239,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
       );
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: _fetchAll,
       color: colors.accent,
       backgroundColor: colors.surface,

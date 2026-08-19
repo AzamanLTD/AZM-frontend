@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class SavedMomoAccountsScreen extends ConsumerWidget {
@@ -46,7 +47,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: () => ref.read(savedMomoProvider.notifier).refresh(),

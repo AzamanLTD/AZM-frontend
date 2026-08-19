@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:azaman/providers/vendor_analytics_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 // =============================================================================
@@ -53,7 +54,7 @@ class _VendorAnalyticsScreenState extends ConsumerState<VendorAnalyticsScreen> {
         iconTheme: IconThemeData(color: colors.textPrimary),
         elevation: 0,
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         onRefresh: () => analytics.refresh(),
         child: CustomScrollView(

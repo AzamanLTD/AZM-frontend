@@ -15,6 +15,7 @@ import 'package:azaman/screens/story_camera_screen.dart';
 import 'package:azaman/screens/story_editor_screen.dart';
 import 'dart:io';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 class PersonalChat {
   final String id;
   final String contactId;
@@ -670,7 +671,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                     )
                   : filtered.isEmpty
                       ? _buildEmptyState(colors)
-                      : RefreshIndicator(
+                      : AzPullToRefresh(
                           color: colors.accent,
                           backgroundColor: colors.card,
                           onRefresh: _fetchChats,

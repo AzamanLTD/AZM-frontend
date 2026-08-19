@@ -22,6 +22,7 @@ import 'dart:convert';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -177,7 +178,7 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: () async => ref.refresh(sharedVaultsProvider),

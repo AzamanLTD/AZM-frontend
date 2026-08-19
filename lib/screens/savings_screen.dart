@@ -12,6 +12,7 @@ import 'package:azaman/widgets/savings_goal_sheet.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -59,7 +60,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       return const SkeletonList(itemHeight: 100, count: 4);
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       onRefresh: _fetchOverview,
       child: SingleChildScrollView(

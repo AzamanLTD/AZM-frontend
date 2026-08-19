@@ -28,6 +28,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // KYB document types (Section 13).
 const _kKybTypes = <String, String>{
@@ -133,7 +134,7 @@ class _BusinessDashboardScreenState
       ),
       body: _loading || profile == null
           ? const SkeletonList(itemHeight: 90, count: 5)
-          : RefreshIndicator(
+          : AzPullToRefresh(
               onRefresh: _loadDashboard,
               child: ListView(
                 padding: const EdgeInsets.all(16),

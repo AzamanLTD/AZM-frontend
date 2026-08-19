@@ -18,6 +18,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/azm_reward_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class P2PMarketplaceScreen extends ConsumerStatefulWidget {
@@ -62,7 +63,7 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
       backgroundColor: colors.surface,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           onRefresh: _onRefresh,
           color: colors.accent,
           backgroundColor: colors.card,

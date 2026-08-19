@@ -23,6 +23,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/trade_countdown_chip.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class TradesTabScreen extends ConsumerStatefulWidget {
@@ -131,7 +132,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
           'Start a trade from the P2P marketplace to see it here.');
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       onRefresh: _fetchTrades,
       child: ListView.builder(
@@ -151,7 +152,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
           'Completed and cancelled trades will appear here.');
     }
 
-    return RefreshIndicator(
+    return AzPullToRefresh(
       color: colors.accent,
       onRefresh: _fetchTrades,
       child: ListView.builder(

@@ -43,6 +43,7 @@ import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
@@ -595,7 +596,7 @@ class _MediaTab extends ConsumerWidget {
         onRefresh: notifier.refreshMedia,
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: notifier.refreshMedia,
       color: colors.accent,
       backgroundColor: colors.card,
@@ -732,7 +733,7 @@ class _DocsLinksTab extends ConsumerWidget {
         onRefresh: notifier.refreshDocsLinks,
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: notifier.refreshDocsLinks,
       color: colors.accent,
       backgroundColor: colors.card,
@@ -974,7 +975,7 @@ class _TicketsTab extends ConsumerWidget {
         onRefresh: notifier.refresh,
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: notifier.refresh,
       color: colors.accent,
       backgroundColor: colors.card,
@@ -1149,7 +1150,7 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
         onRefresh: notifier.refreshReceipts,
       );
     }
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: notifier.refreshReceipts,
       color: colors.accent,
       backgroundColor: colors.card,
@@ -1336,7 +1337,7 @@ class _EmptyVault extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return AzPullToRefresh(
       onRefresh: onRefresh,
       color: colors.accent,
       backgroundColor: colors.card,

@@ -30,6 +30,7 @@ import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -68,7 +69,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
+        child: AzPullToRefresh(
           color: colors.accent,
           backgroundColor: colors.card,
           onRefresh: _onRefresh,
