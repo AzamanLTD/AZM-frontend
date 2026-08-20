@@ -283,6 +283,39 @@ class _LiquidPanelOverlay extends StatelessWidget {
           ),
         ),
       ),
+
+      // ── trigger ghost: keep the +/× icon visible on top of the goo blob ──
+      CompositedTransformFollower(
+        link: link,
+        showWhenUnlinked: false,
+        offset: anchor.topLeft,
+        child: SizedBox(
+          width: anchor.width,
+          height: anchor.height,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (_, __) {
+              final t = reduced ? 1.0 : controller.value;
+              final side = anchor.width;
+              return Center(
+                child: Transform.rotate(
+                  angle: t * 0.785398, // match the trigger's + → × rotation
+                  child: Container(
+                    width: side - 4,
+                    height: side - 4,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color.lerp(colors.surface, colors.accentSurface, t),
+                      border: Border.all(color: colors.textPrimary, width: 1.5),
+                    ),
+                    child: Icon(Icons.add, color: colors.textPrimary, size: 22),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
     ]);
   }
 }

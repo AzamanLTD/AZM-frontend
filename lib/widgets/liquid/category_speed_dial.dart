@@ -115,6 +115,11 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
           colors: widget.colors,
           labelStyle: _labelStyle,
           reduced: liquidReducedMotion(context),
+          currentItem: _current,
+          pillHeight: _pillHeight,
+          pillHPad: _pillHPad,
+          pillRadius: _pillRadius,
+          iconSize: _iconSize,
           onClose: _close,
           onPick: (item) {
             _close();
@@ -227,6 +232,11 @@ class _DialOverlay extends StatelessWidget {
   final bool reduced;
   final VoidCallback onClose;
   final ValueChanged<CategoryDialItem> onPick;
+  final CategoryDialItem currentItem;
+  final double pillHeight;
+  final double pillHPad;
+  final double pillRadius;
+  final double iconSize;
 
   const _DialOverlay({
     required this.controller,
@@ -239,6 +249,11 @@ class _DialOverlay extends StatelessWidget {
     required this.reduced,
     required this.onClose,
     required this.onPick,
+    required this.currentItem,
+    required this.pillHeight,
+    required this.pillHPad,
+    required this.pillRadius,
+    required this.iconSize,
   });
 
   @override
@@ -302,6 +317,39 @@ class _DialOverlay extends StatelessWidget {
           reduced: reduced,
           onPick: onPick,
         ),
+
+      // trigger ghost: keep the selected-category pill visible on top of goo
+      CompositedTransformFollower(
+        link: link,
+        showWhenUnlinked: false,
+        offset: anchor.topLeft,
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (_, __) {
+            final t = reduced ? 1.0 : controller.value;
+            return Container(
+              height: pillHeight,
+              padding: EdgeInsets.symmetric(horizontal: pillHPad),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(pillRadius),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(currentItem.icon, size: iconSize, color: colors.textPrimary),
+                const SizedBox(width: 8),
+                Text(currentItem.label, style: labelStyle),
+                const SizedBox(width: 4),
+                Transform.rotate(
+                  angle: t * 3.14159,
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 18, color: colors.textSecondary),
+                ),
+              ]),
+            );
+          },
+        ),
+      ),
     ]);
   }
 }
