@@ -15,7 +15,7 @@ import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
-import 'package:azaman/widgets/liquid_dropdown_menu.dart';
+import 'package:azaman/widgets/liquid/liquid_dropdown_menu.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
   final ChatMessage? replyTo;

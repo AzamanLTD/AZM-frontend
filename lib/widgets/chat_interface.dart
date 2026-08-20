@@ -11,7 +11,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/widgets/liquid_dropdown_menu.dart';
+import 'package:azaman/widgets/liquid/liquid_dropdown_menu.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 

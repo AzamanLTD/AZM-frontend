@@ -44,7 +44,7 @@ import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-import 'package:azaman/widgets/category_speed_dial.dart';
+import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/config.dart';
@@ -839,7 +839,7 @@ class _MarketplaceHomeScreenState
     final categories = <CategoryDialItem>[
       CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
       CategoryDialItem(wire: 'FOOD_BEVERAGE', icon: Icons.restaurant_rounded, label: 'Restaurants'),
-      CategoryDialItem(wire: 'REAL_ESTATE', icon: Icons.apartment_rounded, label: 'Hotels & Stay'),
+      CategoryDialItem(wire: 'REAL_ESTATE', icon: Icons.apartment_rounded, label: 'Hotels'),
       CategoryDialItem(wire: 'LOGISTICS', icon: Icons.directions_bus_rounded, label: 'Transit'),
       CategoryDialItem(wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Retail'),
       CategoryDialItem(wire: 'FREELANCE_SERVICES', icon: Icons.handyman_rounded, label: 'Services'),
@@ -855,7 +855,6 @@ class _MarketplaceHomeScreenState
           selectedWire: _selectedCategory,
           colors: colors,
           onSelected: (wire) {
-            AzamanHaptics.toggle();
             setState(() => _selectedCategory = wire);
             _fireSearch();
           },
