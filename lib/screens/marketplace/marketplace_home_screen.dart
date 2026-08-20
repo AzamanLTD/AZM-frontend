@@ -842,8 +842,6 @@ class _MarketplaceHomeScreenState
       CategoryDialItem(wire: 'REAL_ESTATE', icon: Icons.apartment_rounded, label: 'Hotels'),
       CategoryDialItem(wire: 'LOGISTICS', icon: Icons.directions_bus_rounded, label: 'Transit'),
       CategoryDialItem(wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Retail'),
-      CategoryDialItem(wire: 'FREELANCE_SERVICES', icon: Icons.handyman_rounded, label: 'Services'),
-      CategoryDialItem(wire: 'HEALTH_WELLNESS', icon: Icons.spa_rounded, label: 'Beauty'),
     ];
 
     return Padding(

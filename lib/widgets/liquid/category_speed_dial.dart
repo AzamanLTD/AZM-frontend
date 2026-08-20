@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -18,6 +20,14 @@ const double _iconSize = 17;
 const double _labelFS = 13;
 const double _restScale = 0.12;
 
+// Satellites render a bit smaller than the main/selected pill so the one in
+// focus reads as bigger while every satellite label still fits on one line.
+const double _satPillHeight = 38;
+const double _satPillHPad = 13;
+const double _satPillRadius = 19;
+const double _satIconSize = 15;
+const double _satLabelFS = 12;
+
 /// Real measurement — no character counting, honours the user's text scale.
 Size measurePill(String label, TextStyle style, TextScaler scaler, TextDirection dir) {
   final tp = TextPainter(
@@ -26,6 +36,62 @@ Size measurePill(String label, TextStyle style, TextScaler scaler, TextDirection
     textScaler: scaler,
   )..layout();
   return Size(_pillHPad * 2 + _iconSize + 8 + tp.width, _pillHeight);
+}
+
+/// Same idea as [measurePill] but sized for satellites.
+Size measureSatellitePill(String label, TextStyle style, TextScaler scaler, TextDirection dir) {
+  final tp = TextPainter(
+    text: TextSpan(text: label, style: style),
+    textDirection: dir,
+    textScaler: scaler,
+  )..layout();
+  return Size(_satPillHPad * 2 + _satIconSize + 8 + tp.width, _satPillHeight);
+}
+
+/// Fans satellites in a symmetric arc close around the anchor (left-down
+/// through straight-down to right-down, or mirrored upward if there's more
+/// room above than below) instead of cascading down one diagonal — keeps
+/// every satellite "close but around" the main pill, matching the reference
+/// sketch, rather than stacking in a lopsided quarter-circle.
+List<ArcSlot> solveRadialFan({
+  required Rect anchor,
+  required List<Size> sizes,
+  required LiquidSafeArea safe,
+  double gap = 10,
+  double sweepDeg = 132,
+}) {
+  final n = sizes.length;
+  if (n == 0) return const [];
+
+  final spaceUp = anchor.top - safe.top;
+  final spaceDown = safe.bottom - anchor.bottom;
+  final growUp = spaceUp > spaceDown && spaceUp > 160;
+  final vSign = growUp ? -1.0 : 1.0;
+
+  final startDeg = 90.0 - sweepDeg / 2;
+  final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
+
+  final slots = <ArcSlot>[];
+  for (var i = 0; i < n; i++) {
+    final rad = (startDeg + stepDeg * i) * math.pi / 180;
+    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+    // Minimum radius so this satellite clears the anchor rect at this angle.
+    final minR = (anchor.width / 2 + pw) * math.cos(rad).abs() +
+        (anchor.height / 2 + ph) * math.sin(rad).abs() +
+        gap;
+    final r = minR + 6;
+    var rect = Rect.fromCenter(
+      center: anchor.center.translate(math.cos(rad) * r, math.sin(rad) * vSign * r),
+      width: sizes[i].width,
+      height: sizes[i].height,
+    );
+    if (rect.left < safe.left) rect = rect.shift(Offset(safe.left - rect.left, 0));
+    if (rect.right > safe.right) rect = rect.shift(Offset(safe.right - rect.right, 0));
+    if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
+    if (rect.bottom > safe.bottom) rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+    slots.add(ArcSlot(index: i, rect: rect, angle: rad));
+  }
+  return slots;
 }
 
 class CategorySpeedDial extends StatefulWidget {
@@ -79,6 +145,13 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
         decoration: TextDecoration.none,
       );
 
+  TextStyle get _satLabelStyle => TextStyle(
+        fontSize: _satLabelFS,
+        fontWeight: FontWeight.w600,
+        color: widget.colors.textPrimary,
+        decoration: TextDecoration.none,
+      );
+
   void _toggle() => _isOpen ? _close() : _open();
 
   void _open() {
@@ -93,13 +166,13 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
         widget.categories.where((c) => c.wire != widget.selectedWire).toList();
     if (satellites.isEmpty) return;
 
-    final slots = solveArc(
+    final slots = solveRadialFan(
       anchor: anchor,
       sizes: [
-        for (final s in satellites) measurePill(s.label, _labelStyle, media.textScaler, dir)
+        for (final s in satellites)
+          measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir)
       ],
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
-      direction: dir,
     );
 
     AzamanHaptics.toggle();
@@ -416,7 +489,7 @@ class _SatellitePill extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: colors.card,
-              borderRadius: BorderRadius.circular(_pillRadius),
+              borderRadius: BorderRadius.circular(_satPillRadius),
               border: Border.all(color: colors.divider),
               boxShadow: [
                 BoxShadow(
@@ -425,18 +498,23 @@ class _SatellitePill extends StatelessWidget {
                     offset: const Offset(0, 3)),
               ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: _pillHPad),
+            padding: const EdgeInsets.symmetric(horizontal: _satPillHPad),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(item.icon, size: _iconSize, color: colors.textPrimary),
-                const SizedBox(width: 8),
+                Icon(item.icon, size: _satIconSize, color: colors.textPrimary),
+                const SizedBox(width: 6),
                 Flexible(
                   child: Text(item.label,
                       maxLines: 1,
                       overflow: TextOverflow.fade,
                       softWrap: false,
-                      style: labelStyle),
+                      style: TextStyle(
+                        fontSize: _satLabelFS,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                        decoration: TextDecoration.none,
+                      )),
                 ),
               ],
             ),
