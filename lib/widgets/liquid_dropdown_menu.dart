@@ -3,17 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
 // =============================================================================
-// LIQUID DROPDOWN MENU — goo/metaball anchored dropdown
+// LIQUID DROPDOWN MENU — individual pill speed-dial
 //
-// A liquid dropdown that grows out of the trigger button using a real
-// goo/metaball effect. The trigger circle melts upward into a blob that
-// resolves into the panel. Each row emerges from the goo mass and settles
-// as a crisp row with staggered spring timing.
+// Each menu item is its own pill that emerges individually from the
+// trigger button with a goo/metaball effect. Pills stack vertically
+// above the trigger, left-aligned, all the same width and pill shape.
 //
-// Technique: draw the trigger + a growing panel blob as blurred filled
-// shapes on a saveLayer with a threshold color matrix. The blur+threshold
-// creates the gooey metaball merge. Crisp rows paint on top once the
-// panel has settled.
+// Technique: each pill is drawn as a blurred filled shape on a
+// saveLayer with a threshold color matrix. The blur+threshold creates
+// the gooey metaball merge between the trigger and the first pill,
+// and between consecutive pills. Crisp pills paint on top once settled.
 // =============================================================================
 
 /// One row in the anchored dropdown.
@@ -29,23 +28,40 @@ class LiquidDropdownItem {
   });
 }
 
-const double _rowHeight = 44.0;
-const double _panelWidth = 180.0;
-const double _panelPad = 6.0;
-const double _panelGap = 10.0;
-const double _panelRadius = 16.0;
+// ---- Pill dimensions ----
+const double _pillHeight = 42.0;
+const double _pillWidth = 170.0;
+const double _pillHPad = 14.0;
+const double _pillGap = 6.0;
+const double _pillRadius = 14.0;
+const double _pillIconSize = 18.0;
+const double _pillLabelFS = 13.0;
+const double _triggerGap = 8.0;
 
 // ---- Goo constants ----
 const double _gooBlurActive = 7.0;
 const double _gooBlurRest = 1.0;
 const double _gooThresholdOuter = -11.6925;
+const double _restScale = 0.14;
 
-// ---- Spring curve (critically damped, slight overshoot) ----
-class _SpringCurve extends Curve {
+// ---- Spring curves ----
+class _HouseSpringCurve extends Curve {
   @override
   double transformInternal(double t) {
-    const w = 16.0;
-    const z = 0.42;
+    const w = 22.46;
+    const z = 0.434;
+    const d = z * w;
+    final envelope = 1.0 - math.exp(-d * t);
+    final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
+    return 1.0 - envelope * oscillation;
+  }
+}
+
+class _PopSpringCurve extends Curve {
+  @override
+  double transformInternal(double t) {
+    const w = 18.09;
+    const z = 0.479;
     const d = z * w;
     final envelope = 1.0 - math.exp(-d * t);
     final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
@@ -81,8 +97,8 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 650),
-      reverseDuration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 700),
+      reverseDuration: const Duration(milliseconds: 350),
     );
   }
 
@@ -186,6 +202,18 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
 // Overlay
 // =============================================================================
 
+class _PillGeom {
+  final LiquidDropdownItem item;
+  final Offset center; // center relative to screen
+  final int index;
+
+  const _PillGeom({
+    required this.item,
+    required this.center,
+    required this.index,
+  });
+}
+
 class _LiquidDropdownOverlay extends StatelessWidget {
   final AnimationController controller;
   final List<LiquidDropdownItem> items;
@@ -209,36 +237,48 @@ class _LiquidDropdownOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final panelHeight = _panelPad * 2 + items.length * _rowHeight;
-
-    double panelLeft = anchorPos.dx;
-    const margin = 12.0;
-    if (panelLeft + _panelWidth > screenSize.width - margin) {
-      panelLeft = screenSize.width - margin - _panelWidth;
-    }
-    if (panelLeft < margin) panelLeft = margin;
-
-    double panelBottom = anchorPos.dy - _panelGap;
-    double panelTop = panelBottom - panelHeight;
-    final minTop = safeTop + margin;
-    if (panelTop < minTop) {
-      panelTop = minTop;
-      panelBottom = panelTop + panelHeight;
-    }
-
     final triggerCenter = Offset(
       anchorPos.dx + anchorSize.width / 2,
       anchorPos.dy + anchorSize.height / 2,
     );
 
-    final panelCenter = Offset(
-      panelLeft + _panelWidth / 2,
-      panelTop + panelHeight / 2,
-    );
+    // Pills stack vertically above the trigger, left-aligned with trigger
+    // Pill 0 (bottom-most, closest to trigger) is the first item
+    // Pill n-1 (top-most) is the last item
+    // Bottom pill center Y = anchorPos.dy - _triggerGap - _pillHeight/2
+    // Each pill above is shifted by _pillHeight + _pillGap
+
+    final pillLeft = anchorPos.dx;
+    final bottomPillCenterY = anchorPos.dy - _triggerGap - _pillHeight / 2;
+
+    final geoms = <_PillGeom>[];
+    for (int i = 0; i < items.length; i++) {
+      final cy = bottomPillCenterY - i * (_pillHeight + _pillGap);
+      final cx = pillLeft + _pillWidth / 2;
+      geoms.add(_PillGeom(
+        item: items[i],
+        center: Offset(cx, cy),
+        index: i,
+      ));
+    }
+
+    // Clamp: if pills go above safe area, shift everything down
+    final topPillTop = geoms.last.center.dy - _pillHeight / 2;
+    final minTop = safeTop + 12;
+    if (topPillTop < minTop) {
+      final shift = minTop - topPillTop;
+      for (int i = 0; i < geoms.length; i++) {
+        geoms[i] = _PillGeom(
+          item: geoms[i].item,
+          center: Offset(geoms[i].center.dx, geoms[i].center.dy + shift),
+          index: geoms[i].index,
+        );
+      }
+    }
 
     return Stack(
       children: [
-        // Dim scrim — tap to close
+        // Dim scrim
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -254,7 +294,7 @@ class _LiquidDropdownOverlay extends StatelessWidget {
             ),
           ),
         ),
-        // Goo canvas — metaball merge between trigger and panel
+        // Goo canvas — metaball merge between trigger and pills
         Positioned.fill(
           child: AnimatedBuilder(
             animation: controller,
@@ -266,14 +306,14 @@ class _LiquidDropdownOverlay extends StatelessWidget {
                 child: Opacity(
                   opacity: gooFade,
                   child: CustomPaint(
-                    painter: _GooPanelPainter(
+                    painter: _GooPillPainter(
                       progress: t,
                       triggerCenter: triggerCenter,
                       triggerSize: anchorSize.width,
-                      panelCenter: panelCenter,
-                      panelWidth: _panelWidth,
-                      panelHeight: panelHeight,
-                      panelRadius: _panelRadius,
+                      pills: geoms,
+                      pillWidth: _pillWidth,
+                      pillHeight: _pillHeight,
+                      pillRadius: _pillRadius,
                       surfaceColor: colors.card,
                     ),
                   ),
@@ -282,41 +322,14 @@ class _LiquidDropdownOverlay extends StatelessWidget {
             },
           ),
         ),
-        // Crisp panel with rows (fades in as goo settles)
-        AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            final t = controller.value;
-            final panelOpacity = ((t - 0.35) / 0.4).clamp(0.0, 1.0);
-            if (panelOpacity <= 0.001) return const SizedBox.shrink();
-
-            final springT = _SpringCurve().transform(t.clamp(0.0, 1.0));
-            final scale = 0.88 + 0.12 * springT;
-
-            return Stack(
-              children: [
-                Positioned(
-                  left: panelLeft,
-                  top: panelTop,
-                  child: Opacity(
-                    opacity: panelOpacity,
-                    child: Transform.scale(
-                      scale: scale,
-                      alignment: Alignment.bottomCenter,
-                      child: _DropdownPanel(
-                        colors: colors,
-                        items: items,
-                        onClose: onClose,
-                        progress: t,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        // Trigger button copy (crisp during animation)
+        // Crisp pills (fade in as goo settles)
+        ...geoms.map((geom) => _CrispPill(
+              controller: controller,
+              geom: geom,
+              colors: colors,
+              onClose: onClose,
+            )),
+        // Trigger copy (crisp during animation)
         Positioned(
           left: anchorPos.dx,
           top: anchorPos.dy,
@@ -363,27 +376,27 @@ class _LiquidDropdownOverlay extends StatelessWidget {
 }
 
 // =============================================================================
-// Goo Panel Painter — metaball merge between trigger circle and panel rect
+// Goo Pill Painter — metaball merge between trigger and stacked pills
 // =============================================================================
 
-class _GooPanelPainter extends CustomPainter {
+class _GooPillPainter extends CustomPainter {
   final double progress;
   final Offset triggerCenter;
   final double triggerSize;
-  final Offset panelCenter;
-  final double panelWidth;
-  final double panelHeight;
-  final double panelRadius;
+  final List<_PillGeom> pills;
+  final double pillWidth;
+  final double pillHeight;
+  final double pillRadius;
   final Color surfaceColor;
 
-  _GooPanelPainter({
+  _GooPillPainter({
     required this.progress,
     required this.triggerCenter,
     required this.triggerSize,
-    required this.panelCenter,
-    required this.panelWidth,
-    required this.panelHeight,
-    required this.panelRadius,
+    required this.pills,
+    required this.pillWidth,
+    required this.pillHeight,
+    required this.pillRadius,
     required this.surfaceColor,
   });
 
@@ -403,11 +416,18 @@ class _GooPanelPainter extends CustomPainter {
       0.0, 0.0, 0.0, 30.0, threshold,
     ];
 
-    final minX = math.min(triggerCenter.dx - triggerSize, panelCenter.dx - panelWidth / 2) - 40;
-    final maxX = math.max(triggerCenter.dx + triggerSize, panelCenter.dx + panelWidth / 2) + 40;
-    final minY = math.min(triggerCenter.dy - triggerSize, panelCenter.dy - panelHeight / 2) - 40;
-    final maxY = math.max(triggerCenter.dy + triggerSize, panelCenter.dy + panelHeight / 2) + 40;
-    final bounds = Rect.fromLTRB(minX, minY, maxX, maxY);
+    // Calculate bounds
+    double minX = triggerCenter.dx - triggerSize;
+    double maxX = triggerCenter.dx + triggerSize;
+    double minY = triggerCenter.dy - triggerSize;
+    double maxY = triggerCenter.dy + triggerSize;
+    for (final p in pills) {
+      minX = math.min(minX, p.center.dx - pillWidth / 2);
+      maxX = math.max(maxX, p.center.dx + pillWidth / 2);
+      minY = math.min(minY, p.center.dy - pillHeight / 2);
+      maxY = math.max(maxY, p.center.dy + pillHeight / 2);
+    }
+    final bounds = Rect.fromLTRB(minX - 40, minY - 40, maxX + 40, maxY + 40);
 
     canvas.saveLayer(bounds, Paint()..colorFilter = ColorFilter.matrix(thresholdMatrix));
 
@@ -423,46 +443,44 @@ class _GooPanelPainter extends CustomPainter {
     final triggerR = triggerSize / 2 * triggerPulse;
     canvas.drawCircle(triggerCenter, triggerR, fillPaint);
 
-    // Panel grows from trigger position to final position
-    final panelGrowEase = Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
+    // Pills — each emerges with staggered spring timing
+    for (int i = 0; i < pills.length; i++) {
+      // Bottom pill (i=0) starts first, top pill starts last
+      final at = 0.03 + i * 0.05;
+      final localT = ((t - at) / 0.55).clamp(0.0, 1.0);
+      if (localT <= 0) continue;
 
-    final currentW = triggerSize + (panelWidth - triggerSize) * panelGrowEase;
-    final currentH = triggerSize + (panelHeight - triggerSize) * panelGrowEase;
+      double scale;
+      if (localT < 0.32) {
+        scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
+      } else {
+        scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
+      }
 
-    final currentCenter = Offset(
-      triggerCenter.dx + (panelCenter.dx - triggerCenter.dx) * panelGrowEase,
-      triggerCenter.dy + (panelCenter.dy - triggerCenter.dy) * panelGrowEase,
-    );
+      final pw = pillWidth * scale;
+      final ph = pillHeight * scale;
+      final pill = pills[i];
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: pill.center, width: pw, height: ph),
+          Radius.circular(pillRadius * scale),
+        ),
+        fillPaint,
+      );
 
-    final panelGrow = _SpringCurve().transform(t.clamp(0.0, 1.0));
-    final currentRadius = t < 0.3
-        ? currentW / 2
-        : _panelRadius * panelGrow;
-
-    final panelRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: currentCenter, width: currentW, height: currentH),
-      Radius.circular(currentRadius),
-    );
-    canvas.drawRRect(panelRect, fillPaint);
-
-    // Connecting goo blobs between trigger and panel for the melt effect
-    if (t > 0.05 && t < 0.7) {
-      final connectionT = (t - 0.05) / 0.65;
-      final connectionFade = (1.0 - (connectionT * 1.4).clamp(0.0, 1.0));
-
-      if (connectionFade > 0.01) {
-        final connPaint = Paint()
-          ..color = surfaceColor.withValues(alpha: connectionFade)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma * 1.2)
-          ..isAntiAlias = true;
-
-        for (int i = 1; i <= 3; i++) {
-          final f = i / 4.0;
-          final cx = triggerCenter.dx + (currentCenter.dx - triggerCenter.dx) * f;
-          final cy = triggerCenter.dy + (currentCenter.dy - triggerCenter.dy) * f;
-          final blobR = (triggerSize * 0.4) * (1.0 - panelGrowEase * 0.7) * connectionFade;
+      // Connecting goo blob between consecutive pills
+      if (i > 0 && t > 0.05 && t < 0.7) {
+        final prevPill = pills[i - 1];
+        final connectionFade = (1.0 - (t * 1.4 - 0.1).clamp(0.0, 1.0));
+        if (connectionFade > 0.01) {
+          final connPaint = Paint()
+            ..color = surfaceColor.withValues(alpha: connectionFade)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma * 1.2)
+            ..isAntiAlias = true;
+          final midY = (prevPill.center.dy + pill.center.dy) / 2;
+          final blobR = (pillHeight * 0.3) * (1.0 - scale * 0.5) * connectionFade;
           if (blobR > 1) {
-            canvas.drawCircle(Offset(cx, cy), blobR, connPaint);
+            canvas.drawCircle(Offset(pill.center.dx, midY), blobR, connPaint);
           }
         }
       }
@@ -470,135 +488,137 @@ class _GooPanelPainter extends CustomPainter {
 
     canvas.restore();
 
-    // Border on the panel once mostly formed
-    if (panelGrow > 0.3) {
-      final borderOpacity = ((panelGrow - 0.3) / 0.7).clamp(0.0, 1.0);
+    // Borders on pills once settled
+    for (int i = 0; i < pills.length; i++) {
+      final at = 0.03 + i * 0.05;
+      final localT = ((t - at) / 0.55).clamp(0.0, 1.0);
+      if (localT <= 0) continue;
+
+      double scale;
+      if (localT < 0.32) {
+        scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
+      } else {
+        scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
+      }
+
+      if (scale < 0.15) continue;
+
+      final borderOpacity = ((scale - 0.5) / 0.5).clamp(0.0, 1.0);
+      if (borderOpacity <= 0) continue;
+
       final borderPaint = Paint()
         ..color = Colors.black.withValues(alpha: 0.05 * borderOpacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.0
         ..isAntiAlias = true;
 
-      canvas.drawRRect(panelRect, borderPaint);
+      final pw = pillWidth * scale;
+      final ph = pillHeight * scale;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: pills[i].center, width: pw, height: ph),
+          Radius.circular(pillRadius * scale),
+        ),
+        borderPaint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _GooPanelPainter old) => old.progress != progress;
+  bool shouldRepaint(covariant _GooPillPainter old) => old.progress != progress;
 }
 
 // =============================================================================
-// Crisp settled panel with staggered row fade-in
+// Crisp settled pill
 // =============================================================================
 
-class _DropdownPanel extends StatelessWidget {
+class _CrispPill extends StatelessWidget {
+  final AnimationController controller;
+  final _PillGeom geom;
   final AzamanColors colors;
-  final List<LiquidDropdownItem> items;
   final VoidCallback onClose;
-  final double progress;
 
-  const _DropdownPanel({
+  const _CrispPill({
+    required this.controller,
+    required this.geom,
     required this.colors,
-    required this.items,
     required this.onClose,
-    required this.progress,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: _panelWidth,
-      padding: const EdgeInsets.symmetric(vertical: _panelPad),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(_panelRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < items.length; i++)
-            _AnimatedDropdownRow(
-              item: items[i],
-              colors: colors,
-              width: _panelWidth,
-              progress: progress,
-              index: i,
-              totalItems: items.length,
-              onTap: () {
-                onClose();
-                items[i].onTap();
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
+    final left = geom.center.dx - _pillWidth / 2;
+    final top = geom.center.dy - _pillHeight / 2;
 
-/// A dropdown row that emerges from the goo with a spring and settles crisp.
-class _AnimatedDropdownRow extends StatelessWidget {
-  final LiquidDropdownItem item;
-  final AzamanColors colors;
-  final double width;
-  final double progress;
-  final int index;
-  final int totalItems;
-  final VoidCallback onTap;
+    return Positioned(
+      left: left,
+      top: top,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final t = controller.value;
+          // Stagger: bottom pills (i=0) appear first
+          final at = 0.03 + geom.index * 0.05;
+          final localT = ((t - at) / 0.55).clamp(0.0, 1.0);
+          if (localT <= 0) return const SizedBox.shrink();
 
-  const _AnimatedDropdownRow({
-    required this.item,
-    required this.colors,
-    required this.width,
-    required this.progress,
-    required this.index,
-    required this.totalItems,
-    required this.onTap,
-  });
+          // Crisp pill fades in as goo settles
+          final crispOpacity = ((localT - 0.3) / 0.7).clamp(0.0, 1.0);
+          if (crispOpacity <= 0.001) return const SizedBox.shrink();
 
-  @override
-  Widget build(BuildContext context) {
-    final reverseIndex = totalItems - 1 - index;
-    final start = 0.25 + reverseIndex * 0.07;
-    final end = start + 0.4;
-    final localT = ((progress - start) / (end - start)).clamp(0.0, 1.0);
-    final springT = _SpringCurve().transform(localT);
-    final eased = Curves.easeOutCubic.transform(localT);
+          double scale;
+          if (localT < 0.32) {
+            scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
+          } else {
+            scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
+          }
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Opacity(
-        opacity: eased,
-        child: Transform.translate(
-          offset: Offset(0, (1 - springT) * 12),
-          child: Container(
-            width: width,
-            height: _rowHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Icon(item.icon, size: 19, color: colors.textPrimary),
-                const SizedBox(width: 12),
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
+          return GestureDetector(
+            onTap: () {
+              onClose();
+              geom.item.onTap();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Opacity(
+              opacity: crispOpacity,
+              child: Transform.scale(
+                scale: scale,
+                alignment: Alignment.center,
+                child: Container(
+                  width: _pillWidth,
+                  height: _pillHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: _pillHPad),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(_pillRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(geom.item.icon, size: _pillIconSize, color: colors.textPrimary),
+                      const SizedBox(width: 10),
+                      Text(
+                        geom.item.label,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: _pillLabelFS,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

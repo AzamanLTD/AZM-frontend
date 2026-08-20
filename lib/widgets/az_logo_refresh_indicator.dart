@@ -7,6 +7,9 @@
 // to indicate loading. Overlays ON TOP of the page content (does not
 // push/translate the scroll view). Minimum display time ensures the
 // animation is visible even on instant refresh.
+//
+// The logo sits on a clean rounded-rectangle background with its own
+// shadow so it's clearly visible above any content when pulled.
 // =============================================================================
 
 import 'dart:math' as math;
@@ -36,7 +39,11 @@ class _AzLogoRefreshIndicatorState
   double _dragOffset = 0;
   static const double _triggerDistance = 70;
   static const double _maxDrag = 100;
-  static const double _indicatorSize = 38;
+  // Smaller logo — was 38, now 28
+  static const double _indicatorSize = 28;
+  // Background plate padding around the logo
+  static const double _platePad = 6.0;
+  static const double _plateRadius = 12.0;
   static const Duration _minDisplayTime = Duration(milliseconds: 1800);
   bool _isRefreshing = false;
   late final AnimationController _traceController;
@@ -88,7 +95,6 @@ class _AzLogoRefreshIndicatorState
       _dragOffset = _triggerDistance;
     });
     _fadeController.forward(from: 0);
-    // Brief delay so the solid-black → tracer transition is visible
     await Future.delayed(const Duration(milliseconds: 350));
     _traceController.repeat();
     try {
@@ -119,13 +125,14 @@ class _AzLogoRefreshIndicatorState
     final showHeight = _isRefreshing ? _triggerDistance : _dragOffset;
     final pullProgress = (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
 
+    // The plate size (logo + padding)
+    final plateSize = _indicatorSize + _platePad * 2;
+
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
       child: Stack(
         children: [
-          // Child stays in place — NO Transform.translate
           widget.child,
-          // Indicator overlays ON TOP of the content, growing from the top edge
           if (showHeight > 0.5)
             Positioned(
               top: 0,
@@ -147,14 +154,32 @@ class _AzLogoRefreshIndicatorState
                           : (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0),
                       child: Padding(
                         padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 4),
-                        child: _ThreePartLogoTrace(
-                        size: _indicatorSize,
-                        traceAnimation: _traceController,
-                        fadeAnimation: _fadeController,
-                        color: indicatorColor,
-                        isRefreshing: _isRefreshing,
-                        pullProgress: pullProgress,
-                      ),
+                        // Rounded-rectangle background plate with shadow
+                        child: Container(
+                          width: plateSize,
+                          height: plateSize,
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            borderRadius: BorderRadius.circular(_plateRadius),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _ThreePartLogoTrace(
+                              size: _indicatorSize,
+                              traceAnimation: _traceController,
+                              fadeAnimation: _fadeController,
+                              color: indicatorColor,
+                              isRefreshing: _isRefreshing,
+                              pullProgress: pullProgress,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -190,7 +215,6 @@ class _ThreePartLogoTrace extends StatelessWidget {
 
   static const String _viewBox = "20 20 569 553";
 
-  // The 3 subpaths of the Azaman logo, separated.
   static const String _part1 =
       "M408.0,167.5 L398.0,166.5 L364.0,150.5 L331.0,139.5 L307.0,136.5 L274.0,140.5 L270.0,143.5 L237.0,153.5 L207.0,167.5 L195.0,164.5 L188.5,152.0 L199.5,130.0 L212.5,115.0 L215.5,108.0 L270.5,45.0 L273.5,39.0 L277.5,37.0 L277.5,34.0 L295.0,20.5 L313.0,19.5 L314.0,21.5 L315.0,19.5 L332.5,36.0 L341.5,49.0 L346.5,52.0 L349.5,58.0 L379.5,91.0 L412.5,136.0 L418.5,148.0 L419.5,156.0 L414.5,164.0 L408.0,167.5 Z";
   static const String _part2 =
@@ -215,7 +239,8 @@ class _ThreePartLogoTrace extends StatelessWidget {
               pullProgress: pullProgress,
               color: color,
               viewBox: _viewBox,
-              strokeWidth: 2.5,
+              // Smaller stroke width proportional to smaller logo
+              strokeWidth: 1.8,
             ),
           );
         },
@@ -226,14 +251,6 @@ class _ThreePartLogoTrace extends StatelessWidget {
 
 // =============================================================================
 // Three-Part Logo Painter
-//
-// Pull phase: all 3 subpaths trace simultaneously from 0→100% in solid black.
-// The trace is proportional — each part fills at the SAME rate, so at 50% pull
-// all 3 parts are half-traced, not one part done and the next empty.
-//
-// Refresh phase: solid black outlines fade to a faint guide, and a bright
-// moving segment (same black, thicker) travels around all 3 parts in
-// sequence to indicate loading.
 // =============================================================================
 
 class _ThreePartLogoPainter extends CustomPainter {
@@ -272,7 +289,6 @@ class _ThreePartLogoPainter extends CustomPainter {
     canvas.translate(dx, dy);
     canvas.scale(scale);
 
-    // --- Faint guide outline — always visible during pull and refresh ---
     final guideOpacity = isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
     final guidePaint = Paint()
       ..color = color.withValues(alpha: guideOpacity)
@@ -286,11 +302,6 @@ class _ThreePartLogoPainter extends CustomPainter {
     }
 
     if (isRefreshing) {
-      // --- Refresh phase ---
-      // Solid black outlines fade out (the "come back to regular tracer"
-      // transition), then the moving tracer segment takes over.
-
-      // The solid outlines fade from 1.0 → 0.2 over the fade-in period
       final outlineOpacity = (1.0 - fadeProgress * 0.8).clamp(0.2, 1.0);
       final outlinePaint = Paint()
         ..color = color.withValues(alpha: outlineOpacity)
@@ -303,7 +314,6 @@ class _ThreePartLogoPainter extends CustomPainter {
         canvas.drawPath(p, outlinePaint);
       }
 
-      // Moving tracer segment — travels around all 3 parts in sequence
       final tracerPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -314,7 +324,6 @@ class _ThreePartLogoPainter extends CustomPainter {
       _drawMovingTracer(canvas, partPaths, tracerPaint, loopProgress);
 
     } else if (pullProgress > 0) {
-      // --- Pull phase: trace all 3 parts simultaneously in solid black ---
       final fillPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -324,7 +333,6 @@ class _ThreePartLogoPainter extends CustomPainter {
         ..isAntiAlias = true;
 
       for (final p in partPaths) {
-        // Each subpath traces from 0→100% simultaneously
         _drawSubpathProgress(canvas, p, fillPaint, pullProgress);
       }
     }
@@ -332,7 +340,6 @@ class _ThreePartLogoPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// Traces a single subpath from 0 to `progress` fraction of its own length.
   void _drawSubpathProgress(Canvas canvas, Path path, Paint paint, double progress) {
     if (progress <= 0) return;
     final metrics = path.computeMetrics();
@@ -343,11 +350,7 @@ class _ThreePartLogoPainter extends CustomPainter {
     }
   }
 
-  /// Draws a moving segment that travels around all 3 parts in sequence.
-  /// The total journey is all 3 parts end-to-end; the segment occupies ~18%
-  /// of the total and loops continuously.
   void _drawMovingTracer(Canvas canvas, List<Path> paths, Paint paint, double loopProgress) {
-    // Collect all path metrics with their total length
     final allMetrics = <ui.PathMetric>[];
     double totalLength = 0;
     for (final p in paths) {
@@ -361,8 +364,6 @@ class _ThreePartLogoPainter extends CustomPainter {
     final segmentLength = totalLength * 0.18;
     final startPos = loopProgress * totalLength;
 
-    // The segment spans [startPos, startPos + segmentLength]
-    // It may wrap around the end back to the beginning
     for (int pass = 0; pass < 2; pass++) {
       final segStart = (startPos + pass * totalLength) % totalLength;
       final segEnd = segStart + segmentLength;
@@ -370,7 +371,6 @@ class _ThreePartLogoPainter extends CustomPainter {
       double traveled = 0;
       for (final metric in allMetrics) {
         final metricEnd = traveled + metric.length;
-        // Check if segment overlaps this metric
         final overlapStart = math.max(segStart, traveled);
         final overlapEnd = math.min(segEnd, metricEnd);
         if (overlapStart < overlapEnd) {
@@ -381,7 +381,6 @@ class _ThreePartLogoPainter extends CustomPainter {
             paint,
           );
         }
-        // Also check wrap-around (segment past end wraps to start)
         if (segEnd > totalLength) {
           final wrapEnd = segEnd - totalLength;
           final wrapStart = math.max(0, traveled);
@@ -410,8 +409,6 @@ class _ThreePartLogoPainter extends CustomPainter {
   }
 }
 
-/// Parses SVG path data (M, L, Z commands only — the Azaman logo uses
-/// exclusively these three).
 Path _parsePath(String data) {
   final path = Path();
   final commands = data.split(RegExp(r'(?=[MLZ])'));

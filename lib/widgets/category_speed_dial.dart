@@ -61,17 +61,17 @@ const double _gooBlurRest = 1.0;
 const double _gooThresholdOuter = -11.6925;
 
 // ---- Pill dimensions ----
-const double _pillHeight = 40.0;
-const double _pillHPad = 14.0;
-const double _pillGap = 12.0;
-const double _pillRadius = 20.0;
-const double _pillIconSize = 18.0;
-const double _pillLabelFS = 12.5;
+const double _pillHeight = 32.0;
+const double _pillHPad = 10.0;
+const double _pillGap = 6.0;
+const double _pillRadius = 16.0;
+const double _pillIconSize = 14.0;
+const double _pillLabelFS = 11.0;
 const double _restScale = 0.14;
 
 /// Estimate pill width from label text.
 double _pillWidth(String label) {
-  return _pillIconSize + 8 + label.length * _pillLabelFS * 0.52 + _pillHPad * 2;
+  return _pillIconSize + 6 + label.length * _pillLabelFS * 0.52 + _pillHPad * 2;
 }
 
 class _SatGeom {
@@ -102,14 +102,16 @@ List<_SatGeom> _layoutSatellites(
   const margin = 16.0;
   final maxRight = screenWidth - margin;
 
+  // Start pills close to the right edge of the trigger button
   double currentX = anchorRightEdge + _pillGap;
   double currentY = 0.0;
-  const rowHeight = _pillHeight + 6.0;
+  final rowHeight = _pillHeight + 4.0;
 
   for (int i = 0; i < n; i++) {
     final w = _pillWidth(items[i].label);
     if (currentX + w > maxRight && i > 0) {
-      currentX = margin;
+      // Wrap to next row, aligned with trigger left edge
+      currentX = anchorRightEdge - w - _pillGap;
       currentY += rowHeight;
     }
     geoms.add(_SatGeom(
@@ -684,8 +686,8 @@ class _SatellitePill extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(satellite.item.icon, size: 16, color: colors.textSecondary),
-                      const SizedBox(width: 8),
+                      Icon(satellite.item.icon, size: _pillIconSize, color: colors.textSecondary),
+                      const SizedBox(width: 6),
                       Text(
                         satellite.item.label,
                         style: TextStyle(
