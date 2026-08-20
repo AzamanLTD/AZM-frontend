@@ -356,7 +356,9 @@ class _MarketplaceHomeScreenState
       // FAB removed — store management moved to the storefront button (item 9)
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: AzPullToRefresh(
+          onRefresh: () => _viewMode == _ViewMode.list ? _refresh() : _fireNearby(),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Phase 3.4: Collapsible gradient behind header ───────────────
@@ -432,6 +434,7 @@ class _MarketplaceHomeScreenState
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -1128,9 +1131,7 @@ class _MarketplaceHomeScreenState
     final results = _applySortFilter(state.results);
 
     if (results.isEmpty) {
-      return AzPullToRefresh(
-        onRefresh: _refresh,
-        child: ListView(
+      return ListView(
           children: [
             const SizedBox(height: 60),
             Center(
@@ -1156,13 +1157,10 @@ class _MarketplaceHomeScreenState
               ),
             ),
           ],
-        ),
-      );
-    }
+        );
+      }
 
-    return AzPullToRefresh(
-      onRefresh: _refresh,
-      child: ListView.builder(
+    return ListView.builder(
         controller: _scrollCtrl,
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 120),
         itemCount: results.length + (state.hasMore ? 1 : 0),
@@ -1193,7 +1191,6 @@ class _MarketplaceHomeScreenState
             distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,
           ).animate().fadeIn(delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
         },
-      ),
     );
   }
 
@@ -1271,35 +1268,23 @@ class _MarketplaceHomeScreenState
 
     final locations = state.locations;
     if (locations.isEmpty) {
-      return AzPullToRefresh(
-        onRefresh: _fireNearby,
-        child: ListView(children: const [
+      return ListView(children: const [
           SizedBox(height: 60),
           AzamanEmptyState(
             icon: Icons.location_off_outlined,
             title: 'No businesses nearby',
             subtitle: 'Try expanding your search area.',
           ),
-        ]),
-      );
+        ]);
     }
 
-    return AzPullToRefresh(
-      onRefresh: _fireNearby,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
-              itemCount: locations.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: 10),
-              itemBuilder: (_, i) =>
-                  _nearbyCard(locations[i], colors),
-            ),
-          ),
-        ],
-      ),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+      itemCount: locations.length,
+      separatorBuilder: (_, __) =>
+          const SizedBox(height: 10),
+      itemBuilder: (_, i) =>
+          _nearbyCard(locations[i], colors),
     );
   }
 

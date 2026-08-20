@@ -192,18 +192,20 @@ class _State extends ConsumerState<PremiumChatInput> {
         // ── Floating pill bar ────────────────────────────────────────────
         // Same style as PremiumBottomNav: floating pill with surface color,
         // rounded corners, shadow. Contains + button, text field, send/voice.
+        // Dimensions match the nav bar (height 62, radius 31) so the
+        // transition between nav bar and chat input feels seamless.
         Padding(
-          padding: EdgeInsets.fromLTRB(16, 6, 16, bottom > 0 ? bottom + 8 : 12),
+          padding: EdgeInsets.fromLTRB(16, 6, 16, bottom > 0 ? bottom + 8 : 16),
           child: Container(
-            height: 56,
+            height: 62,
             decoration: BoxDecoration(
               color: c.surface,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(31),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: c.isDark ? 0.40 : 0.12),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
+                  color: Colors.black.withValues(alpha: c.isDark ? 0.45 : 0.13),
+                  blurRadius: 24,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),

@@ -241,76 +241,74 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
     final current = _current;
     final isActive = widget.selectedWire != null;
 
-    return GestureDetector(
-      key: _anchorKey,
-      onTap: _toggle,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Text(
-              'Category',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: colors.textTertiary,
-                letterSpacing: 0.5,
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Text(
+            'Category',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: colors.textTertiary,
+              letterSpacing: 0.5,
             ),
           ),
-          ScaleTap(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isActive ? colors.accentSurface : colors.card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isActive ? colors.accent : colors.divider,
-                  width: isActive ? 1.2 : 0.5,
+        ),
+        ScaleTap(
+          key: _anchorKey,
+          onTap: _toggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive ? colors.accentSurface : colors.card,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isActive ? colors.accent : colors.divider,
+                width: isActive ? 1.2 : 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isActive
+                      ? colors.accent.withValues(alpha: 0.18)
+                      : Colors.black.withValues(alpha: 0.06),
+                  blurRadius: isActive ? 8 : 4,
+                  offset: const Offset(0, 2),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isActive
-                        ? colors.accent.withValues(alpha: 0.18)
-                        : Colors.black.withValues(alpha: 0.06),
-                    blurRadius: isActive ? 8 : 4,
-                    offset: const Offset(0, 2),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(current.icon, size: 18, color: isActive ? colors.accent : colors.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  current.label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isActive ? colors.accent : colors.textSecondary,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(current.icon, size: 18, color: isActive ? colors.accent : colors.textSecondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    current.label,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: isActive ? colors.accent : colors.textSecondary,
-                    ),
+                ),
+                const SizedBox(width: 6),
+                AnimatedRotation(
+                  turns: _isOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    _isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: colors.textTertiary,
                   ),
-                  const SizedBox(width: 6),
-                  AnimatedRotation(
-                    turns: _isOpen ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      _isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: colors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
