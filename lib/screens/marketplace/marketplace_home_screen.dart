@@ -27,7 +27,6 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
-import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'dart:convert';
@@ -39,7 +38,6 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
-import 'package:azaman/widgets/rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -47,7 +45,6 @@ import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/category_speed_dial.dart';
-import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/config.dart';
@@ -99,8 +96,6 @@ class _MarketplaceHomeScreenState
 
   // Telegram-style stories collapse state
   bool _storiesCollapsed = false;
-  // Featured Near You section — collapsed by default with expand arrow
-  bool _featuredCollapsed = true;
   // Cooldown to prevent story collapse/expand oscillation when content is short
   DateTime _lastStoryToggle = DateTime.fromMillisecondsSinceEpoch(0);
   // Location permission requested flag
@@ -141,7 +136,7 @@ class _MarketplaceHomeScreenState
       if (!biz.hasLoaded && !biz.isLoading) {
         ref.read(myBusinessProvider.notifier).load();
       }
-      // Request location permission for "Featured Near You" but don't
+      // Request location permission but don't
       // block the UI — demo data still shows regardless of permission.
       if (!_locationRequested) {
         _locationRequested = true;
@@ -169,7 +164,7 @@ class _MarketplaceHomeScreenState
     }
 
     // Collapse/expand stories based on scroll position, with hysteresis
-    // and a cooldown to prevent oscillation when the featured carousel
+    // and a cooldown to prevent oscillation when
     // is collapsed and scrollable content is short (the 96px height
     // change from stories collapsing can otherwise create a loop).
     final now = DateTime.now();
@@ -866,17 +861,6 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  // ── "Featured Near You" carousel ────────────────────────────────────────────
-  // Only shown on the unfiltered/un-searched home feed (2026-07-08) — once a
-  // category is selected or a search is active, this makes way for the
-  // regular results list so it doesn't compete for attention.
-
-  List<BusinessProfile> _topRated(List<BusinessProfile> all) {
-    final rated = all.where((b) => b.averageRating > 0).toList()
-      ..sort((a, b) => b.averageRating.compareTo(a.averageRating));
-    return rated.take(10).toList();
-  }
-
   /// Opens the story viewer for a business's stories (not their profile).
   void _openBusinessStories(BuildContext context, String bizId) async {
     if (AppConfig.demoMode) {
@@ -1143,11 +1127,7 @@ class _MarketplaceHomeScreenState
 
     final results = _applySortFilter(state.results);
 
-    // Featured carousel shows as first scrollable item when no filter/search
-    final showCarousel = _selectedCategory == null && _searchCtrl.text.isEmpty;
-    final featured = showCarousel ? _topRated(state.results) : <BusinessProfile>[];
-
-    if (results.isEmpty && !showCarousel) {
+    if (results.isEmpty) {
       return AzPullToRefresh(
         onRefresh: _refresh,
         child: ListView(
@@ -1180,31 +1160,15 @@ class _MarketplaceHomeScreenState
       );
     }
 
-    final hasCarousel = showCarousel && featured.isNotEmpty;
-    final extraCount = hasCarousel ? 1 : 0;
-
     return AzPullToRefresh(
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollCtrl,
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 120),
-        itemCount: results.length + (state.hasMore ? 1 : 0) + extraCount,
+        itemCount: results.length + (state.hasMore ? 1 : 0),
         itemBuilder: (ctx, i) {
-          // Featured carousel as first scrollable item
-          if (hasCarousel && i == 0) {
-            return _FeaturedCarousel(
-              colors: colors,
-              featured: featured,
-              isCollapsed: _featuredCollapsed,
-              onToggle: () {
-                AzamanHaptics.toggle();
-                setState(() => _featuredCollapsed = !_featuredCollapsed);
-              },
-            );
-          }
-          final bizIndex = hasCarousel ? i - 1 : i;
           // Infinite-scroll loader sentinel
-          if (bizIndex >= results.length) {
+          if (i >= results.length) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -1216,7 +1180,7 @@ class _MarketplaceHomeScreenState
               ),
             );
           }
-          final b = results[bizIndex];
+          final b = results[i];
           return CollapsibleBusinessBar(
             key: ValueKey(b.bizId),
             business: b,
@@ -1227,7 +1191,7 @@ class _MarketplaceHomeScreenState
               });
             },
             distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,
-          ).animate().fadeIn(delay: (bizIndex * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (bizIndex * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
+          ).animate().fadeIn(delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
         },
       ),
     );
@@ -1485,291 +1449,6 @@ class _MarketplaceHomeScreenState
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FeaturedBusinessCard — wide "Featured Near You" carousel card (2026-07-08)
-//
-// ~280px wide: large cover image, business avatar overlapping the bottom
-// edge of the image (like a business card tucked into a photo), name +
-// star rating below.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _FeaturedBusinessCard extends StatelessWidget {
-  final BusinessProfile business;
-  final AzamanColors colors;
-  final VoidCallback onTap;
-
-  const _FeaturedBusinessCard({
-    required this.business,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final coverUrl = business.coverImageUrl ?? (business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl);
-    final cat = BusinessCategories.fromWire(business.category);
-
-    return ScaleTap(
-      onTap: onTap,
-      // BorderBeam removed from featured cards — now used on active category chips
-      child: Container(
-        width: 240,
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6)),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cover image — Hero transition to business profile
-            Hero(
-              tag: 'biz-logo-${business.id}',
-              child: SizedBox(
-                height: 88,
-                width: double.infinity,
-                child: coverUrl != null
-                    ? AzamanNetworkImage(
-                        imageUrl: coverUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(color: cat.color.withValues(alpha: 0.15)),
-                        errorWidget: (_, __, ___) => Container(color: cat.color.withValues(alpha: 0.15)),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft, end: Alignment.bottomRight,
-                            colors: [cat.color, cat.color.withValues(alpha: 0.5)],
-                          ),
-                        ),
-                        child: Center(child: Icon(cat.icon, size: 36, color: Colors.white.withValues(alpha: 0.5))),
-                      ),
-              ),
-            ),
-            // Avatar + text/rating in a Row (avatar on left, text on right)
-            // Avatar keeps its 3D effect by overlapping the cover image edge
-            Transform.translate(
-              offset: const Offset(0, -20),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // 3D squircle avatar — overlaps the cover image bottom
-                    Container(
-                      width: 48, height: 48,
-                      padding: const EdgeInsets.all(2.5),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2))],
-                      ),
-                      child: ClipPath(
-                        clipper: ShapeBorderClipper(
-                          shape: ContinuousRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: business.logoUrl != null
-                            ? AzamanNetworkImage(imageUrl: business.logoUrl!, fit: BoxFit.cover)
-                            : Container(
-                                color: cat.color.withValues(alpha: 0.2),
-                                child: Icon(cat.icon, size: 20, color: cat.color),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Text + rating to the side of the avatar
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            business.businessName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: colors.textPrimary),
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              RatingStars(rating: business.averageRating, size: 12, showNumber: true),
-                              if (business.isVerified) ...[
-                                const SizedBox(width: 6),
-                                Icon(Icons.verified_rounded, size: 13, color: colors.accent),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-// ── Auto-scrolling Featured Carousel ─────────────────────────────────────────
-class _FeaturedCarousel extends StatefulWidget {
-  final AzamanColors colors;
-  final List<BusinessProfile> featured;
-  final bool isCollapsed;
-  final VoidCallback? onToggle;
-
-  const _FeaturedCarousel({
-    required this.colors,
-    required this.featured,
-    this.isCollapsed = false,
-    this.onToggle,
-  });
-
-  @override
-  State<_FeaturedCarousel> createState() => _FeaturedCarouselState();
-}
-
-class _FeaturedCarouselState extends State<_FeaturedCarousel> {
-  late final PageController _pageController;
-  Timer? _autoScrollTimer;
-  int _currentPage = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(viewportFraction: 0.78);
-    // Auto-scroll every 4 seconds if there are 3+ featured items
-    if (widget.featured.length > 2) {
-      _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-        if (!_pageController.hasClients) return;
-        _currentPage++;
-        if (_currentPage >= widget.featured.length) _currentPage = 0;
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-        );
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _autoScrollTimer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(top: 6, bottom: widget.isCollapsed ? 4 : 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tappable header with expand/collapse arrow
-          GestureDetector(
-            onTap: widget.onToggle,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text('Featured Near You',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: widget.colors.textPrimary)),
-                  const SizedBox(width: 6),
-                  Icon(
-                    widget.isCollapsed
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.keyboard_arrow_up_rounded,
-                    size: 18,
-                    color: widget.colors.textTertiary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!widget.isCollapsed) ...[
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 160,
-            child: PageView.builder(
-              controller: _pageController,
-              padEnds: true,
-              itemCount: widget.featured.length,
-              itemBuilder: (context, i) {
-                final b = widget.featured[i];
-                return AnimatedBuilder(
-                  animation: _pageController,
-                  builder: (context, child) {
-                    double scale = 0.92;
-                    if (_pageController.hasClients) {
-                      final page = _pageController.page ?? 0.0;
-                      scale = (1.0 - (0.08 * (page - i).abs())).clamp(0.92, 1.0);
-                    }
-                    return Transform.scale(scale: scale, child: child);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: _FeaturedBusinessCard(
-                      business: b,
-                      colors: widget.colors,
-                      onTap: () {
-                        AzamanHaptics.nav();
-                        pushWithVerticalTransition(context, BusinessProfileScreen(bizId: b.bizId));
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          // Page indicator dots
-          if (widget.featured.length > 2)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.featured.length > 5 ? 5 : widget.featured.length,
-                  (i) => AnimatedBuilder(
-                    animation: _pageController,
-                    builder: (context, child) {
-                      double page = 0;
-                      if (_pageController.hasClients) {
-                        page = _pageController.page ?? 0;
-                      }
-                      final isActive = (page.round() % widget.featured.length) == i;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        width: isActive ? 16 : 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isActive ? widget.colors.accent : widget.colors.divider,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],  // end if (!widget.isCollapsed)
-        ],
       ),
     );
   }

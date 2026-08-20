@@ -128,10 +128,10 @@ class _AzLogoRefreshIndicatorState
           // Indicator overlays ON TOP of the content, growing from the top edge
           if (showHeight > 0.5)
             Positioned(
-              top: MediaQuery.of(context).padding.top,
+              top: 0,
               left: 0,
               right: 0,
-              height: showHeight,
+              height: showHeight + MediaQuery.of(context).padding.top,
               child: ClipRect(
                 child: OverflowBox(
                   minHeight: 0,
@@ -139,19 +139,22 @@ class _AzLogoRefreshIndicatorState
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     width: double.infinity,
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 200),
                       opacity: _isRefreshing
                           ? 1.0
                           : (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0),
-                      child: _ThreePartLogoTrace(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 4),
+                        child: _ThreePartLogoTrace(
                         size: _indicatorSize,
                         traceAnimation: _traceController,
                         fadeAnimation: _fadeController,
                         color: indicatorColor,
                         isRefreshing: _isRefreshing,
                         pullProgress: pullProgress,
+                      ),
                       ),
                     ),
                   ),

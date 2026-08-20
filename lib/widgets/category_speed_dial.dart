@@ -4,15 +4,16 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
 // =============================================================================
-// CATEGORY SPEED DIAL — compact category picker using liquid-taffy speed-dial
+// CATEGORY SPEED DIAL — pill-chip category picker with liquid goo animation
 //
-// Shows ONLY the current category as a single chip with "Category" label
-// above it. When tapped, other categories fan out in a radial arc using
-// the same goo metaball effect as the chat liquid menu. The arc opens
-// UPWARD so it doesn't cover the results below.
+// Shows ONLY the current category as a single pill chip ("Category" label
+// above it). When tapped, other categories expand outward in a horizontal
+// flow using the same goo metaball effect — but each satellite is a PILL
+// (rounded rect with icon + label), matching the trigger chip's shape.
 //
-// Designed to be a drop-in replacement for the old horizontal _categoryStrip()
-// in marketplace_home_screen — same callback contract, same category model.
+// The goo melts the trigger into the first satellite, then each satellite
+// peels away and settles as a crisp pill. Tap-away or selecting a category
+// closes the dial and returns to the selected chip.
 // =============================================================================
 
 /// One category entry for the speed dial.
@@ -28,14 +29,14 @@ class CategoryDialItem {
   });
 }
 
-// ---- Spring curves (same as LiquidMenuButton) ----
+// ---- Spring curves (same family as LiquidMenuButton) ----
 
 class _HouseSpringCurve extends Curve {
   @override
   double transformInternal(double t) {
     const w = 22.46;
     const z = 0.434;
-    final d = z * w;
+    const d = z * w;
     final envelope = 1.0 - math.exp(-d * t);
     final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
     return 1.0 - envelope * oscillation;
@@ -47,7 +48,7 @@ class _PopSpringCurve extends Curve {
   double transformInternal(double t) {
     const w = 18.09;
     const z = 0.479;
-    final d = z * w;
+    const d = z * w;
     final envelope = 1.0 - math.exp(-d * t);
     final oscillation = math.cos(w * math.sqrt(1 - z * z) * t);
     return 1.0 - envelope * oscillation;
@@ -59,41 +60,67 @@ const double _gooBlurActive = 7.0;
 const double _gooBlurRest = 1.0;
 const double _gooThresholdOuter = -11.6925;
 
-// ---- Layout ----
-const double _satelliteSize = 48.0;
+// ---- Pill dimensions ----
+const double _pillHeight = 40.0;
+const double _pillHPad = 14.0;
+const double _pillGap = 12.0;
+const double _pillRadius = 20.0;
+const double _pillIconSize = 18.0;
+const double _pillLabelFS = 12.5;
 const double _restScale = 0.14;
+
+/// Estimate pill width from label text.
+double _pillWidth(String label) {
+  return _pillIconSize + 8 + label.length * _pillLabelFS * 0.52 + _pillHPad * 2;
+}
 
 class _SatGeom {
   final CategoryDialItem item;
   final double dx;
   final double dy;
-  final double restRotation;
+  final double width;
 
   const _SatGeom({
     required this.item,
     required this.dx,
     required this.dy,
-    required this.restRotation,
+    required this.width,
   });
 }
 
-/// Lays out satellites in a fan arc ABOVE the trigger button.
-/// The fan spans 120° centered at -90° (straight up).
-List<_SatGeom> _layoutSatellites(List<CategoryDialItem> items) {
+/// Lays out satellite pills in a single horizontal row extending to the
+/// right of the trigger chip. Wraps to a second row if overflow.
+List<_SatGeom> _layoutSatellites(
+  List<CategoryDialItem> items, {
+  required double anchorRightEdge,
+  required double screenWidth,
+}) {
   final n = items.length;
   if (n == 0) return const [];
-  const double fanSpanDeg = 120.0;
-  const double radius = 80.0;
+
   final geoms = <_SatGeom>[];
+  const margin = 16.0;
+  final maxRight = screenWidth - margin;
+
+  double currentX = anchorRightEdge + _pillGap;
+  double currentY = 0.0;
+  const rowHeight = _pillHeight + 6.0;
+
   for (int i = 0; i < n; i++) {
-    final t = n == 1 ? 0.5 : i / (n - 1);
-    final angleDeg = -90.0 + (-fanSpanDeg / 2 + fanSpanDeg * t);
-    final rad = angleDeg * math.pi / 180.0;
-    final dx = radius * math.cos(rad);
-    final dy = radius * math.sin(rad);
-    final restRotation = (t - 0.5) * 24.0;
-    geoms.add(_SatGeom(item: items[i], dx: dx, dy: dy, restRotation: restRotation));
+    final w = _pillWidth(items[i].label);
+    if (currentX + w > maxRight && i > 0) {
+      currentX = margin;
+      currentY += rowHeight;
+    }
+    geoms.add(_SatGeom(
+      item: items[i],
+      dx: currentX + w / 2,
+      dy: currentY,
+      width: w,
+    ));
+    currentX += w + _pillGap;
   }
+
   return geoms;
 }
 
@@ -131,8 +158,8 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-      reverseDuration: const Duration(milliseconds: 550),
+      duration: const Duration(milliseconds: 720),
+      reverseDuration: const Duration(milliseconds: 480),
     );
   }
 
@@ -153,7 +180,6 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
 
   CategoryDialItem get _current {
     if (widget.selectedWire == null) {
-      // "All" is always first
       return widget.categories.first;
     }
     return widget.categories.firstWhere(
@@ -175,7 +201,11 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
     _overlayEntry = OverlayEntry(
       builder: (context) => _CategoryDialOverlay(
         controller: _controller,
-        satellites: _layoutSatellites(satellites),
+        satellites: _layoutSatellites(
+          satellites,
+          anchorRightEdge: anchorPos.dx + anchorSize.width,
+          screenWidth: screenSize.width,
+        ),
         colors: widget.colors,
         anchorPos: anchorPos,
         anchorSize: anchorSize,
@@ -218,7 +248,6 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // "Category" label above the chip
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 4),
             child: Text(
@@ -231,7 +260,6 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
               ),
             ),
           ),
-          // Current category chip
           ScaleTap(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
@@ -269,11 +297,11 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                   ),
                   const SizedBox(width: 6),
                   AnimatedRotation(
-                    turns: _isOpen ? 0.125 : 0,
+                    turns: _isOpen ? 0.5 : 0,
                     duration: const Duration(milliseconds: 300),
                     child: Icon(
-                      _isOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                      size: 16,
+                      _isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
                       color: colors.textTertiary,
                     ),
                   ),
@@ -288,7 +316,7 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
 }
 
 // =============================================================================
-// Overlay — goo canvas + satellite chips + re-rendered trigger
+// Overlay
 // =============================================================================
 
 class _CategoryDialOverlay extends StatelessWidget {
@@ -323,7 +351,7 @@ class _CategoryDialOverlay extends StatelessWidget {
 
     return Stack(
       children: [
-        // Scrim
+        // Dim scrim — tap to close
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -335,7 +363,7 @@ class _CategoryDialOverlay extends StatelessWidget {
                   curve: const Interval(0.0, 0.15, curve: Curves.easeOut),
                 ),
               ),
-              child: Container(color: Colors.black.withValues(alpha: 0.12)),
+              child: Container(color: Colors.black.withValues(alpha: 0.15)),
             ),
           ),
         ),
@@ -344,23 +372,32 @@ class _CategoryDialOverlay extends StatelessWidget {
           child: AnimatedBuilder(
             animation: controller,
             builder: (context, _) {
-              return CustomPaint(
-                painter: _GooPainter(
-                  progress: controller.value,
-                  satellites: satellites,
-                  triggerCenter: triggerCenter,
-                  triggerSize: anchorSize.width,
-                  surfaceColor: colors.card,
+              final t = controller.value;
+              final settleFade = (1.0 - ((t - 0.82) / 0.18).clamp(0.0, 1.0));
+              if (settleFade <= 0.001) return const SizedBox.shrink();
+              return IgnorePointer(
+                child: Opacity(
+                  opacity: settleFade,
+                  child: CustomPaint(
+                    painter: _GooPainter(
+                      progress: t,
+                      satellites: satellites,
+                      triggerCenter: triggerCenter,
+                      triggerSize: anchorSize.width,
+                      triggerHeight: anchorSize.height,
+                      surfaceColor: colors.card,
+                    ),
+                  ),
                 ),
               );
             },
           ),
         ),
-        // Satellite chips
+        // Satellite pills
         ...satellites.asMap().entries.map((entry) {
           final i = entry.key;
           final sat = entry.value;
-          return _SatelliteChip(
+          return _SatellitePill(
             controller: controller,
             index: i,
             total: satellites.length,
@@ -370,13 +407,39 @@ class _CategoryDialOverlay extends StatelessWidget {
             onTap: () => onTap(sat.item.wire),
           );
         }),
+        // Trigger pill (crisp copy during animation)
+        Positioned(
+          left: anchorPos.dx,
+          top: anchorPos.dy,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              final t = controller.value;
+              final triggerOpacity = t < 0.85 ? 1.0 : (1.0 - (t - 0.85) / 0.15).clamp(0.0, 1.0);
+              final triggerScale = t < 0.22
+                  ? 1.0 + 0.12 * (t / 0.22)
+                  : _HouseSpringCurve().transform(((t - 0.22) / 0.78).clamp(0.0, 1.0));
+
+              return Opacity(
+                opacity: triggerOpacity,
+                child: Transform.scale(
+                  scale: triggerScale,
+                  child: _TriggerPill(
+                    colors: colors,
+                    size: anchorSize,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 }
 
 // =============================================================================
-// Goo Painter — same metaball effect as LiquidMenuButton
+// Goo Painter
 // =============================================================================
 
 class _GooPainter extends CustomPainter {
@@ -384,6 +447,7 @@ class _GooPainter extends CustomPainter {
   final List<_SatGeom> satellites;
   final Offset triggerCenter;
   final double triggerSize;
+  final double triggerHeight;
   final Color surfaceColor;
 
   _GooPainter({
@@ -391,6 +455,7 @@ class _GooPainter extends CustomPainter {
     required this.satellites,
     required this.triggerCenter,
     required this.triggerSize,
+    required this.triggerHeight,
     required this.surfaceColor,
   });
 
@@ -398,35 +463,6 @@ class _GooPainter extends CustomPainter {
   void paint(Canvas canvas, Size canvasSize) {
     final t = progress;
     if (t <= 0.001) return;
-
-    final circles = <_Circle>[];
-
-    final triggerScale = t < 0.25
-        ? 1.0 + 0.16 * (t / 0.25)
-        : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
-    circles.add(_Circle(center: triggerCenter, radius: (triggerSize / 2) * triggerScale));
-
-    for (int i = 0; i < satellites.length; i++) {
-      final sat = satellites[i];
-      final at = 0.03 + i * 0.045;
-      final localT = ((t - at) / 0.5).clamp(0.0, 1.0);
-      if (localT <= 0) continue;
-
-      double scale;
-      if (localT < 0.32) {
-        final oozeT = localT / 0.32;
-        scale = _restScale + (0.42 - _restScale) * oozeT;
-      } else {
-        final launchT = (localT - 0.32) / 0.68;
-        final pop = _PopSpringCurve().transform(launchT);
-        scale = 0.42 + (1.0 - 0.42) * pop;
-      }
-
-      circles.add(_Circle(
-        center: Offset(triggerCenter.dx + sat.dx, triggerCenter.dy + sat.dy),
-        radius: (_satelliteSize / 2) * scale,
-      ));
-    }
 
     final activeAmount = math.min(t * 4, 1.0);
     final blurSigma = _gooBlurActive * activeAmount + _gooBlurRest * (1 - activeAmount);
@@ -439,29 +475,102 @@ class _GooPainter extends CustomPainter {
       0.0, 0.0, 0.0, 30.0, threshold,
     ];
 
-    final bounds = Rect.fromCenter(center: triggerCenter, width: 420, height: 420);
+    double minX = triggerCenter.dx - triggerSize;
+    double maxX = triggerCenter.dx + triggerSize;
+    double minY = triggerCenter.dy - triggerHeight;
+    double maxY = triggerCenter.dy + triggerHeight;
+    for (final s in satellites) {
+      final cx = triggerCenter.dx + s.dx;
+      final cy = triggerCenter.dy + s.dy;
+      minX = math.min(minX, cx - s.width);
+      maxX = math.max(maxX, cx + s.width);
+      minY = math.min(minY, cy - _pillHeight);
+      maxY = math.max(maxY, cy + _pillHeight);
+    }
+    final bounds = Rect.fromLTRB(minX - 40, minY - 40, maxX + 40, maxY + 40);
 
     canvas.saveLayer(bounds, Paint()..colorFilter = ColorFilter.matrix(thresholdMatrix));
 
-    final circlePaint = Paint()
+    final fillPaint = Paint()
       ..color = surfaceColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma)
       ..isAntiAlias = true;
 
-    for (final c in circles) {
-      if (c.radius > 0.5) canvas.drawCircle(c.center, c.radius, circlePaint);
+    // Trigger pill
+    final triggerScale = t < 0.25
+        ? 1.0 + 0.12 * (t / 0.25)
+        : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
+    final trW = triggerSize * triggerScale;
+    final trH = triggerHeight * triggerScale;
+    final triggerRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: triggerCenter, width: trW, height: trH),
+      Radius.circular(trH / 2),
+    );
+    canvas.drawRRect(triggerRect, fillPaint);
+
+    // Satellite pills
+    for (int i = 0; i < satellites.length; i++) {
+      final sat = satellites[i];
+      final at = 0.03 + i * 0.045;
+      final localT = ((t - at) / 0.5).clamp(0.0, 1.0);
+      if (localT <= 0) continue;
+
+      double scale;
+      if (localT < 0.32) {
+        scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
+      } else {
+        scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
+      }
+
+      final cx = triggerCenter.dx + sat.dx;
+      final cy = triggerCenter.dy + sat.dy;
+      final pw = sat.width * scale;
+      final ph = _pillHeight * scale;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(cx, cy), width: pw, height: ph),
+          Radius.circular(ph / 2),
+        ),
+        fillPaint,
+      );
     }
 
     canvas.restore();
 
+    // Border strokes
     final borderPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.06)
+      ..color = Colors.black.withValues(alpha: 0.05)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0
       ..isAntiAlias = true;
 
-    for (final c in circles) {
-      if (c.radius > 2.0) canvas.drawCircle(c.center, c.radius, borderPaint);
+    canvas.drawRRect(triggerRect, borderPaint);
+
+    for (int i = 0; i < satellites.length; i++) {
+      final sat = satellites[i];
+      final at = 0.03 + i * 0.045;
+      final localT = ((t - at) / 0.5).clamp(0.0, 1.0);
+      if (localT <= 0) continue;
+
+      double scale;
+      if (localT < 0.32) {
+        scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
+      } else {
+        scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
+      }
+
+      if (scale < 0.15) continue;
+      final cx = triggerCenter.dx + sat.dx;
+      final cy = triggerCenter.dy + sat.dy;
+      final pw = sat.width * scale;
+      final ph = _pillHeight * scale;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(cx, cy), width: pw, height: ph),
+          Radius.circular(ph / 2),
+        ),
+        borderPaint,
+      );
     }
   }
 
@@ -469,17 +578,42 @@ class _GooPainter extends CustomPainter {
   bool shouldRepaint(covariant _GooPainter old) => old.progress != progress;
 }
 
-class _Circle {
-  final Offset center;
-  final double radius;
-  _Circle({required this.center, required this.radius});
+// =============================================================================
+// Trigger pill (overlay copy)
+// =============================================================================
+
+class _TriggerPill extends StatelessWidget {
+  final AzamanColors colors;
+  final Size size;
+
+  const _TriggerPill({required this.colors, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size.width,
+      height: size.height,
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.divider, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // =============================================================================
-// Satellite chip — icon + label, positioned in the fan arc
+// Satellite pill
 // =============================================================================
 
-class _SatelliteChip extends StatelessWidget {
+class _SatellitePill extends StatelessWidget {
   final AnimationController controller;
   final int index;
   final int total;
@@ -488,7 +622,7 @@ class _SatelliteChip extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _SatelliteChip({
+  const _SatellitePill({
     required this.controller,
     required this.index,
     required this.total,
@@ -501,9 +635,9 @@ class _SatelliteChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final at = 0.03 + index * 0.045;
-    const totalDuration = 0.5;
+    const animDuration = 0.5;
     final start = at;
-    final end = at + totalDuration;
+    final end = at + animDuration;
 
     return AnimatedBuilder(
       animation: controller,
@@ -512,62 +646,52 @@ class _SatelliteChip extends StatelessWidget {
         final localT = ((t - start) / (end - start)).clamp(0.0, 1.0);
         if (localT <= 0.0) return const SizedBox.shrink();
 
-        double scaleX;
-        double scaleY;
+        double scale;
         if (localT < 0.32) {
-          final oozeT = localT / 0.32;
-          final s = _restScale + (0.42 - _restScale) * oozeT;
-          scaleX = s;
-          scaleY = s;
+          scale = _restScale + (0.42 - _restScale) * (localT / 0.32);
         } else {
-          final launchT = (localT - 0.32) / 0.68;
-          final pop = _PopSpringCurve().transform(launchT);
-          final popLagged = _PopSpringCurve().transform((launchT - 0.06).clamp(0.0, 1.0));
-          scaleY = 0.42 + (1.0 - 0.42) * pop;
-          scaleX = 0.42 + (1.0 - 0.42) * popLagged;
+          scale = 0.42 + (1.0 - 0.42) * _PopSpringCurve().transform((localT - 0.32) / 0.68);
         }
 
         final iconOpacity = localT < 0.36 ? 0.0 : ((localT - 0.36) / 0.15).clamp(0.0, 1.0);
 
-        final satCenter = Offset(
-          triggerCenter.dx + satellite.dx,
-          triggerCenter.dy + satellite.dy,
-        );
+        final cx = triggerCenter.dx + satellite.dx;
+        final cy = triggerCenter.dy + satellite.dy;
 
         return Positioned(
-          left: satCenter.dx - _satelliteSize / 2,
-          top: satCenter.dy - _satelliteSize / 2,
+          left: cx - satellite.width / 2,
+          top: cy - _pillHeight / 2,
           child: Transform.scale(
-            scaleX: scaleX,
-            scaleY: scaleY,
+            scale: scale,
             child: Opacity(
               opacity: iconOpacity,
               child: GestureDetector(
                 onTap: onTap,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  width: _satelliteSize,
-                  height: _satelliteSize,
+                  height: _pillHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: _pillHPad),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
                     color: colors.card,
+                    borderRadius: BorderRadius.circular(_pillRadius),
+                    border: Border.all(color: colors.divider, width: 0.5),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.14),
+                        color: Colors.black.withValues(alpha: 0.12),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(satellite.item.icon, size: 16, color: colors.textPrimary),
-                      const SizedBox(height: 1),
+                      Icon(satellite.item.icon, size: 16, color: colors.textSecondary),
+                      const SizedBox(width: 8),
                       Text(
                         satellite.item.label,
                         style: TextStyle(
-                          fontSize: 8.5,
+                          fontSize: _pillLabelFS,
                           fontWeight: FontWeight.w600,
                           color: colors.textSecondary,
                         ),
@@ -585,4 +709,3 @@ class _SatelliteChip extends StatelessWidget {
     );
   }
 }
-

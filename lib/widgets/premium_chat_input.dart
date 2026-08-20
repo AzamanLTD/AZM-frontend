@@ -1,4 +1,9 @@
 // lib/widgets/premium_chat_input.dart
+// =============================================================================
+// Floating Chat Input Bar — pill-shaped floating bar matching the bottom nav
+// bar's dimensions and style. Contains: + menu, text field, send/voice button.
+// =============================================================================
+
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -13,7 +18,7 @@ import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/liquid_dropdown_menu.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
-  final ChatMessage? replyTo;        // non-null = reply mode active
+  final ChatMessage? replyTo;
   final VoidCallback? onClearReply;
   final void Function(String text) onSendText;
   final void Function({
@@ -68,7 +73,7 @@ class _State extends ConsumerState<PremiumChatInput> {
   @override
   void dispose() {
     _ctrl.removeListener(_onTextChanged);
-    if (widget.controller == null) _ctrl.dispose(); 
+    if (widget.controller == null) _ctrl.dispose();
     if (widget.focusNode == null) _focus.dispose();
     _typingTimer?.cancel();
     super.dispose();
@@ -77,7 +82,6 @@ class _State extends ConsumerState<PremiumChatInput> {
   void _onTextChanged() {
     final has = _ctrl.text.trim().isNotEmpty;
     if (has != _hasText) setState(() => _hasText = has);
-    // Typing indicator: emit isTyping=true, debounce stop to 3s
     if (has) {
       widget.onTypingChanged(true);
       _typingTimer?.cancel();
@@ -140,10 +144,11 @@ class _State extends ConsumerState<PremiumChatInput> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final c = ref.watch(themeProvider).colors;
+    final bottom = MediaQuery.of(context).padding.bottom;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -152,7 +157,7 @@ class _State extends ConsumerState<PremiumChatInput> {
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 10),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               decoration: BoxDecoration(
                 color: c.accent.withValues(alpha: 0.08),
@@ -183,19 +188,31 @@ class _State extends ConsumerState<PremiumChatInput> {
             backgroundColor: c.divider,
             valueColor: AlwaysStoppedAnimation<Color>(c.accent),
             minHeight: 2),
-        // ── Input row ────────────────────────────────────────────────────
-        Container(
-          color: c.surface,
-          padding: EdgeInsets.fromLTRB(8, 8, 8, MediaQuery.of(context).padding.bottom + 8),
-          child: Stack(
-            alignment: Alignment.centerRight,
-            clipBehavior: Clip.none,
-            children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                // Attach button — liquid speed-dial menu (replaces paperclip + sheet)
+
+        // ── Floating pill bar ────────────────────────────────────────────
+        // Same style as PremiumBottomNav: floating pill with surface color,
+        // rounded corners, shadow. Contains + button, text field, send/voice.
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 6, 16, bottom > 0 ? bottom + 8 : 12),
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: c.isDark ? 0.40 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // ── Attach (plus) button ──
                 LiquidDropdownMenu(
                   colors: c,
-                  size: 38,
+                  size: 36,
                   items: [
                     LiquidDropdownItem(
                       icon: Icons.camera_alt_outlined,
@@ -226,37 +243,36 @@ class _State extends ConsumerState<PremiumChatInput> {
                       ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                // Text field
+                // ── Text field ──
                 Expanded(
                   child: IgnorePointer(
                     ignoring: _isRecording,
                     child: Opacity(
                       opacity: _isRecording ? 0.0 : 1.0,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 120),
+                        constraints: const BoxConstraints(maxHeight: 100),
                         child: TextField(
                           controller: _ctrl,
                           focusNode: _focus,
                           maxLines: null,
                           textInputAction: TextInputAction.newline,
                           keyboardType: TextInputType.multiline,
-                          style: TextStyle(color: c.textPrimary, fontSize: 14.5),
+                          style: TextStyle(color: c.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Message',
-                            hintStyle: TextStyle(color: c.textTertiary, fontSize: 14.5),
+                            hintStyle: TextStyle(color: c.textTertiary, fontSize: 14),
                             filled: true,
                             fillColor: c.softSurface,
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
+                              horizontal: 14, vertical: 8),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
+                              borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
+                              borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
+                              borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none),
                           ),
                         ),
@@ -264,16 +280,8 @@ class _State extends ConsumerState<PremiumChatInput> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Dummy spacing to maintain layout bounds for the floating button
-                const SizedBox(width: 40, height: 40),
-              ]),
-              
-              // The Send/Voice floating over the right side
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: AnimatedSwitcher(
+                // ── Send / Voice button ──
+                AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   transitionBuilder: (child, anim) =>
                     ScaleTransition(scale: anim, child: child),
@@ -282,45 +290,48 @@ class _State extends ConsumerState<PremiumChatInput> {
                         key: const ValueKey('send'),
                         onTap: _handleSend,
                         child: Container(
-                          width: 40, height: 40,
+                          width: 38, height: 38,
+                          margin: const EdgeInsets.only(right: 4),
                           decoration: BoxDecoration(
                             color: c.accent, shape: BoxShape.circle),
                           child: const Icon(HugeIconsSolid.sent,
-                            size: 20, color: Colors.white)),
+                            size: 18, color: Colors.white)),
                       )
-                    : AudioRecorderButton(
+                    : Padding(
                         key: const ValueKey('mic'),
-                        onRecordingStateChanged: (rec) {
-                          if (mounted) setState(() => _isRecording = rec);
-                        },
-                        onRecorded: (File file, int duration, List<int> peaks) async {
-                          setState(() => _isUploading = true);
-                          try {
-                            final r = await ChatMediaService.instance.uploadAudio(
-                              file, durationSeconds: duration, waveformPeaks: peaks);
-                            widget.onSendMedia(
-                              mediaUrl: r.url, mediaType: 'audio',
-                              messageType: 'AUDIO', mimeType: r.mimeType,
-                              duration: r.duration ?? duration,
-                              waveformPeaks: r.waveformPeaks ?? peaks);
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Voice upload failed.')));
+                        padding: const EdgeInsets.only(right: 4),
+                        child: AudioRecorderButton(
+                          onRecordingStateChanged: (rec) {
+                            if (mounted) setState(() => _isRecording = rec);
+                          },
+                          onRecorded: (File file, int duration, List<int> peaks) async {
+                            setState(() => _isUploading = true);
+                            try {
+                              final r = await ChatMediaService.instance.uploadAudio(
+                                file, durationSeconds: duration, waveformPeaks: peaks);
+                              widget.onSendMedia(
+                                mediaUrl: r.url, mediaType: 'audio',
+                                messageType: 'AUDIO', mimeType: r.mimeType,
+                                duration: r.duration ?? duration,
+                                waveformPeaks: r.waveformPeaks ?? peaks);
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Voice upload failed.')));
+                              }
+                            } finally {
+                              if (mounted) setState(() => _isUploading = false);
                             }
-                          } finally {
-                            if (mounted) setState(() => _isUploading = false);
-                          }
-                        },
+                          },
+                        ),
                       ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 }
-
