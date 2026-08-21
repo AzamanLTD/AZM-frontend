@@ -10,12 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/liquid/liquid_dropdown_menu.dart';
+import 'package:azaman/widgets/azaman_send_button.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
   final ChatMessage? replyTo;
@@ -288,16 +288,13 @@ class _State extends ConsumerState<PremiumChatInput> {
                   transitionBuilder: (child, anim) =>
                     ScaleTransition(scale: anim, child: child),
                   child: _hasText
-                    ? GestureDetector(
+                    ? AzamanSendButton(
                         key: const ValueKey('send'),
-                        onTap: _handleSend,
-                        child: Container(
-                          width: 38, height: 38,
-                          margin: const EdgeInsets.only(right: 4),
-                          decoration: BoxDecoration(
-                            color: c.accent, shape: BoxShape.circle),
-                          child: const Icon(HugeIconsSolid.sent,
-                            size: 18, color: Colors.white)),
+                        accentColor: c.accent,
+                        outlineColor: c.isDark ? Colors.white : Colors.white,
+                        fillColor: c.isDark ? Colors.white : Colors.white,
+                        onSend: _handleSend,
+                        isDark: c.isDark,
                       )
                     : Padding(
                         key: const ValueKey('mic'),
