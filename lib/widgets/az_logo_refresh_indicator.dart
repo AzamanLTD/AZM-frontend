@@ -40,7 +40,7 @@ class _AzLogoRefreshIndicatorState
     extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
   double _pullOffset = 0;
-  static const double _triggerDistance = 70;
+  static const double _triggerDistance = 55;
   static const double _maxDrag = 110;
   static const double _indicatorSize = 28;
   static const double _platePad = 6.0;
@@ -48,7 +48,6 @@ class _AzLogoRefreshIndicatorState
   static const Duration _minDisplayTime = Duration(milliseconds: 1800);
 
   bool _isRefreshing = false;
-  bool _isDragging = false;
   bool _isBouncing = false; // true when BouncingScrollPhysics is active
 
   late final AnimationController _traceController;
@@ -84,10 +83,17 @@ class _AzLogoRefreshIndicatorState
   bool _handleScrollNotification(ScrollNotification notification) {
     if (_isRefreshing) return false;
 
+    // Only process notifications from the outermost vertical scrollable.
+    // depth > 0 means a nested scrollable (e.g. horizontal ListView inside
+    // the SingleChildScrollView) — ignore those so they don't interfere.
+    if (notification.depth > 0) return false;
+
+    // Only care about vertical scroll (horizontal scrolls are irrelevant).
+    if (notification.metrics.axis != Axis.vertical) return false;
+
     if (notification is ScrollStartNotification) {
       if (notification.metrics.pixels <= 0) {
         _pullOffset = 0;
-        _isDragging = true;
       }
     } else if (notification is OverscrollNotification) {
       // ClampingScrollPhysics fallback — content doesn't bounce
@@ -98,21 +104,23 @@ class _AzLogoRefreshIndicatorState
         setState(() {});
       }
     } else if (notification is ScrollUpdateNotification) {
-      if (notification.metrics.pixels < 0 && _isDragging) {
-        // BouncingScrollPhysics — content is at negative position
+      if (notification.metrics.pixels < 0) {
+        // BouncingScrollPhysics — content is at negative position.
+        // No longer gated on _isDragging so that pulling down from a
+        // scrolled position (where ScrollStartNotification had pixels > 0
+        // and never set _isDragging) still works.
         _isBouncing = true;
         _pullOffset = (-notification.metrics.pixels) * 0.75;
         if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
         setState(() {});
-      } else if (notification.metrics.pixels >= 0 && _isDragging && !_isBouncing) {
-        // Overscroll bouncing back to 0
+      } else if (notification.metrics.pixels >= 0 && !_isBouncing) {
+        // Content at or past top, not bouncing — reset pull offset
         if (_pullOffset > 0) {
           _pullOffset = 0;
           setState(() {});
         }
       }
     } else if (notification is ScrollEndNotification) {
-      _isDragging = false;
       if (_pullOffset >= _triggerDistance && !_isRefreshing) {
         _triggerRefresh();
       } else if (!_isRefreshing) {
