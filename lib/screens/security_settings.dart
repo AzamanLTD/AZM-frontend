@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:azaman/widgets/animated_qr_dust.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -532,19 +532,12 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: QrImageView(
+                    child: AnimatedQrDust(
                       data: _qrData.isNotEmpty ? _qrData : 'otpauth://totp/Azaman?secret=$_secret&issuer=Azaman',
-                      version: QrVersions.auto,
                       size: 180,
+                      inkColor: Colors.black,
                       backgroundColor: Colors.white,
-                      eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square,
-                        color: Colors.black,
-                      ),
-                      dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape: QrDataModuleShape.square,
-                        color: Colors.black,
-                      ),
+                      errorCorrectLevel: 0,
                     ),
                   ),
                 ),

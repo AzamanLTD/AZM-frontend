@@ -12,7 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:azaman/widgets/animated_qr_dust.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -121,20 +121,12 @@ class ShareProfileScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                child: QrImageView(
+                child: AnimatedQrDust(
                   data: qrData,
-                  version: QrVersions.auto,
                   size: 220,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.circle,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.circle,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                  embeddedImage: null,
-                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  inkColor: const Color(0xFF1A1A2E),
+                  backgroundColor: Colors.white,
+                  errorCorrectLevel: 0, // QrErrorCorrectLevel.M = 0
                 ),
               ),
 

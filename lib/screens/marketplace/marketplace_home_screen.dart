@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -163,7 +164,35 @@ class _MarketplaceHomeScreenState
       ref.read(businessSearchProvider.notifier).loadMore();
     }
 
-    // Stories now toggle on tap, not scroll — removed scroll-based collapse.
+    // Story expand/collapse is now handled via NotificationListener
+    // (UserScrollNotification) in the build method — see _handleScrollNotification.
+  }
+
+  /// Scroll-based story expand/collapse — works with any content length.
+  /// Uses UserScrollNotification (user gestures only, not physics adjustments)
+  /// so collapsing stories doesn't create a feedback loop.
+  bool _handleStoryScroll(ScrollNotification notification) {
+    if (notification is UserScrollNotification) {
+      final now = DateTime.now();
+      if (now.difference(_lastStoryToggle).inMilliseconds < 350) return false;
+
+      final pixels = notification.metrics.pixels;
+
+      if (notification.direction == ScrollDirection.forward) {
+        // Scrolling down (away from top) → collapse
+        if (!_storiesCollapsed && pixels > 15) {
+          _lastStoryToggle = now;
+          setState(() => _storiesCollapsed = true);
+        }
+      } else if (notification.direction == ScrollDirection.reverse) {
+        // Scrolling up (toward top) → expand
+        if (_storiesCollapsed && pixels < 15) {
+          _lastStoryToggle = now;
+          setState(() => _storiesCollapsed = false);
+        }
+      }
+    }
+    return false;
   }
 
   void _onQueryChanged(String value) {
@@ -388,46 +417,42 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Stories section: tap-to-toggle with pop-out animation ──
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        AzamanHaptics.toggle();
-                        setState(() => _storiesCollapsed = !_storiesCollapsed);
-                      },
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 380),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.topCenter,
-                        child: _storiesCollapsed
-                            ? const SizedBox(height: 0, width: double.infinity)
-                            : SizedBox(
-                                height: 96,
-                                width: double.infinity,
-                                child: ClipRect(
-                                  child: OverflowBox(
-                                    alignment: Alignment.topCenter,
-                                    minHeight: 96,
-                                    maxHeight: 96,
-                                    child: MarketplaceExpandedStories(
-                                      onOpenBusiness: (bizId) {
-                                        _openBusinessStories(context, bizId);
-                                      },
-                                      onBrowsePressed: () {
-                                        setState(() => _selectedCategory = null);
-                                      },
-                                    ),
+                    // ── Stories: scroll-based expand/retract + tap to toggle ──
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 380),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: _storiesCollapsed
+                          ? const SizedBox(height: 0, width: double.infinity)
+                          : SizedBox(
+                              height: 96,
+                              width: double.infinity,
+                              child: ClipRect(
+                                child: OverflowBox(
+                                  alignment: Alignment.topCenter,
+                                  minHeight: 96,
+                                  maxHeight: 96,
+                                  child: MarketplaceExpandedStories(
+                                    onOpenBusiness: (bizId) {
+                                      _openBusinessStories(context, bizId);
+                                    },
+                                    onBrowsePressed: () {
+                                      setState(() => _selectedCategory = null);
+                                    },
                                   ),
                                 ),
                               ),
-                      ),
+                            ),
                     ),
                     // ── Combined control row: category selector + buttons ───
                     _controlRow(colors),
                     Expanded(
-                      child: _viewMode == _ViewMode.list
-                          ? _listMode(colors)
-                          : _mapMode(colors),
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: _handleStoryScroll,
+                        child: _viewMode == _ViewMode.list
+                            ? _listMode(colors)
+                            : _mapMode(colors),
+                      ),
                     ),
                   ],
                 ),
