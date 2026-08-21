@@ -288,7 +288,7 @@ class _LiquidPanelOverlay extends StatelessWidget {
       CompositedTransformFollower(
         link: link,
         showWhenUnlinked: false,
-        offset: anchor.topLeft,
+        offset: Offset.zero,
         child: SizedBox(
           width: anchor.width,
           height: anchor.height,

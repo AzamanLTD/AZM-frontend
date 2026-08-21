@@ -53,35 +53,60 @@ Size measureSatellitePill(String label, TextStyle style, TextScaler scaler, Text
 /// room above than below) instead of cascading down one diagonal — keeps
 /// every satellite "close but around" the main pill, matching the reference
 /// sketch, rather than stacking in a lopsided quarter-circle.
+/// Fans satellites in a single even semicircle that opens strictly to the
+/// right of the anchor — from straight-down, through horizontal, to
+/// straight-up. Every angle in this range has cos >= 0, so nothing can ever
+/// land left of the anchor. One shared radius is solved so it's
+/// simultaneously (a) far enough that no satellite overlaps the anchor
+/// pill, and (b) far enough that no two adjacent satellites overlap each
+/// other, given their real measured sizes.
 List<ArcSlot> solveRadialFan({
   required Rect anchor,
   required List<Size> sizes,
   required LiquidSafeArea safe,
   double gap = 10,
-  double sweepDeg = 132,
+  double sweepDeg = 176,
 }) {
   final n = sizes.length;
   if (n == 0) return const [];
 
-  final spaceUp = anchor.top - safe.top;
-  final spaceDown = safe.bottom - anchor.bottom;
-  final growUp = spaceUp > spaceDown && spaceUp > 160;
-  final vSign = growUp ? -1.0 : 1.0;
-
-  final startDeg = 90.0 - sweepDeg / 2;
+  final startDeg = -sweepDeg / 2;
   final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
+  final stepRad = stepDeg * math.pi / 180;
+  double angleAt(int i) =>
+      n == 1 ? 0.0 : (startDeg + stepDeg * i) * math.pi / 180;
+
+  final halfDiags = sizes
+      .map((s) => math.sqrt(s.width * s.width + s.height * s.height) / 2)
+      .toList();
+
+  double anchorClearance(int i, double rad) {
+    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+    return (anchor.width / 2 + pw) * math.cos(rad).abs() +
+        (anchor.height / 2 + ph) * math.sin(rad).abs() +
+        gap;
+  }
+
+  // One shared radius for every satellite. Growing it to cover the worst
+  // case anchor-clearance AND the worst case neighbour-to-neighbour chord
+  // is what makes overlap structurally impossible instead of hoping the
+  // angles happen to work out.
+  var r = 0.0;
+  for (var i = 0; i < n; i++) {
+    r = math.max(r, anchorClearance(i, angleAt(i)));
+  }
+  if (n > 1) {
+    for (var i = 0; i < n - 1; i++) {
+      final chord = halfDiags[i] + halfDiags[i + 1] + gap;
+      r = math.max(r, chord / (2 * math.sin(stepRad / 2)));
+    }
+  }
 
   final slots = <ArcSlot>[];
   for (var i = 0; i < n; i++) {
-    final rad = (startDeg + stepDeg * i) * math.pi / 180;
-    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
-    // Minimum radius so this satellite clears the anchor rect at this angle.
-    final minR = (anchor.width / 2 + pw) * math.cos(rad).abs() +
-        (anchor.height / 2 + ph) * math.sin(rad).abs() +
-        gap;
-    final r = minR + 6;
+    final rad = angleAt(i);
     var rect = Rect.fromCenter(
-      center: anchor.center.translate(math.cos(rad) * r, math.sin(rad) * vSign * r),
+      center: anchor.center.translate(math.cos(rad) * r, -math.sin(rad) * r),
       width: sizes[i].width,
       height: sizes[i].height,
     );
@@ -395,7 +420,7 @@ class _DialOverlay extends StatelessWidget {
       CompositedTransformFollower(
         link: link,
         showWhenUnlinked: false,
-        offset: anchor.topLeft,
+        offset: Offset.zero,
         child: AnimatedBuilder(
           animation: controller,
           builder: (_, __) {
