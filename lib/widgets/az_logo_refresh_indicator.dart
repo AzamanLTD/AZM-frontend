@@ -1,15 +1,18 @@
 // =============================================================================
-// AZAMAN — Custom Pull-to-Refresh with Logo Trace Animation
+// AZAMAN — Bounce-Reveal Pull-to-Refresh with Logo Trace Animation
 //
-// Three-part Azaman logo that traces all 3 SVG subpaths simultaneously in
-// solid black as the user pulls down. On release, the solid outlines
-// transition to a moving tracer segment that loops around all 3 parts
-// to indicate loading. Overlays ON TOP of the page content (does not
-// push/translate the scroll view). Minimum display time ensures the
-// animation is visible even on instant refresh.
+// The indicator sits BEHIND the scroll content. When the user pulls down,
+// BouncingScrollPhysics moves the content down, revealing the logo in the
+// gap. On release past the trigger distance, the content is held down
+// (Transform.translate) while the logo's tracer loop animates. When
+// refresh completes, the content slides back up, covering the logo.
 //
-// The logo sits on a clean rounded-rectangle background with its own
-// shadow so it's clearly visible above any content when pulled.
+// For scroll views that use ClampingScrollPhysics (overscroll), we
+// mimic the bounce by translating the content manually.
+//
+// The logo: three-part Azaman logo that traces all 3 SVG subpaths in
+// solid black as the user pulls. On release, a moving tracer segment
+// loops around all 3 parts to indicate loading.
 // =============================================================================
 
 import 'dart:math' as math;
@@ -36,18 +39,21 @@ class AzLogoRefreshIndicator extends ConsumerStatefulWidget {
 class _AzLogoRefreshIndicatorState
     extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
-  double _dragOffset = 0;
+  double _pullOffset = 0;
   static const double _triggerDistance = 70;
-  static const double _maxDrag = 100;
-  // Smaller logo — was 38, now 28
+  static const double _maxDrag = 110;
   static const double _indicatorSize = 28;
-  // Background plate padding around the logo
   static const double _platePad = 6.0;
   static const double _plateRadius = 12.0;
   static const Duration _minDisplayTime = Duration(milliseconds: 1800);
+
   bool _isRefreshing = false;
+  bool _isDragging = false;
+  bool _isBouncing = false; // true when BouncingScrollPhysics is active
+
   late final AnimationController _traceController;
   late final AnimationController _fadeController;
+  late final AnimationController _slideController; // refresh content slide
 
   @override
   void initState() {
@@ -60,30 +66,57 @@ class _AzLogoRefreshIndicatorState
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 320),
+    );
   }
 
   @override
   void dispose() {
     _traceController.dispose();
     _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
     if (_isRefreshing) return false;
+
     if (notification is ScrollStartNotification) {
-      if (notification.metrics.pixels <= 0) _dragOffset = 0;
+      if (notification.metrics.pixels <= 0) {
+        _pullOffset = 0;
+        _isDragging = true;
+      }
     } else if (notification is OverscrollNotification) {
+      // ClampingScrollPhysics fallback — content doesn't bounce
+      _isBouncing = false;
       if (notification.overscroll < 0 && notification.metrics.pixels <= 0) {
-        _dragOffset += (-notification.overscroll) * 0.5;
-        if (_dragOffset > _maxDrag) _dragOffset = _maxDrag;
+        _pullOffset += (-notification.overscroll) * 0.5;
+        if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
         setState(() {});
       }
+    } else if (notification is ScrollUpdateNotification) {
+      if (notification.metrics.pixels < 0 && _isDragging) {
+        // BouncingScrollPhysics — content is at negative position
+        _isBouncing = true;
+        _pullOffset = (-notification.metrics.pixels) * 0.75;
+        if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
+        setState(() {});
+      } else if (notification.metrics.pixels >= 0 && _isDragging && !_isBouncing) {
+        // Overscroll bouncing back to 0
+        if (_pullOffset > 0) {
+          _pullOffset = 0;
+          setState(() {});
+        }
+      }
     } else if (notification is ScrollEndNotification) {
-      if (_dragOffset >= _triggerDistance && !_isRefreshing) {
+      _isDragging = false;
+      if (_pullOffset >= _triggerDistance && !_isRefreshing) {
         _triggerRefresh();
       } else if (!_isRefreshing) {
-        setState(() => _dragOffset = 0);
+        setState(() => _pullOffset = 0);
       }
     }
     return false;
@@ -92,8 +125,10 @@ class _AzLogoRefreshIndicatorState
   Future<void> _triggerRefresh() async {
     setState(() {
       _isRefreshing = true;
-      _dragOffset = _triggerDistance;
+      _pullOffset = _triggerDistance;
     });
+    // Slide content down to keep indicator visible after bounce settles
+    _slideController.forward(from: 0);
     _fadeController.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 350));
     _traceController.repeat();
@@ -106,11 +141,12 @@ class _AzLogoRefreshIndicatorState
       if (mounted) {
         _traceController.stop();
         _fadeController.reverse();
-        await Future.delayed(const Duration(milliseconds: 300));
+        _slideController.reverse();
+        await Future.delayed(const Duration(milliseconds: 320));
         if (mounted) {
           setState(() {
             _isRefreshing = false;
-            _dragOffset = 0;
+            _pullOffset = 0;
           });
         }
       }
@@ -121,71 +157,80 @@ class _AzLogoRefreshIndicatorState
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final indicatorColor = colors.textPrimary;
-
-    final showHeight = _isRefreshing ? _triggerDistance : _dragOffset;
-    final pullProgress = (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
-
-    // The plate size (logo + padding)
+    final pullProgress = (_pullOffset / _triggerDistance).clamp(0.0, 1.0);
     final plateSize = _indicatorSize + _platePad * 2;
+
+    // Content translation:
+    // - Bounce: content already moves via scroll physics → no translate
+    // - Overscroll: translate to mimic bounce
+    // - Refresh: translate by triggerDistance (animated)
+    double contentTranslate;
+    if (_isRefreshing) {
+      contentTranslate = Curves.easeOutCubic.transform(_slideController.value) * _triggerDistance;
+    } else if (_isBouncing) {
+      contentTranslate = 0;
+    } else {
+      contentTranslate = _pullOffset;
+    }
+
+    // Indicator opacity
+    double indicatorOpacity;
+    if (_isRefreshing) {
+      indicatorOpacity = 1.0;
+    } else {
+      indicatorOpacity = (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0);
+    }
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
       child: Stack(
         children: [
-          widget.child,
-          if (showHeight > 0.5)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: showHeight + MediaQuery.of(context).padding.top,
-              child: ClipRect(
-                child: OverflowBox(
-                  minHeight: 0,
-                  maxHeight: double.infinity,
-                  alignment: Alignment.bottomCenter,
+          // ── Indicator BEHIND content ──────────────────────────────
+          // Always rendered; opacity controls visibility. The content
+          // bouncing down (or being translated) reveals it in the gap.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 4,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: indicatorOpacity,
+                child: Center(
                   child: Container(
-                    width: double.infinity,
-                    alignment: Alignment.topCenter,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: _isRefreshing
-                          ? 1.0
-                          : (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0),
-                      child: Padding(
-                        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 4),
-                        // Rounded-rectangle background plate with shadow
-                        child: Container(
-                          width: plateSize,
-                          height: plateSize,
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            borderRadius: BorderRadius.circular(_plateRadius),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 12,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: _ThreePartLogoTrace(
-                              size: _indicatorSize,
-                              traceAnimation: _traceController,
-                              fadeAnimation: _fadeController,
-                              color: indicatorColor,
-                              isRefreshing: _isRefreshing,
-                              pullProgress: pullProgress,
-                            ),
-                          ),
+                    width: plateSize,
+                    height: plateSize,
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(_plateRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
+                      ],
+                    ),
+                    child: Center(
+                      child: _ThreePartLogoTrace(
+                        size: _indicatorSize,
+                        traceAnimation: _traceController,
+                        fadeAnimation: _fadeController,
+                        color: indicatorColor,
+                        isRefreshing: _isRefreshing,
+                        pullProgress: pullProgress,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
+          ),
+          // ── Content ON TOP, translated when needed ────────────────
+          Transform.translate(
+            offset: Offset(0, contentTranslate),
+            child: widget.child,
+          ),
         ],
       ),
     );
@@ -193,7 +238,7 @@ class _AzLogoRefreshIndicatorState
 }
 
 // =============================================================================
-// Three-Part Logo Trace Widget
+// Three-Part Logo Trace Widget (unchanged)
 // =============================================================================
 
 class _ThreePartLogoTrace extends StatelessWidget {
@@ -239,7 +284,6 @@ class _ThreePartLogoTrace extends StatelessWidget {
               pullProgress: pullProgress,
               color: color,
               viewBox: _viewBox,
-              // Smaller stroke width proportional to smaller logo
               strokeWidth: 1.8,
             ),
           );
@@ -250,7 +294,7 @@ class _ThreePartLogoTrace extends StatelessWidget {
 }
 
 // =============================================================================
-// Three-Part Logo Painter
+// Three-Part Logo Painter (unchanged)
 // =============================================================================
 
 class _ThreePartLogoPainter extends CustomPainter {

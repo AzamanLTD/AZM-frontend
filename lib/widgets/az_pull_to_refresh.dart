@@ -1,8 +1,11 @@
 // =============================================================================
-// AZAMAN — Custom Pull-to-Refresh Indicator
+// AZAMAN — Pull-to-Refresh wrapper
 //
-// Uses the AzLogoRefreshIndicator — a mini version of the logo with a
-// tracing line animation instead of the default Material circular spinner.
+// Wraps AzLogoRefreshIndicator and enforces BouncingScrollPhysics on all
+// child scroll views via ScrollConfiguration. This ensures the bounce-
+// reveal effect works on every screen — the content bounces down and the
+// logo indicator is revealed behind it.
+//
 // Accepts (and ignores) color/backgroundColor for drop-in compatibility
 // with code that previously used RefreshIndicator. Respects reduced-motion.
 // =============================================================================
@@ -53,7 +56,33 @@ class AzPullToRefresh extends ConsumerWidget {
 
     return AzLogoRefreshIndicator(
       onRefresh: onRefresh,
-      child: child,
+      child: ScrollConfiguration(
+        behavior: const _BounceScrollBehavior(),
+        child: child,
+      ),
     );
+  }
+}
+
+/// Forces BouncingScrollPhysics + AlwaysScrollableScrollPhysics on all
+/// scrollables inside AzPullToRefresh, so the bounce-reveal effect works
+/// universally regardless of platform defaults.
+class _BounceScrollBehavior extends ScrollBehavior {
+  const _BounceScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+
+  // Preserve default copy behavior (text selection, etc.)
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // No glow/overscroll indicator — our custom indicator handles it.
+    return child;
   }
 }

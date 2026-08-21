@@ -123,6 +123,18 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                               isBoosted: isVerified,
                               size: 60,
                             ),
+                          )
+                          .animate()
+                          .scale(
+                            delay: Duration(milliseconds: index * 60),
+                            duration: 380.ms,
+                            curve: Curves.easeOutCubic,
+                            begin: Offset(0.3, 0.3),
+                            end: Offset(1, 1),
+                          )
+                          .fadeIn(
+                            delay: Duration(milliseconds: index * 60),
+                            duration: 280.ms,
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -134,6 +146,11 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: Duration(milliseconds: index * 60 + 100),
+                            duration: 280.ms,
                           ),
                         ],
                       ),

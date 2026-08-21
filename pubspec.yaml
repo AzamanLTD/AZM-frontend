@@ -76,6 +76,7 @@ dependencies:
 
   # QR code generation for deposit addresses
   qr_flutter: ^4.1.0
+  qr: ^3.0.2
 
   # QR code scanning for friend-add via camera
   # Pinned to 7.x (not the original ^5.1.1 from the QR-scanner Pre-Ship phase)

@@ -30,7 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
@@ -1315,12 +1315,12 @@ class _CryptoAddressCard extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: QrImageView(
+                child: AnimatedQrDust(
                   data: address,
-                  version: QrVersions.auto,
                   size: qrSize,
+                  inkColor: const Color(0xFF141416),
                   backgroundColor: Colors.white,
-                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  errorCorrectLevel: 0, // QrErrorCorrectLevel.M = 0
                 ),
               ),
             ),

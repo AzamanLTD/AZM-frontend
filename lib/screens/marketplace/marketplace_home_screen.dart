@@ -163,20 +163,7 @@ class _MarketplaceHomeScreenState
       ref.read(businessSearchProvider.notifier).loadMore();
     }
 
-    // Collapse/expand stories based on scroll position, with hysteresis
-    // and a cooldown to prevent oscillation when
-    // is collapsed and scrollable content is short (the 96px height
-    // change from stories collapsing can otherwise create a loop).
-    final now = DateTime.now();
-    if (now.difference(_lastStoryToggle).inMilliseconds < 500) return;
-
-    // Hysteresis: collapse at >50, expand at <15 — the gap prevents
-    // the layout change from immediately re-triggering the opposite action.
-    final shouldCollapse = _scrollCtrl.offset > (_storiesCollapsed ? 80 : 50);
-    if (_storiesCollapsed != shouldCollapse) {
-      _lastStoryToggle = now;
-      setState(() => _storiesCollapsed = shouldCollapse);
-    }
+    // Stories now toggle on tap, not scroll — removed scroll-based collapse.
   }
 
   void _onQueryChanged(String value) {
@@ -401,29 +388,42 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.easeOutCubic,
-                      height: _storiesCollapsed ? 0 : 96,
-                      child: ClipRect(
-                        child: OverflowBox(
-                          alignment: Alignment.topCenter,
-                          minHeight: 96,
-                          maxHeight: 96,
-                          child: MarketplaceExpandedStories(
-                            onOpenBusiness: (bizId) {
-                              _openBusinessStories(context, bizId);
-                            },
-                            onBrowsePressed: () {
-                              setState(() => _selectedCategory = null);
-                            },
-                          ),
-                        ),
+                    // ── Stories section: tap-to-toggle with pop-out animation ──
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        AzamanHaptics.toggle();
+                        setState(() => _storiesCollapsed = !_storiesCollapsed);
+                      },
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 380),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: _storiesCollapsed
+                            ? const SizedBox(height: 0, width: double.infinity)
+                            : SizedBox(
+                                height: 96,
+                                width: double.infinity,
+                                child: ClipRect(
+                                  child: OverflowBox(
+                                    alignment: Alignment.topCenter,
+                                    minHeight: 96,
+                                    maxHeight: 96,
+                                    child: MarketplaceExpandedStories(
+                                      onOpenBusiness: (bizId) {
+                                        _openBusinessStories(context, bizId);
+                                      },
+                                      onBrowsePressed: () {
+                                        setState(() => _selectedCategory = null);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
-                    _categoryStrip(colors),
-                    const SizedBox(height: 2),
-                    _resultsBar(colors),
+                    // ── Combined control row: category selector + buttons ───
+                    _controlRow(colors),
                     Expanded(
                       child: _viewMode == _ViewMode.list
                           ? _listMode(colors)
@@ -832,10 +832,7 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  Widget _categoryStrip(AzamanColors colors) {
-    // Speed-dial category picker — shows only the current category as a
-    // labeled chip ("Category" label above it). Tapping opens a radial
-    // fan of the other categories using the liquid goo speed-dial.
+  Widget _controlRow(AzamanColors colors) {
     final categories = <CategoryDialItem>[
       CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
       CategoryDialItem(wire: 'FOOD_BEVERAGE', icon: Icons.restaurant_rounded, label: 'Restaurants'),
@@ -844,19 +841,163 @@ class _MarketplaceHomeScreenState
       CategoryDialItem(wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Retail'),
     ];
 
+    final hasFilters = !_filters.isEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: CategorySpeedDial(
-          categories: categories,
-          selectedWire: _selectedCategory,
-          colors: colors,
-          onSelected: (wire) {
-            setState(() => _selectedCategory = wire);
-            _fireSearch();
-          },
-        ),
+      child: Row(
+        children: [
+          // Category selector (left side)
+          CategorySpeedDial(
+            categories: categories,
+            selectedWire: _selectedCategory,
+            colors: colors,
+            onSelected: (wire) {
+              setState(() => _selectedCategory = wire);
+              _fireSearch();
+            },
+          ),
+          const Spacer(),
+          // Sort dropdown
+          PopupMenuButton<_SortMode>(
+            color: colors.surface,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+            onSelected: (m) {
+              AzamanHaptics.toggle();
+              setState(() => _sort = m);
+            },
+            itemBuilder: (_) {
+              final opts = _viewMode == _ViewMode.map
+                  ? [_SortMode.nearest, _SortMode.topRated]
+                  : [
+                      _SortMode.topRated,
+                      _SortMode.mostPopular,
+                      _SortMode.newest
+                    ];
+              return opts
+                  .map((m) => PopupMenuItem(
+                        value: m,
+                        height: 44,
+                        child: Row(children: [
+                          Icon(
+                            m == _sort
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            size: 16,
+                            color: m == _sort
+                                ? colors.accent
+                                : colors.textTertiary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(m.label,
+                              style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: m == _sort
+                                      ? FontWeight.w600
+                                      : FontWeight.w400)),
+                        ]),
+                      ))
+                  .toList();
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _sort.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 15, color: colors.textTertiary),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Verified pill
+          GestureDetector(
+            onTap: () {
+              AzamanHaptics.toggle();
+              setState(() => _verifiedOnly = !_verifiedOnly);
+              _fireSearch();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: _verifiedOnly
+                    ? colors.accentSurface
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _verifiedOnly
+                      ? colors.accent
+                      : colors.divider,
+                  width: _verifiedOnly ? 1.5 : 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _verifiedOnly
+                        ? Icons.verified_rounded
+                        : Icons.verified_outlined,
+                    size: 12,
+                    color: _verifiedOnly
+                        ? colors.accent
+                        : colors.textTertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Verified',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _verifiedOnly
+                          ? colors.accent
+                          : colors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Advanced filter
+          GestureDetector(
+            onTap: _openFilters,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 34,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: hasFilters
+                    ? colors.accentSurface
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color:
+                      hasFilters ? colors.accent : colors.divider,
+                  width: hasFilters ? 1.5 : 0.5,
+                ),
+              ),
+              child: Icon(Icons.filter_list_rounded,
+                  size: 15,
+                  color: hasFilters
+                      ? colors.accent
+                      : colors.textTertiary),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -940,185 +1081,6 @@ class _MarketplaceHomeScreenState
   }
 
   // ── Results bar (slim control row) ─────────────────────────────────────────
-
-  Widget _resultsBar(AzamanColors colors) {
-    final state = ref.watch(businessSearchProvider);
-    final count = _applySortFilter(state.results).length;
-    final hasFilters = !_filters.isEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
-      child: Row(
-        children: [
-          // Count
-          if (!state.isLoading && count > 0)
-            Text(
-              '$count business${count == 1 ? '' : 'es'}',
-              style: TextStyle(
-                fontSize: 12,
-                color: colors.textTertiary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          if (!state.isLoading && count > 0)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 7),
-              width: 3,
-              height: 3,
-              decoration: BoxDecoration(
-                color: colors.divider,
-                shape: BoxShape.circle,
-              ),
-            ),
-
-          // Sort dropdown
-          PopupMenuButton<_SortMode>(
-            color: colors.surface,
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            onSelected: (m) {
-              AzamanHaptics.toggle();
-              setState(() => _sort = m);
-            },
-            itemBuilder: (_) {
-              final opts = _viewMode == _ViewMode.map
-                  ? [_SortMode.nearest, _SortMode.topRated]
-                  : [
-                      _SortMode.topRated,
-                      _SortMode.mostPopular,
-                      _SortMode.newest
-                    ];
-              return opts
-                  .map((m) => PopupMenuItem(
-                        value: m,
-                        height: 44,
-                        child: Row(children: [
-                          Icon(
-                            m == _sort
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_unchecked,
-                            size: 16,
-                            color: m == _sort
-                                ? colors.accent
-                                : colors.textTertiary,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(m.label,
-                              style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: m == _sort
-                                      ? FontWeight.w600
-                                      : FontWeight.w400)),
-                        ]),
-                      ))
-                  .toList();
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _sort.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 15, color: colors.textTertiary),
-              ],
-            ),
-          ),
-
-          const Spacer(),
-
-          // Verified pill
-          GestureDetector(
-            onTap: () {
-              AzamanHaptics.toggle();
-              setState(() => _verifiedOnly = !_verifiedOnly);
-              _fireSearch();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _verifiedOnly
-                    ? colors.accentSurface
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _verifiedOnly
-                      ? colors.accent
-                      : colors.divider,
-                  width: _verifiedOnly ? 1.5 : 0.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _verifiedOnly
-                        ? Icons.verified_rounded
-                        : Icons.verified_outlined,
-                    size: 12,
-                    color: _verifiedOnly
-                        ? colors.accent
-                        : colors.textTertiary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Verified',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _verifiedOnly
-                          ? colors.accent
-                          : colors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Advanced filter
-          GestureDetector(
-            onTap: _openFilters,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 34,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: hasFilters
-                    ? colors.accentSurface
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color:
-                      hasFilters ? colors.accent : colors.divider,
-                  width: hasFilters ? 1.5 : 0.5,
-                ),
-              ),
-              child: Icon(Icons.filter_list_rounded,
-                  size: 15,
-                  color: hasFilters
-                      ? colors.accent
-                      : colors.textTertiary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── LIST mode ──────────────────────────────────────────────────────────────
 
   Widget _listMode(AzamanColors colors) {
     final state = ref.watch(businessSearchProvider);
