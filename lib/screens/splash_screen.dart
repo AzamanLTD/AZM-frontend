@@ -189,23 +189,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ── Triangle background behind logo ──────────────────────
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Triangle plate — slightly bigger than the logo
-                      CustomPaint(
-                        size: const Size(156, 156),
-                        painter: _TrianglePlatePainter(),
-                      ),
-                      // ── Center: LogoTraceLoader ──────────────────────────
-                      LogoTraceLoader(
-                        size: 120,
-                        strokeWidth: 4,
-                        color: Colors.black.withValues(alpha: 0.75),
-                        loopDurationSeconds: 2.4,
-                      ),
-                    ],
+                  // ── Center: LogoTraceLoader ──────────────────────────
+                  LogoTraceLoader(
+                    size: 120,
+                    strokeWidth: 4,
+                    color: Colors.black.withValues(alpha: 0.75),
+                    loopDurationSeconds: 2.4,
                   ),
                   const SizedBox(height: 28),
                   // ── Azaman wordmark — refined ────────────────────────────
@@ -244,46 +233,3 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 }
 
-
-// =============================================================================
-// Triangle Plate — subtle background behind the logo on the splash screen.
-// Slightly bigger than the logo so it frames it nicely.
-// =============================================================================
-class _TrianglePlatePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final cx = w / 2;
-    final cy = h / 2;
-
-    // Equilateral-ish triangle pointing up, inscribed in the plate
-    final r = w * 0.46;
-    final p1 = Offset(cx, cy - r * 0.72);                    // top
-    final p2 = Offset(cx - r * 0.87, cy + r * 0.52);         // bottom-left
-    final p3 = Offset(cx + r * 0.87, cy + r * 0.52);         // bottom-right
-
-    final path = Path()
-      ..moveTo(p1.dx, p1.dy)
-      ..lineTo(p2.dx, p2.dy)
-      ..lineTo(p3.dx, p3.dy)
-      ..close();
-
-    // Soft fill
-    final fillPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.04)
-      ..isAntiAlias = true;
-    canvas.drawPath(path, fillPaint);
-
-    // Subtle stroke
-    final strokePaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.08)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..isAntiAlias = true;
-    canvas.drawPath(path, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrianglePlatePainter old) => false;
-}

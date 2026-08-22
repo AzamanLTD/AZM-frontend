@@ -1,10 +1,17 @@
 // =============================================================================
 // AZAMAN — Pull-to-Refresh wrapper
 //
-// Wraps AzLogoRefreshIndicator and enforces BouncingScrollPhysics on all
-// child scroll views via ScrollConfiguration. This ensures the bounce-
-// reveal effect works on every screen — the content bounces down and the
-// logo indicator is revealed behind it.
+// Wraps AzLogoRefreshIndicator and enforces scroll physics that work with
+// the bounce-reveal effect. Uses ClampingScrollPhysics so the content
+// doesn't bounce on its own — instead, AzLogoRefreshIndicator translates
+// the entire wrapped content down via Transform.translate when the
+// user overscrolls, which pushes the whole page (headers, stories,
+// lists) down to reveal the indicator at the TOP of the screen.
+//
+// Screens that want BouncingScrollPhysics (like the home screen) can
+// still set it explicitly on their scroll view — the AzLogoRefreshIndicator
+// handles both BouncingScrollPhysics (via ScrollUpdateNotification with
+// negative pixels) and ClampingScrollPhysics (via OverscrollNotification).
 //
 // Accepts (and ignores) color/backgroundColor for drop-in compatibility
 // with code that previously used RefreshIndicator. Respects reduced-motion.
@@ -57,32 +64,31 @@ class AzPullToRefresh extends ConsumerWidget {
     return AzLogoRefreshIndicator(
       onRefresh: onRefresh,
       child: ScrollConfiguration(
-        behavior: const _BounceScrollBehavior(),
+        behavior: const _ClampScrollBehavior(),
         child: child,
       ),
     );
   }
 }
 
-/// Forces BouncingScrollPhysics + AlwaysScrollableScrollPhysics on all
-/// scrollables inside AzPullToRefresh, so the bounce-reveal effect works
-/// universally regardless of platform defaults.
-class _BounceScrollBehavior extends ScrollBehavior {
-  const _BounceScrollBehavior();
+/// Uses ClampingScrollPhysics + AlwaysScrollableScrollPhysics so the
+/// AzLogoRefreshIndicator can translate the entire wrapped content via
+/// OverscrollNotification. This ensures the whole page (not just the
+/// list) gets pushed down to reveal the indicator at the top.
+class _ClampScrollBehavior extends ScrollBehavior {
+  const _ClampScrollBehavior();
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    return const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 
-  // Preserve default copy behavior (text selection, etc.)
   @override
   Widget buildOverscrollIndicator(
     BuildContext context,
     Widget child,
     ScrollableDetails details,
   ) {
-    // No glow/overscroll indicator — our custom indicator handles it.
     return child;
   }
 }

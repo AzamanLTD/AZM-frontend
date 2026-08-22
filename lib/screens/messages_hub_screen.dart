@@ -83,55 +83,15 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   String _searchQuery = '';
   ChatFolder _activeFolder = ChatFolder.all;
 
-  // Telegram-style collapsing status bar (2026-07-06) — the stories row
-  // shrinks away smoothly as the chat list scrolls down, and returns as you
-  // scroll back up. Driven directly by scroll offset (not a fixed-duration
-  // animation) so it tracks the finger 1:1, same feel as a collapsing
-  // sliver app bar. A subtle haptic tick fires once at each full
-  // collapse/expand transition, not on every frame.
-  static const double _kStatusCollapseDistance = 96.0;
-  final ScrollController _chatListScrollCtrl = ScrollController();
-  double _statusCollapse = 0.0;
-  bool _statusFullyCollapsed = false;
-
-  void _onChatListScroll() {
-    if (!_chatListScrollCtrl.hasClients) return;
-    final offset = _chatListScrollCtrl.offset.clamp(0.0, _kStatusCollapseDistance);
-    final t = offset / _kStatusCollapseDistance;
-    if ((t - _statusCollapse).abs() < 0.01) return;
-    setState(() => _statusCollapse = t);
-
-    if (t >= 1.0 && !_statusFullyCollapsed) {
-      _statusFullyCollapsed = true;
-      HapticFeedback.selectionClick();
-    } else if (t <= 0.0 && _statusFullyCollapsed) {
-      _statusFullyCollapsed = false;
-      HapticFeedback.selectionClick();
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _fetchChats();
-    _chatListScrollCtrl.addListener(_onChatListScroll);
   }
 
   @override
   void dispose() {
-    _chatListScrollCtrl.removeListener(_onChatListScroll);
-    _chatListScrollCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadChats() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
-    // TODO: fetch personal chats
-    setState(() {
-      // _chats = [];
-      _isLoading = false;
-    });
   }
 
   Future<void> _pickAndCreateStory() async {
@@ -388,306 +348,283 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 12),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Messages',
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 27,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: colors.softSurface,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.contacts_rounded,
-                        color: colors.textPrimary,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _showSearchUserDialog,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: colors.softSurface,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.person_add_rounded,
-                        color: colors.textPrimary,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        child: AzPullToRefresh(
+          color: colors.accent,
+          backgroundColor: colors.card,
+          onRefresh: _fetchChats,
+          child: NestedScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-
-            const SizedBox(height: 16),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.softSurface,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search,
-                      color: colors.textTertiary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        onChanged: (v) => setState(() => _searchQuery = v),
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search conversations',
-                          hintStyle: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Chat Folder Tabs ──
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: ChatFolder.values.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final folder = ChatFolder.values[i];
-                  final isActive = _activeFolder == folder;
-                  final count = _getFolderCount(folder);
-                  return GestureDetector(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _activeFolder = folder);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? colors.accent.withValues(alpha: 0.15)
-                            : colors.surface,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isActive
-                              ? colors.accent.withValues(alpha: 0.4)
-                              : colors.divider,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            folder.icon,
-                            size: 14,
-                            color: isActive ? colors.accent : colors.textTertiary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            folder.label,
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                // ── Title row ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Messages',
                             style: TextStyle(
-                              color: isActive ? colors.accent : colors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 27,
+                              letterSpacing: -0.5,
                             ),
                           ),
-                          if (count > 0) ...[
-                            const SizedBox(width: 5),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        ),
+                        GestureDetector(
+                          onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
+                          child: Container(
+                            width: 40, height: 40,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: colors.softSurface, shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _showSearchUserDialog,
+                          child: Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: colors.softSurface, shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.person_add_rounded, color: colors.textPrimary, size: 18),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // ── Search bar ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.search, color: colors.textTertiary, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              onChanged: (v) => setState(() => _searchQuery = v),
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Search conversations',
+                                hintStyle: TextStyle(
+                                  color: colors.textTertiary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // ── Folder tabs ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: ChatFolder.values.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, i) {
+                          final folder = ChatFolder.values[i];
+                          final isActive = _activeFolder == folder;
+                          final count = _getFolderCount(folder);
+                          return GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _activeFolder = folder);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? colors.accent.withValues(alpha: 0.2)
-                                    : colors.divider,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '$count',
-                                style: TextStyle(
-                                  color: isActive ? colors.accent : colors.textTertiary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                                    ? colors.accent.withValues(alpha: 0.15)
+                                    : colors.surface,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isActive
+                                      ? colors.accent.withValues(alpha: 0.4)
+                                      : colors.divider,
                                 ),
                               ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(folder.icon, size: 14,
+                                    color: isActive ? colors.accent : colors.textTertiary),
+                                  const SizedBox(width: 5),
+                                  Text(folder.label,
+                                    style: TextStyle(
+                                      color: isActive ? colors.accent : colors.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                    )),
+                                  if (count > 0) ...[
+                                    const SizedBox(width: 5),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? colors.accent.withValues(alpha: 0.2)
+                                            : colors.divider,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text('\$count',
+                                        style: TextStyle(
+                                          color: isActive ? colors.accent : colors.textTertiary,
+                                          fontSize: 10, fontWeight: FontWeight.w600,
+                                        )),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ],
-                        ],
+                          );
+                        },
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            ClipRect(
-              child: Align(
-                alignment: Alignment.topCenter,
-                heightFactor: (1 - _statusCollapse).clamp(0.0, 1.0),
-                child: Opacity(
-                  opacity: (1 - _statusCollapse * 1.4).clamp(0.0, 1.0),
-                  child: Consumer(builder: (context, ref, _) {
-              final feed = ref.watch(storyFeedProvider);
-              final auth = ref.watch(authProvider);
-              final myAvatar = auth.user?.profilePictureUrl;
-              
-              Widget buildMyStatus() {
-                return GestureDetector(
-                  onTap: _pickAndCreateStory,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 14),
-                    child: Column(children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: colors.accent,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: colors.surface, width: 2),
-                            ),
-                            child: Icon(Icons.add, size: 16, color: colors.isDark ? Colors.black : Colors.white),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      SizedBox(width: 64, child: Text('My Status', maxLines: 1,
-                        overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textSecondary, fontSize: 11))),
-                    ]),
                   ),
-                );
-              }
+                ),
+                // ── Stories (scrolls away naturally) ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12, bottom: 8),
+                    child: Consumer(builder: (context, ref, _) {
+                      final feed = ref.watch(storyFeedProvider);
+                      final auth = ref.watch(authProvider);
+                      final myAvatar = auth.user?.profilePictureUrl;
 
-              return feed.when(
-                data: (groups) => SizedBox(
-                  height: 96,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: groups.length + 1,
-                    itemBuilder: (_, i) {
-                      if (i == 0) return buildMyStatus();
+                      Widget buildMyStatus() {
+                        return GestureDetector(
+                          onTap: _pickAndCreateStory,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Column(children: [
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: colors.accent,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: colors.surface, width: 2),
+                                    ),
+                                    child: Icon(Icons.add, size: 16,
+                                      color: colors.isDark ? Colors.black : Colors.white),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(width: 64, child: Text('My Status', maxLines: 1,
+                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                            ]),
+                          ),
+                        );
+                      }
 
-                      final g = groups[i - 1];
-                      return GestureDetector(
-                        onTap: () => StoryViewerScreen.open(context, groups: groups, initialGroupIndex: i - 1),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 14),
-                          child: Column(children: [
-                            StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted, storyCount: g.stories.length),
-                            const SizedBox(height: 6),
-                            SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
-                              overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                              style: TextStyle(color: colors.textSecondary, fontSize: 11))),
-                          ]),
+                      return feed.when(
+                        data: (groups) => SizedBox(
+                          height: 96,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: groups.length + 1,
+                            itemBuilder: (_, i) {
+                              if (i == 0) return buildMyStatus();
+                              final g = groups[i - 1];
+                              return GestureDetector(
+                                onTap: () => StoryViewerScreen.open(context,
+                                  groups: groups, initialGroupIndex: i - 1),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 14),
+                                  child: Column(children: [
+                                    StoryRing(avatarUrl: g.authorAvatarUrl,
+                                      hasUnseenStory: g.hasUnseen,
+                                      isBoosted: g.isBoosted,
+                                      storyCount: g.stories.length),
+                                    const SizedBox(height: 6),
+                                    SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
+                                      overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                      style: TextStyle(color: colors.textSecondary, fontSize: 11))),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        loading: () => SizedBox(
+                          height: 96,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            children: [buildMyStatus()],
+                          ),
+                        ),
+                        error: (_, __) => SizedBox(
+                          height: 96,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            children: [buildMyStatus()],
+                          ),
                         ),
                       );
-                    },
+                    }),
                   ),
                 ),
-                loading: () => SizedBox(
-                  height: 96,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [buildMyStatus()],
-                  ),
-                ),
-                error: (_, __) => SizedBox(
-                  height: 96,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [buildMyStatus()],
-                  ),
-                ),
-              );
-            }),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: colors.accent,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : filtered.isEmpty
-                      ? _buildEmptyState(colors)
-                      : AzPullToRefresh(
-                          color: colors.accent,
-                          backgroundColor: colors.card,
-                          onRefresh: _fetchChats,
-                          child: ListView.builder(
-                            controller: _chatListScrollCtrl,
-                            physics: const AlwaysScrollableScrollPhysics(
-                              parent: BouncingScrollPhysics(),
-                            ),
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-                            itemCount: filtered.length,
-                            itemBuilder: (context, i) =>
-                                _buildChatItem(filtered[i], colors),
-                          ),
+              ];
+            },
+            body: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: colors.accent,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : filtered.isEmpty
+                    ? _buildEmptyState(colors)
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
                         ),
-            ),
-          ],
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, i) =>
+                            _buildChatItem(filtered[i], colors),
+                      ),
+          ),
         ),
       ),
     );

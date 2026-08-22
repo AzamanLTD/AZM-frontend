@@ -13,6 +13,9 @@
 // The logo: three-part Azaman logo that traces all 3 SVG subpaths in
 // solid black as the user pulls. On release, a moving tracer segment
 // loops around all 3 parts to indicate loading.
+//
+// The plate behind the logo: a rounded-tip triangle (matching the Azaman
+// brand mark), NOT a rounded box.
 // =============================================================================
 
 import 'dart:math' as math;
@@ -40,19 +43,19 @@ class _AzLogoRefreshIndicatorState
     extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
   double _pullOffset = 0;
+  double _peakPull = 0; // Tracks the maximum pull during this gesture
   static const double _triggerDistance = 55;
   static const double _maxDrag = 110;
   static const double _indicatorSize = 28;
-  static const double _platePad = 6.0;
-  static const double _plateRadius = 12.0;
+  static const double _platePad = 7.0;
   static const Duration _minDisplayTime = Duration(milliseconds: 1800);
 
   bool _isRefreshing = false;
-  bool _isBouncing = false; // true when BouncingScrollPhysics is active
+  bool _isBouncing = false;
 
   late final AnimationController _traceController;
   late final AnimationController _fadeController;
-  late final AnimationController _slideController; // refresh content slide
+  late final AnimationController _slideController;
 
   @override
   void initState() {
@@ -84,47 +87,51 @@ class _AzLogoRefreshIndicatorState
     if (_isRefreshing) return false;
 
     // Only process notifications from the outermost vertical scrollable.
-    // depth > 0 means a nested scrollable (e.g. horizontal ListView inside
-    // the SingleChildScrollView) — ignore those so they don't interfere.
     if (notification.depth > 0) return false;
 
-    // Only care about vertical scroll (horizontal scrolls are irrelevant).
+    // Only care about vertical scroll.
     if (notification.metrics.axis != Axis.vertical) return false;
 
     if (notification is ScrollStartNotification) {
+      _peakPull = 0;
       if (notification.metrics.pixels <= 0) {
         _pullOffset = 0;
       }
     } else if (notification is OverscrollNotification) {
-      // ClampingScrollPhysics fallback — content doesn't bounce
+      // ClampingScrollPhysics fallback
       _isBouncing = false;
       if (notification.overscroll < 0 && notification.metrics.pixels <= 0) {
         _pullOffset += (-notification.overscroll) * 0.5;
         if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
+        _peakPull = math.max(_peakPull, _pullOffset);
         setState(() {});
       }
     } else if (notification is ScrollUpdateNotification) {
       if (notification.metrics.pixels < 0) {
         // BouncingScrollPhysics — content is at negative position.
-        // No longer gated on _isDragging so that pulling down from a
-        // scrolled position (where ScrollStartNotification had pixels > 0
-        // and never set _isDragging) still works.
         _isBouncing = true;
         _pullOffset = (-notification.metrics.pixels) * 0.75;
         if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
+        // Track the peak — this is the key fix. During bounce-back,
+        // _pullOffset decreases, but we remember the max for the trigger.
+        _peakPull = math.max(_peakPull, _pullOffset);
         setState(() {});
       } else if (notification.metrics.pixels >= 0 && !_isBouncing) {
-        // Content at or past top, not bouncing — reset pull offset
         if (_pullOffset > 0) {
           _pullOffset = 0;
           setState(() {});
         }
       }
     } else if (notification is ScrollEndNotification) {
-      if (_pullOffset >= _triggerDistance && !_isRefreshing) {
+      // Use _peakPull (not _pullOffset) because bounce-back may have
+      // reduced _pullOffset below the trigger by the time this fires.
+      if (_peakPull >= _triggerDistance && !_isRefreshing) {
         _triggerRefresh();
       } else if (!_isRefreshing) {
-        setState(() => _pullOffset = 0);
+        setState(() {
+          _pullOffset = 0;
+          _peakPull = 0;
+        });
       }
     }
     return false;
@@ -134,6 +141,7 @@ class _AzLogoRefreshIndicatorState
     setState(() {
       _isRefreshing = true;
       _pullOffset = _triggerDistance;
+      _peakPull = 0;
     });
     // Slide content down to keep indicator visible after bounce settles
     _slideController.forward(from: 0);
@@ -169,12 +177,13 @@ class _AzLogoRefreshIndicatorState
     final plateSize = _indicatorSize + _platePad * 2;
 
     // Content translation:
-    // - Bounce: content already moves via scroll physics → no translate
+    // - Bounce: content already moves via scroll physics -> no translate
     // - Overscroll: translate to mimic bounce
     // - Refresh: translate by triggerDistance (animated)
     double contentTranslate;
     if (_isRefreshing) {
-      contentTranslate = Curves.easeOutCubic.transform(_slideController.value) * _triggerDistance;
+      contentTranslate =
+          Curves.easeOutCubic.transform(_slideController.value) * _triggerDistance;
     } else if (_isBouncing) {
       contentTranslate = 0;
     } else {
@@ -194,8 +203,6 @@ class _AzLogoRefreshIndicatorState
       child: Stack(
         children: [
           // ── Indicator BEHIND content ──────────────────────────────
-          // Always rendered; opacity controls visibility. The content
-          // bouncing down (or being translated) reveals it in the gap.
           Positioned(
             top: MediaQuery.of(context).padding.top + 4,
             left: 0,
@@ -205,28 +212,23 @@ class _AzLogoRefreshIndicatorState
                 duration: const Duration(milliseconds: 200),
                 opacity: indicatorOpacity,
                 child: Center(
-                  child: Container(
+                  child: SizedBox(
                     width: plateSize,
-                    height: plateSize,
-                    decoration: BoxDecoration(
-                      color: colors.card,
-                      borderRadius: BorderRadius.circular(_plateRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                    height: plateSize + 4,
+                    child: CustomPaint(
+                      painter: _RoundedTrianglePlatePainter(
+                        color: colors.card,
+                        shadowColor: Colors.black,
+                      ),
+                      child: Center(
+                        child: _ThreePartLogoTrace(
+                          size: _indicatorSize,
+                          traceAnimation: _traceController,
+                          fadeAnimation: _fadeController,
+                          color: indicatorColor,
+                          isRefreshing: _isRefreshing,
+                          pullProgress: pullProgress,
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: _ThreePartLogoTrace(
-                        size: _indicatorSize,
-                        traceAnimation: _traceController,
-                        fadeAnimation: _fadeController,
-                        color: indicatorColor,
-                        isRefreshing: _isRefreshing,
-                        pullProgress: pullProgress,
                       ),
                     ),
                   ),
@@ -246,7 +248,78 @@ class _AzLogoRefreshIndicatorState
 }
 
 // =============================================================================
-// Three-Part Logo Trace Widget (unchanged)
+// Rounded-Tip Triangle Plate (replaces the old rounded box)
+// =============================================================================
+
+class _RoundedTrianglePlatePainter extends CustomPainter {
+  final Color color;
+  final Color shadowColor;
+
+  const _RoundedTrianglePlatePainter({
+    required this.color,
+    required this.shadowColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final cy = h / 2;
+
+    // Equilateral-ish triangle pointing up
+    final r = w * 0.48;
+    final p1 = Offset(cx, cy - r * 0.72); // top
+    final p2 = Offset(cx - r * 0.87, cy + r * 0.52); // bottom-left
+    final p3 = Offset(cx + r * 0.87, cy + r * 0.52); // bottom-right
+
+    // Rounded-tip triangle using quadratic bends at each corner
+    final cornerRadius = r * 0.18;
+
+    final path = Path();
+    // Helper to add a rounded corner between three points
+    void addRoundedCorner(Path path, Offset prev, Offset corner, Offset next, double radius) {
+      final dir1 = (corner - prev);
+      final dir2 = (next - corner);
+      final len1 = dir1.distance;
+      final len2 = dir2.distance;
+      final r1 = dir1 / len1 * (len1 < radius * 2 ? len1 / 2 : radius);
+      final r2 = dir2 / len2 * (len2 < radius * 2 ? len2 / 2 : radius);
+      final start = corner - r1;
+      final end = corner + r2;
+      path.lineTo(start.dx, start.dy);
+      path.quadraticBezierTo(corner.dx, corner.dy, end.dx, end.dy);
+    }
+
+    // Start at a point along the first edge (after the rounded corner)
+    final startDir = (p2 - p1);
+    final startLen = startDir.distance;
+    final startAdjust = startDir / startLen * (startLen < cornerRadius * 2 ? startLen / 2 : cornerRadius);
+    path.moveTo(p1.dx + startAdjust.dx, p1.dy + startAdjust.dy);
+
+    addRoundedCorner(path, p1, p2, p3, cornerRadius);
+    addRoundedCorner(path, p2, p3, p1, cornerRadius);
+    addRoundedCorner(path, p3, p1, p2, cornerRadius);
+    path.close();
+
+    // Shadow
+    canvas.drawShadow(path, shadowColor.withValues(alpha: 0.10), 8, false);
+
+    // Fill
+    final fillPaint = Paint()
+      ..color = color
+      ..isAntiAlias = true;
+    canvas.drawPath(path, fillPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoundedTrianglePlatePainter old) {
+    return old.color != color || old.shadowColor != shadowColor;
+  }
+}
+
+// =============================================================================
+// Three-Part Logo Trace Widget
 // =============================================================================
 
 class _ThreePartLogoTrace extends StatelessWidget {
@@ -302,7 +375,7 @@ class _ThreePartLogoTrace extends StatelessWidget {
 }
 
 // =============================================================================
-// Three-Part Logo Painter (unchanged)
+// Three-Part Logo Painter
 // =============================================================================
 
 class _ThreePartLogoPainter extends CustomPainter {
@@ -374,7 +447,6 @@ class _ThreePartLogoPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
       _drawMovingTracer(canvas, partPaths, tracerPaint, loopProgress);
-
     } else if (pullProgress > 0) {
       final fillPaint = Paint()
         ..color = color

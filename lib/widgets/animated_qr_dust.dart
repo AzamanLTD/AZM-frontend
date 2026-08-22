@@ -37,7 +37,7 @@ class AnimatedQrDust extends StatefulWidget {
     this.inkColor = const Color(0xFF141416),
     this.backgroundColor = const Color(0xFFFCFCFC),
     this.errorCorrectLevel = QrErrorCorrectLevel.M,
-    this.dustGrid = 8,
+    this.dustGrid = 3,
   });
 
   @override
@@ -310,22 +310,11 @@ class _DustPainter extends CustomPainter {
         );
       } else {
         // In flight: interpolate position with scatter fading out
-        final scatterFactor = 1 - eased; // scatter goes to zero on landing
+        final scatterFactor = 1 - eased;
         final x = p.startX + (p.targetX - p.startX) * eased + p.scatterX * scatterFactor;
         final y = p.startY + (p.targetY - p.startY) * eased + p.scatterY * scatterFactor;
-
-        // Slight stretch along velocity vector (beam-like streak)
-        final vx = p.targetX - p.startX;
-        final vy = p.targetY - p.startY;
-        final stretchFactor = (1 - t) * 0.6; // shrink stretch as it lands
-        final stretchX = vx * 0.0008 * stretchFactor;
-        final stretchY = vy * 0.0008 * stretchFactor;
-
-        final w = p.tile * (1 + stretchX.abs());
-        final h = p.tile * (1 + stretchY.abs());
-
         canvas.drawRect(
-          Rect.fromLTWH(x - (w - p.tile) / 2, y - (h - p.tile) / 2, w, h),
+          Rect.fromLTWH(x, y, p.tile, p.tile),
           inkPaint,
         );
       }
