@@ -354,7 +354,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
           onRefresh: _fetchChats,
           child: NestedScrollView(
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: ClampingScrollPhysics(),
             ),
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [

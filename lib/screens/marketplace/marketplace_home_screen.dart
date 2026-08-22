@@ -95,10 +95,8 @@ class _MarketplaceHomeScreenState
   bool _searchFocused = false;
   final _searchFocusNode = FocusNode();
 
-  // Telegram-style stories collapse state
-  bool _storiesCollapsed = false;
-  // Cooldown to prevent story collapse/expand oscillation when content is short
-  DateTime _lastStoryToggle = DateTime.fromMillisecondsSinceEpoch(0);
+  // Story height is driven by scroll offset — no manual toggle needed.
+  // At offset 0: fully expanded (96px). At offset 96: fully collapsed (0px).
   // Location permission requested flag
   bool _locationRequested = false;
 
@@ -168,32 +166,9 @@ class _MarketplaceHomeScreenState
     // (UserScrollNotification) in the build method — see _handleScrollNotification.
   }
 
-  /// Scroll-based story expand/collapse — works with any content length.
-  /// Uses UserScrollNotification (user gestures only, not physics adjustments)
-  /// so collapsing stories doesn't create a feedback loop.
-  bool _handleStoryScroll(ScrollNotification notification) {
-    if (notification is UserScrollNotification) {
-      final now = DateTime.now();
-      if (now.difference(_lastStoryToggle).inMilliseconds < 350) return false;
-
-      final pixels = notification.metrics.pixels;
-
-      if (notification.direction == ScrollDirection.forward) {
-        // Scrolling down (away from top) → collapse
-        if (!_storiesCollapsed && pixels > 15) {
-          _lastStoryToggle = now;
-          setState(() => _storiesCollapsed = true);
-        }
-      } else if (notification.direction == ScrollDirection.reverse) {
-        // Scrolling up (toward top) → expand
-        if (_storiesCollapsed && pixels < 15) {
-          _lastStoryToggle = now;
-          setState(() => _storiesCollapsed = false);
-        }
-      }
-    }
-    return false;
-  }
+  // Story expand/collapse is now driven directly by _scrollOffset.
+  // No manual toggle or direction detection needed — the height
+  // interpolates smoothly with scroll position, just like Telegram.
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
@@ -366,6 +341,9 @@ class _MarketplaceHomeScreenState
 
     // Scroll-driven gradient (0 at top → full when scrolled 120px)
     final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
+    // Story bar: fully expanded at offset 0, fully collapsed at offset 96.
+    // Smooth interpolation — no hard toggle, just like Telegram.
+    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -417,42 +395,35 @@ class _MarketplaceHomeScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Stories: scroll-based expand/retract + tap to toggle ──
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 380),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: _storiesCollapsed
-                          ? const SizedBox(height: 0, width: double.infinity)
-                          : SizedBox(
-                              height: 96,
-                              width: double.infinity,
-                              child: ClipRect(
-                                child: OverflowBox(
-                                  alignment: Alignment.topCenter,
-                                  minHeight: 96,
-                                  maxHeight: 96,
-                                  child: MarketplaceExpandedStories(
-                                    onOpenBusiness: (bizId) {
-                                      _openBusinessStories(context, bizId);
-                                    },
-                                    onBrowsePressed: () {
-                                      setState(() => _selectedCategory = null);
-                                    },
-                                  ),
-                                ),
-                              ),
+                    // ── Stories: smooth scroll-driven height (Telegram-style) ──
+                    SizedBox(
+                      height: 96 * storyExpandRatio,
+                      width: double.infinity,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          minHeight: 96,
+                          maxHeight: 96,
+                          child: Opacity(
+                            opacity: storyExpandRatio.clamp(0.0, 1.0),
+                            child: MarketplaceExpandedStories(
+                              onOpenBusiness: (bizId) {
+                                _openBusinessStories(context, bizId);
+                              },
+                              onBrowsePressed: () {
+                                setState(() => _selectedCategory = null);
+                              },
                             ),
+                          ),
+                        ),
+                      ),
                     ),
                     // ── Combined control row: category selector + buttons ───
                     _controlRow(colors),
                     Expanded(
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: _handleStoryScroll,
-                        child: _viewMode == _ViewMode.list
-                            ? _listMode(colors)
-                            : _mapMode(colors),
-                      ),
+                      child: _viewMode == _ViewMode.list
+                          ? _listMode(colors)
+                          : _mapMode(colors),
                     ),
                   ],
                 ),
@@ -624,6 +595,8 @@ class _MarketplaceHomeScreenState
   // ── Header (title + actions) ────────────────────────────────────────────────
 
   Widget _header(AzamanColors colors) {
+    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
+    final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
     final catLabel = _selectedCategory != null
         ? BusinessCategories.labelFor(_selectedCategory).toLowerCase()
         : null;
@@ -646,11 +619,8 @@ class _MarketplaceHomeScreenState
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Stories shown as collapsed avatars in the header when scrolled
-                    // down. At top, the full stories row appears below the header
-                    // so no title text is needed here — removing the "Explore"
-                    // text eliminates the vertical-letter-wrap bug on scroll.
-                    if (_storiesCollapsed)
+                    // Collapsed avatars fade in as stories section collapses.
+                    if (storyCollapsedOpacity > 0.5)
                       Expanded(
                         child: MarketplaceCollapsedAvatars(
                           onTap: () {

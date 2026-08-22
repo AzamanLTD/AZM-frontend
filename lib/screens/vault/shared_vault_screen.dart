@@ -189,7 +189,7 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
             if (vaults.isEmpty) return _buildEmptyState(colors);
             return ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               itemCount: vaults.length,
               itemBuilder: (context, i) => _SharedVaultCard(
                 vault: vaults[i],

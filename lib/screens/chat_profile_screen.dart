@@ -1343,7 +1343,7 @@ class _EmptyVault extends StatelessWidget {
       backgroundColor: colors.card,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics()),
+            parent: ClampingScrollPhysics()),
         padding: const EdgeInsets.all(40),
         children: [
           const SizedBox(height: 60),

@@ -46,7 +46,7 @@ class SmartRouteListScreen extends ConsumerWidget {
           data: (routes) {
             if (routes.isEmpty) {
               return ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
                 children: [
                   const SizedBox(height: 80),
                   Icon(Icons.turn_left, size: 56, color: colors.textTertiary),
@@ -76,7 +76,7 @@ class SmartRouteListScreen extends ConsumerWidget {
               );
             }
             return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               itemCount: routes.length,
               itemBuilder: (context, i) => Padding(

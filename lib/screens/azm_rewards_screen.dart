@@ -98,7 +98,7 @@ class _AzmRewardsScreenState extends ConsumerState<AzmRewardsScreen> {
             : CustomScrollView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+                  parent: ClampingScrollPhysics(),
                 ),
                 slivers: [
                   // 0. Auction entry card

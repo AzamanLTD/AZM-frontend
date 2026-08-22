@@ -80,7 +80,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
               );
             }
             return ListView(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               children: accounts.asMap().entries.map(
                         (e) => Padding(

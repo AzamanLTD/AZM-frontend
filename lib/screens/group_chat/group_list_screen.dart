@@ -47,7 +47,7 @@ class GroupListScreen extends ConsumerWidget {
           data: (groups) {
             if (groups.isEmpty) {
               return ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
                 children: [
                   const SizedBox(height: 80),
                   Icon(Icons.person_add_outlined, size: 56, color: colors.textTertiary),
@@ -74,7 +74,7 @@ class GroupListScreen extends ConsumerWidget {
               );
             }
             return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               itemCount: groups.length,
               itemBuilder: (context, i) {

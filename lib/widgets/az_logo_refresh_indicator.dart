@@ -1,21 +1,25 @@
 // =============================================================================
-// AZAMAN — Bounce-Reveal Pull-to-Refresh with Logo Trace Animation
+// AZAMAN — Pull-to-Refresh with Logo Trace Animation
 //
-// The indicator sits BEHIND the scroll content. When the user pulls down,
-// BouncingScrollPhysics moves the content down, revealing the logo in the
-// gap. On release past the trigger distance, the content is held down
-// (Transform.translate) while the logo's tracer loop animates. When
-// refresh completes, the content slides back up, covering the logo.
+// Architecture (fixed):
+// The indicator sits in its own dedicated layout space at the TOP of the
+// screen — a real SizedBox whose height animates from 0 → triggerDistance.
+// The content lives in an Expanded BELOW the indicator. When the user
+// pulls down, the indicator height grows, pushing the content down (real
+// layout space, not a transform). The indicator renders ABOVE the content
+// in stacking order (naturally, as the first child of a Column the content
+// is below it and cannot cover it).
 //
-// For scroll views that use ClampingScrollPhysics (overscroll), we
-// mimic the bounce by translating the content manually.
+// For scroll views that use ClampingScrollPhysics (the default via
+// AzPullToRefresh's ScrollConfiguration), overscroll at the top
+// generates OverscrollNotification which we accumulate into _pullOffset.
 //
 // The logo: three-part Azaman logo that traces all 3 SVG subpaths in
 // solid black as the user pulls. On release, a moving tracer segment
 // loops around all 3 parts to indicate loading.
 //
 // The plate behind the logo: a rounded-tip triangle (matching the Azaman
-// brand mark), NOT a rounded box.
+// brand mark).
 // =============================================================================
 
 import 'dart:math' as math;
@@ -43,7 +47,7 @@ class _AzLogoRefreshIndicatorState
     extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
   double _pullOffset = 0;
-  double _peakPull = 0; // Tracks the maximum pull during this gesture
+  double _peakPull = 0;
   static const double _triggerDistance = 55;
   static const double _maxDrag = 110;
   static const double _indicatorSize = 28;
@@ -51,7 +55,6 @@ class _AzLogoRefreshIndicatorState
   static const Duration _minDisplayTime = Duration(milliseconds: 1800);
 
   bool _isRefreshing = false;
-  bool _isBouncing = false;
 
   late final AnimationController _traceController;
   late final AnimationController _fadeController;
@@ -85,11 +88,7 @@ class _AzLogoRefreshIndicatorState
 
   bool _handleScrollNotification(ScrollNotification notification) {
     if (_isRefreshing) return false;
-
-    // Only process notifications from the outermost vertical scrollable.
     if (notification.depth > 0) return false;
-
-    // Only care about vertical scroll.
     if (notification.metrics.axis != Axis.vertical) return false;
 
     if (notification is ScrollStartNotification) {
@@ -98,8 +97,6 @@ class _AzLogoRefreshIndicatorState
         _pullOffset = 0;
       }
     } else if (notification is OverscrollNotification) {
-      // ClampingScrollPhysics fallback
-      _isBouncing = false;
       if (notification.overscroll < 0 && notification.metrics.pixels <= 0) {
         _pullOffset += (-notification.overscroll) * 0.5;
         if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
@@ -108,23 +105,17 @@ class _AzLogoRefreshIndicatorState
       }
     } else if (notification is ScrollUpdateNotification) {
       if (notification.metrics.pixels < 0) {
-        // BouncingScrollPhysics — content is at negative position.
-        _isBouncing = true;
         _pullOffset = (-notification.metrics.pixels) * 0.75;
         if (_pullOffset > _maxDrag) _pullOffset = _maxDrag;
-        // Track the peak — this is the key fix. During bounce-back,
-        // _pullOffset decreases, but we remember the max for the trigger.
         _peakPull = math.max(_peakPull, _pullOffset);
         setState(() {});
-      } else if (notification.metrics.pixels >= 0 && !_isBouncing) {
+      } else if (notification.metrics.pixels >= 0) {
         if (_pullOffset > 0) {
           _pullOffset = 0;
           setState(() {});
         }
       }
     } else if (notification is ScrollEndNotification) {
-      // Use _peakPull (not _pullOffset) because bounce-back may have
-      // reduced _pullOffset below the trigger by the time this fires.
       if (_peakPull >= _triggerDistance && !_isRefreshing) {
         _triggerRefresh();
       } else if (!_isRefreshing) {
@@ -143,7 +134,6 @@ class _AzLogoRefreshIndicatorState
       _pullOffset = _triggerDistance;
       _peakPull = 0;
     });
-    // Slide content down to keep indicator visible after bounce settles
     _slideController.forward(from: 0);
     _fadeController.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 350));
@@ -173,82 +163,76 @@ class _AzLogoRefreshIndicatorState
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final indicatorColor = colors.textPrimary;
-    final pullProgress = (_pullOffset / _triggerDistance).clamp(0.0, 1.0);
     final plateSize = _indicatorSize + _platePad * 2;
-
-    // Content translation:
-    // - Bounce: content already moves via scroll physics -> no translate
-    // - Overscroll: translate to mimic bounce
-    // - Refresh: translate by triggerDistance (animated)
-    double contentTranslate;
-    if (_isRefreshing) {
-      contentTranslate =
-          Curves.easeOutCubic.transform(_slideController.value) * _triggerDistance;
-    } else if (_isBouncing) {
-      contentTranslate = 0;
-    } else {
-      contentTranslate = _pullOffset;
-    }
-
-    // Indicator opacity
-    double indicatorOpacity;
-    if (_isRefreshing) {
-      indicatorOpacity = 1.0;
-    } else {
-      indicatorOpacity = (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0);
-    }
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
-      child: Stack(
-        children: [
-          // ── Indicator BEHIND content ──────────────────────────────
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 4,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: indicatorOpacity,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_slideController, _fadeController]),
+        builder: (context, _) {
+          double indicatorHeight;
+          if (_isRefreshing) {
+            indicatorHeight =
+                Curves.easeOutCubic.transform(_slideController.value) *
+                    _triggerDistance;
+          } else {
+            indicatorHeight = _pullOffset;
+          }
+
+          final pullProgress =
+              (_pullOffset / _triggerDistance).clamp(0.0, 1.0);
+
+          double indicatorOpacity;
+          if (_isRefreshing) {
+            indicatorOpacity = 1.0;
+          } else {
+            indicatorOpacity = (pullProgress * 0.9 + 0.1).clamp(0.0, 1.0);
+          }
+
+          return Column(
+            children: [
+              SizedBox(
+                height: indicatorHeight,
                 child: Center(
-                  child: SizedBox(
-                    width: plateSize,
-                    height: plateSize + 4,
-                    child: CustomPaint(
-                      painter: _RoundedTrianglePlatePainter(
-                        color: colors.card,
-                        shadowColor: Colors.black,
-                      ),
-                      child: Center(
-                        child: _ThreePartLogoTrace(
-                          size: _indicatorSize,
-                          traceAnimation: _traceController,
-                          fadeAnimation: _fadeController,
-                          color: indicatorColor,
-                          isRefreshing: _isRefreshing,
-                          pullProgress: pullProgress,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: indicatorOpacity,
+                      child: SizedBox(
+                        width: plateSize,
+                        height: plateSize + 4,
+                        child: CustomPaint(
+                          painter: _RoundedTrianglePlatePainter(
+                            color: colors.card,
+                            shadowColor: Colors.black,
+                          ),
+                          child: Center(
+                            child: _ThreePartLogoTrace(
+                              size: _indicatorSize,
+                              traceAnimation: _traceController,
+                              fadeAnimation: _fadeController,
+                              color: indicatorColor,
+                              isRefreshing: _isRefreshing,
+                              pullProgress: pullProgress,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-          // ── Content ON TOP, translated when needed ────────────────
-          Transform.translate(
-            offset: Offset(0, contentTranslate),
-            child: widget.child,
-          ),
-        ],
+              Expanded(child: widget.child),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 // =============================================================================
-// Rounded-Tip Triangle Plate (replaces the old rounded box)
+// Rounded-Tip Triangle Plate
 // =============================================================================
 
 class _RoundedTrianglePlatePainter extends CustomPainter {
@@ -267,18 +251,16 @@ class _RoundedTrianglePlatePainter extends CustomPainter {
     final cx = w / 2;
     final cy = h / 2;
 
-    // Equilateral-ish triangle pointing up
     final r = w * 0.48;
-    final p1 = Offset(cx, cy - r * 0.72); // top
-    final p2 = Offset(cx - r * 0.87, cy + r * 0.52); // bottom-left
-    final p3 = Offset(cx + r * 0.87, cy + r * 0.52); // bottom-right
+    final p1 = Offset(cx, cy - r * 0.72);
+    final p2 = Offset(cx - r * 0.87, cy + r * 0.52);
+    final p3 = Offset(cx + r * 0.87, cy + r * 0.52);
 
-    // Rounded-tip triangle using quadratic bends at each corner
     final cornerRadius = r * 0.18;
 
     final path = Path();
-    // Helper to add a rounded corner between three points
-    void addRoundedCorner(Path path, Offset prev, Offset corner, Offset next, double radius) {
+    void addRoundedCorner(
+        Path path, Offset prev, Offset corner, Offset next, double radius) {
       final dir1 = (corner - prev);
       final dir2 = (next - corner);
       final len1 = dir1.distance;
@@ -291,10 +273,11 @@ class _RoundedTrianglePlatePainter extends CustomPainter {
       path.quadraticBezierTo(corner.dx, corner.dy, end.dx, end.dy);
     }
 
-    // Start at a point along the first edge (after the rounded corner)
     final startDir = (p2 - p1);
     final startLen = startDir.distance;
-    final startAdjust = startDir / startLen * (startLen < cornerRadius * 2 ? startLen / 2 : cornerRadius);
+    final startAdjust = startDir /
+        startLen *
+        (startLen < cornerRadius * 2 ? startLen / 2 : cornerRadius);
     path.moveTo(p1.dx + startAdjust.dx, p1.dy + startAdjust.dy);
 
     addRoundedCorner(path, p1, p2, p3, cornerRadius);
@@ -302,10 +285,8 @@ class _RoundedTrianglePlatePainter extends CustomPainter {
     addRoundedCorner(path, p3, p1, p2, cornerRadius);
     path.close();
 
-    // Shadow
     canvas.drawShadow(path, shadowColor.withValues(alpha: 0.10), 8, false);
 
-    // Fill
     final fillPaint = Paint()
       ..color = color
       ..isAntiAlias = true;
@@ -358,7 +339,11 @@ class _ThreePartLogoTrace extends StatelessWidget {
         builder: (context, _) {
           return CustomPaint(
             painter: _ThreePartLogoPainter(
-              partPaths: [_parsePath(_part1), _parsePath(_part2), _parsePath(_part3)],
+              partPaths: [
+                _parsePath(_part1),
+                _parsePath(_part2),
+                _parsePath(_part3)
+              ],
               loopProgress: isRefreshing ? traceAnimation.value : 0,
               fadeProgress: fadeAnimation.value,
               isRefreshing: isRefreshing,
@@ -414,7 +399,8 @@ class _ThreePartLogoPainter extends CustomPainter {
     canvas.translate(dx, dy);
     canvas.scale(scale);
 
-    final guideOpacity = isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
+    final guideOpacity =
+        isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
     final guidePaint = Paint()
       ..color = color.withValues(alpha: guideOpacity)
       ..style = PaintingStyle.stroke
@@ -464,17 +450,20 @@ class _ThreePartLogoPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawSubpathProgress(Canvas canvas, Path path, Paint paint, double progress) {
+  void _drawSubpathProgress(
+      Canvas canvas, Path path, Paint paint, double progress) {
     if (progress <= 0) return;
     final metrics = path.computeMetrics();
     for (final metric in metrics) {
       final targetLen = metric.length * progress;
       if (targetLen <= 0) continue;
-      canvas.drawPath(metric.extractPath(0, targetLen.clamp(0, metric.length)), paint);
+      canvas.drawPath(
+          metric.extractPath(0, targetLen.clamp(0, metric.length)), paint);
     }
   }
 
-  void _drawMovingTracer(Canvas canvas, List<Path> paths, Paint paint, double loopProgress) {
+  void _drawMovingTracer(
+      Canvas canvas, List<Path> paths, Paint paint, double loopProgress) {
     final allMetrics = <ui.PathMetric>[];
     double totalLength = 0;
     for (final p in paths) {
@@ -501,7 +490,8 @@ class _ThreePartLogoPainter extends CustomPainter {
           final localStart = overlapStart - traveled;
           final localEnd = overlapEnd - traveled;
           canvas.drawPath(
-            metric.extractPath(localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+            metric.extractPath(
+                localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
             paint,
           );
         }
@@ -513,7 +503,8 @@ class _ThreePartLogoPainter extends CustomPainter {
             final localStart = wrapStart - traveled;
             final localEnd = wrapOverlapEnd - traveled;
             canvas.drawPath(
-              metric.extractPath(localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+              metric.extractPath(
+                  localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
               paint,
             );
           }
@@ -540,20 +531,28 @@ Path _parsePath(String data) {
   for (final cmd in commands) {
     if (cmd.isEmpty) continue;
     final letter = cmd[0];
-    final args = cmd.substring(1).trim().split(RegExp(r'[\s,]+'))
-        .where((s) => s.isNotEmpty).map(double.parse).toList();
+    final args = cmd
+        .substring(1)
+        .trim()
+        .split(RegExp(r'[\s,]+'))
+        .where((s) => s.isNotEmpty)
+        .map(double.parse)
+        .toList();
     switch (letter) {
       case 'M':
-        currentX = args[0]; currentY = args[1];
+        currentX = args[0];
+        currentY = args[1];
         path.moveTo(currentX, currentY);
         for (int i = 2; i < args.length; i += 2) {
-          currentX = args[i]; currentY = args[i + 1];
+          currentX = args[i];
+          currentY = args[i + 1];
           path.lineTo(currentX, currentY);
         }
         break;
       case 'L':
         for (int i = 0; i < args.length; i += 2) {
-          currentX = args[i]; currentY = args[i + 1];
+          currentX = args[i];
+          currentY = args[i + 1];
           path.lineTo(currentX, currentY);
         }
         break;

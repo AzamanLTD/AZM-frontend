@@ -831,7 +831,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           // glass edge, but there's no extra outer gutter anymore).
           return ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: ClampingScrollPhysics(),
             ),
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 120),
             itemCount: entries.length,
@@ -877,7 +877,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
   Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
+        parent: ClampingScrollPhysics(),
       ),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
       itemCount: friends.length,
@@ -1126,7 +1126,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       backgroundColor: colors.card,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
+          parent: ClampingScrollPhysics(),
         ),
         padding: const EdgeInsets.fromLTRB(0, 4, 0, 28),
         itemCount: provider.pendingRequests.length,

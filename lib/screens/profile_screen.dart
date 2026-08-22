@@ -347,7 +347,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   backgroundColor: colors.surface,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
+                      parent: ClampingScrollPhysics(),
                     ),
                     padding: const EdgeInsets.only(bottom: 40),
                     child: Column(

@@ -101,7 +101,7 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (vaults.isEmpty) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
         children: [
           const SizedBox(height: 80),
           Icon(Icons.lock_outline, size: 56, color: colors.textTertiary),
@@ -132,7 +132,7 @@ class _Body extends StatelessWidget {
     }
 
     return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       itemCount: vaults.length,
       itemBuilder: (context, i) {

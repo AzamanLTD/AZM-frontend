@@ -69,7 +69,7 @@ class _P2PMarketplaceScreenState extends ConsumerState<P2PMarketplaceScreen> {
           backgroundColor: colors.card,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: ClampingScrollPhysics(),
             ),
             padding: const EdgeInsets.only(bottom: 120),
             child: Column(

@@ -75,7 +75,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
           onRefresh: _onRefresh,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: ClampingScrollPhysics(),
             ),
             padding: const EdgeInsets.only(bottom: 120),
             child: Column(

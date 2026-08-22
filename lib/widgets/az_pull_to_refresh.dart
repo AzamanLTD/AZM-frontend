@@ -1,17 +1,12 @@
 // =============================================================================
 // AZAMAN — Pull-to-Refresh wrapper
 //
-// Wraps AzLogoRefreshIndicator and enforces scroll physics that work with
-// the bounce-reveal effect. Uses ClampingScrollPhysics so the content
-// doesn't bounce on its own — instead, AzLogoRefreshIndicator translates
-// the entire wrapped content down via Transform.translate when the
-// user overscrolls, which pushes the whole page (headers, stories,
-// lists) down to reveal the indicator at the TOP of the screen.
-//
-// Screens that want BouncingScrollPhysics (like the home screen) can
-// still set it explicitly on their scroll view — the AzLogoRefreshIndicator
-// handles both BouncingScrollPhysics (via ScrollUpdateNotification with
-// negative pixels) and ClampingScrollPhysics (via OverscrollNotification).
+// Wraps AzLogoRefreshIndicator and enforces ClampingScrollPhysics so the
+// content doesn't bounce on its own. Instead, AzLogoRefreshIndicator uses
+// a Column with an animated-height indicator row at the top. When the
+// user overscrolls at the top of the scroll view, the indicator row
+// grows (real layout space), pushing the content down — no transform,
+// no z-index conflicts. The indicator is naturally above the content.
 //
 // Accepts (and ignores) color/backgroundColor for drop-in compatibility
 // with code that previously used RefreshIndicator. Respects reduced-motion.
@@ -71,10 +66,10 @@ class AzPullToRefresh extends ConsumerWidget {
   }
 }
 
-/// Uses ClampingScrollPhysics + AlwaysScrollableScrollPhysics so the
-/// AzLogoRefreshIndicator can translate the entire wrapped content via
-/// OverscrollNotification. This ensures the whole page (not just the
-/// list) gets pushed down to reveal the indicator at the top.
+/// ClampingScrollPhysics + AlwaysScrollableScrollPhysics so overscroll at
+/// the top generates OverscrollNotification (which the indicator uses to
+/// grow its height). No bounce — the indicator provides the visual
+/// feedback instead.
 class _ClampScrollBehavior extends ScrollBehavior {
   const _ClampScrollBehavior();
 
