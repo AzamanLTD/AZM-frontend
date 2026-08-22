@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 
 /// Extracted from business_profile_screen.dart to reduce its size.
-/// Booking tab that renders a category-specific CTA card.
+/// Booking tab that renders a category-specific CTA card — except for
+/// restaurants, which get the interactive 3D menu book staged in an ambient
+/// dining room, with the reservation CTA docked beneath it.
 class BusinessBookTab extends StatelessWidget {
   final BusinessProfile business;
   final AzamanColors colors;
   final void Function(String route)? onNavigate;
   final VoidCallback? onOpenOrderSheet;
   final VoidCallback? onOpenCatalogView;
+
+  /// Menu data for FOOD_BEVERAGE businesses. When empty the restaurant branch
+  /// falls back to the plain reservation CTA.
+  final List<CatalogSection> menuSections;
+  final List<BusinessProduct> uncategorisedProducts;
+  final void Function(BusinessProduct product)? onOrderProduct;
 
   const BusinessBookTab({
     super.key,
@@ -18,7 +27,12 @@ class BusinessBookTab extends StatelessWidget {
     this.onNavigate,
     this.onOpenOrderSheet,
     this.onOpenCatalogView,
+    this.menuSections = const [],
+    this.uncategorisedProducts = const [],
+    this.onOrderProduct,
   });
+
+  bool get _hasMenu => menuSections.isNotEmpty || uncategorisedProducts.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +55,7 @@ class BusinessBookTab extends StatelessWidget {
           onTap: () => onNavigate?.call('/business-market/${business.id}/transit'),
         );
       case 'FOOD_BEVERAGE':
+        if (_hasMenu && onOrderProduct != null) return _restaurantStage();
         return _bookCtaCard(
           icon: Icons.table_restaurant_outlined,
           title: 'Reserve a Table',
@@ -99,6 +114,66 @@ class BusinessBookTab extends StatelessWidget {
           onTap: () => onOpenOrderSheet?.call(),
         );
     }
+  }
+
+  /// The restaurant experience: the menu book on its ambient stage, with the
+  /// reservation CTA floating over the bottom of the room.
+  Widget _restaurantStage() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        RestaurantMenuFlipBook(
+          businessName: business.businessName,
+          logoUrl: business.logoUrl,
+          sections: menuSections,
+          uncategorisedProducts: uncategorisedProducts,
+          colors: colors,
+          onOrder: onOrderProduct!,
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: IgnorePointer(
+            ignoring: true,
+            child: Container(
+              height: 96,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x00000000), Color(0xCC060402)],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 18,
+          child: _reserveButton(),
+        ),
+      ],
+    );
+  }
+
+  Widget _reserveButton() {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: colors.accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+      ),
+      onPressed: onOpenOrderSheet,
+      icon: const Icon(Icons.table_restaurant_outlined, size: 19),
+      label: const Text(
+        'Reserve a Table',
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      ),
+    );
   }
 
   Widget _bookCtaCard({

@@ -655,6 +655,9 @@ class _BusinessProfileScreenState
               onNavigate: (route) => context.push(route),
               onOpenOrderSheet: _openOrderSheet,
               onOpenCatalogView: _openCatalogView,
+              menuSections: _menuSections,
+              uncategorisedProducts: _uncategorisedProducts,
+              onOrderProduct: (p) => _openOrderSheet(product: p),
             );
       case 0:
       default:

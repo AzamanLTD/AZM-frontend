@@ -35,11 +35,7 @@ dependencies:
   # `image_cropper` lets users crop/rotate photos before sending in chat.
   image_cropper: ^8.0.2
 
-  # Restaurant flip-book menu (pinned — proprietary license, approved-PR-only upstream)
-  turnable_page:
-    git:
-      url: https://github.com/saeedahmed725/turnable_page.git
-      ref: e8ad982c8e7c0ba9f8665274fbc5f604da8dc751
+  # Restaurant flip-book menu is now in-house: lib/widgets/book/.
 
   # --- SURGICALLY ADDED FOR TRADE EFFICIENCY ---
   # Fixes canLaunchUrl & LaunchMode errors
@@ -197,6 +193,7 @@ flutter:
   # Binance-style assets
   assets:
     - assets/images/
+    - assets/images/food/
     - assets/animations/
     - assets/icons/
     - assets/stickers/static/
