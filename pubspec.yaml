@@ -196,6 +196,7 @@ flutter:
     - assets/images/food/
     - assets/animations/
     - assets/icons/
+    - assets/icons/seats/
     - assets/stickers/static/
     - assets/stickers/animated/
     - assets/chat_wallpapers/

@@ -10,10 +10,13 @@
 // 2026-07-07: added tier-aware pricing (Economy/Standard/VIP — each seat can
 //             carry its own fare) and pinch-zoom/pan via InteractiveViewer so
 //             larger vehicle layouts are comfortable on small screens.
-// 2026-07-11: replaced icon-based seat chips with premium PNG seat assets.
-//             BOOKED  → assets/images/booked.png  (occupied silhouette)
-//             AVAILABLE → assets/images/unbooked.png  (empty dark seat)
-//             SELECTED  → unbooked.png + ColorFiltered purple tint (0.5 opacity)
+// 2026-07-11: replaced icon-based seat chips with premium SVG seat assets.
+//             AVAILABLE → assets/icons/seats/seat_available.svg
+//             SELECTED  → assets/icons/seats/seat_selected.svg  (pre-designed, no runtime tint)
+//             OCCUPIED  → assets/icons/seats/seat_occupied.svg
+//             BLOCKED   → assets/icons/seats/seat_blocked.svg
+//             VIP badge → drawn procedurally (star from seat_vip.svg) as overlay
+//             ColorFiltered wrapping removed entirely — icons are pre-designed per-state.
 //             Haptic lightImpact on every valid tap.
 // =============================================================================
 
@@ -28,10 +31,11 @@ import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
-// Azaman brand purple — used for SELECTED tint overlay
+// Azaman brand purple — used for selected seat label + glow accent
 const _kSelectedPurple = Color(0xFF7C3AED);
 
 Color _tierColor(SeatTier tier) {
@@ -494,21 +498,26 @@ class _SeatMapGrid extends StatelessWidget {
             runSpacing: 8,
             children: [
               _legendItem(
-                  image: 'assets/images/unbooked.png',
+                  svg: 'assets/icons/seats/seat_available.svg',
                   label: hasTiers ? 'Economy' : 'Available',
                   colors: colors),
               _legendItem(
-                  color: _kSelectedPurple.withValues(alpha: 0.8),
+                  svg: 'assets/icons/seats/seat_selected.svg',
                   label: 'Selected',
                   colors: colors),
               _legendItem(
-                  image: 'assets/images/booked.png',
+                  svg: 'assets/icons/seats/seat_occupied.svg',
                   label: 'Occupied',
                   colors: colors),
               if (seats.any((s) => s.status == SeatStatus.blocked))
                 _legendItem(
-                    color: colors.danger,
+                    svg: 'assets/icons/seats/seat_blocked.svg',
                     label: 'Blocked',
+                    colors: colors),
+              if (hasTiers)
+                _legendItem(
+                    svg: 'assets/icons/seats/seat_vip.svg',
+                    label: 'VIP',
                     colors: colors),
             ],
           ),
@@ -537,7 +546,7 @@ class _SeatMapGrid extends StatelessWidget {
   }
 
   Widget _legendItem({
-    String? image,
+    String? svg,
     Color? color,
     required String label,
     required dynamic colors,
@@ -545,8 +554,8 @@ class _SeatMapGrid extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (image != null)
-          Image.asset(image, width: 18, height: 18)
+        if (svg != null)
+          SvgPicture.asset(svg, width: 18, height: 18)
         else
           Container(
             width: 18,
@@ -583,53 +592,33 @@ class _SeatWidget extends StatelessWidget {
     final isBlocked = seat.status == SeatStatus.blocked;
     final isDisabled = isOccupied || isBlocked;
 
-    // ── Base seat image ───────────────────────────────────────────────
+    // ── Base seat SVG (pre-designed per-state, no runtime tinting) ──────
     Widget seatImage;
 
     if (isOccupied) {
-      // Booked: show occupied silhouette, dimmed slightly
-      seatImage = Opacity(
-        opacity: 0.75,
-        child: Image.asset(
-          'assets/images/booked.png',
-          width: 50,
-          height: 50,
-          fit: BoxFit.contain,
-        ),
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_occupied.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
       );
     } else if (isSelected) {
-      // Selected: unbooked seat + purple tint overlay
-      seatImage = ColorFiltered(
-        colorFilter: ColorFilter.mode(
-          _kSelectedPurple.withValues(alpha: 0.50),
-          BlendMode.srcATop,
-        ),
-        child: Image.asset(
-          'assets/images/unbooked.png',
-          width: 50,
-          height: 50,
-          fit: BoxFit.contain,
-        ),
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_selected.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
       );
     } else if (isBlocked) {
-      // Blocked: unbooked seat, heavily dimmed + red tint
-      seatImage = ColorFiltered(
-        colorFilter: ColorFilter.mode(
-          Colors.red.withValues(alpha: 0.55),
-          BlendMode.srcATop,
-        ),
-        child: Image.asset(
-          'assets/images/unbooked.png',
-          width: 50,
-          height: 50,
-          fit: BoxFit.contain,
-          opacity: const AlwaysStoppedAnimation<double>(0.5),
-        ),
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_blocked.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
       );
     } else {
-      // Available: clean unbooked seat
-      seatImage = Image.asset(
-        'assets/images/unbooked.png',
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_available.svg',
         width: 50,
         height: 50,
         fit: BoxFit.contain,
