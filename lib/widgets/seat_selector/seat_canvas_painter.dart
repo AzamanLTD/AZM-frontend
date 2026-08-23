@@ -40,14 +40,14 @@ class SeatIconCache {
     required GridSlot slot,
     required bool isSelected,
   }) {
-    if (!slot.isSeat) return null;
+    if (!slot.isSeat) { return null; }
 
-    if (slot.status == SeatBookStatus.booked) return occupied;
+    if (slot.status == SeatBookStatus.booked) { return occupied; }
     if (slot.status == SeatBookStatus.blocked ||
-        slot.status == SeatBookStatus.reserved) return blocked;
+        slot.status == SeatBookStatus.reserved) { return blocked; }
 
     // Available: check if locally selected
-    if (isSelected) return selected;
+    if (isSelected) { return selected; }
     return available;
   }
 }
@@ -208,9 +208,9 @@ class SeatCanvasPainter extends CustomPainter {
   }
 
   void _drawVipBadge(Canvas canvas, Rect seatRect) {
-    final badgeSize = 18.0;
+    const badgeSize = 18.0;
     final center = Offset(seatRect.left + badgeSize / 2 + 2, seatRect.top + badgeSize / 2 + 2);
-    final radius = badgeSize / 2;
+    const radius = badgeSize / 2;
 
     // Amber circle background
     final circlePaint = Paint()
@@ -220,8 +220,8 @@ class SeatCanvasPainter extends CustomPainter {
 
     // 5-point star inside the circle
     final starPath = ui.Path();
-    final starRadius = radius * 0.6;
-    final innerRadius = starRadius * 0.4;
+    const starRadius = radius * 0.6;
+    const innerRadius = starRadius * 0.4;
     for (int i = 0; i < 5; i++) {
       final outerAngle = -math.pi / 2 + i * 2 * math.pi / 5;
       final innerAngle = outerAngle + math.pi / 5;

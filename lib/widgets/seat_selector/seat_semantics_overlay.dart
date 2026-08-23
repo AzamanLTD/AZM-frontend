@@ -8,9 +8,7 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
-import 'seat_layout_models.dart';
 import 'seat_geometry_solver.dart';
 
 /// Builds the semantics overlay for the seat selector.

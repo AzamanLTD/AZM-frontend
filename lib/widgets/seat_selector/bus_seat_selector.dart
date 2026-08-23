@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:azaman/models/marketplace_booking_models.dart' as booking;
+
 import 'seat_layout_models.dart';
 import 'seat_geometry_solver.dart';
 import 'seat_canvas_painter.dart';
@@ -101,7 +103,7 @@ class BusSeatSelector extends StatefulWidget {
 }
 
 class _BusSeatSelectorState extends State<BusSeatSelector>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late SeatSelectorController _controller;
 
   // SVG icon cache
@@ -111,6 +113,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   // Animation controller for the selection pulse ring
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  // Animation controller for the auto-fit / center-on-seat zoom
+  late AnimationController _fitController;
 
   // Previous total for animated digit-roll
   double _previousTotal = 0;
@@ -131,6 +136,12 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _pulseController.repeat(reverse: true);
+
+    // Auto-fit animation controller (reused for each zoom transition)
+    _fitController = AnimationController(
+      duration: const Duration(milliseconds: 350),
+      vsync: this,
+    );
 
     // Load layout if provided
     if (widget.layout != null) {
@@ -231,8 +242,11 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     final offsetY = (viewportSize.height - bounds.height * clampedScale) / 2 -
         bounds.top * clampedScale;
 
+    // ignore: deprecated_member_use
     final targetMatrix = Matrix4.identity()
+      // ignore: deprecated_member_use
       ..translate(offsetX, offsetY)
+      // ignore: deprecated_member_use
       ..scale(clampedScale);
 
     // Animate with spring-like curve
@@ -240,30 +254,31 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     _animateMatrix(currentMatrix, targetMatrix);
   }
 
+  Animation<Matrix4>? _fitAnimation;
+
   void _animateMatrix(Matrix4 from, Matrix4 to) {
-    // Use a TweenAnimationBuilder-like approach via the controller
-    final animationController = AnimationController(
-      duration: const Duration(milliseconds: 350),
-      vsync: this,
-    );
+    // Reuse the single _fitController instead of creating new ones
+    _fitController.stop();
+    _fitController.value = 0.0;
 
     final tween = Matrix4Tween(begin: from, end: to);
-    final animation = tween.animate(
+    _fitAnimation = tween.animate(
       CurvedAnimation(
-        parent: animationController,
+        parent: _fitController,
         curve: Curves.easeOutBack,
       ),
     );
 
-    animation.addListener(() {
-      if (mounted) {
-        _controller.transformController.value = animation.value;
-      }
-    });
+    _fitController.removeListener(_applyFitAnimation);
+    _fitController.addListener(_applyFitAnimation);
 
-    animationController.forward().then((_) {
-      animationController.dispose();
-    });
+    _fitController.forward();
+  }
+
+  void _applyFitAnimation() {
+    if (mounted && _fitAnimation != null) {
+      _controller.transformController.value = _fitAnimation!.value;
+    }
   }
 
   void _onSeatTap(String seatId) {
@@ -289,7 +304,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     final viewportSize = renderBox.size;
     if (viewportSize.isEmpty) return;
 
-    final zoomScale = 1.5;
+    const zoomScale = 1.5;
 
     // Center the rect in the viewport at the target zoom
     final offsetX =
@@ -297,8 +312,11 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     final offsetY =
         viewportSize.height / 2 - (rect.top + rect.height / 2) * zoomScale;
 
+    // ignore: deprecated_member_use
     final targetMatrix = Matrix4.identity()
+      // ignore: deprecated_member_use
       ..translate(offsetX, offsetY)
+      // ignore: deprecated_member_use
       ..scale(zoomScale);
 
     _animateMatrix(_controller.transformController.value, targetMatrix);
@@ -306,8 +324,10 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
   @override
   void dispose() {
-    _controller.removeListener(_onControllerChanged);
+    _fitController.removeListener(_applyFitAnimation);
+    _fitController.dispose();
     _pulseController.dispose();
+    _controller.removeListener(_onControllerChanged);
     // Only dispose if we created it internally
     if (widget.controller == null) {
       _controller.dispose();
@@ -455,9 +475,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   Widget _buildMinimap(ComputedGeometry geometry, HullStyle hullStyle) {
-    final minimapSize = 80.0;
+    const minimapSize = 80.0;
     final aspectRatio = geometry.totalBounds.width / geometry.totalBounds.height;
-    final minimapWidth = minimapSize;
+    const minimapWidth = minimapSize;
     final minimapHeight = minimapSize / aspectRatio;
 
     return ClipRRect(
@@ -630,8 +650,6 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 /// into a [VehicleLayout] for the new seat selector module.
 /// This adapter allows the new module to consume the existing backend data
 /// without changing the API layer.
-import 'package:azaman/models/marketplace_booking_models.dart' as booking;
-
 VehicleLayout vehicleLayoutFromSeats({
   required String layoutId,
   required List<booking.TransitSeat> seats,

@@ -13,6 +13,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/widgets.dart' show Matrix4, MatrixUtils;
+
 import 'seat_layout_models.dart';
 
 /// Configuration for the geometry solver — all sizes in logical pixels.
@@ -202,9 +204,12 @@ class SeatGeometrySolver {
       }
 
       // Compute deck bounds
+      // For the first deck, top starts at layoutPadding (includes header area).
+      // For subsequent decks, top is deckStartY (no padding subtraction —
+      // the deckGap already separates them visually).
       final dBounds = Rect.fromLTRB(
         0,
-        deckStartY - config.layoutPadding,
+        deck.deckIndex == 0 ? 0 : deckStartY,
         maxX + config.layoutPadding,
         maxY + config.layoutPadding,
       );

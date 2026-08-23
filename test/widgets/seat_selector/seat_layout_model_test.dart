@@ -296,7 +296,7 @@ List<List<GridSlot>> _buildVanGrid() {
   for (int row = 0; row < 7; row++) {
     grid.add([
       GridSlot(type: SlotType.seat, row: row, col: 0, seatId: '${row + 1}A'),
-      const GridSlot(type: SlotType.aisle, row: row, col: 1),
+      GridSlot(type: SlotType.aisle, row: row, col: 1),
       GridSlot(type: SlotType.seat, row: row, col: 2, seatId: '${row + 1}B'),
     ]);
   }

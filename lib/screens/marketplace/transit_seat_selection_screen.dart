@@ -30,7 +30,6 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
@@ -84,9 +83,6 @@ class _TransitSeatSelectionScreenState
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────
-
-  double _minFare(SeatAvailability a) =>
-      a.tierFares.values.isNotEmpty ? a.tierFares.values.reduce((x, y) => x < y ? x : y) : a.fareUsdc;
 
   double _totalFare(SeatAvailability a, Set<String> selected) {
     double total = 0;
@@ -355,7 +351,7 @@ class _TransitSeatSelectionScreenState
                 width: double.infinity,
                 // Dynamic height: ~56px per row + 80px header/subtotal, capped at 320
                 constraints: BoxConstraints(
-                  maxHeight: (selectedSeats.length * 56 + 80).clamp(120, 320),
+                  maxHeight: (selectedSeats.length * 56 + 80).clamp(120, 320).toDouble(),
                 ),
                 padding: const EdgeInsets.all(16),
                 color: colors.surface,
