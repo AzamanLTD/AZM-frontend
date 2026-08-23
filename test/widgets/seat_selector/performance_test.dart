@@ -80,8 +80,8 @@ void main() {
         if (!rect.slot.isSeat) continue;
         seatCount++;
         // Access the visual and hit rects (simulating draw operations)
-        final _ = rect.visualRect;
-        final _hit = rect.hitRect;
+        rect.visualRect;
+        rect.hitRect;
       }
 
       stopwatch.stop();

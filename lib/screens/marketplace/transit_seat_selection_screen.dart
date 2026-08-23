@@ -21,35 +21,21 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-
-// Azaman brand purple — used for selected seat label + glow accent
-const _kSelectedPurple = Color(0xFF7C3AED);
+import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
 Color _tierColor(SeatTier tier) {
   switch (tier) {
     case SeatTier.vip:      return const Color(0xFFF59E0B);
     case SeatTier.standard: return const Color(0xFF3B82F6);
     case SeatTier.economy:  return const Color(0xFF22C55E);
-  }
-}
-
-String _tierLabel(SeatTier tier) {
-  switch (tier) {
-    case SeatTier.vip:      return 'VIP';
-    case SeatTier.standard: return 'Standard';
-    case SeatTier.economy:  return 'Economy';
   }
 }
 
@@ -68,18 +54,31 @@ class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
 class _TransitSeatSelectionScreenState
     extends ConsumerState<TransitSeatSelectionScreen> {
   final _passengerNames = <String, TextEditingController>{};
-  final _transformController = TransformationController();
-  // ── Animated checkout total (enhanced 2026-08-23) ──
-  // Tracks previous total for TweenAnimationBuilder digit-roll
-  double _previousTotal = 0;
+  SeatSelectorController? _seatController;
 
   @override
   void dispose() {
     for (final c in _passengerNames.values) {
       c.dispose();
     }
-    _transformController.dispose();
+    _seatController?.dispose();
     super.dispose();
+  }
+
+  /// Sync seat selection from BusSeatSelector → Riverpod + passenger names
+  void _onSelectionChanged(Set<String> selected) {
+    // Access the controller's selected seats (it's the source of truth)
+    ref.read(selectedSeatsProvider.notifier).update((_) => selected);
+
+    // Add TextEditingControllers for new seats, remove for deselected
+    final existing = _passengerNames.keys.toSet();
+    for (final id in selected) {
+      _passengerNames.putIfAbsent(id, () => TextEditingController());
+    }
+    for (final id in existing.difference(selected)) {
+      _passengerNames[id]?.dispose();
+      _passengerNames.remove(id);
+    }
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────
@@ -91,20 +90,6 @@ class _TransitSeatSelectionScreenState
       total += seat?.fare ?? a.fareUsdc;
     }
     return total;
-  }
-
-  void _onSeatTap(String seatId, SeatStatus status) {
-    if (status != SeatStatus.available) return;
-    HapticFeedback.lightImpact();
-    ref.read(selectedSeatsProvider.notifier).update((seats) {
-      final next = Set<String>.from(seats);
-      if (next.contains(seatId)) {
-        next.remove(seatId);
-      } else {
-        next.add(seatId);
-      }
-      return next;
-    });
   }
 
   Widget _bookingListener(SeatAvailability availability) {
@@ -180,108 +165,14 @@ class _TransitSeatSelectionScreenState
         actions: seatsAsync.valueOrNull != null
             ? [
                 IconButton(
-                  tooltip: 'Reset zoom',
+                  tooltip: 'Reset view',
                   icon: Icon(Icons.center_focus_strong_rounded,
                       color: colors.textSecondary),
-                  onPressed: () =>
-                      _transformController.value = Matrix4.identity(),
+                  onPressed: () => _seatController?.resetView(),
                 ),
               ]
             : null,
       ),
-      bottomNavigationBar: seatsAsync.valueOrNull != null
-          ? PremiumGlassContainer(
-              blur: 24,
-              opacity: 0.08,
-              borderRadius: 0,
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              enableShadow: false,
-              border: Border(
-                  top: BorderSide(color: colors.divider, width: 0.5)),
-              child: SafeArea(
-                child: Row(children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                          '${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}',
-                          style: TextStyle(
-                              fontSize: 12, color: colors.textTertiary)),
-                      // ── Animated total (enhanced 2026-08-23) ──
-                      // TweenAnimationBuilder for smooth digit-roll, NOT a
-                      // looping animation — triggers only on actual value change
-                      Builder(builder: (context) {
-                        final currentTotal = _totalFare(seatsAsync.valueOrNull!, selectedSeats);
-                        final tween = Tween<double>(begin: _previousTotal, end: currentTotal);
-                        if (_previousTotal != currentTotal) {
-                          _previousTotal = currentTotal;
-                        }
-                        return TweenAnimationBuilder<double>(
-                          tween: tween,
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return Text(
-                              '\$${value.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: colors.accent,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ]),
-                            );
-                          },
-                        );
-                      }),
-                    ],
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: (selectedSeats.isNotEmpty &&
-                            !bookingState.isLoading)
-                        ? () => _bookSeats(seatsAsync.valueOrNull!)
-                        : null,
-                    child: AnimatedContainer(
-                      duration: 200.ms,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: selectedSeats.isEmpty
-                            ? colors.card
-                            : colors.accent,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: selectedSeats.isNotEmpty
-                            ? [
-                                BoxShadow(
-                                    color:
-                                        colors.accent.withValues(alpha: 0.25),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 4))
-                              ]
-                            : null,
-                      ),
-                      child: bookingState.isLoading
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: colors.background))
-                          : Text('Book Now',
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: selectedSeats.isEmpty
-                                      ? colors.textTertiary
-                                      : colors.background)),
-                    ),
-                  ),
-                ]),
-              ),
-            )
-          : null,
       body: seatsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -308,6 +199,15 @@ class _TransitSeatSelectionScreenState
         ),
         data: (availability) {
           final tripDetail = ref.watch(tripDetailProvider(widget.tripId)).valueOrNull;
+          // Initialize the seat controller with the vehicle layout on first build
+          _seatController ??= SeatSelectorController()..loadLayout(
+            vehicleLayoutFromSeats(
+              layoutId: 'trip-${widget.tripId}',
+              seats: availability.seats,
+              vehicleMake: tripDetail?.vehicleMake,
+              vehicleModel: tripDetail?.vehicleModel,
+            ),
+          );
           return Column(
           children: [
             _bookingListener(availability),
@@ -319,28 +219,32 @@ class _TransitSeatSelectionScreenState
               colors: colors,
             ),
 
-            // ── Pinch-to-zoom seat map inside vehicle body ─────────────
+            // ── High-performance seat selector (Canvas + CustomPaint) ──────
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: InteractiveViewer(
-                  transformationController: _transformController,
-                  constrained: false,
-                  minScale: 0.8,
-                  maxScale: 3.0,
-                  boundaryMargin: const EdgeInsets.all(80),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: _SeatMapGrid(
-                        seats: availability.seats,
-                        selectedSeats: selectedSeats,
-                        onSeatTap: _onSeatTap,
-                        colors: colors,
-                      ),
-                    ),
-                  ),
+              child: BusSeatSelector(
+                layout: vehicleLayoutFromSeats(
+                  layoutId: 'trip-${widget.tripId}',
+                  seats: availability.seats,
+                  vehicleMake: tripDetail?.vehicleMake,
+                  vehicleModel: tripDetail?.vehicleModel,
                 ),
+                controller: _seatController,
+                accentColor: colors.accent,
+                surfaceColor: colors.surface,
+                cardColor: colors.card,
+                dividerColor: colors.divider,
+                textPrimary: colors.textPrimary,
+                textSecondary: colors.textSecondary,
+                textTertiary: colors.textTertiary,
+                successColor: colors.success,
+                dangerColor: colors.danger,
+                backgroundColor: colors.background,
+                showMinimap: true,
+                showLegend: true,
+                showCheckoutDock: true,
+                isBooking: bookingState.isLoading,
+                onSelectionChanged: _onSelectionChanged,
+                onBook: (seats, total) => _bookSeats(availability),
               ),
             ),
 
@@ -491,294 +395,6 @@ class _TransitSeatSelectionScreenState
     );
   }
 }
-
-// ── SEAT MAP GRID ─────────────────────────────────────────────────────────────
-
-class _SeatMapGrid extends StatelessWidget {
-  final List<TransitSeat> seats;
-  final Set<String> selectedSeats;
-  final void Function(String seatId, SeatStatus status) onSeatTap;
-  final AzamanColors colors;
-
-  const _SeatMapGrid({
-    required this.seats,
-    required this.selectedSeats,
-    required this.onSeatTap,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = this.colors;
-
-    // Group seats by row
-    final rowMap = <int, List<TransitSeat>>{};
-    for (final seat in seats) {
-      rowMap.putIfAbsent(seat.row, () => []).add(seat);
-    }
-    final sortedRows = rowMap.keys.toList()..sort();
-
-    final hasTiers = seats.any((s) => s.tier != SeatTier.economy);
-
-    return Container(
-      // ── Vehicle body outline ────────────────────────────────────────
-      decoration: BoxDecoration(
-        color: colors.card.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colors.divider.withValues(alpha: 0.35), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: colors.accent.withValues(alpha: 0.05),
-            blurRadius: 20,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Windshield / front of vehicle
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: colors.surface.withValues(alpha: 0.6),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.directions_bus_rounded,
-                    color: colors.accent, size: 18),
-                const SizedBox(width: 6),
-                Text('Front of Vehicle',
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 11,
-                        fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Seat rows
-          ...sortedRows.map((rowNum) {
-            final rowSeats = rowMap[rowNum]!
-              ..sort((a, b) => a.col.compareTo(b.col));
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children:
-                    _buildRowWithAisle(rowSeats, selectedSeats),
-              ),
-            );
-          }),
-
-          const SizedBox(height: 24),
-
-          // Legend — uses mini seat images instead of colour chips
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 20,
-            runSpacing: 8,
-            children: [
-              _legendItem(
-                  svg: 'assets/icons/seats/seat_available.svg',
-                  label: hasTiers ? 'Economy' : 'Available',
-                  colors: colors),
-              _legendItem(
-                  svg: 'assets/icons/seats/seat_selected.svg',
-                  label: 'Selected',
-                  colors: colors),
-              _legendItem(
-                  svg: 'assets/icons/seats/seat_occupied.svg',
-                  label: 'Occupied',
-                  colors: colors),
-              if (seats.any((s) => s.status == SeatStatus.blocked))
-                _legendItem(
-                    svg: 'assets/icons/seats/seat_blocked.svg',
-                    label: 'Blocked',
-                    colors: colors),
-              if (hasTiers)
-                _legendItem(
-                    svg: 'assets/icons/seats/seat_vip.svg',
-                    label: 'VIP',
-                    colors: colors),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildRowWithAisle(
-      List<TransitSeat> rowSeats, Set<String> selectedSeats) {
-    final widgets = <Widget>[];
-    for (int i = 0; i < rowSeats.length; i++) {
-      widgets.add(_SeatWidget(
-        seat: rowSeats[i],
-        isSelected: selectedSeats.contains(rowSeats[i].seatId),
-        onTap: () => onSeatTap(rowSeats[i].seatId, rowSeats[i].status),
-      ));
-      if (i == 0 && rowSeats.length > 2) {
-        // Aisle gap after the first seat
-        widgets.add(const SizedBox(width: 28));
-      } else if (i < rowSeats.length - 1) {
-        widgets.add(const SizedBox(width: 6));
-      }
-    }
-    return widgets;
-  }
-
-  Widget _legendItem({
-    String? svg,
-    Color? color,
-    required String label,
-    required dynamic colors,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (svg != null)
-          SvgPicture.asset(svg, width: 18, height: 18)
-        else
-          Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4)),
-          ),
-        const SizedBox(width: 5),
-        Text(label,
-            style: TextStyle(
-                color: colors.textSecondary, fontSize: 11)),
-      ],
-    );
-  }
-}
-
-// ── INDIVIDUAL SEAT WIDGET ────────────────────────────────────────────────────
-
-class _SeatWidget extends StatelessWidget {
-  final TransitSeat seat;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _SeatWidget({
-    required this.seat,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isOccupied = seat.status == SeatStatus.occupied;
-    final isBlocked = seat.status == SeatStatus.blocked;
-    final isDisabled = isOccupied || isBlocked;
-
-    // ── Base seat SVG (pre-designed per-state, no runtime tinting) ──────
-    Widget seatImage;
-
-    if (isOccupied) {
-      seatImage = SvgPicture.asset(
-        'assets/icons/seats/seat_occupied.svg',
-        width: 50,
-        height: 50,
-        fit: BoxFit.contain,
-      );
-    } else if (isSelected) {
-      seatImage = SvgPicture.asset(
-        'assets/icons/seats/seat_selected.svg',
-        width: 50,
-        height: 50,
-        fit: BoxFit.contain,
-      );
-    } else if (isBlocked) {
-      seatImage = SvgPicture.asset(
-        'assets/icons/seats/seat_blocked.svg',
-        width: 50,
-        height: 50,
-        fit: BoxFit.contain,
-      );
-    } else {
-      seatImage = SvgPicture.asset(
-        'assets/icons/seats/seat_available.svg',
-        width: 50,
-        height: 50,
-        fit: BoxFit.contain,
-      );
-    }
-
-    // ── Seat label (id) overlaid below the image ──────────────────────
-    final seatLabel = Text(
-      seat.seatId,
-      style: TextStyle(
-        fontSize: 8,
-        fontWeight: FontWeight.w700,
-        color: isSelected
-            ? _kSelectedPurple
-            : isDisabled
-                ? Colors.grey
-                : _tierColor(seat.tier),
-        letterSpacing: 0.3,
-      ),
-    );
-
-    // ── Animate scale on selection ────────────────────────────────────
-    Widget child = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        seatImage,
-        const SizedBox(height: 2),
-        seatLabel,
-      ],
-    );
-
-    child = child
-        .animate(target: isSelected ? 1.0 : 0.0)
-        .scale(
-          begin: const Offset(1, 1),
-          end: const Offset(1.12, 1.12),
-          duration: 140.ms,
-          curve: Curves.easeOutBack,
-        );
-
-    // ── Glow effect behind selected seat ─────────────────────────────
-    if (isSelected) {
-      child = DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: _kSelectedPurple.withValues(alpha: 0.40),
-              blurRadius: 14,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: child,
-      );
-    }
-
-    return Tooltip(
-      message: isOccupied
-          ? '${seat.seatId} — Occupied'
-          : isBlocked
-              ? '${seat.seatId} — Blocked'
-              : '${seat.seatId} — ${_tierLabel(seat.tier)} · \$${seat.fare.toStringAsFixed(0)}',
-      child: GestureDetector(
-        onTap: isDisabled ? null : onTap,
-        child: child,
-      ),
-    );
-  }
-}
-
 
 // ── TRIP / VEHICLE HEADER ─────────────────────────────────────────────────────
 

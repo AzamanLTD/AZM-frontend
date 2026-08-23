@@ -27,6 +27,7 @@ import 'seat_layout_models.dart';
 import 'seat_geometry_solver.dart';
 import 'seat_canvas_painter.dart';
 import 'seat_selector_controller.dart';
+export 'seat_selector_controller.dart' show SeatSelectorController;
 import 'seat_semantics_overlay.dart';
 
 /// The main seat selector widget.
@@ -672,6 +673,8 @@ VehicleLayout vehicleLayoutFromSeats({
     final rowSeats = rowMap[rowNum]!..sort((a, b) => a.col.compareTo(b.col));
     final row = <GridSlot>[];
 
+    final halfLen = rowSeats.length ~/ 2;
+
     for (int colIdx = 0; colIdx < rowSeats.length; colIdx++) {
       final s = rowSeats[colIdx];
 
@@ -692,13 +695,22 @@ VehicleLayout vehicleLayoutFromSeats({
       row.add(GridSlot(
         type: SlotType.seat,
         row: s.row - 1, // 0-indexed
-        col: s.col - 1,
+        col: colIdx + (colIdx >= halfLen ? 1 : 0), // +1 to skip aisle column
         seatId: s.seatId,
         seatLabel: s.seatId,
         tier: tier,
         status: bookStatus,
         fare: s.fare,
       ));
+
+      // Insert aisle slot after the first half of seats
+      if (colIdx == halfLen - 1 && rowSeats.length > 2) {
+        row.add(GridSlot(
+          type: SlotType.aisle,
+          row: s.row - 1,
+          col: halfLen,
+        ));
+      }
     }
 
     grid.add(row);

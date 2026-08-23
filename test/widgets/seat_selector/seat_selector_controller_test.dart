@@ -5,7 +5,6 @@
 // =============================================================================
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import 'package:azaman/widgets/seat_selector/seat_layout_models.dart';
 import 'package:azaman/widgets/seat_selector/seat_selector_controller.dart';
 

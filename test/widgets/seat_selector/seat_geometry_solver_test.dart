@@ -7,7 +7,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:azaman/widgets/seat_selector/seat_layout_models.dart';
 import 'package:azaman/widgets/seat_selector/seat_geometry_solver.dart';
 

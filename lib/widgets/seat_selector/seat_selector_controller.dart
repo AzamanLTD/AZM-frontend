@@ -46,6 +46,9 @@ class SeatSelectorController extends ChangeNotifier {
   ComputedGeometry? _geometry;
   ComputedGeometry? get geometry => _geometry;
 
+  /// Whether a layout has been loaded.
+  bool get hasLayout => _layout != null;
+
   /// The transformation controller for InteractiveViewer.
   final TransformationController transformController;
 
@@ -144,6 +147,11 @@ class SeatSelectorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reset the viewport to identity (fit-to-screen is handled by the widget).
+  void resetView() {
+    transformController.value = Matrix4.identity();
+  }
+
   /// Set the selection limit.
   set selectionLimit(int value) {
     _selectionLimit = value;
@@ -183,8 +191,6 @@ class SeatSelectorController extends ChangeNotifier {
 
   @override
   void dispose() {
-    // Only dispose if we created it
-    // (if passed in externally, the owner manages it)
     transformController.dispose();
     super.dispose();
   }
