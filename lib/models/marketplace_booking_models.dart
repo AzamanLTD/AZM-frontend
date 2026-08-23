@@ -53,6 +53,10 @@ class TransitTrip {
   final String? vehicleImageUrl;
   final String? driverName;
   final String? driverPhotoUrl;
+  // ── Added 2026-08-23: vehicle & crew info for header strip ──
+  final String? plateNumber;
+  final String? coDriverName;
+  final String? coDriverPhotoUrl;
   final int bookingCount;
 
   const TransitTrip({
@@ -73,6 +77,9 @@ class TransitTrip {
     this.vehicleImageUrl,
     this.driverName,
     this.driverPhotoUrl,
+    this.plateNumber,
+    this.coDriverName,
+    this.coDriverPhotoUrl,
     this.bookingCount = 0,
   });
 
@@ -113,6 +120,9 @@ class TransitTrip {
       vehicleImageUrl: vehicle?['imageUrl']?.toString(),
       driverName: vehicle?['driverName']?.toString(),
       driverPhotoUrl: vehicle?['driverPhotoUrl']?.toString(),
+      plateNumber: vehicle?['plateNumber']?.toString(),
+      coDriverName: vehicle?['coDriverName']?.toString(),
+      coDriverPhotoUrl: vehicle?['coDriverPhotoUrl']?.toString(),
       bookingCount: count?['bookings'] != null ? _toInt(count!['bookings']) : 0,
     );
   }

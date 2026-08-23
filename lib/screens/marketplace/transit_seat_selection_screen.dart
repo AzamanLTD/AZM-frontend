@@ -70,6 +70,9 @@ class _TransitSeatSelectionScreenState
     extends ConsumerState<TransitSeatSelectionScreen> {
   final _passengerNames = <String, TextEditingController>{};
   final _transformController = TransformationController();
+  // ── Animated checkout total (enhanced 2026-08-23) ──
+  // Tracks previous total for TweenAnimationBuilder digit-roll
+  double _previousTotal = 0;
 
   @override
   void dispose() {
@@ -209,12 +212,33 @@ class _TransitSeatSelectionScreenState
                           '${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}',
                           style: TextStyle(
                               fontSize: 12, color: colors.textTertiary)),
-                      Text(
-                          '\$${_totalFare(seatsAsync.valueOrNull!, selectedSeats).toStringAsFixed(2)}',
-                          style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: colors.accent)),
+                      // ── Animated total (enhanced 2026-08-23) ──
+                      // TweenAnimationBuilder for smooth digit-roll, NOT a
+                      // looping animation — triggers only on actual value change
+                      Builder(builder: (context) {
+                        final currentTotal = _totalFare(seatsAsync.valueOrNull!, selectedSeats);
+                        final tween = Tween<double>(begin: _previousTotal, end: currentTotal);
+                        if (_previousTotal != currentTotal) {
+                          _previousTotal = currentTotal;
+                        }
+                        return TweenAnimationBuilder<double>(
+                          tween: tween,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Text(
+                              '\$${value.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: colors.accent,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ]),
+                            );
+                          },
+                        );
+                      }),
                     ],
                   ),
                   const Spacer(),
@@ -324,11 +348,15 @@ class _TransitSeatSelectionScreenState
               ),
             ),
 
-            // Selected seats + passenger names
+            // ── Selected seats summary (enhanced 2026-08-23) ──────────────
+            // Card-style rows with tier pills, filled TextField, running subtotal
             if (selectedSeats.isNotEmpty) ...[
               Container(
                 width: double.infinity,
-                constraints: const BoxConstraints(maxHeight: 220),
+                // Dynamic height: ~56px per row + 80px header/subtotal, capped at 320
+                constraints: BoxConstraints(
+                  maxHeight: (selectedSeats.length * 56 + 80).clamp(120, 320),
+                ),
                 padding: const EdgeInsets.all(16),
                 color: colors.surface,
                 child: SingleChildScrollView(
@@ -340,56 +368,121 @@ class _TransitSeatSelectionScreenState
                               fontWeight: FontWeight.w600,
                               color: colors.textPrimary,
                               fontSize: 13)),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
+                      // ── Seat rows as cards with tier-colored pills ──
                       ...selectedSeats.map((seatId) {
                         final seat = availability.seats
                             .where((s) => s.seatId == seatId)
                             .firstOrNull;
+                        final tierColor = seat != null ? _tierColor(seat.tier) : colors.accent;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(children: [
-                            SizedBox(
-                              width: 56,
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(seatId,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: colors.accent)),
-                                  if (seat != null)
-                                    Text(
-                                        '\$${seat.fare.toStringAsFixed(0)}',
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            color: _tierColor(seat.tier))),
-                                ],
-                              ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: colors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: colors.divider, width: 0.8),
                             ),
-                            Expanded(
-                              child: TextField(
-                                controller: _passengerNames.putIfAbsent(
-                                    seatId,
-                                    () => TextEditingController()),
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'Passenger name for seat $seatId',
-                                  isDense: true,
-                                  border:
-                                      const OutlineInputBorder(),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
+                            child: Row(children: [
+                              // ── Tier-colored seat pill ──
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: tierColor.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                style: TextStyle(
-                                    color: colors.textPrimary,
-                                    fontSize: 13),
+                                child: Text(
+                                  seatId,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: tierColor,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ]),
+                              const SizedBox(width: 8),
+                              // ── Fare with tabular figures ──
+                              if (seat != null)
+                                Text(
+                                  '\$${seat.fare.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: colors.textTertiary,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ]),
+                                ),
+                              const SizedBox(width: 10),
+                              // ── Borderless filled TextField ──
+                              Expanded(
+                                child: TextField(
+                                  controller: _passengerNames.putIfAbsent(
+                                      seatId,
+                                      () => TextEditingController()),
+                                  decoration: InputDecoration(
+                                    hintText: 'Name for seat $seatId',
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: colors.softSurface,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                          color: colors.accent,
+                                          width: 1.5),
+                                    ),
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 8),
+                                  ),
+                                  style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ]),
+                          ),
                         );
                       }),
+                      // ── Subtotal line ──
+                      const SizedBox(height: 6),
+                      Divider(color: colors.divider, height: 1, thickness: 0.5),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text('Subtotal',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.textSecondary)),
+                          const Spacer(),
+                          Text(
+                            '\$${_totalFare(availability, selectedSeats).toStringAsFixed(2)}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: colors.accent,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ]),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -816,6 +909,8 @@ class _TripVehicleHeader extends StatelessWidget {
               ),
             ],
           ),
+          // ── Vehicle & Crew strip (enhanced 2026-08-23) ───────────────
+          // Single compact row: plate chip + grouped avatar(s) + name + verified
           if (trip?.driverName != null) ...[
             const SizedBox(height: 10),
             Container(
@@ -826,42 +921,77 @@ class _TripVehicleHeader extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Driver avatar
-                  if (trip?.driverPhotoUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: AzamanNetworkImage(
-                        imageUrl: trip!.driverPhotoUrl!,
-                        width: 28, height: 28, fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          width: 28, height: 28,
-                          color: colors.surface,
-                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          width: 28, height: 28,
-                          color: colors.surface,
-                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
-                        ),
-                      ),
-                    )
-                  else
+                  // ── License plate chip (only if plateNumber != null) ──
+                  if (trip?.plateNumber != null) ...[
                     Container(
-                      width: 28, height: 28,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: BorderRadius.circular(16),
+                        color: colors.softSurface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: colors.divider, width: 1.5),
                       ),
-                      child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                      child: Text(
+                        trip!.plateNumber!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          color: colors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
-                  const SizedBox(width: 8),
-                  Text(
-                    trip!.driverName!,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                    const SizedBox(width: 10),
+                  ],
+                  // ── Grouped driver + co-driver avatars ──
+                  SizedBox(
+                    width: trip?.coDriverName != null ? 46 : 28,
+                    height: 28,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Co-driver avatar (behind, shifted right for overlap)
+                        if (trip?.coDriverName != null)
+                          Positioned(
+                            left: 18,
+                            child: _crewAvatar(
+                              trip?.coDriverPhotoUrl,
+                              colors,
+                              size: 28,
+                            ),
+                          ),
+                        // Driver avatar (in front, z-index higher)
+                        Positioned(
+                          left: 0,
+                          child: _crewAvatar(
+                            trip?.driverPhotoUrl,
+                            colors,
+                            size: 28,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text('· Driver',
-                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  const SizedBox(width: 8),
+                  // ── Name + role label ──
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            trip!.driverName!,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          trip?.coDriverName != null ? '· Driver & Co-driver' : '· Driver',
+                          style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                        ),
+                      ],
+                    ),
                   ),
                   const Spacer(),
                   Icon(Icons.verified_rounded, size: 14, color: colors.accent),
@@ -882,5 +1012,37 @@ class _TripVehicleHeader extends StatelessWidget {
     if (a.tierFares.isEmpty) return a.fareUsdc.toStringAsFixed(0);
     final fares = a.tierFares.values.toList()..sort();
     return fares.first.toStringAsFixed(0);
+  }
+
+  // ── Helper: build a crew avatar (driver or co-driver) ──────────────
+  Widget _crewAvatar(String? photoUrl, AzamanColors colors, {double size = 28}) {
+    if (photoUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: AzamanNetworkImage(
+          imageUrl: photoUrl,
+          width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => Container(
+            width: size, height: size,
+            color: colors.surface,
+            child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            width: size, height: size,
+            color: colors.surface,
+            child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(size / 2),
+        border: Border.all(color: colors.divider, width: 1),
+      ),
+      child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
+    );
   }
 }
