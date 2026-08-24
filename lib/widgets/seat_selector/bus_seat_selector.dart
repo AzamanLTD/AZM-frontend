@@ -121,6 +121,10 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   // Previous total for animated digit-roll
   double _previousTotal = 0;
 
+  // Timestamp of the last seat-tap-driven fit animation, to guard against
+  // auto-fit racing with center-on-seat animations.
+  DateTime? _lastSeatTapFit;
+
   @override
   void initState() {
     super.initState();
@@ -161,6 +165,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
       _controller.loadLayout(widget.layout!);
       _loadIcons();
       _scheduleAutoFit();
+    } else if (_iconCache == null && !_iconsLoading) {
+      // Retry icon decode if a previous attempt failed (transient failure)
+      _loadIcons();
     }
   }
 
@@ -217,6 +224,16 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   void _scheduleAutoFit() {
     final geometry = _controller.geometry;
     if (geometry == null) return;
+
+    // Skip auto-fit if a seat-tap-driven center animation is in flight
+    // (within the last 300ms), to prevent the viewport from snapping back
+    // to full-vehicle fit view between rapid seat taps.
+    if (_lastSeatTapFit != null &&
+        DateTime.now().difference(_lastSeatTapFit!) <
+            const Duration(milliseconds: 300) &&
+        _fitController.isAnimating) {
+      return;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoFit(geometry.totalBounds);
@@ -301,6 +318,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   void _centerOnRect(Rect rect) {
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !mounted) return;
+    _lastSeatTapFit = DateTime.now();
 
     final viewportSize = renderBox.size;
     if (viewportSize.isEmpty) return;
@@ -476,6 +494,11 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   Widget _buildMinimap(ComputedGeometry geometry, HullStyle hullStyle) {
+    // Guard against degenerate layouts (zero seats, empty bounds)
+    if (geometry.totalBounds.isEmpty ||
+        geometry.totalBounds.height == 0) {
+      return const SizedBox.shrink();
+    }
     const minimapSize = 80.0;
     final aspectRatio = geometry.totalBounds.width / geometry.totalBounds.height;
     const minimapWidth = minimapSize;

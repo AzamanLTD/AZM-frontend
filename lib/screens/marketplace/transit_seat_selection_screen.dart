@@ -30,6 +30,7 @@ import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:intl/intl.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
+import "package:azaman/widgets/seat_selector/seat_layout_models.dart" show VehicleLayout;
 
 Color _tierColor(SeatTier tier) {
   switch (tier) {
@@ -55,6 +56,35 @@ class _TransitSeatSelectionScreenState
     extends ConsumerState<TransitSeatSelectionScreen> {
   final _passengerNames = <String, TextEditingController>{};
   SeatSelectorController? _seatController;
+
+  // Cached VehicleLayout — prevents rebuilding the layout object on every
+  // build() cycle, which would cause BusSeatSelector to think the entire
+  // vehicle changed and reload from scratch on every seat tap.
+  VehicleLayout? _cachedLayout;
+  String? _cachedLayoutKey;
+
+  /// Build (or return cached) VehicleLayout from seat availability data.
+  /// The cache key includes trip ID, seat count, and every seat's ID + status,
+  /// so the layout is only rebuilt when the actual seat data changes.
+  VehicleLayout _layoutFor(
+    SeatAvailability availability,
+    TransitTrip? trip,
+  ) {
+    final key = '${widget.tripId}-${availability.seats.length}-'
+        '${availability.seats.map((s) => '${s.seatId}:${s.status}').join(',')}';
+    if (_cachedLayout != null && _cachedLayoutKey == key) {
+      return _cachedLayout!;
+    }
+    final layout = vehicleLayoutFromSeats(
+      layoutId: 'trip-${widget.tripId}',
+      seats: availability.seats,
+      vehicleMake: trip?.vehicleMake,
+      vehicleModel: trip?.vehicleModel,
+    );
+    _cachedLayout = layout;
+    _cachedLayoutKey = key;
+    return layout;
+  }
 
   @override
   void dispose() {
@@ -199,15 +229,41 @@ class _TransitSeatSelectionScreenState
         ),
         data: (availability) {
           final tripDetail = ref.watch(tripDetailProvider(widget.tripId)).valueOrNull;
+
+          // Empty-seats guard: show a clean empty state rather than feeding
+          // a degenerate layout into the geometry solver.
+          if (availability.seats.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.event_seat_outlined, size: 48, color: colors.textTertiary),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No seats available for this trip',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This trip may be fully booked or not yet configured.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           // Initialize the seat controller with the vehicle layout on first build
-          _seatController ??= SeatSelectorController()..loadLayout(
-            vehicleLayoutFromSeats(
-              layoutId: 'trip-${widget.tripId}',
-              seats: availability.seats,
-              vehicleMake: tripDetail?.vehicleMake,
-              vehicleModel: tripDetail?.vehicleModel,
-            ),
-          );
+          final layout = _layoutFor(availability, tripDetail);
+          _seatController ??= SeatSelectorController()..loadLayout(layout);
           return Column(
           children: [
             _bookingListener(availability),
@@ -222,12 +278,7 @@ class _TransitSeatSelectionScreenState
             // ── High-performance seat selector (Canvas + CustomPaint) ──────
             Expanded(
               child: BusSeatSelector(
-                layout: vehicleLayoutFromSeats(
-                  layoutId: 'trip-${widget.tripId}',
-                  seats: availability.seats,
-                  vehicleMake: tripDetail?.vehicleMake,
-                  vehicleModel: tripDetail?.vehicleModel,
-                ),
+                layout: layout,
                 controller: _seatController,
                 accentColor: colors.accent,
                 surfaceColor: colors.surface,
