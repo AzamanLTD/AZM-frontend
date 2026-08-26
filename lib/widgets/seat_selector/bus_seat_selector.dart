@@ -124,6 +124,8 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   // Timestamp of the last seat-tap-driven fit animation, to guard against
   // auto-fit racing with center-on-seat animations.
   DateTime? _lastSeatTapFit;
+  double _autoFitScale = 1.0;
+  double _currentZoomScale = 1.0;
 
   @override
   void initState() {
@@ -253,6 +255,8 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     final scaleY = (viewportSize.height - padding * 2) / bounds.height;
     final scale = math.min(scaleX, scaleY);
     final clampedScale = scale.clamp(0.8, 3.0);
+    _autoFitScale = clampedScale;
+    _currentZoomScale = clampedScale;
 
     // Center the bounds in the viewport
     final offsetX = (viewportSize.width - bounds.width * clampedScale) / 2 -
@@ -384,6 +388,11 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
                 minScale: 0.8,
                 maxScale: 3.0,
                 boundaryMargin: const EdgeInsets.all(80),
+                onInteractionUpdate: (details) {
+                  _currentZoomScale =
+                      _controller.transformController.value.getMaxScaleOnAxis();
+                  setState(() {});
+                },
                 child: SizedBox(
                   width: geometry.totalBounds.width,
                   height: geometry.totalBounds.height,
@@ -423,12 +432,28 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
                 ),
               ),
 
-              // Floating minimap (top-right)
-              if (widget.showMinimap)
+              // Floating minimap (top-right) — only show when zoomed in
+              // past the auto-fit overview, so it doesn't overlap seats at full view.
+              if (widget.showMinimap &&
+                  _currentZoomScale > _autoFitScale * 1.15)
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: _buildMinimap(geometry, hullStyle),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: widget.backgroundColor,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _buildMinimap(geometry, hullStyle),
+                  ),
                 ),
             ],
           ),
@@ -510,7 +535,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
         width: minimapWidth,
         height: minimapHeight,
         decoration: BoxDecoration(
-          color: widget.surfaceColor.withValues(alpha: 0.9),
+          color: widget.surfaceColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: widget.dividerColor, width: 0.5),
         ),

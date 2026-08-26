@@ -47,12 +47,12 @@ class SeatGeometryConfig {
   final double deckGap;
 
   const SeatGeometryConfig({
-    this.seatWidth = 50,
-    this.seatHeight = 50,
-    this.colGap = 6,
-    this.rowGap = 10,
-    this.aisleGap = 28,
-    this.layoutPadding = 20,
+    this.seatWidth = 54,
+    this.seatHeight = 54,
+    this.colGap = 16,
+    this.rowGap = 20,
+    this.aisleGap = 36,
+    this.layoutPadding = 24,
     this.minHitTarget = 44,
     this.headerHeight = 40,
     this.deckGap = 24,

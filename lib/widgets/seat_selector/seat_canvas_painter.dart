@@ -138,7 +138,48 @@ class SeatCanvasPainter extends CustomPainter {
       if (isSelected) {
         _drawSelectionRing(canvas, slotRect.visualRect);
       }
+
+      // ── Seat label (seat number) ────────────────────────────────────
+      if (slotRect.slot.seatLabel != null) {
+        _drawSeatLabel(canvas, slotRect.visualRect, slotRect.slot, isSelected);
+      }
     }
+  }
+
+  void _drawSeatLabel(Canvas canvas, Rect seatRect, GridSlot slot, bool isSelected) {
+    // Choose text color that contrasts with the seat fill
+    final Color textColor;
+    if (isSelected) {
+      textColor = Colors.white;
+    } else if (slot.status == SeatBookStatus.booked ||
+        slot.status == SeatBookStatus.blocked ||
+        slot.status == SeatBookStatus.reserved) {
+      textColor = Colors.white;
+    } else {
+      textColor = Colors.black54;
+    }
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: slot.seatLabel,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+    tp.paint(
+      canvas,
+      Offset(
+        seatRect.center.dx - tp.width / 2,
+        seatRect.center.dy - tp.height / 2,
+      ),
+    );
+    tp.dispose();
   }
 
   void _drawHull(Canvas canvas, Size size) {
