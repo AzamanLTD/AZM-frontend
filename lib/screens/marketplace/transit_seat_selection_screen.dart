@@ -21,22 +21,35 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
-import "package:azaman/widgets/seat_selector/seat_layout_models.dart" show VehicleLayout;
+
+// Azaman brand purple — used for selected seat label + glow accent
+const _kSelectedPurple = Color(0xFF7C3AED);
 
 Color _tierColor(SeatTier tier) {
   switch (tier) {
     case SeatTier.vip:      return const Color(0xFFF59E0B);
     case SeatTier.standard: return const Color(0xFF3B82F6);
     case SeatTier.economy:  return const Color(0xFF22C55E);
+  }
+}
+
+String _tierLabel(SeatTier tier) {
+  switch (tier) {
+    case SeatTier.vip:      return 'VIP';
+    case SeatTier.standard: return 'Standard';
+    case SeatTier.economy:  return 'Economy';
   }
 }
 
@@ -55,60 +68,15 @@ class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
 class _TransitSeatSelectionScreenState
     extends ConsumerState<TransitSeatSelectionScreen> {
   final _passengerNames = <String, TextEditingController>{};
-  SeatSelectorController? _seatController;
-
-  // Cached VehicleLayout — prevents rebuilding the layout object on every
-  // build() cycle, which would cause BusSeatSelector to think the entire
-  // vehicle changed and reload from scratch on every seat tap.
-  VehicleLayout? _cachedLayout;
-  String? _cachedLayoutKey;
-
-  /// Build (or return cached) VehicleLayout from seat availability data.
-  /// The cache key includes trip ID, seat count, and every seat's ID + status,
-  /// so the layout is only rebuilt when the actual seat data changes.
-  VehicleLayout _layoutFor(
-    SeatAvailability availability,
-    TransitTrip? trip,
-  ) {
-    final key = '${widget.tripId}-${availability.seats.length}-'
-        '${availability.seats.map((s) => '${s.seatId}:${s.status}').join(',')}';
-    if (_cachedLayout != null && _cachedLayoutKey == key) {
-      return _cachedLayout!;
-    }
-    final layout = vehicleLayoutFromSeats(
-      layoutId: 'trip-${widget.tripId}',
-      seats: availability.seats,
-      vehicleMake: trip?.vehicleMake,
-      vehicleModel: trip?.vehicleModel,
-    );
-    _cachedLayout = layout;
-    _cachedLayoutKey = key;
-    return layout;
-  }
+  final _transformController = TransformationController();
 
   @override
   void dispose() {
     for (final c in _passengerNames.values) {
       c.dispose();
     }
-    _seatController?.dispose();
+    _transformController.dispose();
     super.dispose();
-  }
-
-  /// Sync seat selection from BusSeatSelector → Riverpod + passenger names
-  void _onSelectionChanged(Set<String> selected) {
-    // Access the controller's selected seats (it's the source of truth)
-    ref.read(selectedSeatsProvider.notifier).update((_) => selected);
-
-    // Add TextEditingControllers for new seats, remove for deselected
-    final existing = _passengerNames.keys.toSet();
-    for (final id in selected) {
-      _passengerNames.putIfAbsent(id, () => TextEditingController());
-    }
-    for (final id in existing.difference(selected)) {
-      _passengerNames[id]?.dispose();
-      _passengerNames.remove(id);
-    }
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────
@@ -120,6 +88,20 @@ class _TransitSeatSelectionScreenState
       total += seat?.fare ?? a.fareUsdc;
     }
     return total;
+  }
+
+  void _onSeatTap(String seatId, SeatStatus status) {
+    if (status != SeatStatus.available) return;
+    HapticFeedback.lightImpact();
+    ref.read(selectedSeatsProvider.notifier).update((seats) {
+      final next = Set<String>.from(seats);
+      if (next.contains(seatId)) {
+        next.remove(seatId);
+      } else {
+        next.add(seatId);
+      }
+      return next;
+    });
   }
 
   Widget _bookingListener(SeatAvailability availability) {
@@ -195,14 +177,87 @@ class _TransitSeatSelectionScreenState
         actions: seatsAsync.valueOrNull != null
             ? [
                 IconButton(
-                  tooltip: 'Reset view',
+                  tooltip: 'Reset zoom',
                   icon: Icon(Icons.center_focus_strong_rounded,
                       color: colors.textSecondary),
-                  onPressed: () => _seatController?.resetView(),
+                  onPressed: () =>
+                      _transformController.value = Matrix4.identity(),
                 ),
               ]
             : null,
       ),
+      bottomNavigationBar: seatsAsync.valueOrNull != null
+          ? PremiumGlassContainer(
+              blur: 24,
+              opacity: 0.08,
+              borderRadius: 0,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              enableShadow: false,
+              border: Border(
+                  top: BorderSide(color: colors.divider, width: 0.5)),
+              child: SafeArea(
+                child: Row(children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                          '${selectedSeats.length} seat${selectedSeats.length == 1 ? "" : "s"}',
+                          style: TextStyle(
+                              fontSize: 12, color: colors.textTertiary)),
+                      Text(
+                          '\$${_totalFare(seatsAsync.valueOrNull!, selectedSeats).toStringAsFixed(2)}',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: colors.accent)),
+                    ],
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: (selectedSeats.isNotEmpty &&
+                            !bookingState.isLoading)
+                        ? () => _bookSeats(seatsAsync.valueOrNull!)
+                        : null,
+                    child: AnimatedContainer(
+                      duration: 200.ms,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: selectedSeats.isEmpty
+                            ? colors.card
+                            : colors.accent,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: selectedSeats.isNotEmpty
+                            ? [
+                                BoxShadow(
+                                    color:
+                                        colors.accent.withValues(alpha: 0.25),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4))
+                              ]
+                            : null,
+                      ),
+                      child: bookingState.isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colors.background))
+                          : Text('Book Now',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: selectedSeats.isEmpty
+                                      ? colors.textTertiary
+                                      : colors.background)),
+                    ),
+                  ),
+                ]),
+              ),
+            )
+          : null,
       body: seatsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -229,41 +284,6 @@ class _TransitSeatSelectionScreenState
         ),
         data: (availability) {
           final tripDetail = ref.watch(tripDetailProvider(widget.tripId)).valueOrNull;
-
-          // Empty-seats guard: show a clean empty state rather than feeding
-          // a degenerate layout into the geometry solver.
-          if (availability.seats.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.event_seat_outlined, size: 48, color: colors.textTertiary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No seats available for this trip',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This trip may be fully booked or not yet configured.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: colors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          // Initialize the seat controller with the vehicle layout on first build
-          final layout = _layoutFor(availability, tripDetail);
-          _seatController ??= SeatSelectorController()..loadLayout(layout);
           return Column(
           children: [
             _bookingListener(availability),
@@ -275,39 +295,38 @@ class _TransitSeatSelectionScreenState
               colors: colors,
             ),
 
-            // ── High-performance seat selector (Canvas + CustomPaint) ──────
+            // ── Pinch-to-zoom seat map inside vehicle body ─────────────
             Expanded(
-              child: BusSeatSelector(
-                layout: layout,
-                controller: _seatController,
-                accentColor: colors.accent,
-                surfaceColor: colors.surface,
-                cardColor: colors.card,
-                dividerColor: colors.divider,
-                textPrimary: colors.textPrimary,
-                textSecondary: colors.textSecondary,
-                textTertiary: colors.textTertiary,
-                successColor: colors.success,
-                dangerColor: colors.danger,
-                backgroundColor: colors.background,
-                showMinimap: true,
-                showLegend: true,
-                showCheckoutDock: true,
-                isBooking: bookingState.isLoading,
-                onSelectionChanged: _onSelectionChanged,
-                onBook: (seats, total) => _bookSeats(availability),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: InteractiveViewer(
+                  transformationController: _transformController,
+                  constrained: false,
+                  minScale: 0.8,
+                  maxScale: 3.0,
+                  boundaryMargin: const EdgeInsets.all(80),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: RepaintBoundary(
+                        child: _SeatMapGrid(
+                          seats: availability.seats,
+                          selectedSeats: selectedSeats,
+                          onSeatTap: _onSeatTap,
+                          colors: colors,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
-            // ── Selected seats summary (enhanced 2026-08-23) ──────────────
-            // Card-style rows with tier pills, filled TextField, running subtotal
+            // Selected seats + passenger names
             if (selectedSeats.isNotEmpty) ...[
               Container(
                 width: double.infinity,
-                // Dynamic height: ~56px per row + 80px header/subtotal, capped at 320
-                constraints: BoxConstraints(
-                  maxHeight: (selectedSeats.length * 56 + 80).clamp(120, 320).toDouble(),
-                ),
+                constraints: const BoxConstraints(maxHeight: 220),
                 padding: const EdgeInsets.all(16),
                 color: colors.surface,
                 child: SingleChildScrollView(
@@ -319,121 +338,56 @@ class _TransitSeatSelectionScreenState
                               fontWeight: FontWeight.w600,
                               color: colors.textPrimary,
                               fontSize: 13)),
-                      const SizedBox(height: 10),
-                      // ── Seat rows as cards with tier-colored pills ──
+                      const SizedBox(height: 8),
                       ...selectedSeats.map((seatId) {
                         final seat = availability.seats
                             .where((s) => s.seatId == seatId)
                             .firstOrNull;
-                        final tierColor = seat != null ? _tierColor(seat.tier) : colors.accent;
-
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: colors.card,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: colors.divider, width: 0.8),
+                          child: Row(children: [
+                            SizedBox(
+                              width: 56,
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(seatId,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: colors.accent)),
+                                  if (seat != null)
+                                    Text(
+                                        '\$${seat.fare.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: _tierColor(seat.tier))),
+                                ],
+                              ),
                             ),
-                            child: Row(children: [
-                              // ── Tier-colored seat pill ──
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: tierColor.withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(20),
+                            Expanded(
+                              child: TextField(
+                                controller: _passengerNames.putIfAbsent(
+                                    seatId,
+                                    () => TextEditingController()),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Passenger name for seat $seatId',
+                                  isDense: true,
+                                  border:
+                                      const OutlineInputBorder(),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
                                 ),
-                                child: Text(
-                                  seatId,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: tierColor,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures()
-                                    ],
-                                  ),
-                                ),
+                                style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 13),
                               ),
-                              const SizedBox(width: 8),
-                              // ── Fare with tabular figures ──
-                              if (seat != null)
-                                Text(
-                                  '\$${seat.fare.toStringAsFixed(0)}',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: colors.textTertiary,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ]),
-                                ),
-                              const SizedBox(width: 10),
-                              // ── Borderless filled TextField ──
-                              Expanded(
-                                child: TextField(
-                                  controller: _passengerNames.putIfAbsent(
-                                      seatId,
-                                      () => TextEditingController()),
-                                  decoration: InputDecoration(
-                                    hintText: 'Name for seat $seatId',
-                                    isDense: true,
-                                    filled: true,
-                                    fillColor: colors.softSurface,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(
-                                          color: colors.accent,
-                                          width: 1.5),
-                                    ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 8),
-                                  ),
-                                  style: TextStyle(
-                                      color: colors.textPrimary,
-                                      fontSize: 13),
-                                ),
-                              ),
-                            ]),
-                          ),
+                            ),
+                          ]),
                         );
                       }),
-                      // ── Subtotal line ──
-                      const SizedBox(height: 6),
-                      Divider(color: colors.divider, height: 1, thickness: 0.5),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text('Subtotal',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.textSecondary)),
-                          const Spacer(),
-                          Text(
-                            '\$${_totalFare(availability, selectedSeats).toStringAsFixed(2)}',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: colors.accent,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ]),
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -446,6 +400,294 @@ class _TransitSeatSelectionScreenState
     );
   }
 }
+
+// ── SEAT MAP GRID ─────────────────────────────────────────────────────────────
+
+class _SeatMapGrid extends StatelessWidget {
+  final List<TransitSeat> seats;
+  final Set<String> selectedSeats;
+  final void Function(String seatId, SeatStatus status) onSeatTap;
+  final AzamanColors colors;
+
+  const _SeatMapGrid({
+    required this.seats,
+    required this.selectedSeats,
+    required this.onSeatTap,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = this.colors;
+
+    // Group seats by row
+    final rowMap = <int, List<TransitSeat>>{};
+    for (final seat in seats) {
+      rowMap.putIfAbsent(seat.row, () => []).add(seat);
+    }
+    final sortedRows = rowMap.keys.toList()..sort();
+
+    final hasTiers = seats.any((s) => s.tier != SeatTier.economy);
+
+    return Container(
+      // ── Vehicle body outline ────────────────────────────────────────
+      decoration: BoxDecoration(
+        color: colors.card.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: colors.accent.withValues(alpha: 0.05),
+            blurRadius: 20,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Windshield / front of vehicle
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.surface.withValues(alpha: 0.6),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.directions_bus_rounded,
+                    color: colors.accent, size: 18),
+                const SizedBox(width: 6),
+                Text('Front of Vehicle',
+                    style: TextStyle(
+                        color: colors.textSecondary, fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Seat rows
+          ...sortedRows.map((rowNum) {
+            final rowSeats = rowMap[rowNum]!
+              ..sort((a, b) => a.col.compareTo(b.col));
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children:
+                    _buildRowWithAisle(rowSeats, selectedSeats),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 24),
+
+          // Legend — uses mini seat images instead of colour chips
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 8,
+            children: [
+              _legendItem(
+                  svg: 'assets/icons/seats/seat_available.svg',
+                  label: hasTiers ? 'Economy' : 'Available',
+                  colors: colors),
+              _legendItem(
+                  svg: 'assets/icons/seats/seat_selected.svg',
+                  label: 'Selected',
+                  colors: colors),
+              _legendItem(
+                  svg: 'assets/icons/seats/seat_occupied.svg',
+                  label: 'Occupied',
+                  colors: colors),
+              if (seats.any((s) => s.status == SeatStatus.blocked))
+                _legendItem(
+                    svg: 'assets/icons/seats/seat_blocked.svg',
+                    label: 'Blocked',
+                    colors: colors),
+              if (hasTiers)
+                _legendItem(
+                    svg: 'assets/icons/seats/seat_vip.svg',
+                    label: 'VIP',
+                    colors: colors),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildRowWithAisle(
+      List<TransitSeat> rowSeats, Set<String> selectedSeats) {
+    final widgets = <Widget>[];
+    for (int i = 0; i < rowSeats.length; i++) {
+      widgets.add(_SeatWidget(
+        seat: rowSeats[i],
+        isSelected: selectedSeats.contains(rowSeats[i].seatId),
+        onTap: () => onSeatTap(rowSeats[i].seatId, rowSeats[i].status),
+      ));
+      if (i == 0 && rowSeats.length > 2) {
+        // Aisle gap after the first seat
+        widgets.add(const SizedBox(width: 28));
+      } else if (i < rowSeats.length - 1) {
+        widgets.add(const SizedBox(width: 6));
+      }
+    }
+    return widgets;
+  }
+
+  Widget _legendItem({
+    String? svg,
+    Color? color,
+    required String label,
+    required dynamic colors,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (svg != null)
+          SvgPicture.asset(svg, width: 18, height: 18)
+        else
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4)),
+          ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(
+                color: colors.textSecondary, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+// ── INDIVIDUAL SEAT WIDGET ────────────────────────────────────────────────────
+
+class _SeatWidget extends StatelessWidget {
+  final TransitSeat seat;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _SeatWidget({
+    required this.seat,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isOccupied = seat.status == SeatStatus.occupied;
+    final isBlocked = seat.status == SeatStatus.blocked;
+    final isDisabled = isOccupied || isBlocked;
+
+    // ── Base seat SVG (pre-designed per-state, no runtime tinting) ──────
+    Widget seatImage;
+
+    if (isOccupied) {
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_occupied.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
+      );
+    } else if (isSelected) {
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_selected.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
+      );
+    } else if (isBlocked) {
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_blocked.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
+      );
+    } else {
+      seatImage = SvgPicture.asset(
+        'assets/icons/seats/seat_available.svg',
+        width: 50,
+        height: 50,
+        fit: BoxFit.contain,
+      );
+    }
+
+    // ── Seat label (id) overlaid below the image ──────────────────────
+    final seatLabel = Text(
+      seat.seatId,
+      style: TextStyle(
+        fontSize: 8,
+        fontWeight: FontWeight.w700,
+        color: isSelected
+            ? _kSelectedPurple
+            : isDisabled
+                ? Colors.grey
+                : _tierColor(seat.tier),
+        letterSpacing: 0.3,
+      ),
+    );
+
+    // ── Animate scale on selection ────────────────────────────────────
+    Widget child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        seatImage,
+        const SizedBox(height: 2),
+        seatLabel,
+      ],
+    );
+
+    child = child
+        .animate(target: isSelected ? 1.0 : 0.0)
+        .scale(
+          begin: const Offset(1, 1),
+          end: const Offset(1.12, 1.12),
+          duration: 140.ms,
+          curve: Curves.easeOutBack,
+        );
+
+    // ── Glow effect behind selected seat ─────────────────────────────
+    if (isSelected) {
+      child = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: _kSelectedPurple.withValues(alpha: 0.40),
+              blurRadius: 14,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: child,
+      );
+    }
+
+    return Tooltip(
+      message: isOccupied
+          ? '${seat.seatId} — Occupied'
+          : isBlocked
+              ? '${seat.seatId} — Blocked'
+              : '${seat.seatId} — ${_tierLabel(seat.tier)} · \$${seat.fare.toStringAsFixed(0)}',
+      child: GestureDetector(
+        onTap: isDisabled ? null : onTap,
+        child: child,
+      ),
+    );
+  }
+}
+
 
 // ── TRIP / VEHICLE HEADER ─────────────────────────────────────────────────────
 
@@ -572,8 +814,6 @@ class _TripVehicleHeader extends StatelessWidget {
               ),
             ],
           ),
-          // ── Vehicle & Crew strip (enhanced 2026-08-23) ───────────────
-          // Single compact row: plate chip + grouped avatar(s) + name + verified
           if (trip?.driverName != null) ...[
             const SizedBox(height: 10),
             Container(
@@ -584,77 +824,42 @@ class _TripVehicleHeader extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // ── License plate chip (only if plateNumber != null) ──
-                  if (trip?.plateNumber != null) ...[
+                  // Driver avatar
+                  if (trip?.driverPhotoUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: AzamanNetworkImage(
+                        imageUrl: trip!.driverPhotoUrl!,
+                        width: 28, height: 28, fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: 28, height: 28,
+                          color: colors.surface,
+                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: 28, height: 28,
+                          color: colors.surface,
+                          child: Icon(Icons.person, size: 16, color: colors.textSecondary),
+                        ),
+                      ),
+                    )
+                  else
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      width: 28, height: 28,
                       decoration: BoxDecoration(
-                        color: colors.softSurface,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: colors.divider, width: 1.5),
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Text(
-                        trip!.plateNumber!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          color: colors.textPrimary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                      child: Icon(Icons.person, size: 16, color: colors.textSecondary),
                     ),
-                    const SizedBox(width: 10),
-                  ],
-                  // ── Grouped driver + co-driver avatars ──
-                  SizedBox(
-                    width: trip?.coDriverName != null ? 46 : 28,
-                    height: 28,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Co-driver avatar (behind, shifted right for overlap)
-                        if (trip?.coDriverName != null)
-                          Positioned(
-                            left: 18,
-                            child: _crewAvatar(
-                              trip?.coDriverPhotoUrl,
-                              colors,
-                              size: 28,
-                            ),
-                          ),
-                        // Driver avatar (in front, z-index higher)
-                        Positioned(
-                          left: 0,
-                          child: _crewAvatar(
-                            trip?.driverPhotoUrl,
-                            colors,
-                            size: 28,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(width: 8),
-                  // ── Name + role label ──
-                  Flexible(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            trip!.driverName!,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          trip?.coDriverName != null ? '· Driver & Co-driver' : '· Driver',
-                          style: TextStyle(fontSize: 11, color: colors.textTertiary),
-                        ),
-                      ],
-                    ),
+                  Text(
+                    trip!.driverName!,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                  ),
+                  const SizedBox(width: 4),
+                  Text('· Driver',
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
                   ),
                   const Spacer(),
                   Icon(Icons.verified_rounded, size: 14, color: colors.accent),
@@ -675,37 +880,5 @@ class _TripVehicleHeader extends StatelessWidget {
     if (a.tierFares.isEmpty) return a.fareUsdc.toStringAsFixed(0);
     final fares = a.tierFares.values.toList()..sort();
     return fares.first.toStringAsFixed(0);
-  }
-
-  // ── Helper: build a crew avatar (driver or co-driver) ──────────────
-  Widget _crewAvatar(String? photoUrl, AzamanColors colors, {double size = 28}) {
-    if (photoUrl != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
-        child: AzamanNetworkImage(
-          imageUrl: photoUrl,
-          width: size, height: size, fit: BoxFit.cover,
-          placeholder: (_, __) => Container(
-            width: size, height: size,
-            color: colors.surface,
-            child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
-          ),
-          errorWidget: (_, __, ___) => Container(
-            width: size, height: size,
-            color: colors.surface,
-            child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
-          ),
-        ),
-      );
-    }
-    return Container(
-      width: size, height: size,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(size / 2),
-        border: Border.all(color: colors.divider, width: 1),
-      ),
-      child: Icon(Icons.person, size: size * 0.55, color: colors.textSecondary),
-    );
   }
 }

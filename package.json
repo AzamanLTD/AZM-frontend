@@ -1,8 +1,0 @@
-{
-  "name": "azm-flutter-web",
-  "private": true,
-  "scripts": {
-    "build": "echo 'pre-built'",
-    "dev": "echo 'no dev needed'"
-  }
-}
