@@ -429,7 +429,8 @@ class _SeatMapGrid extends StatelessWidget {
 
     final hasTiers = seats.any((s) => s.tier != SeatTier.economy);
 
-    return Container(
+    return IntrinsicWidth(
+      child: Container(
       // ── Vehicle body outline ────────────────────────────────────────
       decoration: BoxDecoration(
         color: colors.card.withValues(alpha: 0.35),
@@ -520,6 +521,7 @@ class _SeatMapGrid extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }
