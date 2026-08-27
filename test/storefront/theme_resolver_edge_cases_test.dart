@@ -26,7 +26,8 @@ void main() {
 
       expect(scheme.primary, const Color(0xFF6C4FD1));
       expect(scheme.secondary, const Color(0xFF6C4FD1));
-      expect(scheme.onSecondary, const Color(0xFF000000));
+      // accent #6C4FD1 is dark (luminance < 0.5), so on-color is white.
+      expect(scheme.onSecondary, const Color(0xFFFFFFFF));
     });
 
     test('uses the secondary token when calculating onSecondary', () {
@@ -59,13 +60,16 @@ void main() {
         ),
       );
 
-      final smallPadding = small.elevatedButtonTheme.style!.padding!.resolve({});
-      final largePadding = large.elevatedButtonTheme.style!.padding!.resolve({});
+      final smallPadding = small.elevatedButtonTheme.style!.padding!.resolve({})!;
+      final largePadding = large.elevatedButtonTheme.style!.padding!.resolve({})!;
 
-      expect(smallPadding.horizontal, 12);
-      expect(smallPadding.vertical, 6);
-      expect(largePadding.horizontal, 48);
-      expect(largePadding.vertical, 24);
+      // spacingScale 0.01 clamps to 0.5 → per-side 24*0.5=12 / 12*0.5=6.
+      // .horizontal returns left+right, .vertical returns top+bottom.
+      expect(smallPadding.horizontal, 24);
+      expect(smallPadding.vertical, 12);
+      // spacingScale 99 clamps to 2.0 → per-side 24*2=48 / 12*2=24.
+      expect(largePadding.horizontal, 96);
+      expect(largePadding.vertical, 48);
     });
   });
 }
