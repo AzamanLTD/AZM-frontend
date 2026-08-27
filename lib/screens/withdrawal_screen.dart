@@ -456,31 +456,52 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         HapticFeedback.lightImpact();
         pushWithVerticalTransition(context, const SmartRouteListScreen());
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.divider, width: 0.5),
+        ),
         child: Row(
           children: [
-            Icon(
-              Icons.turn_left,
-              color: colors.textPrimary,
-              size: 20,
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.turn_left, color: colors.accent, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'Scheduled withdrawals',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Smart Routes',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Automate recurring withdrawals',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward,
-              color: colors.textTertiary,
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: colors.textTertiary, size: 14),
           ],
         ),
       ),
@@ -816,49 +837,59 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     );
   }
 
-  // ── Mode toggle ─────────────────────────────────────────────────────────
+  // ── Mode toggle (matches deposit screen's _SegmentedTabs style) ──────────
 
   Widget _buildModeToggle(AzamanColors colors) {
     Widget tile(_WithdrawMode mode, String label) {
       final selected = _mode == mode;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _mode = mode);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: selected ? colors.textPrimary : Colors.transparent,
-                  width: 2,
+      return GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _mode = mode);
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? colors.accent : colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
               ),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: selected ? colors.textPrimary : colors.textTertiary,
-                fontSize: 14,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: -0.2,
+              const SizedBox(height: 8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: selected ? 28 : 0,
+                height: 2.5,
+                decoration: BoxDecoration(
+                  color: selected ? colors.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       );
     }
 
-    return Row(
-      children: [
-        tile(_WithdrawMode.mobileMoney, 'Mobile money'),
-        const SizedBox(width: 24),
-        tile(_WithdrawMode.cryptoWallet, 'Crypto wallet'),
-      ],
+    return Align(
+      alignment: Alignment.center,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            tile(_WithdrawMode.mobileMoney, 'Mobile Money'),
+            tile(_WithdrawMode.cryptoWallet, 'Crypto Wallet'),
+          ],
+        ),
+      ),
     );
   }
 

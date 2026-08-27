@@ -19,6 +19,7 @@ import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
+import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
@@ -346,7 +347,7 @@ class _ActionPills extends ConsumerWidget {
       _PillData(label: "Add Money", icon: Icons.add,
         onTap: () => pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat))),
       _PillData(label: "Send", icon: Icons.send_outlined,
-        onTap: () => pushWithVerticalTransition(context, const FriendsHubScreen())),
+        onTap: () => pushWithVerticalTransition(context, const SendMoneyScreen())),
       _PillData(label: "Withdraw", icon: Icons.account_balance_outlined,
         onTap: () => pushWithVerticalTransition(context, const WithdrawalScreen())),
       _PillData(label: "History", icon: Icons.history,
