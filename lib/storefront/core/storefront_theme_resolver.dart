@@ -33,7 +33,10 @@ class StorefrontThemeResolver {
     final danger = _parseColor(tokens?.danger, const Color(0xFFE15361));
 
     final radiusValue = _parseBorderRadius(theme.borderRadius);
-    final spacingScale = theme.spacingScale ?? 1.0;
+    // SDUI is remote-controlled, so constrain the spacing multiplier before it
+    // reaches widget padding. This prevents malformed business configuration
+    // from producing negative/absurd layout constraints at runtime.
+    final spacingScale = (theme.spacingScale ?? 1.0).clamp(0.5, 2.0).toDouble();
 
     final headingFont = theme.typography?['heading'] as String? ?? 'Inter';
     final bodyFont = theme.typography?['body'] as String? ?? 'Inter';
@@ -97,12 +100,13 @@ class StorefrontThemeResolver {
   /// Get just the ColorScheme for inline use.
   static ColorScheme colorScheme(ThemeTokenSet tokens, {bool isDark = false}) {
     final accent = _parseColor(tokens.accent, const Color(0xFF6C4FD1));
+    final secondary = _parseColor(tokens.accentHover, accent);
     return ColorScheme(
       brightness: isDark ? Brightness.dark : Brightness.light,
       primary: accent,
       onPrimary: _getOnColor(accent),
-      secondary: _parseColor(tokens.accentHover, accent),
-      onSecondary: _getOnColor(accent),
+      secondary: secondary,
+      onSecondary: _getOnColor(secondary),
       error: _parseColor(tokens.danger, const Color(0xFFE15361)),
       onError: Colors.white,
       surface: _parseColor(tokens.surfaceSolid, Colors.white),
@@ -113,13 +117,25 @@ class StorefrontThemeResolver {
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   static Color _parseColor(String? hex, Color fallback) {
-    if (hex == null || hex.isEmpty) return fallback;
-    var h = hex.replaceAll('#', '').replaceAll(' ', '');
+    if (hex == null || hex.trim().isEmpty) return fallback;
+
+    var h = hex.trim();
+    if (h.startsWith('#')) h = h.substring(1);
     if (h.startsWith('rgba') || h.startsWith('rgb')) return fallback;
-    if (h.length == 3) {
+
+    // Support the common CSS hex forms #RGB, #RGBA, #RRGGBB and #RRGGBBAA.
+    if (h.length == 3 || h.length == 4) {
       h = h.split('').map((c) => '$c$c').join();
     }
     if (h.length == 6) h = 'FF$h';
+    if (h.length == 8) {
+      // Flutter's Color integer representation is AARRGGBB while CSS's
+      // 8-digit form is RRGGBBAA.
+      h = '${h.substring(6, 8)}${h.substring(0, 6)}';
+    } else {
+      return fallback;
+    }
+
     try {
       return Color(int.parse(h, radix: 16));
     } catch (_) {
