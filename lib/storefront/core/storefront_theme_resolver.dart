@@ -9,12 +9,10 @@ import 'package:flutter/material.dart';
 import '../models/storefront_models.dart';
 
 class StorefrontThemeResolver {
-  /// Build a complete Flutter ThemeData from a storefront theme.
   static ThemeData resolve(StorefrontThemeInfo theme) {
     final tokens = theme.tokenSet;
     final accent = _parseColor(tokens?.accent, const Color(0xFF6C4FD1));
     final accentHover = _parseColor(tokens?.accentHover, accent);
-
     final isDark = _isDarkColor(_parseColor(
       tokens?.background, const Color(0xFFF7F5F2)));
     final background = _parseColor(tokens?.background,
@@ -33,9 +31,8 @@ class StorefrontThemeResolver {
     final danger = _parseColor(tokens?.danger, const Color(0xFFE15361));
 
     final radiusValue = _parseBorderRadius(theme.borderRadius);
-    // SDUI is remote-controlled, so constrain the spacing multiplier before it
-    // reaches widget padding. This prevents malformed business configuration
-    // from producing negative/absurd layout constraints at runtime.
+    // SDUI is remote-controlled; never allow malformed spacing tokens to
+    // create negative or unexpectedly huge layout constraints.
     final spacingScale = (theme.spacingScale ?? 1.0).clamp(0.5, 2.0).toDouble();
 
     final headingFont = theme.typography?['heading'] as String? ?? 'Inter';
@@ -89,15 +86,10 @@ class StorefrontThemeResolver {
           ),
         ),
       ),
-      dividerTheme: DividerThemeData(
-        color: border,
-        thickness: 0.5,
-        space: 1,
-      ),
+      dividerTheme: DividerThemeData(color: border, thickness: 0.5, space: 1),
     );
   }
 
-  /// Get just the ColorScheme for inline use.
   static ColorScheme colorScheme(ThemeTokenSet tokens, {bool isDark = false}) {
     final accent = _parseColor(tokens.accent, const Color(0xFF6C4FD1));
     final secondary = _parseColor(tokens.accentHover, accent);
@@ -114,38 +106,33 @@ class StorefrontThemeResolver {
     );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
+  // Accept #RGB, #RGBA, #RRGGBB and CSS #RRGGBBAA. Flutter stores colors as
+  // AARRGGBB, so the 8-digit CSS form must be reordered before parsing.
   static Color _parseColor(String? hex, Color fallback) {
     if (hex == null || hex.trim().isEmpty) return fallback;
-
     var h = hex.trim();
     if (h.startsWith('#')) h = h.substring(1);
     if (h.startsWith('rgba') || h.startsWith('rgb')) return fallback;
 
-    // Support the common CSS hex forms #RGB, #RGBA, #RRGGBB and #RRGGBBAA.
     if (h.length == 3 || h.length == 4) {
       h = h.split('').map((c) => '$c$c').join();
     }
-    if (h.length == 6) h = 'FF$h';
-    if (h.length == 8) {
-      // Flutter's Color integer representation is AARRGGBB while CSS's
-      // 8-digit form is RRGGBBAA.
-      h = '${h.substring(6, 8)}${h.substring(0, 6)}';
-    } else {
-      return fallback;
-    }
 
     try {
-      return Color(int.parse(h, radix: 16));
+      if (h.length == 6) {
+        return Color(int.parse('FF$h', radix: 16));
+      }
+      if (h.length == 8) {
+        final argb = '${h.substring(6, 8)}${h.substring(0, 6)}';
+        return Color(int.parse(argb, radix: 16));
+      }
     } catch (_) {
-      return fallback;
+      // Fall through to the supplied safe color.
     }
+    return fallback;
   }
 
-  static bool _isDarkColor(Color color) {
-    return color.computeLuminance() < 0.5;
-  }
+  static bool _isDarkColor(Color color) => color.computeLuminance() < 0.5;
 
   static Color _getOnColor(Color bg) {
     return _isDarkColor(bg) ? Colors.white : Colors.black87;
