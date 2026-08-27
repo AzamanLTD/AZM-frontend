@@ -361,6 +361,19 @@ final nearbySearchProvider =
   (ref) => NearbySearchNotifier(BusinessService()),
 );
 
+// ── Featured businesses (§2.3 of Marketplace Enhancement Spec) ──────────────
+// Client-side sort: highest averageRating among currently loaded results.
+// Swap for a dedicated backend endpoint later without touching UI code.
+final featuredBusinessesProvider =
+    Provider.autoDispose<List<BusinessProfile>>((ref) {
+  final state = ref.watch(businessSearchProvider);
+  final results = state.results;
+  if (results.isEmpty) return [];
+  final sorted = List<BusinessProfile>.from(results)
+    ..sort((a, b) => b.averageRating.compareTo(a.averageRating));
+  return sorted.take(5).toList();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // One-shot family providers (reviews + products by bizId)
 // ─────────────────────────────────────────────────────────────────────────────

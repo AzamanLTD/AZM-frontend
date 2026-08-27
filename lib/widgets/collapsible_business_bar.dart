@@ -35,6 +35,67 @@ import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/providers/marketplace_extensions_provider.dart';
+
+// ── Open-now status helpers (§3 of Marketplace Enhancement Spec) ───────────────
+
+enum OpenStatus { open, closingSoon, closed, unknown }
+
+OpenStatus currentOpenStatus(Map<String, dynamic>? hours) {
+  if (hours == null || hours.isEmpty) return OpenStatus.unknown;
+  final now = DateTime.now();
+  final dayKey = ['mon','tue','wed','thu','fri','sat','sun'][now.weekday - 1];
+  final range = hours[dayKey]?.toString();
+  if (range == null || range.isEmpty) return OpenStatus.unknown;
+  final parts = range.split('-');
+  if (parts.length != 2) return OpenStatus.unknown;
+  final open = _parseTimeToday(parts[0].trim(), now);
+  final close = _parseTimeToday(parts[1].trim(), now);
+  if (open == null || close == null) return OpenStatus.unknown;
+  if (now.isBefore(open) || now.isAfter(close)) return OpenStatus.closed;
+  if (close.difference(now).inMinutes <= 30) return OpenStatus.closingSoon;
+  return OpenStatus.open;
+}
+
+DateTime? _parseTimeToday(String t, DateTime now) {
+  // Accept "H:mm" or "HH:mm" (24h). Also accept "H:mm AM/PM" loosely.
+  t = t.toUpperCase().trim();
+  bool pm = t.contains('PM');
+  bool am = t.contains('AM');
+  t = t.replaceAll(RegExp(r'[AP]M'), '').trim();
+  final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(t);
+  if (m == null) return null;
+  int hour = int.parse(m.group(1)!);
+  final minute = int.parse(m.group(2)!);
+  if (pm && hour < 12) hour += 12;
+  if (am && hour == 12) hour = 0;
+  return DateTime(now.year, now.month, now.day, hour, minute);
+}
+
+class StatusDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const StatusDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+        ),
+      ],
+    );
+  }
+}
 
 class CollapsibleBusinessBar extends ConsumerWidget {
   final BusinessProfile business;
@@ -120,7 +181,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
       curve: Curves.easeInOut,
       child: isExpanded
           ? _expandedCard(context, colors, cat)
-          : _collapsedBar(context, colors, cat),
+          : _collapsedBar(context, ref, colors, cat),
     );
   }
 
@@ -135,7 +196,7 @@ class CollapsibleBusinessBar extends ConsumerWidget {
   // Height: 88px — noticeably taller than the old 68px so the image has room.
 
   Widget _collapsedBar(
-      BuildContext context, AzamanColors colors, BusinessCategory cat) {
+      BuildContext context, WidgetRef ref, AzamanColors colors, BusinessCategory cat) {
     final coverUrl = _bestCoverUrl(cat);
     return GestureDetector(
       onTap: () {
@@ -266,12 +327,26 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                         if (business.isVerified)
                           Icon(Icons.verified_rounded,
                               size: 13, color: colors.accent),
+                        // §3: Open-now badge
+                        if (business.locations.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Builder(builder: (_) {
+                            final status = currentOpenStatus(business.locations.first.operatingHours);
+                            if (status == OpenStatus.open)
+                              return StatusDot(color: Colors.green, label: 'Open');
+                            if (status == OpenStatus.closingSoon)
+                              return StatusDot(color: Colors.orange, label: 'Closing soon');
+                            if (status == OpenStatus.closed)
+                              return StatusDot(color: colors.textTertiary, label: 'Closed');
+                            return const SizedBox.shrink();
+                          }),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
                     // Description preview or vertical stat
                     Text(
-                      _subtitleLine(),
+                      _subtitleLine(ref),
                       style: TextStyle(
                         fontSize: 11.5,
                         color: colors.textTertiary,
@@ -322,7 +397,12 @@ class CollapsibleBusinessBar extends ConsumerWidget {
     return fallbacks[idx];
   }
 
-  String _subtitleLine() {
+  String _subtitleLine(WidgetRef ref) {
+    // §4: Surface existing follow data as social proof
+    final following = ref.watch(followingListProvider).valueOrNull ?? [];
+    if (following.any((f) => f['businessProfileId']?.toString() == business.bizId)) {
+      return 'You follow this business';
+    }
     if (business.description != null && business.description!.isNotEmpty) {
       return business.description!;
     }

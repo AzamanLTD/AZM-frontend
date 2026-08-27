@@ -26,6 +26,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
@@ -41,7 +42,7 @@ import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
+import 'package:lottie/lottie.dart' hide Marker;
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
@@ -49,6 +50,7 @@ import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/config.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 enum _ViewMode { list, map }
 
@@ -110,6 +112,12 @@ class _MarketplaceHomeScreenState
   Position? _position;
   bool _resolvingLocation = false;
   String? _locationError;
+
+  // §2: Featured rail collapsed by default
+  bool _featuredExpanded = false;
+
+  // §1: Google Map controller
+  GoogleMapController? _mapController;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -420,6 +428,8 @@ class _MarketplaceHomeScreenState
                     ),
                     // ── Combined control row: category selector + buttons ───
                     _controlRow(colors),
+                    // §2: Featured rail (collapsed by default)
+                    _featuredSection(colors),
                     Expanded(
                       child: _viewMode == _ViewMode.list
                           ? _listMode(colors)
@@ -1077,6 +1087,199 @@ class _MarketplaceHomeScreenState
 
   // ── Results bar (slim control row) ─────────────────────────────────────────
 
+  // ── Featured rail (§2) — collapsed by default ─────────────────────────────
+
+  Widget _featuredSection(AzamanColors colors) {
+    final featured = ref.watch(featuredBusinessesProvider);
+    if (featured.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            AzamanHaptics.toggle();
+            setState(() => _featuredExpanded = !_featuredExpanded);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                Icon(Icons.star_rounded, size: 16, color: colors.accent),
+                const SizedBox(width: 6),
+                Text('Featured picks near you',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                        fontSize: 13)),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _featuredExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: colors.textTertiary, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeInOut,
+          child: _featuredExpanded
+              ? _featuredRail(featured, colors)
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _featuredRail(
+      List<BusinessProfile> featured, AzamanColors colors) {
+    return SizedBox(
+      height: 200,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: featured.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) => SizedBox(
+          width: 260,
+          child: _FeaturedCard(business: featured[i], colors: colors),
+        ),
+      ),
+    );
+  }
+
+  // ── Real map mode (§1) ─────────────────────────────────────────────────────
+
+  Set<Marker> _buildMarkers(List<BusinessLocation> locations) {
+    return locations.map((loc) {
+      final cat = BusinessCategories.fromWire(
+          loc.businessProfileId.isNotEmpty ? 'OTHER' : 'OTHER');
+      // Use default marker with hue derived from category color as first pass
+      final hue = _hueFromColor(cat.color);
+      return Marker(
+        markerId: MarkerId(loc.id),
+        position: LatLng(loc.latitude, loc.longitude),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        onTap: () => _showBusinessPreviewSheet(loc),
+      );
+    }).toSet();
+  }
+
+  double _hueFromColor(Color color) {
+    final hsv = HSVColor.fromColor(color);
+    return hsv.hue;
+  }
+
+  void _showBusinessPreviewSheet(BusinessLocation loc) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => FutureBuilder(
+        future: BusinessService().getBusinessByBizId(loc.businessProfileId),
+        builder: (ctx, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          final business = snap.data;
+          if (business == null) {
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text('Business not found'),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Consumer(builder: (ctx2, ref, _) {
+              final colors = ref.watch(themeProvider).colors;
+              return Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: CollapsibleBusinessBar(
+                  key: ValueKey('map-preview-\${loc.id}'),
+                  business: business,
+                  isExpanded: true,
+                  onToggle: () => Navigator.of(ctx2).pop(),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _recenterButton(AzamanColors colors) {
+    return GestureDetector(
+      onTap: () {
+        if (_position != null && _mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(_position!.latitude, _position!.longitude),
+            ),
+          );
+        }
+      },
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(Icons.my_location_rounded, color: colors.accent, size: 22),
+      ),
+    );
+  }
+
+  static const _darkMapStyleJson = r'''
+  [
+    {"elementType":"geometry","stylers":[{"color":"#1a1a2e"}]},
+    {"elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},
+    {"elementType":"labels.text.stroke","stylers":[{"color":"#000000"}]},
+    {"featureType":"road","elementType":"geometry","stylers":[{"color":"#2a2a3e"}]},
+    {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9a9a9a"}]},
+    {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0d1b2a"}]},
+    {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#1e1e30"}]},
+    {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2a2a3e"}]}
+  ]
+  ''';
+
+  // ── List mode ──────────────────────────────────────────────────────────────
+
   Widget _listMode(AzamanColors colors) {
     final state = ref.watch(businessSearchProvider);
 
@@ -1232,13 +1435,26 @@ class _MarketplaceHomeScreenState
         ]);
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
-      itemCount: locations.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: 10),
-      itemBuilder: (_, i) =>
-          _nearbyCard(locations[i], colors),
+    // §1: Real embedded GoogleMap instead of a list view
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(_position!.latitude, _position!.longitude),
+            zoom: 14,
+          ),
+          markers: _buildMarkers(locations),
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          onMapCreated: (controller) => _mapController = controller,
+          style: colors.isDark ? _darkMapStyleJson : null,
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: _recenterButton(colors),
+        ),
+      ],
     );
   }
 
@@ -1391,4 +1607,164 @@ class _MarketplaceHomeScreenState
       ),
     );
   }
+}
+
+
+// =============================================================================
+// _FeaturedCard — taller card variant for the featured rail (§2.2).
+// Reuses the same visual language as CollapsibleBusinessBar's collapsed row
+// but card-shaped with more vertical room for the image.
+// =============================================================================
+class _FeaturedCard extends StatelessWidget {
+  final BusinessProfile business;
+  final AzamanColors colors;
+
+  const _FeaturedCard({required this.business, required this.colors});
+
+  String? _coverUrl(BusinessCategory cat) {
+    if (business.showcaseUrls.isNotEmpty) return business.showcaseUrls.first;
+    if (business.logoUrl != null && business.logoUrl!.isNotEmpty) {
+      return business.logoUrl;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = BusinessCategories.fromWire(business.category);
+    final coverUrl = _coverUrl(cat);
+
+    return GestureDetector(
+      onTap: () {
+        AzamanHaptics.nav();
+        context.push('/business/\${business.bizId}');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: colors.isDark ? 0.22 : 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cover image (taller)
+              SizedBox(
+                height: 120,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (coverUrl != null)
+                      AzamanNetworkImage(
+                        imageUrl: coverUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => _placeholder(cat),
+                        errorWidget: (_, __, ___) => _placeholder(cat),
+                      )
+                    else
+                      _placeholder(cat),
+                    // Category tag overlay
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        color: cat.color.withValues(alpha: 0.82),
+                        child: Text(
+                          cat.label.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Details
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            business.businessName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: colors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (business.isVerified)
+                          Icon(Icons.verified_rounded, size: 12, color: colors.accent),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (business.averageRating > 0) ...[
+                          Icon(Icons.star_rounded, size: 11, color: const Color(0xFFF59E0B)),
+                          const SizedBox(width: 2),
+                          Text(
+                            business.averageRating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        if (business.locations.isNotEmpty) ...[
+                          Builder(builder: (_) {
+                            final status = currentOpenStatus(business.locations.first.operatingHours);
+                            if (status == OpenStatus.open)
+                              return StatusDot(color: Colors.green, label: 'Open');
+                            if (status == OpenStatus.closingSoon)
+                              return StatusDot(color: Colors.orange, label: 'Closing soon');
+                            if (status == OpenStatus.closed)
+                              return StatusDot(color: colors.textTertiary, label: 'Closed');
+                            return const SizedBox.shrink();
+                          }),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder(BusinessCategory cat) => Container(
+        color: cat.color.withValues(alpha: 0.12),
+        child: Center(child: Icon(cat.icon, size: 30, color: cat.color.withValues(alpha: 0.5))),
+      );
 }
