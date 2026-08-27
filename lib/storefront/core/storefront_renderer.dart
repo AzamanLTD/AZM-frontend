@@ -45,6 +45,7 @@ class StorefrontRenderer extends StatelessWidget {
       itemCount: tiles.length,
       itemBuilder: (context, index) {
         return _TileWrapper(
+          key: ValueKey(tiles[index].id),
           tile: tiles[index],
           spacingScale: spacingScale,
           business: response.business,
@@ -77,6 +78,7 @@ class _TileWrapper extends StatelessWidget {
   final int widgetIndex;
 
   const _TileWrapper({
+    super.key,
     required this.tile,
     required this.spacingScale,
     required this.business,
@@ -160,6 +162,7 @@ class StorefrontPreviewRenderer extends StatelessWidget {
             final tile = sortedTiles[index];
             final padding = 16.0 * spacingScale;
             return Padding(
+              key: ValueKey(tile.id),
               padding: EdgeInsets.symmetric(
                 horizontal: padding,
                 vertical: padding * 0.4,
