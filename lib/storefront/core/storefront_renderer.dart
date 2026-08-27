@@ -21,7 +21,6 @@ import '../widgets/storefront_visibility_detector.dart';
 class StorefrontRenderer extends StatelessWidget {
   final StorefrontRenderResponse response;
 
-  /// When provided, enables analytics tracking for this render.
   final String? businessProfileId;
 
   const StorefrontRenderer({super.key, required this.response, this.businessProfileId});
@@ -37,9 +36,6 @@ class StorefrontRenderer extends StatelessWidget {
         return a.position.col.compareTo(b.position.col);
       });
 
-    // Use a lazy list rather than building every storefront tile eagerly.
-    // Storefronts can grow to many sections, and some registered widgets may
-    // contain image-heavy or otherwise expensive subtrees.
     final scrollChild = ListView.builder(
       padding: EdgeInsets.zero,
       itemCount: tiles.length,
@@ -102,10 +98,10 @@ class _TileWrapper extends StatelessWidget {
       ),
     );
 
-    // Wrap with visibility tracking only when businessProfileId is provided
     if (businessProfileId != null) {
       return StorefrontVisibilityDetector(
         businessProfileId: businessProfileId!,
+        tileId: tile.id,
         widgetType: tile.widgetType,
         widgetIndex: widgetIndex,
         child: child,
