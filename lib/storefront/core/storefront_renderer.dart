@@ -30,42 +30,40 @@ class StorefrontRenderer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = StorefrontThemeResolver.resolve(response.theme);
     final spacingScale = response.theme.spacingScale ?? 1.0;
-    final tiles = response.layout.tiles;
-
-    // Sort tiles by position (row first, then col)
-    final sortedTiles = List<RenderTile>.from(tiles)
+    final tiles = List<RenderTile>.from(response.layout.tiles)
       ..sort((a, b) {
         final rowCompare = a.position.row.compareTo(b.position.row);
         if (rowCompare != 0) return rowCompare;
         return a.position.col.compareTo(b.position.col);
       });
 
-    final column = Column(
-      children: sortedTiles.asMap().entries.map((entry) {
-        final index = entry.key;
-        final tile = entry.value;
+    // Use a lazy list rather than building every storefront tile eagerly.
+    // Storefronts can grow to many sections, and some registered widgets may
+    // contain image-heavy or otherwise expensive subtrees.
+    final scrollChild = ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: tiles.length,
+      itemBuilder: (context, index) {
         return _TileWrapper(
-          tile: tile,
+          tile: tiles[index],
           spacingScale: spacingScale,
           business: response.business,
           businessProfileId: businessProfileId,
           widgetIndex: index,
         );
-      }).toList(),
+      },
     );
-
-    final scrollChild = SingleChildScrollView(child: column);
 
     return Theme(
       data: theme,
       child: Container(
         color: theme.scaffoldBackgroundColor,
         child: businessProfileId != null
-          ? StorefrontTrackingScope(
-              businessProfileId: businessProfileId,
-              child: scrollChild,
-            )
-          : scrollChild,
+            ? StorefrontTrackingScope(
+                businessProfileId: businessProfileId,
+                child: scrollChild,
+              )
+            : scrollChild,
       ),
     );
   }
@@ -149,32 +147,35 @@ class StorefrontPreviewRenderer extends StatelessWidget {
         if (rowCompare != 0) return rowCompare;
         return a.position.col.compareTo(b.position.col);
       });
+    final spacingScale = theme.spacingScale ?? 1.0;
 
     return Theme(
       data: themeData,
       child: Container(
         color: themeData.scaffoldBackgroundColor,
-        child: SingleChildScrollView(
-          child: Column(
-            children: sortedTiles.map((tile) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: sortedTiles.length,
+          itemBuilder: (context, index) {
+            final tile = sortedTiles[index];
+            final padding = 16.0 * spacingScale;
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: padding,
+                vertical: padding * 0.4,
+              ),
+              child: StorefrontWidgetRegistry.buildWidget(
+                context,
+                RenderTile(
+                  id: tile.id,
+                  widgetType: tile.widgetType,
+                  position: tile.position,
+                  props: tile.props,
                 ),
-                child: StorefrontWidgetRegistry.buildWidget(
-                  context,
-                  RenderTile(
-                    id: tile.id,
-                    widgetType: tile.widgetType,
-                    position: tile.position,
-                    props: tile.props,
-                  ),
-                  business,
-                ),
-              );
-            }).toList(),
-          ),
+                business,
+              ),
+            );
+          },
         ),
       ),
     );
