@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../marketplace/experiences/retail/retail_cart.dart';
 import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
 import '../../marketplace/experiences/retail/retail_checkout.dart';
@@ -16,70 +15,14 @@ class RetailCollectionBoxWidget extends StatefulWidget {
 
 class _RetailCollectionBoxWidgetState extends State<RetailCollectionBoxWidget> {
   RetailCart _cart = const RetailCart();
-
-  @override
-  Widget build(BuildContext context) {
-    final collection = RetailCollection(
-      id: (widget.props['id'] ?? widget.props['collectionId'] ?? 'retail-collection').toString(),
-      title: (widget.props['title'] ?? 'Collection').toString(),
-      subtitle: widget.props['subtitle']?.toString(),
-      products: _parseProducts(widget.props['products']),
-    );
+  @override Widget build(BuildContext context) {
+    final collection = RetailCollection(id: (widget.props['id'] ?? widget.props['collectionId'] ?? 'retail-collection').toString(), title: (widget.props['title'] ?? 'Collection').toString(), subtitle: widget.props['subtitle']?.toString(), products: _parseProducts(widget.props['products']));
     if (collection.products.isEmpty) return _EmptyCollection(title: collection.title);
-    return Stack(children: [
-      RetailCollectionBox(
-        collection: collection,
-        onProductTap: (product) => showRetailQuickLook(
-          context,
-          product: product,
-          onAddToCart: (selection) {
-            if (!mounted) return;
-            setState(() => _cart = _cart.add(selection.product, variantKey: selection.variantKey, variantValue: selection.variantValue, quantity: selection.quantity));
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${selection.product.name} added to bag')));
-          },
-        ),
-      ),
-      if (_cart.itemCount > 0) Positioned(right: 8, top: 0, child: _BagButton(itemCount: _cart.itemCount, onPressed: _openCart)),
-    ]);
+    return Stack(children: [RetailCollectionBox(collection: collection, onProductTap: (product) => showRetailQuickLook(context, product: product, onAddToCart: (selection) { if (!mounted) return; setState(() => _cart = _cart.add(selection.product, variants: selection.variants, quantity: selection.quantity)); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${selection.product.name} added to bag'))); })), if (_cart.itemCount > 0) Positioned(right: 8, top: 0, child: _BagButton(itemCount: _cart.itemCount, onPressed: _openCart))]);
   }
-
   Future<void> _openCart() => showRetailCartSheet(context, cart: _cart, onChanged: (next) { if (mounted) setState(() => _cart = next); }, onCheckout: _submitCheckout);
-
-  Future<void> _submitCheckout() async {
-    Navigator.of(context).pop();
-    final gateway = widget.checkoutGateway;
-    if (gateway == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout is not available for this store yet.')));
-      return;
-    }
-    final result = await RetailCheckoutController(gateway).submit(_cart);
-    if (!mounted) return;
-    final message = switch (result) {
-      RetailCheckoutSuccess(:final confirmationMessage, :final orderId) => confirmationMessage ?? 'Order $orderId created.',
-      RetailCheckoutFailure(:final message) => message,
-      RetailCheckoutUnavailable(:final message) => message,
-    };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
+  Future<void> _submitCheckout() async { Navigator.of(context).pop(); final gateway = widget.checkoutGateway; if (gateway == null) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout is not available for this store yet.'))); return; } final result = await RetailCheckoutController(gateway).submit(_cart); if (!mounted) return; final message = switch (result) { RetailCheckoutSuccess(:final confirmationMessage, :final orderId) => confirmationMessage ?? 'Order $orderId created.', RetailCheckoutFailure(:final message) => message, RetailCheckoutUnavailable(:final message) => message }; ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message))); }
   List<RetailProduct> _parseProducts(dynamic raw) => raw is! List ? const [] : raw.whereType<Map>().map((item) => RetailProduct.fromJson(Map<String, dynamic>.from(item))).where((p) => p.id.isNotEmpty).toList(growable: false);
 }
-
-class _BagButton extends StatelessWidget {
-  final int itemCount;
-  final VoidCallback onPressed;
-  const _BagButton({required this.itemCount, required this.onPressed});
-  @override Widget build(BuildContext context) => Material(
-    elevation: 2, color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(22),
-    child: InkWell(onTap: onPressed, borderRadius: BorderRadius.circular(22), child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.shopping_bag_outlined, size: 18), const SizedBox(width: 6), Text('$itemCount', style: const TextStyle(fontWeight: FontWeight.w800))]),
-    )),
-  );
-}
-
-class _EmptyCollection extends StatelessWidget {
-  final String title;
-  const _EmptyCollection({required this.title});
-  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('$title is empty', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)));
-}
+class _BagButton extends StatelessWidget { final int itemCount; final VoidCallback onPressed; const _BagButton({required this.itemCount, required this.onPressed}); @override Widget build(BuildContext context) => Material(elevation: 2, color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(22), child: InkWell(onTap: onPressed, borderRadius: BorderRadius.circular(22), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.shopping_bag_outlined, size: 18), const SizedBox(width: 6), Text('$itemCount', style: const TextStyle(fontWeight: FontWeight.w800))])))); }
+class _EmptyCollection extends StatelessWidget { final String title; const _EmptyCollection({required this.title}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('$title is empty', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant))); }
