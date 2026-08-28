@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/storefront_models.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
-import '../../models/business_models.dart';
-import '../../screens/tickets/ticket_create_sheet.dart';
+import '../models/storefront_models.dart';
 
 /// SDUI adapter for RetailCollectionBox. Portal-authored props remain data;
 /// this adapter owns only safe parsing and category-specific presentation.
@@ -35,7 +33,11 @@ class RetailCollectionBoxWidget extends StatelessWidget {
       onProductTap: (product) => showRetailQuickLook(
         context,
         product: product,
-        onAddToCart: (_) => _openOrderFlow(context, product),
+        onAddToCart: (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${product.name} added to bag')),
+          );
+        },
       ),
     );
   }
@@ -47,37 +49,6 @@ class RetailCollectionBoxWidget extends StatelessWidget {
         .map((item) => RetailProduct.fromJson(Map<String, dynamic>.from(item)))
         .where((product) => product.id.isNotEmpty)
         .toList(growable: false);
-  }
-
-  void _openOrderFlow(BuildContext context, RetailProduct product) {
-    final rawBusiness = props['business'];
-    final profile = rawBusiness is Map
-        ? BusinessProfile.fromJson(Map<String, dynamic>.from(rawBusiness))
-        : null;
-    final businessProfileId = (props['businessProfileId'] ?? profile?.id ?? '').toString();
-    final businessProduct = BusinessProduct(
-      id: product.id,
-      businessProfileId: businessProfileId,
-      name: product.name,
-      slug: product.id,
-      description: product.description,
-      priceUsdc: product.price ?? 0,
-      totalRevenue: 0,
-      imageUrls: product.imageUrls,
-      isActive: product.available,
-      totalOrders: 0,
-      tags: product.tags,
-    );
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => TicketCreateSheet(
-        preselectedBusiness: profile,
-        preselectedProduct: businessProduct,
-      ),
-    );
   }
 }
 
