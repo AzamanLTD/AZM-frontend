@@ -276,6 +276,9 @@ class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
   final Map<String, String> _selections = {};
   int _quantity = 1;
 
+  bool get _allVariantsSelected =>
+      widget.product.variants.keys.every(_selections.containsKey);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -378,7 +381,7 @@ class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: widget.product.available
+                    onPressed: widget.product.available && _allVariantsSelected
                         ? () => widget.onAddToCart(
                               RetailCartSelection(
                                 product: widget.product,
