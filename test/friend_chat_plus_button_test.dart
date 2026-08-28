@@ -18,6 +18,8 @@ void main() {
     AppConfig.enableDemoMode();
 
     final container = ProviderContainer();
+    addTearDown(container.dispose);
+
     final user = User(
       id: DemoSeedData.demoUserId,
       username: DemoSeedData.demoUsername,
