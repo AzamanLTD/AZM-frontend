@@ -100,7 +100,19 @@ class _RetailCollectionBoxWidgetState
       return;
     }
 
-    final result = await RetailCheckoutController(gateway).submit(_cart);
+    final paymentProtection = widget.business.escrowProtectionAvailable
+        ? await _choosePaymentProtection()
+        : RetailPaymentProtection.direct;
+    if (!mounted || paymentProtection == null) return;
+
+    final options = RetailCheckoutOptions(
+      escrowProtectionAvailable: widget.business.escrowProtectionAvailable,
+      paymentProtection: paymentProtection,
+    );
+    final result = await RetailCheckoutController(gateway).submit(
+      _cart,
+      options: options,
+    );
     if (!mounted) return;
 
     final message = switch (result) {
@@ -113,6 +125,41 @@ class _RetailCollectionBoxWidgetState
     };
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<RetailPaymentProtection?> _choosePaymentProtection() {
+    return showDialog<RetailPaymentProtection>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Choose payment protection'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(
+              context,
+              RetailPaymentProtection.direct,
+            ),
+            child: const ListTile(
+              leading: Icon(Icons.payment_outlined),
+              title: Text('Pay normally'),
+              subtitle: Text('Pay the store directly.'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(
+              context,
+              RetailPaymentProtection.escrow,
+            ),
+            child: const ListTile(
+              leading: Icon(Icons.verified_user_outlined),
+              title: Text('Use escrow protection'),
+              subtitle: Text(
+                'Hold your payment in protection until the order conditions are met.',
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
