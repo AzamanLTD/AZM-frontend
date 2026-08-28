@@ -31,6 +31,14 @@ void main() {
     expect(find.text('Quick look'), findsOneWidget);
   }
 
+  Finder variantField(String label) {
+    return find.byWidgetPredicate(
+      (widget) =>
+          widget is DropdownButtonFormField<String> &&
+          widget.decoration.labelText == label,
+    );
+  }
+
   testWidgets('retail collection opens quick look and adds to bag',
       (tester) async {
     await tester.pumpWidget(buildWidget(products: [
@@ -66,14 +74,21 @@ void main() {
     ]));
 
     await openQuickLook(tester);
-    await tester.tap(find.text('Color'));
+
+    await tester.tap(variantField('Color'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Black').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Size'));
+
+    await tester.tap(variantField('Size'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Large').last);
     await tester.pumpAndSettle();
+
+    expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
+    expect(find.text('Black'), findsOneWidget);
+    expect(find.text('Large'), findsOneWidget);
+
     await tester.tap(find.text('Add to bag'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('1'));
