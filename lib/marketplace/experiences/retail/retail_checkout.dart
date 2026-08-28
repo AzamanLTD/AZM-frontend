@@ -1,12 +1,35 @@
 import 'retail_cart.dart';
 
+/// Payment protection choices presented to a retail customer.
+enum RetailPaymentProtection {
+  direct,
+  escrow,
+}
+
+class RetailCheckoutOptions {
+  final bool escrowProtectionAvailable;
+  final RetailPaymentProtection paymentProtection;
+
+  const RetailCheckoutOptions({
+    this.escrowProtectionAvailable = false,
+    this.paymentProtection = RetailPaymentProtection.direct,
+  });
+
+  bool get usesEscrow =>
+      escrowProtectionAvailable &&
+      paymentProtection == RetailPaymentProtection.escrow;
+}
+
 /// Backend integration boundary for the retail experience.
 ///
 /// The experience collects a cart locally but delegates inventory validation,
 /// pricing, payment and order creation to the host's authoritative checkout
 /// implementation. This keeps retail UI independent of a specific API shape.
 abstract class RetailCheckoutGateway {
-  Future<RetailCheckoutResult> checkout(RetailCart cart);
+  Future<RetailCheckoutResult> checkout(
+    RetailCart cart, {
+    RetailCheckoutOptions options = const RetailCheckoutOptions(),
+  });
 }
 
 sealed class RetailCheckoutResult {
@@ -50,13 +73,25 @@ class RetailCheckoutController {
 
   const RetailCheckoutController(this.gateway);
 
-  Future<RetailCheckoutResult> submit(RetailCart cart) async {
+  Future<RetailCheckoutResult> submit(
+    RetailCart cart, {
+    RetailCheckoutOptions options = const RetailCheckoutOptions(),
+  }) async {
     if (cart.lines.isEmpty) {
       return const RetailCheckoutFailure(
         message: 'Your bag is empty.',
         retryable: false,
       );
     }
-    return gateway.checkout(cart);
+
+    if (options.paymentProtection == RetailPaymentProtection.escrow &&
+        !options.escrowProtectionAvailable) {
+      return const RetailCheckoutFailure(
+        message: 'Escrow protection is not available for this store.',
+        retryable: false,
+      );
+    }
+
+    return gateway.checkout(cart, options: options);
   }
 }

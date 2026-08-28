@@ -95,6 +95,7 @@ class _TileWrapper extends StatelessWidget {
         context,
         tile,
         business,
+        businessProfileId: businessProfileId,
       ),
     );
 

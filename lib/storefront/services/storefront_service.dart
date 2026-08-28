@@ -197,12 +197,14 @@ class StorefrontService {
     String? customerNotes,
     String? deliveryNotes,
     String? idempotencyKey,
+    String paymentMode = 'DIRECT',
   }) async {
     final response = await _apiClient.post('/storefront/$businessProfileId/checkout', {
       'items': items,
       if (customerNotes != null) 'customerNotes': customerNotes,
       if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
       if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      'paymentMode': paymentMode,
     });
     return _parseResponse(response) as Map<String, dynamic>;
   }
