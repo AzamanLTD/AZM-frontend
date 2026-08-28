@@ -21,7 +21,6 @@ import '../widgets/storefront_visibility_detector.dart';
 class StorefrontRenderer extends StatelessWidget {
   final StorefrontRenderResponse response;
 
-  /// When provided, enables analytics tracking for this render.
   final String? businessProfileId;
 
   const StorefrontRenderer({super.key, required this.response, this.businessProfileId});
@@ -30,42 +29,38 @@ class StorefrontRenderer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = StorefrontThemeResolver.resolve(response.theme);
     final spacingScale = response.theme.spacingScale ?? 1.0;
-    final tiles = response.layout.tiles;
-
-    // Sort tiles by position (row first, then col)
-    final sortedTiles = List<RenderTile>.from(tiles)
+    final tiles = List<RenderTile>.from(response.layout.tiles)
       ..sort((a, b) {
         final rowCompare = a.position.row.compareTo(b.position.row);
         if (rowCompare != 0) return rowCompare;
         return a.position.col.compareTo(b.position.col);
       });
 
-    final column = Column(
-      children: sortedTiles.asMap().entries.map((entry) {
-        final index = entry.key;
-        final tile = entry.value;
+    final scrollChild = ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: tiles.length,
+      itemBuilder: (context, index) {
         return _TileWrapper(
-          tile: tile,
+          key: ValueKey(tiles[index].id),
+          tile: tiles[index],
           spacingScale: spacingScale,
           business: response.business,
           businessProfileId: businessProfileId,
           widgetIndex: index,
         );
-      }).toList(),
+      },
     );
-
-    final scrollChild = SingleChildScrollView(child: column);
 
     return Theme(
       data: theme,
       child: Container(
         color: theme.scaffoldBackgroundColor,
         child: businessProfileId != null
-          ? StorefrontTrackingScope(
-              businessProfileId: businessProfileId,
-              child: scrollChild,
-            )
-          : scrollChild,
+            ? StorefrontTrackingScope(
+                businessProfileId: businessProfileId,
+                child: scrollChild,
+              )
+            : scrollChild,
       ),
     );
   }
@@ -79,6 +74,7 @@ class _TileWrapper extends StatelessWidget {
   final int widgetIndex;
 
   const _TileWrapper({
+    super.key,
     required this.tile,
     required this.spacingScale,
     required this.business,
@@ -102,10 +98,10 @@ class _TileWrapper extends StatelessWidget {
       ),
     );
 
-    // Wrap with visibility tracking only when businessProfileId is provided
     if (businessProfileId != null) {
       return StorefrontVisibilityDetector(
         businessProfileId: businessProfileId!,
+        tileId: tile.id,
         widgetType: tile.widgetType,
         widgetIndex: widgetIndex,
         child: child,
@@ -149,32 +145,36 @@ class StorefrontPreviewRenderer extends StatelessWidget {
         if (rowCompare != 0) return rowCompare;
         return a.position.col.compareTo(b.position.col);
       });
+    final spacingScale = theme.spacingScale ?? 1.0;
 
     return Theme(
       data: themeData,
       child: Container(
         color: themeData.scaffoldBackgroundColor,
-        child: SingleChildScrollView(
-          child: Column(
-            children: sortedTiles.map((tile) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: sortedTiles.length,
+          itemBuilder: (context, index) {
+            final tile = sortedTiles[index];
+            final padding = 16.0 * spacingScale;
+            return Padding(
+              key: ValueKey(tile.id),
+              padding: EdgeInsets.symmetric(
+                horizontal: padding,
+                vertical: padding * 0.4,
+              ),
+              child: StorefrontWidgetRegistry.buildWidget(
+                context,
+                RenderTile(
+                  id: tile.id,
+                  widgetType: tile.widgetType,
+                  position: tile.position,
+                  props: tile.props,
                 ),
-                child: StorefrontWidgetRegistry.buildWidget(
-                  context,
-                  RenderTile(
-                    id: tile.id,
-                    widgetType: tile.widgetType,
-                    position: tile.position,
-                    props: tile.props,
-                  ),
-                  business,
-                ),
-              );
-            }).toList(),
-          ),
+                business,
+              ),
+            );
+          },
         ),
       ),
     );

@@ -11,42 +11,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/services/api_client.dart';
 
 class StorefrontTrackingService {
-  // Static singleton instance
   static final StorefrontTrackingService instance = StorefrontTrackingService._internal();
 
   final ApiClient _apiClient = ApiClient();
   static const String _visitorIdKey = 'storefront_visitor_id';
+  static const Duration _widgetViewDebounce = Duration(seconds: 5);
+  static const int _maxWidgetViewDebounceEntries = 1000;
   String? _visitorId;
 
-  // Cache of the last sent time of widget_view events for debouncing
+  // Cache of the last sent time of widget_view events for debouncing.
+  // The key uses the stable tile id so layout reordering does not change the
+  // analytics identity of a storefront component.
   final Map<String, DateTime> _lastWidgetViewTimes = {};
 
   StorefrontTrackingService._internal();
 
-  /// Tracks a storefront event asynchronously (fire-and-forget).
   void trackEvent(String businessProfileId, String eventType, Map<String, dynamic> metadata) {
     _trackEventAsync(businessProfileId, eventType, metadata).catchError((error) {
       debugPrint('[StorefrontTrackingService] Error tracking event $eventType: $error');
     });
   }
 
-  /// Internal async method to enrich and send the analytics event.
-  Future<void> _trackEventAsync(String businessProfileId, String eventType, Map<String, dynamic> metadata) async {
-    // 1. Debounce widget_view events (don't send duplicate views for the same widget within 5 seconds)
-    if (eventType == 'widget_view') {
-      final widgetType = metadata['widgetType'] ?? '';
-      final widgetIndex = metadata['widgetIndex'] ?? '';
-      final debounceKey = '$businessProfileId:$widgetType:$widgetIndex';
-      final now = DateTime.now();
-      final lastSent = _lastWidgetViewTimes[debounceKey];
-      if (lastSent != null && now.difference(lastSent) < const Duration(seconds: 5)) {
-        // Debounced - duplicate view within 5 seconds
-        return;
-      }
-      _lastWidgetViewTimes[debounceKey] = now;
-    }
-
-    // Allowed event types verification
+  Future<void> _trackEventAsync(
+    String businessProfileId,
+    String eventType,
+    Map<String, dynamic> metadata,
+  ) async {
     const allowedEventTypes = {
       'storefront_view',
       'widget_view',
@@ -55,23 +45,37 @@ class StorefrontTrackingService {
       'follow_click',
       'review_click',
       'message_click',
-      'share_click'
+      'share_click',
     };
 
+    // Do not send events the backend contract does not recognize. A warning
+    // alone is unsafe for analytics because it still produces an HTTP request.
     if (!allowedEventTypes.contains(eventType)) {
-      debugPrint('[StorefrontTrackingService] Warning: $eventType is not a recognized event type.');
+      debugPrint('[StorefrontTrackingService] Ignoring unknown event type: $eventType');
+      return;
     }
 
-    // 2. Retrieve or generate unique visitor ID cached in SharedPreferences
-    final visitorId = await _getOrCreateVisitorId();
+    if (eventType == 'widget_view') {
+      final tileId = metadata['tileId'];
+      final widgetIdentity = tileId is String && tileId.isNotEmpty
+          ? tileId
+          : '${metadata['widgetType'] ?? ''}:${metadata['widgetIndex'] ?? ''}';
+      final debounceKey = '$businessProfileId:$widgetIdentity';
+      final now = DateTime.now();
+      final lastSent = _lastWidgetViewTimes[debounceKey];
+      if (lastSent != null && now.difference(lastSent) < _widgetViewDebounce) {
+        return;
+      }
+      _lastWidgetViewTimes[debounceKey] = now;
+      _trimWidgetViewCache();
+    }
 
-    // 3. Construct enriched metadata containing timestamp, source, and visitor ID
+    final visitorId = await _getOrCreateVisitorId();
     final enrichedMetadata = Map<String, dynamic>.from(metadata);
     enrichedMetadata['timestamp'] = DateTime.now().toUtc().toIso8601String();
     enrichedMetadata['source'] = 'flutter_app';
     enrichedMetadata['visitorId'] = visitorId;
 
-    // 4. Send request using ApiClient (appends AppConfig.apiUrl automatically)
     final endpoint = '/storefront/$businessProfileId/events';
     await _apiClient.post(endpoint, {
       'eventType': eventType,
@@ -79,7 +83,17 @@ class StorefrontTrackingService {
     });
   }
 
-  /// Retrieves the cached visitor ID or generates a new one.
+  void _trimWidgetViewCache() {
+    if (_lastWidgetViewTimes.length <= _maxWidgetViewDebounceEntries) return;
+
+    final entries = _lastWidgetViewTimes.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final removeCount = entries.length - _maxWidgetViewDebounceEntries;
+    for (var i = 0; i < removeCount; i++) {
+      _lastWidgetViewTimes.remove(entries[i].key);
+    }
+  }
+
   Future<String> _getOrCreateVisitorId() async {
     if (_visitorId != null) return _visitorId!;
 
@@ -94,27 +108,20 @@ class StorefrontTrackingService {
       return _visitorId!;
     } catch (e) {
       debugPrint('[StorefrontTrackingService] SharedPreferences read/write error: $e');
-      // Fallback to memory-cached ID for this session if storage fails
       _visitorId ??= _generateUniqueId();
       return _visitorId!;
     }
   }
 
-  /// Generates a unique UUID v4.
   String _generateUniqueId() {
     final random = Random.secure();
     final values = List<int>.generate(16, (i) => random.nextInt(256));
-
-    // Set version to 4 (random)
     values[6] = (values[6] & 0x0f) | 0x40;
-    // Set variant to RFC 4122
     values[8] = (values[8] & 0x3f) | 0x80;
 
     final buffer = StringBuffer();
     for (var i = 0; i < 16; i++) {
-      if (i == 4 || i == 6 || i == 8 || i == 10) {
-        buffer.write('-');
-      }
+      if (i == 4 || i == 6 || i == 8 || i == 10) buffer.write('-');
       buffer.write(values[i].toRadixString(16).padLeft(2, '0'));
     }
     return buffer.toString();

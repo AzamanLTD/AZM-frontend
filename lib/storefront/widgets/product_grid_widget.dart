@@ -12,9 +12,13 @@ class ProductGridWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = props['title'] as String? ?? 'Featured';
-    final maxItems = props['maxItems'] ?? 6;
-    final columns = props['columns'] ?? 2;
-    final showPrice = props['showPrice'] ?? true;
+    final maxItems = _positiveInt(props['maxItems'], fallback: 6, max: 50);
+    final columns = _positiveInt(props['columns'], fallback: 2, max: 4);
+    final showPrice = props['showPrice'] is bool ? props['showPrice'] as bool : true;
+    final rawItems = props['items'];
+    final items = rawItems is List
+        ? rawItems.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).take(maxItems).toList()
+        : const <Map<String, dynamic>>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,83 +27,176 @@ class ProductGridWidget extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 0.75,
+        if (items.isEmpty)
+          _EmptyProductState(),
+        if (items.isNotEmpty)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: items.length,
+            itemBuilder: (ctx, i) => _ProductCard(
+              product: items[i],
+              showPrice: showPrice,
+            ),
           ),
-          itemCount: maxItems,
-          itemBuilder: (ctx, i) => _ProductCard(
-            index: i,
-            showPrice: showPrice,
-          ),
-        ),
       ],
+    );
+  }
+
+  static int _positiveInt(dynamic value, {required int fallback, required int max}) {
+    final parsed = value is num ? value.toInt() : int.tryParse('$value');
+    if (parsed == null || parsed < 1) return fallback;
+    return parsed.clamp(1, max);
+  }
+}
+
+class _EmptyProductState extends StatelessWidget {
+  const _EmptyProductState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 30, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 8),
+          Text('No products available yet', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Check back soon for new items.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ProductCard extends StatelessWidget {
-  final int index;
+  final Map<String, dynamic> product;
   final bool showPrice;
 
-  const _ProductCard({required this.index, required this.showPrice});
+  const _ProductCard({required this.product, required this.showPrice});
 
   void _trackTap(BuildContext context) {
     final bizId = StorefrontTrackingScope.of(context);
-    if (bizId != null) {
-      StorefrontTrackingService.instance.trackEvent(
-        bizId,
-        'product_tap',
-        {'productIndex': index, 'widgetType': 'product_grid'},
-      );
-    }
+    if (bizId == null) return;
+
+    StorefrontTrackingService.instance.trackEvent(
+      bizId,
+      'product_tap',
+      {
+        'productId': product['id'] ?? product['productId'],
+        'widgetType': 'product_grid',
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _trackTap(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Theme.of(context).dividerColor),
+    final theme = Theme.of(context);
+    final name = (product['name'] ?? product['title'] ?? 'Product').toString();
+    final imageUrl = (product['imageUrl'] ?? product['image'] ?? '').toString();
+    final price = product['price'];
+
+    return Semantics(
+      button: true,
+      label: name,
+      child: Material(
+        color: theme.colorScheme.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: theme.dividerColor),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                child: Container(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                  child: Icon(Icons.restaurant, size: 40, color: Theme.of(context).colorScheme.primary),
+        child: InkWell(
+          onTap: () => _trackTap(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _ImageFallback(),
+                        )
+                      : _ImageFallback(),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Item ${index + 1}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (showPrice)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text('\$${(index + 1) * 5}.99', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.labelLarge,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    if (showPrice && price != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          _formatPrice(price, product['currency']?.toString()),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  static String _formatPrice(dynamic value, String? currency) {
+    final symbol = switch (currency?.toUpperCase()) {
+      'GHS' => 'GH₵',
+      'NGN' => '₦',
+      'USD' => r'$',
+      'EUR' => '€',
+      'GBP' => '£',
+      _ => currency?.isNotEmpty == true ? '$currency ' : '',
+    };
+    if (value is num) return '$symbol${value.toStringAsFixed(2)}';
+    return '$symbol$value';
+  }
+}
+
+class _ImageFallback extends StatelessWidget {
+  const _ImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(Icons.image_outlined, size: 34, color: scheme.onSurfaceVariant),
     );
   }
 }

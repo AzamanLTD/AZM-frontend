@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/data/demo_interceptor.dart';
 
@@ -10,7 +10,7 @@ void main() {
       final data = DemoSeedData.authMe();
       expect(data['user'], isNotNull);
       expect(data['user']['id'], 1);
-      expect(data['user']['username'], 'kwesi_mensah');
+      expect(data['user']['username'], 'Pyrax');
       expect(data['user']['azamanId'], 'AZM-000123456');
       expect(data['user']['kycStatus'], 'VERIFIED');
       expect(data['user']['availableBalance'], 12450.00);
@@ -19,16 +19,15 @@ void main() {
     test('friends returns 3 friends', () {
       final friends = DemoSeedData.friends();
       expect(friends.length, 3);
-      expect(friends[0]['friend']['username'], 'ama_osei');
-      expect(friends[1]['friend']['username'], 'kojo_darko');
-      expect(friends[2]['friend']['username'], 'akua_baah');
+      expect(friends[0]['friend']['username'], 'Bella');
+      expect(friends[1]['friend']['username'], 'Lamar');
+      expect(friends[2]['friend']['username'], 'Ibrah');
     });
 
     test('friendMessages returns messages for known friendshipId', () {
       final msgs = DemoSeedData.friendMessages('101');
       expect(msgs['messages'], isNotNull);
       expect((msgs['messages'] as List).length, 4);
-      // Check the peer transfer message
       final transfer = (msgs['messages'] as List).firstWhere(
         (m) => m['messageType'] == 'PEER_TRANSFER',
       );
@@ -73,7 +72,7 @@ void main() {
       expect(board['data']['entries'], isNotNull);
       final entries = board['data']['entries'] as List;
       expect(entries.length, 5);
-      expect(entries[0]['username'], 'kwesi_mensah');
+      expect(entries[0]['username'], 'Pyrax');
       expect(entries[0]['rank'], 1);
     });
 
@@ -122,7 +121,7 @@ void main() {
       expect(resp, isNotNull);
       expect(resp!.statusCode, 200);
       final body = jsonDecode(resp.body);
-      expect(body['user']['username'], 'kwesi_mensah');
+      expect(body['user']['username'], 'Pyrax');
     });
 
     test('tryGet returns 200 for /friends/chat/101/messages', () {

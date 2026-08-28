@@ -60,7 +60,6 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
   void _toggle() => _isOpen ? _close() : _open();
 
   void _open() {
-    // Re-entrancy guard: swallow taps while opening/closing.
     if (_phase != LiquidPhase.closed || widget.items.isEmpty) return;
     final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
@@ -103,9 +102,9 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
   }
 
   void _close() {
-    if (!_isOpen) return;                       // already closed or reversing
+    if (!_isOpen) return;
     setState(() => _phase = LiquidPhase.closing);
-    AzamanHaptics.confirm();                  // haptic lives here, not at the call site
+    AzamanHaptics.confirm();
     _c.reverse().whenComplete(() {
       _entry?.remove();
       _entry = null;
@@ -136,7 +135,7 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
               child: AnimatedBuilder(
                 animation: _c,
                 builder: (_, __) => Transform.rotate(
-                  angle: _c.value * 0.785398, // + → ×, 45°
+                  angle: _c.value * 0.785398,
                   child: Container(
                     width: side - 4,
                     height: side - 4,
@@ -186,7 +185,6 @@ class _LiquidPanelOverlay extends StatelessWidget {
     final gooFollow = gooBounds.topLeft - anchor.topLeft;
 
     return Stack(children: [
-      // ── dismiss barrier ────────────────────────────────────────────────
       Positioned.fill(
         child: ExcludeSemantics(
           child: GestureDetector(
@@ -202,9 +200,6 @@ class _LiquidPanelOverlay extends StatelessWidget {
           ),
         ),
       ),
-
-      // ── goo layer: trigger blob + neck + panel body ─────────────────────
-      // Followers keep both layers glued to the "+" if the chat scrolls.
       CompositedTransformFollower(
         link: link,
         showWhenUnlinked: false,
@@ -233,8 +228,6 @@ class _LiquidPanelOverlay extends StatelessWidget {
           ),
         ),
       ),
-
-      // ── crisp panel content ─────────────────────────────────────────────
       CompositedTransformFollower(
         link: link,
         showWhenUnlinked: false,
@@ -260,31 +253,27 @@ class _LiquidPanelOverlay extends StatelessWidget {
                 ),
               );
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: _panelPad),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < items.length; i++)
-                    _Row(
-                      item: items[i],
-                      // rows nearest the button reveal first when opening upward
-                      index: placement.above ? items.length - 1 - i : i,
-                      position: i,
-                      total: items.length,
-                      controller: controller,
-                      colors: colors,
-                      reduced: reduced,
-                      onClose: onClose,
-                    ),
-                ],
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: _panelPad),
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (_, i) => _Row(
+                  item: items[i],
+                  index: placement.above ? items.length - 1 - i : i,
+                  position: i,
+                  total: items.length,
+                  controller: controller,
+                  colors: colors,
+                  reduced: reduced,
+                  onClose: onClose,
+                ),
               ),
             ),
           ),
         ),
       ),
-
-      // ── trigger ghost: keep the +/× icon visible on top of the goo blob ──
       CompositedTransformFollower(
         link: link,
         showWhenUnlinked: false,
@@ -299,7 +288,7 @@ class _LiquidPanelOverlay extends StatelessWidget {
               final side = anchor.width;
               return Center(
                 child: Transform.rotate(
-                  angle: t * 0.785398, // match the trigger's + → × rotation
+                  angle: t * 0.785398,
                   child: Container(
                     width: side - 4,
                     height: side - 4,
@@ -357,35 +346,37 @@ class _Row extends StatelessWidget {
       child: Semantics(
         button: true,
         label: item.label,
-        // "3 of 5" for TalkBack/VoiceOver.
         value: '${position + 1} of $total',
-        child: InkWell(
-          onTap: () {
-            AzamanHaptics.confirm();
-            onClose();
-            item.onTap();
-          },
-          child: SizedBox(
-            height: _rowHeight,
-            child: Row(children: [
-              const SizedBox(width: 16),
-              Icon(item.icon, size: 20, color: colors.textPrimary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: () {
+              AzamanHaptics.confirm();
+              onClose();
+              item.onTap();
+            },
+            child: SizedBox(
+              height: _rowHeight,
+              child: Row(children: [
+                const SizedBox(width: 16),
+                Icon(item.icon, size: 20, color: colors.textPrimary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-            ]),
+                const SizedBox(width: 12),
+              ]),
+            ),
           ),
         ),
       ),
@@ -395,7 +386,7 @@ class _Row extends StatelessWidget {
 
 class _PanelGooPainter extends CustomPainter {
   final double t;
-  final Offset origin; // gooBounds.topLeft — painter space is local
+  final Offset origin;
   final Rect anchor;
   final Rect panel;
   final Color body, rim;

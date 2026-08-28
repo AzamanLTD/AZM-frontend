@@ -4,6 +4,9 @@
 // Wraps a child widget and triggers a 'widget_view' tracking event when the
 // widget enters the screen's viewport. Uses ancestor Scrollable context to
 // listen for scroll events.
+//
+// The tile id is used as the analytics identity instead of the visual index.
+// This keeps analytics stable when a business reorders its storefront.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -12,6 +15,7 @@ import '../services/storefront_tracking_service.dart';
 class StorefrontVisibilityDetector extends StatefulWidget {
   final Widget child;
   final String businessProfileId;
+  final String tileId;
   final String widgetType;
   final int widgetIndex;
 
@@ -19,6 +23,7 @@ class StorefrontVisibilityDetector extends StatefulWidget {
     super.key,
     required this.child,
     required this.businessProfileId,
+    required this.tileId,
     required this.widgetType,
     required this.widgetIndex,
   });
@@ -34,7 +39,6 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
   @override
   void initState() {
     super.initState();
-    // Schedule initial visibility check after the first frame layout is completed
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkVisibility();
     });
@@ -43,8 +47,6 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Dynamically look up the nearest ancestor Scrollable context.
-    // If the scrollable changes or mounts/unmounts, we update our listener.
     final newScrollable = Scrollable.maybeOf(context);
     if (newScrollable != _scrollable) {
       _scrollable?.position.removeListener(_checkVisibility);
@@ -56,7 +58,6 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
   @override
   void didUpdateWidget(covariant StorefrontVisibilityDetector oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-check visibility if widget key or bounds change
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkVisibility();
     });
@@ -68,7 +69,6 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
     super.dispose();
   }
 
-  /// Calculates whether the widget intersects with the visible screen area.
   void _checkVisibility() {
     if (!mounted) return;
 
@@ -76,17 +76,12 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
       final renderBox = context.findRenderObject() as RenderBox?;
       if (renderBox == null || !renderBox.hasSize) return;
 
-      // Find the widget's global position and size
       final position = renderBox.localToGlobal(Offset.zero);
       final size = renderBox.size;
+      final mediaSize = MediaQuery.sizeOf(context);
 
-      final screenHeight = MediaQuery.of(context).size.height;
-      final screenWidth = MediaQuery.of(context).size.width;
-
-      // Verify intersection with the viewport bounds
-      final isVerticallyVisible = position.dy + size.height > 0 && position.dy < screenHeight;
-      final isHorizontallyVisible = position.dx + size.width > 0 && position.dx < screenWidth;
-
+      final isVerticallyVisible = position.dy + size.height > 0 && position.dy < mediaSize.height;
+      final isHorizontallyVisible = position.dx + size.width > 0 && position.dx < mediaSize.width;
       final currentlyVisible = isVerticallyVisible && isHorizontallyVisible;
 
       if (currentlyVisible && !_isVisible) {
@@ -95,17 +90,17 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
       } else if (!currentlyVisible && _isVisible) {
         _isVisible = false;
       }
-    } catch (e) {
-      // Gracefully capture layout/geometry exceptions during layout passes
+    } catch (_) {
+      // Geometry can be unavailable during transient layout changes.
     }
   }
 
-  /// Sends the tracking event for this specific widget view
   void _fireViewEvent() {
     StorefrontTrackingService.instance.trackEvent(
       widget.businessProfileId,
       'widget_view',
       {
+        'tileId': widget.tileId,
         'widgetType': widget.widgetType,
         'widgetIndex': widget.widgetIndex,
       },
@@ -113,7 +108,5 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 }
