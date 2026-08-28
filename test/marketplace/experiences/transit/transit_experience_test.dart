@@ -14,7 +14,7 @@ class _Gateway implements TransitHoldGateway {
 }
 
 void main() {
-  final trip = TransitTrip(
+  final trip = TransitExperienceTrip(
     id: 't1',
     origin: 'Kumasi',
     destination: 'Accra',
