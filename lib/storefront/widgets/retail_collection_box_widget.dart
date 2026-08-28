@@ -119,7 +119,11 @@ class _RetailCollectionBoxWidgetState
       RetailCheckoutSuccess(
         :final confirmationMessage,
         :final orderId,
-      ) => confirmationMessage ?? 'Order $orderId created.',
+      ) => () {
+          // Clear the cart after a successful checkout.
+          setState(() => _cart = _cart.clear());
+          return confirmationMessage ?? 'Order $orderId created.';
+        }(),
       RetailCheckoutFailure(:final message) => message,
       RetailCheckoutUnavailable(:final message) => message,
     };

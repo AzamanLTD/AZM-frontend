@@ -1,5 +1,4 @@
 import 'retail_cart.dart';
-import '../../../storefront/models/storefront_models.dart';
 
 /// Payment protection choices presented to a retail customer.
 enum RetailPaymentProtection {
@@ -95,10 +94,4 @@ class RetailCheckoutController {
 
     return gateway.checkout(cart, options: options);
   }
-}
-
-/// Compatibility accessor until StorefrontBusinessInfo carries the backend
-/// payment capability directly.
-extension RetailBusinessPaymentCapability on StorefrontBusinessInfo {
-  bool get escrowProtectionAvailable => false;
 }

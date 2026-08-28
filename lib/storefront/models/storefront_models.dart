@@ -519,6 +519,7 @@ class StorefrontBusinessInfo {
   final String? coverPhotoUrl;
   final double? averageRating;
   final String? phoneNumber;
+  final bool escrowProtectionAvailable;
 
   StorefrontBusinessInfo({
     required this.name,
@@ -527,6 +528,7 @@ class StorefrontBusinessInfo {
     this.coverPhotoUrl,
     this.averageRating,
     this.phoneNumber,
+    this.escrowProtectionAvailable = false,
   });
 
   factory StorefrontBusinessInfo.fromJson(Map<String, dynamic> json) {
@@ -539,6 +541,8 @@ class StorefrontBusinessInfo {
           ? (json['averageRating'] as num).toDouble()
           : null,
       phoneNumber: json['phoneNumber'],
+      escrowProtectionAvailable:
+          json['escrowProtectionAvailable'] == true,
     );
   }
 }
