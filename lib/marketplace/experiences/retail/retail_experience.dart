@@ -2,11 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/theme/motion_tokens.dart';
 
-/// Normalized retail product used by the category-specific retail experience.
-///
-/// This deliberately remains UI-facing: authoritative price, inventory and
-/// order state still come from the backend. The experience never calculates
-/// checkout totals locally.
 class RetailProduct {
   final String id;
   final String name;
@@ -40,15 +35,9 @@ class RetailProduct {
       description: json['description']?.toString(),
       price: _toDoubleOrNull(json['price'] ?? json['priceUsdc']),
       currency: json['currency']?.toString(),
-      imageUrls: rawImages is List
-          ? rawImages.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
-          : const [],
-      tags: rawTags is List
-          ? rawTags.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
-          : const [],
-      variants: rawVariants is Map
-          ? Map<String, dynamic>.from(rawVariants)
-          : const {},
+      imageUrls: rawImages is List ? rawImages.map((v) => v.toString()).where((v) => v.isNotEmpty).toList() : const [],
+      tags: rawTags is List ? rawTags.map((v) => v.toString()).where((v) => v.isNotEmpty).toList() : const [],
+      variants: rawVariants is Map ? Map<String, dynamic>.from(rawVariants) : const {},
       available: json['available'] != false && json['isActive'] != false,
     );
   }
@@ -56,11 +45,7 @@ class RetailProduct {
   String get formattedPrice {
     if (price == null) return 'Price unavailable';
     final symbol = switch (currency?.toUpperCase()) {
-      'GHS' => 'GH₵',
-      'NGN' => '₦',
-      'USD' => r'$',
-      'EUR' => '€',
-      'GBP' => '£',
+      'GHS' => 'GH₵', 'NGN' => '₦', 'USD' => r'$', 'EUR' => '€', 'GBP' => '£',
       _ => currency?.isNotEmpty == true ? '${currency!} ' : '',
     };
     return '$symbol${price!.toStringAsFixed(2)}';
@@ -73,326 +58,131 @@ class RetailProduct {
   }
 }
 
-/// A merchandising collection such as "New Arrivals", "Staff Picks" or
-/// "Weekend Essentials". Collections are presentation rules, not inventory.
 class RetailCollection {
   final String id;
   final String title;
   final String? subtitle;
   final List<RetailProduct> products;
-
-  const RetailCollection({
-    required this.id,
-    required this.title,
-    this.subtitle,
-    this.products = const [],
-  });
+  const RetailCollection({required this.id, required this.title, this.subtitle, this.products = const []});
 }
 
-/// Retail's signature merchandising primitive: a physical-feeling collection
-/// box rather than another generic storefront section.
 class RetailCollectionBox extends StatelessWidget {
   final RetailCollection collection;
   final ValueChanged<RetailProduct> onProductTap;
-
-  const RetailCollectionBox({
-    super.key,
-    required this.collection,
-    required this.onProductTap,
-  });
+  const RetailCollectionBox({super.key, required this.collection, required this.onProductTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final products = collection.products.take(6).toList(growable: false);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    collection.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (collection.subtitle?.isNotEmpty == true) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      collection.subtitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (products.length > 1)
-              Text(
-                '${products.length} items',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(collection.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          if (collection.subtitle?.isNotEmpty == true) ...[
+            const SizedBox(height: 3),
+            Text(collection.subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 250,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return SizedBox(
-                width: 168,
-                child: RetailProductCard(
-                  product: product,
-                  onTap: () => onProductTap(product),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+        ])),
+        if (products.length > 1) Text('${products.length} items', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ]),
+      const SizedBox(height: 10),
+      SizedBox(height: 250, child: ListView.separated(
+        scrollDirection: Axis.horizontal, itemCount: products.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) => SizedBox(width: 168, child: RetailProductCard(product: products[index], onTap: () => onProductTap(products[index]))),
+      )),
+    ]);
   }
 }
 
 class RetailProductCard extends StatelessWidget {
   final RetailProduct product;
   final VoidCallback onTap;
-
-  const RetailProductCard({
-    super.key,
-    required this.product,
-    required this.onTap,
-  });
+  const RetailProductCard({super.key, required this.product, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final imageUrl = product.imageUrls.isEmpty ? null : product.imageUrls.first;
-
-    return Semantics(
-      button: true,
-      label: '${product.name}, ${product.formattedPrice}',
-      child: Material(
-        color: theme.colorScheme.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: theme.dividerColor),
-        ),
-        child: InkWell(
-          onTap: product.available ? onTap : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: MotionTokens.fast,
-                  child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          key: ValueKey(imageUrl),
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _RetailImageFallback(),
-                        )
-                      : const _RetailImageFallback(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.available ? product.formattedPrice : 'Currently unavailable',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: product.available
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.error,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return Semantics(button: true, label: '${product.name}, ${product.formattedPrice}', child: Material(
+      color: theme.colorScheme.surface, clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: theme.dividerColor)),
+      child: InkWell(onTap: product.available ? onTap : null, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: AnimatedSwitcher(duration: MotionTokens.fast, child: imageUrl != null
+          ? Image.network(imageUrl, key: ValueKey(imageUrl), width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const _RetailImageFallback())
+          : const _RetailImageFallback())),
+        Padding(padding: const EdgeInsets.fromLTRB(10, 9, 10, 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(product.available ? product.formattedPrice : 'Currently unavailable', style: theme.textTheme.labelMedium?.copyWith(color: product.available ? theme.colorScheme.primary : theme.colorScheme.error, fontWeight: FontWeight.w800)),
+        ])),
+      ])),
+    )));
   }
 }
 
-/// Bottom-sheet quick look. It deliberately receives an add-to-cart callback
-/// from the host experience so cart ownership stays with the host/controller,
-/// not inside a storefront widget or a second state-management system.
-Future<void> showRetailQuickLook(
-  BuildContext context, {
-  required RetailProduct product,
-  required ValueChanged<RetailProduct> onAddToCart,
-}) {
+Future<void> showRetailQuickLook(BuildContext context, {required RetailProduct product, required ValueChanged<RetailCartSelection> onAddToCart}) {
   return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return RetailQuickLookSheet(
-        product: product,
-        onAddToCart: (item) {
-          Navigator.of(sheetContext).pop();
-          onAddToCart(item);
-        },
-      );
-    },
+    context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+    builder: (sheetContext) => RetailQuickLookSheet(product: product, onAddToCart: (selection) { Navigator.of(sheetContext).pop(); onAddToCart(selection); }),
   );
 }
 
-class RetailQuickLookSheet extends StatelessWidget {
+class RetailCartSelection {
   final RetailProduct product;
-  final ValueChanged<RetailProduct> onAddToCart;
+  final String? variantKey;
+  final String? variantValue;
+  final int quantity;
+  const RetailCartSelection({required this.product, this.variantKey, this.variantValue, this.quantity = 1});
+}
 
-  const RetailQuickLookSheet({
-    super.key,
-    required this.product,
-    required this.onAddToCart,
-  });
+class RetailQuickLookSheet extends StatefulWidget {
+  final RetailProduct product;
+  final ValueChanged<RetailCartSelection> onAddToCart;
+  const RetailQuickLookSheet({super.key, required this.product, required this.onAddToCart});
+  @override State<RetailQuickLookSheet> createState() => _RetailQuickLookSheetState();
+}
+
+class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
+  String? _variantKey;
+  String? _variantValue;
+  int _quantity = 1;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = product.imageUrls.isEmpty ? null : product.imageUrls.first;
-
-    return SafeArea(
-      child: Material(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Quick look',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              if (imageUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: AspectRatio(
-                    aspectRatio: 1.2,
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _RetailImageFallback(),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 14),
-              Text(
-                product.name,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                product.formattedPrice,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (product.description?.isNotEmpty == true) ...[
-                const SizedBox(height: 10),
-                Text(
-                  product.description!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              if (product.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: product.tags.take(6).map((tag) {
-                    return Chip(
-                      label: Text(tag),
-                      visualDensity: VisualDensity.compact,
-                    );
-                  }).toList(),
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: product.available ? () => onAddToCart(product) : null,
-                  icon: const Icon(Icons.shopping_bag_outlined),
-                  label: Text(product.available ? 'Add to bag' : 'Unavailable'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final imageUrl = widget.product.imageUrls.isEmpty ? null : widget.product.imageUrls.first;
+    final variants = widget.product.variants;
+    return SafeArea(child: Material(color: theme.colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), clipBehavior: Clip.antiAlias, child: Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Expanded(child: Text('Quick look', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))), IconButton(tooltip: 'Close', onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close))]),
+        if (imageUrl != null) ClipRRect(borderRadius: BorderRadius.circular(18), child: AspectRatio(aspectRatio: 1.2, child: Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const _RetailImageFallback()))),
+        const SizedBox(height: 14),
+        Text(widget.product.name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 5), Text(widget.product.formattedPrice, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w800)),
+        if (widget.product.description?.isNotEmpty == true) ...[const SizedBox(height: 10), Text(widget.product.description!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))],
+        if (variants.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ...variants.entries.map((entry) {
+            final values = entry.value is List ? (entry.value as List).map((v) => v.toString()).where((v) => v.isNotEmpty).toList() : [entry.value.toString()];
+            if (values.isEmpty) return const SizedBox.shrink();
+            return Padding(padding: const EdgeInsets.only(bottom: 8), child: DropdownButtonFormField<String>(
+              value: _variantKey == entry.key ? _variantValue : null,
+              decoration: InputDecoration(labelText: entry.key, border: const OutlineInputBorder()),
+              items: values.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+              onChanged: (value) => setState(() { _variantKey = entry.key; _variantValue = value; }),
+            ));
+          }),
+        ],
+        const SizedBox(height: 12),
+        Row(children: [Text('Quantity', style: theme.textTheme.titleSmall), const Spacer(), IconButton(tooltip: 'Decrease quantity', onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null, icon: const Icon(Icons.remove_circle_outline)), Text('$_quantity', style: theme.textTheme.titleMedium), IconButton(tooltip: 'Increase quantity', onPressed: () => setState(() => _quantity++), icon: const Icon(Icons.add_circle_outline))]),
+        const SizedBox(height: 12),
+        SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: widget.product.available ? () => widget.onAddToCart(RetailCartSelection(product: widget.product, variantKey: _variantKey, variantValue: _variantValue, quantity: _quantity)) : null, icon: const Icon(Icons.shopping_bag_outlined), label: Text(widget.product.available ? 'Add to bag' : 'Unavailable'))),
+      ]),
+    )));
   }
 }
 
-class _RetailImageFallback extends StatelessWidget {
-  const _RetailImageFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ColoredBox(
-      color: scheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          Icons.shopping_bag_outlined,
-          size: 34,
-          color: scheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
+class _RetailImageFallback extends StatelessWidget { const _RetailImageFallback(); @override Widget build(BuildContext context) { final scheme = Theme.of(context).colorScheme; return ColoredBox(color: scheme.surfaceContainerHighest, child: Center(child: Icon(Icons.shopping_bag_outlined, size: 34, color: scheme.onSurfaceVariant))); } }
