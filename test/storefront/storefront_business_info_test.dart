@@ -53,13 +53,13 @@ void main() {
     });
 
     test('constructor defaults escrowProtectionAvailable to false', () {
-      const info = StorefrontBusinessInfo(name: 'Test');
+      final info = StorefrontBusinessInfo(name: 'Test');
 
       expect(info.escrowProtectionAvailable, isFalse);
     });
 
     test('constructor accepts explicit true', () {
-      const info = StorefrontBusinessInfo(
+      final info = StorefrontBusinessInfo(
         name: 'Test',
         escrowProtectionAvailable: true,
       );
