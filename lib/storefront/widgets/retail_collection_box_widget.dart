@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../marketplace/experiences/retail/retail_cart.dart';
 import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
+import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
 import '../models/storefront_models.dart';
 
@@ -13,11 +14,13 @@ import '../models/storefront_models.dart';
 class RetailCollectionBoxWidget extends StatefulWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
+  final RetailCheckoutGateway? checkoutGateway;
 
   const RetailCollectionBoxWidget({
     super.key,
     required this.props,
     required this.business,
+    this.checkoutGateway,
   });
 
   @override
@@ -48,6 +51,7 @@ class _RetailCollectionBoxWidgetState extends State<RetailCollectionBoxWidget> {
             context,
             product: product,
             onAddToCart: (item) {
+              if (!mounted) return;
               setState(() => _cart = _cart.add(item));
               _showAddedMessage(context, item);
             },
@@ -62,8 +66,10 @@ class _RetailCollectionBoxWidgetState extends State<RetailCollectionBoxWidget> {
               onPressed: () => showRetailCartSheet(
                 context,
                 cart: _cart,
-                onChanged: (next) => setState(() => _cart = next),
-                onCheckout: () => _showCheckoutBoundary(context),
+                onChanged: (next) {
+                  if (mounted) setState(() => _cart = next);
+                },
+                onCheckout: _submitCheckout,
               ),
             ),
           ),
@@ -77,11 +83,26 @@ class _RetailCollectionBoxWidgetState extends State<RetailCollectionBoxWidget> {
     );
   }
 
-  void _showCheckoutBoundary(BuildContext context) {
+  Future<void> _submitCheckout() async {
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checkout is ready for the order service.')),
-    );
+    final gateway = widget.checkoutGateway;
+    if (gateway == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checkout is not available for this store yet.')),
+      );
+      return;
+    }
+
+    final result = await RetailCheckoutController(gateway).submit(_cart);
+    if (!mounted) return;
+    final message = switch (result) {
+      RetailCheckoutSuccess(:final confirmationMessage, :final orderId) =>
+        confirmationMessage ?? 'Order $orderId created.',
+      RetailCheckoutFailure(:final message) => message,
+      RetailCheckoutUnavailable(:final message) => message,
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   List<RetailProduct> _parseProducts(dynamic raw) {
