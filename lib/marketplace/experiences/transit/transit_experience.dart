@@ -1,4 +1,4 @@
-class TransitTrip {
+class TransitExperienceTrip {
   final String id;
   final String origin;
   final String destination;
@@ -10,7 +10,7 @@ class TransitTrip {
   final String? currency;
   final int availableSeats;
 
-  const TransitTrip({
+  const TransitExperienceTrip({
     required this.id,
     required this.origin,
     required this.destination,
@@ -23,9 +23,9 @@ class TransitTrip {
     this.availableSeats = 0,
   });
 
-  factory TransitTrip.fromJson(Map<String, dynamic> json) {
+  factory TransitExperienceTrip.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic value) => DateTime.tryParse(value?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-    return TransitTrip(
+    return TransitExperienceTrip(
       id: (json['id'] ?? json['tripId'] ?? '').toString(),
       origin: (json['origin'] ?? json['from'] ?? '').toString(),
       destination: (json['destination'] ?? json['to'] ?? '').toString(),
@@ -41,7 +41,7 @@ class TransitTrip {
 }
 
 class TransitSeatSelection {
-  final TransitTrip trip;
+  final TransitExperienceTrip trip;
   final List<String> seatIds;
 
   const TransitSeatSelection({required this.trip, required this.seatIds});
