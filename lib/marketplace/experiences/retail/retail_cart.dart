@@ -13,11 +13,11 @@ class RetailCartLine {
     this.variantValue,
   });
 
-  RetailCartLine copyWith({int? quantity}) => RetailCartLine(
+  RetailCartLine copyWith({int? quantity, String? variantKey, String? variantValue}) => RetailCartLine(
         product: product,
         quantity: quantity ?? this.quantity,
-        variantKey: variantKey,
-        variantValue: variantValue,
+        variantKey: variantKey ?? this.variantKey,
+        variantValue: variantValue ?? this.variantValue,
       );
 
   String get key => '${product.id}:${variantKey ?? ''}:${variantValue ?? ''}';
@@ -32,21 +32,31 @@ class RetailCart {
 
   int get itemCount => lines.fold(0, (sum, line) => sum + line.quantity);
 
-  RetailCart add(RetailProduct product, {String? variantKey, String? variantValue}) {
+  RetailCart add(
+    RetailProduct product, {
+    String? variantKey,
+    String? variantValue,
+    int quantity = 1,
+  }) {
+    if (!product.available || quantity <= 0) return this;
     final key = '${product.id}:${variantKey ?? ''}:${variantValue ?? ''}';
     final existing = lines.indexWhere((line) => line.key == key);
     if (existing < 0) {
       return RetailCart(
-        lines: [...lines, RetailCartLine(
-          product: product,
-          variantKey: variantKey,
-          variantValue: variantValue,
-        )],
+        lines: [
+          ...lines,
+          RetailCartLine(
+            product: product,
+            quantity: quantity,
+            variantKey: variantKey,
+            variantValue: variantValue,
+          ),
+        ],
       );
     }
     final updated = [...lines];
     updated[existing] = updated[existing].copyWith(
-      quantity: updated[existing].quantity + 1,
+      quantity: updated[existing].quantity + quantity,
     );
     return RetailCart(lines: updated);
   }
