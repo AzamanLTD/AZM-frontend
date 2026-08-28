@@ -4,40 +4,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final business = StorefrontBusinessInfo(
+  const business = StorefrontBusinessInfo(
     name: 'Demo Retail',
     category: 'RETAIL',
     averageRating: 4.8,
   );
 
-  testWidgets('retail collection opens quick look and adds to bag',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RetailCollectionBoxWidget(
-            business: business,
-            props: const {
-              'id': 'collection-1',
-              'title': 'Staff Picks',
-              'products': [
-                {
-                  'id': 'p1',
-                  'name': 'Everyday Bag',
-                  'price': 25,
-                  'currency': 'GHS',
-                },
-              ],
-            },
-          ),
+  Widget buildWidget({required List<Map<String, dynamic>> products}) {
+    return MaterialApp(
+      home: Scaffold(
+        body: RetailCollectionBoxWidget(
+          business: business,
+          props: {
+            'id': 'collection-1',
+            'title': 'Staff Picks',
+            'products': products,
+          },
         ),
       ),
     );
+  }
 
+  Future<void> openQuickLook(WidgetTester tester) async {
     await tester.tap(find.text('Everyday Bag'));
     await tester.pumpAndSettle();
     expect(find.text('Quick look'), findsOneWidget);
+  }
 
+  testWidgets('retail collection opens quick look and adds to bag',
+      (tester) async {
+    await tester.pumpWidget(buildWidget(products: [
+      {
+        'id': 'p1',
+        'name': 'Everyday Bag',
+        'price': 25,
+        'currency': 'GHS',
+      },
+    ]));
+
+    await openQuickLook(tester);
     await tester.tap(find.text('Add to bag'));
     await tester.pumpAndSettle();
 
@@ -45,30 +50,49 @@ void main() {
     expect(find.text('Everyday Bag added to bag'), findsOneWidget);
   });
 
-  testWidgets('bag opens and quantity can be changed', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RetailCollectionBoxWidget(
-            business: business,
-            props: const {
-              'title': 'Staff Picks',
-              'products': [
-                {
-                  'id': 'p1',
-                  'name': 'Everyday Bag',
-                  'price': 25,
-                  'currency': 'GHS',
-                },
-              ],
-            },
-          ),
-        ),
-      ),
-    );
+  testWidgets('quick look preserves multiple variant selections',
+      (tester) async {
+    await tester.pumpWidget(buildWidget(products: [
+      {
+        'id': 'p1',
+        'name': 'Everyday Bag',
+        'price': 25,
+        'currency': 'GHS',
+        'variants': {
+          'Color': ['Black', 'Brown'],
+          'Size': ['Small', 'Large'],
+        },
+      },
+    ]));
 
-    await tester.tap(find.text('Everyday Bag'));
+    await openQuickLook(tester);
+    await tester.tap(find.text('Color'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Black').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Size'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Large').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add to bag'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Color: Black · Size: Large'), findsOneWidget);
+  });
+
+  testWidgets('bag opens and quantity can be changed', (tester) async {
+    await tester.pumpWidget(buildWidget(products: [
+      {
+        'id': 'p1',
+        'name': 'Everyday Bag',
+        'price': 25,
+        'currency': 'GHS',
+      },
+    ]));
+
+    await openQuickLook(tester);
     await tester.tap(find.text('Add to bag'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('1'));
