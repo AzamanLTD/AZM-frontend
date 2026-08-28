@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_cart.dart';
+import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 
 void main() {
   const product = RetailProduct(
