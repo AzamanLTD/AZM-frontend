@@ -56,7 +56,7 @@ class RetailCollectionBoxWidget extends StatelessWidget {
         : null;
     final businessProduct = BusinessProduct(
       id: product.id,
-      businessProfileId: profile?.id ?? business.id,
+      businessProfileId: profile?.id ?? business.businessProfileId,
       name: product.name,
       slug: product.id,
       description: product.description,
