@@ -2,7 +2,7 @@ import 'transit_experience.dart';
 
 class TransitBoardingPass {
   final String bookingId;
-  final TransitTrip trip;
+  final TransitExperienceTrip trip;
   final List<String> seatIds;
   final DateTime? boardingTime;
 
