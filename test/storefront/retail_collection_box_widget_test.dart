@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const business = StorefrontBusinessInfo(
+  final business = StorefrontBusinessInfo(
     name: 'Demo Retail',
     category: 'RETAIL',
     averageRating: 4.8,
