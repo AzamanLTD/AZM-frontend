@@ -54,9 +54,10 @@ class RetailCollectionBoxWidget extends StatelessWidget {
     final profile = rawBusiness is Map
         ? BusinessProfile.fromJson(Map<String, dynamic>.from(rawBusiness))
         : null;
+    final businessProfileId = (props['businessProfileId'] ?? profile?.id ?? '').toString();
     final businessProduct = BusinessProduct(
       id: product.id,
-      businessProfileId: profile?.id ?? business.businessProfileId,
+      businessProfileId: businessProfileId,
       name: product.name,
       slug: product.id,
       description: product.description,
