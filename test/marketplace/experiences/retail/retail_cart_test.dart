@@ -18,13 +18,33 @@ void main() {
     expect(cart.lines.single.quantity, 2);
   });
 
-  test('variants remain separate cart lines', () {
+  test('different single variants remain separate cart lines', () {
     final cart = const RetailCart()
-        .add(product, variantKey: 'size', variantValue: 'M')
-        .add(product, variantKey: 'size', variantValue: 'L');
+        .add(product, variants: {'size': 'M'})
+        .add(product, variants: {'size': 'L'});
 
-    expect(cart.itemCount, 2);
     expect(cart.lines, hasLength(2));
+    expect(cart.lines[0].variants, {'size': 'M'});
+    expect(cart.lines[1].variants, {'size': 'L'});
+  });
+
+  test('multiple variant dimensions remain one deterministic line identity', () {
+    final first = const RetailCart().add(
+      product,
+      variants: {'color': 'Black', 'size': 'M'},
+    );
+    final sameSelectionDifferentOrder = first.add(
+      product,
+      variants: {'size': 'M', 'color': 'Black'},
+    );
+    final differentSelection = sameSelectionDifferentOrder.add(
+      product,
+      variants: {'color': 'Black', 'size': 'L'},
+    );
+
+    expect(sameSelectionDifferentOrder.lines, hasLength(1));
+    expect(sameSelectionDifferentOrder.itemCount, 2);
+    expect(differentSelection.lines, hasLength(2));
   });
 
   test('zero quantity removes a line', () {

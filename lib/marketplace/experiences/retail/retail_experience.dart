@@ -1,12 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:azaman/theme/motion_tokens.dart';
-
-/// Normalized retail product used by the category-specific retail experience.
-///
-/// This deliberately remains UI-facing: authoritative price, inventory and
-/// order state still come from the backend. The experience never calculates
-/// checkout totals locally.
 class RetailProduct {
   final String id;
   final String name;
@@ -31,23 +24,23 @@ class RetailProduct {
   });
 
   factory RetailProduct.fromJson(Map<String, dynamic> json) {
-    final rawImages = json['imageUrls'] ?? json['images'];
-    final rawTags = json['tags'];
-    final rawVariants = json['variants'];
+    final images = json['imageUrls'] ?? json['images'];
+    final tags = json['tags'];
+    final variants = json['variants'];
     return RetailProduct(
       id: (json['id'] ?? json['productId'] ?? '').toString(),
       name: (json['name'] ?? json['title'] ?? 'Product').toString(),
       description: json['description']?.toString(),
-      price: _toDoubleOrNull(json['price'] ?? json['priceUsdc']),
+      price: _toDouble(json['price'] ?? json['priceUsdc']),
       currency: json['currency']?.toString(),
-      imageUrls: rawImages is List
-          ? rawImages.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
+      imageUrls: images is List
+          ? images.map((v) => v.toString()).where((v) => v.isNotEmpty).toList()
           : const [],
-      tags: rawTags is List
-          ? rawTags.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
+      tags: tags is List
+          ? tags.map((v) => v.toString()).where((v) => v.isNotEmpty).toList()
           : const [],
-      variants: rawVariants is Map
-          ? Map<String, dynamic>.from(rawVariants)
+      variants: variants is Map
+          ? Map<String, dynamic>.from(variants)
           : const {},
       available: json['available'] != false && json['isActive'] != false,
     );
@@ -66,15 +59,12 @@ class RetailProduct {
     return '$symbol${price!.toStringAsFixed(2)}';
   }
 
-  static double? _toDoubleOrNull(dynamic value) {
-    if (value == null) return null;
+  static double? _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
-    return double.tryParse(value.toString());
+    return double.tryParse(value?.toString() ?? '');
   }
 }
 
-/// A merchandising collection such as "New Arrivals", "Staff Picks" or
-/// "Weekend Essentials". Collections are presentation rules, not inventory.
 class RetailCollection {
   final String id;
   final String title;
@@ -89,8 +79,6 @@ class RetailCollection {
   });
 }
 
-/// Retail's signature merchandising primitive: a physical-feeling collection
-/// box rather than another generic storefront section.
 class RetailCollectionBox extends StatelessWidget {
   final RetailCollection collection;
   final ValueChanged<RetailProduct> onProductTap;
@@ -105,7 +93,6 @@ class RetailCollectionBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final products = collection.products.take(6).toList(growable: false);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -150,16 +137,13 @@ class RetailCollectionBox extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return SizedBox(
-                width: 168,
-                child: RetailProductCard(
-                  product: product,
-                  onTap: () => onProductTap(product),
-                ),
-              );
-            },
+            itemBuilder: (context, index) => SizedBox(
+              width: 168,
+              child: RetailProductCard(
+                product: products[index],
+                onTap: () => onProductTap(products[index]),
+              ),
+            ),
           ),
         ),
       ],
@@ -180,8 +164,7 @@ class RetailProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = product.imageUrls.isEmpty ? null : product.imageUrls.first;
-
+    final image = product.imageUrls.isEmpty ? null : product.imageUrls.first;
     return Semantics(
       button: true,
       label: '${product.name}, ${product.formattedPrice}',
@@ -198,18 +181,15 @@ class RetailProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: MotionTokens.fast,
-                  child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          key: ValueKey(imageUrl),
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _RetailImageFallback(),
-                        )
-                      : const _RetailImageFallback(),
-                ),
+                child: image == null
+                    ? const _RetailImageFallback()
+                    : Image.network(
+                        image,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const _RetailImageFallback(),
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
@@ -226,7 +206,9 @@ class RetailProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product.available ? product.formattedPrice : 'Currently unavailable',
+                      product.available
+                          ? product.formattedPrice
+                          : 'Currently unavailable',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: product.available
                             ? theme.colorScheme.primary
@@ -245,33 +227,40 @@ class RetailProductCard extends StatelessWidget {
   }
 }
 
-/// Bottom-sheet quick look. It deliberately receives an add-to-cart callback
-/// from the host experience so cart ownership stays with the host/controller,
-/// not inside a storefront widget or a second state-management system.
 Future<void> showRetailQuickLook(
   BuildContext context, {
   required RetailProduct product,
-  required ValueChanged<RetailProduct> onAddToCart,
+  required ValueChanged<RetailCartSelection> onAddToCart,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return RetailQuickLookSheet(
-        product: product,
-        onAddToCart: (item) {
-          Navigator.of(sheetContext).pop();
-          onAddToCart(item);
-        },
-      );
-    },
+    builder: (sheetContext) => RetailQuickLookSheet(
+      product: product,
+      onAddToCart: (selection) {
+        Navigator.of(sheetContext).pop();
+        onAddToCart(selection);
+      },
+    ),
   );
 }
 
-class RetailQuickLookSheet extends StatelessWidget {
+class RetailCartSelection {
   final RetailProduct product;
-  final ValueChanged<RetailProduct> onAddToCart;
+  final Map<String, String> variants;
+  final int quantity;
+
+  const RetailCartSelection({
+    required this.product,
+    this.variants = const {},
+    this.quantity = 1,
+  });
+}
+
+class RetailQuickLookSheet extends StatefulWidget {
+  final RetailProduct product;
+  final ValueChanged<RetailCartSelection> onAddToCart;
 
   const RetailQuickLookSheet({
     super.key,
@@ -280,9 +269,23 @@ class RetailQuickLookSheet extends StatelessWidget {
   });
 
   @override
+  State<RetailQuickLookSheet> createState() => _RetailQuickLookSheetState();
+}
+
+class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
+  final Map<String, String> _selections = {};
+  int _quantity = 1;
+
+  bool get _allVariantsSelected =>
+      widget.product.variants.keys.every(_selections.containsKey);
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = product.imageUrls.isEmpty ? null : product.imageUrls.first;
+    final image = widget.product.imageUrls.isEmpty
+        ? null
+        : widget.product.imageUrls.first;
+    final variants = widget.product.variants;
 
     return SafeArea(
       child: Material(
@@ -291,88 +294,143 @@ class RetailQuickLookSheet extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Quick look',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Quick look',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                if (image != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: AspectRatio(
+                      aspectRatio: 1.2,
+                      child: Image.network(
+                        image,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const _RetailImageFallback(),
                       ),
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
+                const SizedBox(height: 14),
+                Text(
+                  widget.product.name,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  widget.product.formattedPrice,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (widget.product.description?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.product.description!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
-              ),
-              if (imageUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: AspectRatio(
-                    aspectRatio: 1.2,
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _RetailImageFallback(),
+                if (variants.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  ...variants.entries.map(_variantField),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text('Quantity', style: theme.textTheme.titleSmall),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Decrease quantity',
+                      onPressed: _quantity > 1
+                          ? () => setState(() => _quantity--)
+                          : null,
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    Text('$_quantity', style: theme.textTheme.titleMedium),
+                    IconButton(
+                      tooltip: 'Increase quantity',
+                      onPressed: () => setState(() => _quantity++),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: widget.product.available && _allVariantsSelected
+                        ? () => widget.onAddToCart(
+                              RetailCartSelection(
+                                product: widget.product,
+                                variants: Map.unmodifiable(_selections),
+                                quantity: _quantity,
+                              ),
+                            )
+                        : null,
+                    icon: const Icon(Icons.shopping_bag_outlined),
+                    label: Text(
+                      widget.product.available ? 'Add to bag' : 'Unavailable',
                     ),
                   ),
                 ),
-              const SizedBox(height: 14),
-              Text(
-                product.name,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                product.formattedPrice,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (product.description?.isNotEmpty == true) ...[
-                const SizedBox(height: 10),
-                Text(
-                  product.description!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
               ],
-              if (product.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: product.tags.take(6).map((tag) {
-                    return Chip(
-                      label: Text(tag),
-                      visualDensity: VisualDensity.compact,
-                    );
-                  }).toList(),
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: product.available ? () => onAddToCart(product) : null,
-                  icon: const Icon(Icons.shopping_bag_outlined),
-                  label: Text(product.available ? 'Add to bag' : 'Unavailable'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _variantField(MapEntry<String, dynamic> entry) {
+    final values = entry.value is List
+        ? (entry.value as List)
+            .map((value) => value.toString())
+            .where((value) => value.isNotEmpty)
+            .toList()
+        : [entry.value.toString()];
+    if (values.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        initialValue: _selections[entry.key],
+        decoration: InputDecoration(
+          labelText: entry.key,
+          border: const OutlineInputBorder(),
+        ),
+        items: values
+            .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+            .toList(),
+        onChanged: (value) => setState(() {
+          if (value == null) {
+            _selections.remove(entry.key);
+          } else {
+            _selections[entry.key] = value;
+          }
+        }),
       ),
     );
   }
