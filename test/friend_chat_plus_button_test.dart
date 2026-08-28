@@ -18,7 +18,6 @@ void main() {
     AppConfig.enableDemoMode();
 
     final container = ProviderContainer();
-    addTearDown(container.dispose);
 
     final user = User(
       id: DemoSeedData.demoUserId,
@@ -76,6 +75,12 @@ void main() {
         print('STACK: ${exception.stackTrace}');
       }
     }
+
+    // Explicitly tear down the manually-created Riverpod container before
+    // the test finishes. The chat notifier owns periodic timers; waiting for
+    // addTearDown is too late for Flutter's pending-timer check.
+    container.dispose();
+
     expect(exception, isNull, reason: 'LiquidMenuButton threw during open');
   });
 }
