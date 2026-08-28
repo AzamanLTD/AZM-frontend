@@ -138,6 +138,7 @@ class _BagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     return Material(
       elevation: 2,
       color: Theme.of(context).colorScheme.primary,
@@ -150,11 +151,18 @@ class _BagButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.shopping_bag_outlined, size: 18),
+              Icon(
+                Icons.shopping_bag_outlined,
+                size: 18,
+                color: onPrimary,
+              ),
               const SizedBox(width: 6),
               Text(
                 '$itemCount',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: onPrimary,
+                ),
               ),
             ],
           ),
