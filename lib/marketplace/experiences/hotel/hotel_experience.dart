@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:azaman/theme/motion_tokens.dart';
-
 class HotelRoom {
   final String id;
   final String name;
