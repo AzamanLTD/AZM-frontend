@@ -5,7 +5,7 @@ import 'package:azaman/marketplace/experiences/transit/transit_experience.dart';
 void main() {
   test('boarding pass exposes confirmed status before departure', () {
     final now = DateTime.now();
-    final trip = TransitTrip(
+    final trip = TransitExperienceTrip(
       id: 't1',
       origin: 'Kumasi',
       destination: 'Accra',
@@ -24,7 +24,7 @@ void main() {
 
   test('boarding pass changes to boarding soon inside thirty minutes', () {
     final now = DateTime.now();
-    final trip = TransitTrip(
+    final trip = TransitExperienceTrip(
       id: 't1',
       origin: 'Kumasi',
       destination: 'Accra',
