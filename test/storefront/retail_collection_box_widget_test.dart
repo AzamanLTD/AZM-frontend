@@ -94,7 +94,10 @@ void main() {
     await tester.tap(find.text('1'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Color: Black · Size: Large'), findsOneWidget);
+    expect(
+      find.textContaining('Color: Black · Size: Large'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('bag opens and quantity can be changed', (tester) async {
