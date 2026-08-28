@@ -23,9 +23,9 @@ import '../widgets/live_stats_widget.dart';
 import '../widgets/animated_counter_widget.dart';
 import '../widgets/custom_html_widget.dart';
 import '../widgets/gradient_hero_widget.dart';
+import '../widgets/retail_collection_box_widget.dart';
 import '../widgets/fallback_widget.dart';
 
-/// A widget builder function that takes props + business info.
 typedef StorefrontWidgetBuilder = Widget Function(
   BuildContext context,
   Map<String, dynamic> props,
@@ -34,7 +34,6 @@ typedef StorefrontWidgetBuilder = Widget Function(
 
 class StorefrontWidgetRegistry {
   static final Map<String, StorefrontWidgetBuilder> _registry = {
-    // FREE widgets
     'hero_header': (ctx, props, biz) => HeroHeaderWidget(props: props, business: biz),
     'quick_info_bar': (ctx, props, biz) => QuickInfoBarWidget(props: props, business: biz),
     'product_grid': (ctx, props, biz) => ProductGridWidget(props: props, business: biz),
@@ -43,41 +42,29 @@ class StorefrontWidgetRegistry {
     'contact_card': (ctx, props, biz) => ContactCardWidget(props: props, business: biz),
     'location_map': (ctx, props, biz) => LocationMapWidget(props: props, business: biz),
     'action_buttons': (ctx, props, biz) => ActionButtonsWidget(props: props, business: biz),
-    // NITRO_BRONZE
     'video_player': (ctx, props, biz) => VideoPlayerWidget(props: props, business: biz),
     'promo_banner': (ctx, props, biz) => PromoBannerWidget(props: props, business: biz),
     'social_feed': (ctx, props, biz) => SocialFeedWidget(props: props, business: biz),
-    // NITRO_SILVER
     'live_stats': (ctx, props, biz) => LiveStatsWidget(props: props, business: biz),
     'animated_counter': (ctx, props, biz) => AnimatedCounterWidget(props: props, business: biz),
-    // NITRO_GOLD
     'custom_html': (ctx, props, biz) => CustomHtmlWidget(props: props, business: biz),
     'gradient_hero': (ctx, props, biz) => GradientHeroWidget(props: props, business: biz),
+    'retail_collection_box': (ctx, props, biz) => RetailCollectionBoxWidget(props: props, business: biz),
   };
 
-  /// Get the widget builder for a widget type.
-  static StorefrontWidgetBuilder? getBuilder(String widgetType) {
-    return _registry[widgetType];
-  }
+  static StorefrontWidgetBuilder? getBuilder(String widgetType) => _registry[widgetType];
 
-  /// Check if a widget type is registered.
-  static bool isRegistered(String widgetType) {
-    return _registry.containsKey(widgetType);
-  }
+  static bool isRegistered(String widgetType) => _registry.containsKey(widgetType);
 
-  /// Get all registered widget types.
   static List<String> get registeredTypes => _registry.keys.toList();
 
-  /// Build a widget for a tile.
   static Widget buildWidget(
     BuildContext context,
     RenderTile tile,
     StorefrontBusinessInfo business,
   ) {
     final builder = _registry[tile.widgetType];
-    if (builder == null) {
-      return FallbackWidget(widgetType: tile.widgetType);
-    }
+    if (builder == null) return FallbackWidget(widgetType: tile.widgetType);
     return builder(context, tile.props, business);
   }
 }
