@@ -35,5 +35,5 @@ jobs:
       - name: Test
         run: flutter test --coverage
 
-      - name: Build web release
-        run: flutter build web --release
+      # AZM-frontend is the native mobile app. Web deployment lives in a
+      # separate repository, so web builds are intentionally excluded here.
