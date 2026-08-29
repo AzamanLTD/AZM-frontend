@@ -7,6 +7,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/animated_number.dart';
+import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
 
 class HologramBalanceCard extends ConsumerWidget {
@@ -139,33 +140,32 @@ class HologramBalanceCard extends ConsumerWidget {
                     ),
                   ),
                 const SizedBox(height: 4),
-                Row(children: [
-                  Container(width: 6, height: 6,
-                    decoration: BoxDecoration(color: colors.success, shape: BoxShape.circle)),
-                  const SizedBox(width: 5),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.3),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: colors.success,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    child: Text(
-                      "1 USDC = GH₵ ${rate.toStringAsFixed(2)}",
-                      key: ValueKey(rate.toStringAsFixed(2)),
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        "1 USDC = GH₵ ${rate.toStringAsFixed(2)}",
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 8),
+                    const RateRefreshIndicator(),
+                  ],
+                ),
               ]);
             },
           ),
