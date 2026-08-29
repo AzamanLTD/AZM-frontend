@@ -92,7 +92,7 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
     } on FormatException catch (_) {
       return const RetailCheckoutFailure(
         message: 'Received an invalid response from the server.',
-        retryable: false,
+        retryable: true,
       );
     } catch (e) {
       return RetailCheckoutFailure(
