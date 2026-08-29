@@ -26,6 +26,9 @@ class RetailCollectionBoxWidget extends StatefulWidget {
 class _RetailCollectionBoxWidgetState
     extends State<RetailCollectionBoxWidget> {
   RetailCart _cart = const RetailCart();
+  bool _checkoutInFlight = false;
+  String? _checkoutCartFingerprint;
+  String? _checkoutIdempotencyKey;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +60,9 @@ class _RetailCollectionBoxWidgetState
                   variants: selection.variants,
                   quantity: selection.quantity,
                 );
+                // A cart mutation starts a new checkout attempt identity.
+                _checkoutCartFingerprint = null;
+                _checkoutIdempotencyKey = null;
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('${selection.product.name} added to bag')),
@@ -70,7 +76,7 @@ class _RetailCollectionBoxWidgetState
             top: 0,
             child: _BagButton(
               itemCount: _cart.itemCount,
-              onPressed: _openCart,
+              onPressed: _checkoutInFlight ? null : _openCart,
             ),
           ),
       ],
@@ -81,12 +87,19 @@ class _RetailCollectionBoxWidgetState
         context,
         cart: _cart,
         onChanged: (next) {
-          if (mounted) setState(() => _cart = next);
+          if (!mounted) return;
+          setState(() {
+            _cart = next;
+            _checkoutCartFingerprint = null;
+            _checkoutIdempotencyKey = null;
+          });
         },
         onCheckout: _submitCheckout,
       );
 
   Future<void> _submitCheckout() async {
+    if (_checkoutInFlight || _cart.lines.isEmpty) return;
+
     Navigator.of(context).pop();
     final gateway = widget.checkoutGateway;
     if (gateway == null) {
@@ -105,31 +118,52 @@ class _RetailCollectionBoxWidgetState
         : RetailPaymentProtection.direct;
     if (!mounted || paymentProtection == null) return;
 
-    final options = RetailCheckoutOptions(
-      escrowProtectionAvailable: widget.business.escrowProtectionAvailable,
-      paymentProtection: paymentProtection,
-    );
-    final result = await RetailCheckoutController(gateway).submit(
-      _cart,
-      options: options,
-    );
-    if (!mounted) return;
+    final cartSnapshot = _cart;
+    final fingerprint = cartSnapshot.lines
+        .map((line) => '${line.key}:${line.quantity}')
+        .join(';');
+    if (_checkoutCartFingerprint != fingerprint ||
+        _checkoutIdempotencyKey == null) {
+      _checkoutCartFingerprint = fingerprint;
+      _checkoutIdempotencyKey =
+          'retail-${DateTime.now().microsecondsSinceEpoch}-${fingerprint.hashCode.abs()}';
+    }
 
-    final message = switch (result) {
-      RetailCheckoutSuccess(
-        :final confirmationMessage,
-        :final orderId,
-      ) => () {
-          // Clear the cart after a successful checkout.
-          setState(() => _cart = _cart.clear());
-          return confirmationMessage ?? 'Order $orderId created.';
-        }(),
-      RetailCheckoutFailure(:final message) => message,
-      RetailCheckoutUnavailable(:final message) => message,
-    };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    setState(() => _checkoutInFlight = true);
+    try {
+      final options = RetailCheckoutOptions(
+        escrowProtectionAvailable: widget.business.escrowProtectionAvailable,
+        paymentProtection: paymentProtection,
+        idempotencyKey: _checkoutIdempotencyKey,
+      );
+      final result = await RetailCheckoutController(gateway).submit(
+        cartSnapshot,
+        options: options,
+      );
+      if (!mounted) return;
+
+      final message = switch (result) {
+        RetailCheckoutSuccess(
+          :final confirmationMessage,
+          :final orderId,
+        ) => () {
+            // Only a confirmed server success clears the local cart.
+            setState(() {
+              _cart = _cart.clear();
+              _checkoutCartFingerprint = null;
+              _checkoutIdempotencyKey = null;
+            });
+            return confirmationMessage ?? 'Order $orderId created.';
+          }(),
+        RetailCheckoutFailure(:final message) => message,
+        RetailCheckoutUnavailable(:final message) => message,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) setState(() => _checkoutInFlight = false);
+    }
   }
 
   Future<RetailPaymentProtection?> _choosePaymentProtection() {
@@ -183,42 +217,16 @@ class _RetailCollectionBoxWidgetState
 
 class _BagButton extends StatelessWidget {
   final int itemCount;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _BagButton({required this.itemCount, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
-    return Material(
-      elevation: 2,
-      color: Theme.of(context).colorScheme.primary,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.shopping_bag_outlined,
-                size: 18,
-                color: onPrimary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$itemCount',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: onPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return FloatingActionButton.extended(
+      onPressed: onPressed,
+      icon: const Icon(Icons.shopping_bag_outlined),
+      label: Text('$itemCount'),
     );
   }
 }
@@ -231,13 +239,8 @@ class _EmptyCollection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        '$title is empty',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Text('$title is currently unavailable.'),
     );
   }
 }
