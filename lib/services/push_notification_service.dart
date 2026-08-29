@@ -10,9 +10,8 @@
 //   3. Wire foreground, tapped-from-background, and launched-from-terminated
 //      message handlers so trade / chat notifications can deep-link.
 //
-// The background isolate handler (_firebaseMessagingBackgroundHandler)
-// is defined in main.dart because it must be a top-level annotated
-// function registered before runApp.
+// The background isolate handler is defined in startup_coordinator.dart and
+// is registered before runApp().
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,11 +24,10 @@ class PushNotificationService {
   static final PushNotificationService instance = PushNotificationService._();
 
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
-  bool _initialized = false;
+  Future<void>? _initialization;
 
   /// Deep-link callback invoked when the user taps a notification that
-  /// carries a `tradeId` in its data payload. Wire this from main.dart to
-  /// navigate to the correct trade screen.
+  /// carries a `tradeId` in its data payload. Wire this from main.dart.
   void Function(Map<String, dynamic> data)? onNotificationTap;
 
   /// Foreground banner callback: the app is running, a notification just
@@ -37,12 +35,14 @@ class PushNotificationService {
   /// the OS chrome. Consumer supplies the UI.
   void Function(RemoteMessage message)? onForegroundMessage;
 
-  /// Call once from main.dart after Firebase.initializeApp and before
-  /// runApp(). Idempotent.
-  Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
+  /// Initializes FCM once. Callbacks are installed before getInitialMessage()
+  /// is queried so a notification tap that launched a cold app is not lost.
+  /// The in-flight Future also makes concurrent callers share one init.
+  Future<void> init() {
+    return _initialization ??= _initialize();
+  }
 
+  Future<void> _initialize() async {
     try {
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -66,16 +66,17 @@ class PushNotificationService {
       FirebaseMessaging.onMessage.listen(_handleForeground);
       FirebaseMessaging.onMessageOpenedApp.listen(_handleOpened);
 
-      // Cold start: app launched by tapping a notification.
+      // Cold start: app launched by tapping a notification. This must happen
+      // after the consumer callbacks have been installed by the coordinator.
       final RemoteMessage? initial = await _messaging.getInitialMessage();
       if (initial != null) _handleOpened(initial);
 
-      // Proactively log token refreshes — the backend picks up the new
-      // token via the next syncToken() call (e.g. after login).
       _messaging.onTokenRefresh.listen((token) {
         debugPrint('🔁 [Push] token refreshed: ${token.substring(0, 12)}...');
       });
     } catch (e) {
+      // Permit a later lifecycle-triggered retry after a transient failure.
+      _initialization = null;
       debugPrint('⚠️ [Push] init failed: $e');
     }
   }
@@ -105,10 +106,6 @@ class PushNotificationService {
       return null;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Internal handlers
-  // ---------------------------------------------------------------------------
 
   void _handleForeground(RemoteMessage message) {
     debugPrint(
