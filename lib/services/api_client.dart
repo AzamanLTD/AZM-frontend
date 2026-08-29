@@ -32,120 +32,67 @@ class ApiClient {
     }
   }
 
-  Future<http.Response> get(
-    String endpoint, {
-    Map<String, String>? headers,
-    bool requireAuth = true,
-  }) async {
+  Future<http.Response> get(String endpoint, {Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryGet(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...?headers,
-    };
+    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client
-          .get(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders))
-          .timeout(AppConfig.requestTimeout);
+      final response = await _client.get(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders)).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> post(
-    String endpoint,
-    Map<String, dynamic> body, {
-    Map<String, String>? headers,
-    bool requireAuth = true,
-  }) async {
+  Future<http.Response> post(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPost(endpoint, body); if (m != null) return m; }
-    final requestHeaders = <String, String>{
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...?headers,
-    };
+    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client
-          .post(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body))
-          .timeout(AppConfig.requestTimeout);
+      final response = await _client.post(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body)).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> put(
-    String endpoint,
-    Map<String, dynamic> body, {
-    Map<String, String>? headers,
-    bool requireAuth = true,
-  }) async {
+  Future<http.Response> put(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPut(endpoint, body); if (m != null) return m; }
-    final requestHeaders = <String, String>{
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...?headers,
-    };
+    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client
-          .put(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body))
-          .timeout(AppConfig.requestTimeout);
+      final response = await _client.put(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body)).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> patch(
-    String endpoint, {
-    Map<String, dynamic>? body,
-    Map<String, String>? headers,
-    bool requireAuth = true,
-  }) async {
+  Future<http.Response> patch(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPatch(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...?headers,
-    };
+    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client
-          .patch(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: body != null ? jsonEncode(body) : null)
-          .timeout(AppConfig.requestTimeout);
+      final response = await _client.patch(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: body != null ? jsonEncode(body) : null).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> delete(
-    String endpoint, {
-    Map<String, String>? headers,
-    bool requireAuth = true,
-  }) async {
+  Future<http.Response> delete(String endpoint, {Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryDelete(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...?headers,
-    };
+    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client
-          .delete(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders))
-          .timeout(AppConfig.requestTimeout);
+      final response = await _client.delete(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders)).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
@@ -162,9 +109,7 @@ class ApiClient {
 
   http.Response _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) return response;
-    if (response.statusCode == 429) {
-      throw ApiException(message: 'Slow down! Too many requests. Please wait a moment and try again.', statusCode: 429);
-    }
+    if (response.statusCode == 429) throw ApiException(message: 'Slow down! Too many requests. Please wait a moment and try again.', statusCode: 429);
     var message = 'Request failed with status ${response.statusCode}';
     List<String>? errors;
     String? code;
@@ -182,10 +127,7 @@ class ApiClient {
   Future<bool> _tryRefreshToken() async {
     if (_isRefreshing && _refreshFuture != null) return _refreshFuture!;
     _isRefreshing = true;
-    _refreshFuture = _doRefresh().whenComplete(() {
-      _isRefreshing = false;
-      _refreshFuture = null;
-    });
+    _refreshFuture = _doRefresh().whenComplete(() { _isRefreshing = false; _refreshFuture = null; });
     return _refreshFuture!;
   }
 
@@ -193,13 +135,7 @@ class ApiClient {
     try {
       final refreshToken = await _storage.read(key: 'refresh_token');
       if (refreshToken == null || refreshToken.isEmpty) return false;
-      final response = await _client
-          .post(
-            Uri.parse('$baseUrl/auth/refresh'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'refreshToken': refreshToken}),
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await _client.post(Uri.parse('$baseUrl/auth/refresh'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'refreshToken': refreshToken})).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final newAccess = (body['accessToken'] ?? body['token'])?.toString();
@@ -222,13 +158,25 @@ class ApiClient {
     final token = await _storage.read(key: 'auth_token');
     final userId = await _storage.read(key: 'user_id');
     if (token == null || userId == null) return false;
-    try {
-      await get('/auth/me/$userId');
-      return true;
-    } catch (e) {
-      debugPrint('[ApiClient] isAuthenticated check failed: $e');
-      return false;
+    try { await get('/auth/me/$userId'); return true; } catch (e) { debugPrint('[ApiClient] isAuthenticated check failed: $e'); return false; }
+  }
+
+  /// Best-effort server-side refresh-token revocation. Local credentials are
+  /// always cleared by this method, even when the backend is unreachable.
+  Future<void> logout() async {
+    final refreshToken = await _storage.read(key: 'refresh_token');
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _client.post(
+          Uri.parse('$baseUrl/auth/logout'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refreshToken': refreshToken}),
+        ).timeout(const Duration(seconds: 10));
+      } catch (e) {
+        debugPrint('[ApiClient] Server logout failed (local logout continues): $e');
+      }
     }
+    await clearAuthData();
   }
 
   Future<void> clearAuthData() async {
