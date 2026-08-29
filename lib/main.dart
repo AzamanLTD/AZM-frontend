@@ -14,8 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/push_notification_service.dart';
@@ -38,6 +36,7 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/webrtc_service.dart';
 import 'package:azaman/services/business_service.dart';
+import 'package:azaman/services/startup_coordinator.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
@@ -110,14 +109,9 @@ Future<void> syncTradeHistory() async {
   }
 }
 
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  debugPrint('[FCM] Background message: ${message.messageId}');
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  StartupCoordinator.registerBackgroundMessageHandler();
 
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
@@ -177,51 +171,6 @@ Future<void> _bootstrap() async {
 
   runZonedGuarded<Future<void>>(
     () async {
-      var firebaseReady = false;
-      try {
-        await Firebase.initializeApp();
-        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-        firebaseReady = true;
-      } catch (e) {
-        debugPrint('[Bootstrap] Firebase init failed: $e');
-      }
-
-      if (firebaseReady) {
-        await PushNotificationService.instance.init();
-
-        PushNotificationService.instance.onNotificationTap = (data) {
-          final action = data['action']?.toString() ?? '';
-          if (action.isEmpty) return;
-          final actionPayload = <String, dynamic>{};
-          data.forEach((k, v) { if (k != 'action') actionPayload[k] = v; });
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            handleNotificationTap(action: action, actionPayload: actionPayload);
-          });
-        };
-
-        PushNotificationService.instance.onForegroundMessage = (message) {
-          final notification = message.notification;
-          if (notification == null) return;
-          final ctx = rootNavigatorKey.currentContext;
-          if (ctx == null) return;
-          InAppPushBanner.show(
-            ctx,
-            title: notification.title ?? '',
-            body: notification.body ?? '',
-            onTap: () {
-              final data = <String, dynamic>{};
-              message.data.forEach((k, v) => data[k] = v);
-              final action = data['action']?.toString() ?? '';
-              if (action.isNotEmpty) {
-                final payload = <String, dynamic>{};
-                data.forEach((k, v) { if (k != 'action') payload[k] = v; });
-                handleNotificationTap(action: action, actionPayload: payload);
-              }
-            },
-          );
-        };
-      }
-
       runApp(const ProviderScope(child: AzamanApp()));
     },
     (Object error, StackTrace stack) {
@@ -271,9 +220,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Only the first surface is mounted during startup. Other primary surfaces
-  // are created on first navigation and then retained, preserving their state
-  // without paying construction/layout cost before the user needs them.
   late final List<Widget?> _pages;
   late final AnimationController _fadeCtrl;
   int _displayedIndex = 0;
@@ -295,35 +241,39 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initUnifiedSocket());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initUnifiedSocket();
+      _initPostFrameStartup();
+    });
   }
 
-  void _ensurePage(int index) {
-    if (_pages[index] != null) return;
-    final Widget page;
+  Widget _pageFor(int index) {
     switch (index) {
       case 1:
-        page = const FriendsHubScreen();
-        break;
+        return const FriendsHubScreen();
       case 2:
-        page = const P2PMarketplaceScreen();
-        break;
+        return const P2PMarketplaceScreen();
       case 3:
-        page = const MarketplaceHomeScreen();
-        break;
+        return const MarketplaceHomeScreen();
       default:
-        page = const AzamanHomePage();
+        return const AzamanHomePage();
     }
-    setState(() => _pages[index] = page);
   }
 
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
-    _ensurePage(i);
-    setState(() => _selectedIndex = i);
-    if (MediaQuery.of(context).disableAnimations) {
-      setState(() => _displayedIndex = i);
-    } else {
+    final page = _pages[i] ?? _pageFor(i);
+    final disableAnimations = MediaQuery.of(context).disableAnimations;
+
+    setState(() {
+      _pages[i] = page;
+      _selectedIndex = i;
+      if (disableAnimations) {
+        _displayedIndex = i;
+      }
+    });
+
+    if (!disableAnimations) {
       _fadeCtrl.forward(from: 0);
     }
   }
@@ -338,6 +288,63 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   void dispose() {
     _fadeCtrl.dispose();
     super.dispose();
+  }
+
+  void _initPostFrameStartup() {
+    StartupCoordinator.instance.start(
+      onNotificationTap: (data) {
+        final action = data['action']?.toString() ?? '';
+        if (action.isEmpty) return;
+        final actionPayload = <String, dynamic>{};
+        data.forEach((k, v) {
+          if (k != 'action') actionPayload[k] = v;
+        });
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (!mounted) return;
+          handleNotificationTap(action: action, actionPayload: actionPayload);
+        });
+      },
+      onForegroundMessage: (message) {
+        final notification = message.notification;
+        if (notification == null || !mounted) return;
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx == null) return;
+        InAppPushBanner.show(
+          ctx,
+          title: notification.title ?? '',
+          body: notification.body ?? '',
+          onTap: () {
+            final data = <String, dynamic>{};
+            message.data.forEach((k, v) => data[k] = v);
+            final action = data['action']?.toString() ?? '';
+            if (action.isNotEmpty) {
+              final payload = <String, dynamic>{};
+              data.forEach((k, v) {
+                if (k != 'action') payload[k] = v;
+              });
+              handleNotificationTap(action: action, actionPayload: payload);
+            }
+          },
+        );
+      },
+    );
+
+    StartupCoordinator.instance.hydrateBusinessState(
+      loadBusiness: () => ref.read(myBusinessProvider.notifier).load(),
+      loadUnreadCount: () async {
+        final biz = ref.read(myBusinessProvider).profile;
+        if (biz == null || !mounted) return;
+        try {
+          final count = await BusinessService().getUnreadCount();
+          if (mounted) {
+            ref.read(bizUnreadCountProvider.notifier).state = count;
+          }
+        } catch (e) {
+          debugPrint('[Startup] business unread count failed: $e');
+        }
+      },
+      isMounted: () => mounted,
+    );
   }
 
   void _initUnifiedSocket() {
@@ -389,18 +396,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     socketService.onBizNotificationsUpdated((count) {
       if (!mounted) return;
       ref.read(bizUnreadCountProvider.notifier).state = count;
-    });
-
-    ref.read(myBusinessProvider.notifier).load().then((_) async {
-      if (!mounted) return;
-      final biz = ref.read(myBusinessProvider).profile;
-      if (biz != null) {
-        try {
-          final count = await BusinessService().getUnreadCount();
-          if (!mounted) return;
-          ref.read(bizUnreadCountProvider.notifier).state = count;
-        } catch (_) {}
-      }
     });
   }
 
