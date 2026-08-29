@@ -25,14 +25,12 @@ class SettingsProvider with ChangeNotifier {
   bool _chatNotifications = true;
 
   // --- CURRENCY & LANGUAGE ---
-  String _defaultCurrency = 'USD';
+  // USDC is AZAMAN's primary financial rail. GHS is a display/conversion
+  // currency; USD is accepted only as a legacy value from older installs.
+  String _defaultCurrency = 'USDC';
   String _appLanguage = 'English';
 
   // --- VENDOR TAG (Master Sprint v2, 2026-05-27) ---
-  // Controls whether the vendor pull-tab is visible on the home + p2p
-  // overlays. Defaults OFF so casual users aren't bothered by an
-  // affordance they have no interest in. Vendors can flip it on in
-  // Settings → "Show vendor pull tab".
   bool _vendorTagEnabled = false;
 
   // --- HQ SHORTCUTS ---
@@ -50,7 +48,6 @@ class SettingsProvider with ChangeNotifier {
 
   bool _isLoaded = false;
 
-  // --- GETTERS ---
   bool get pushNotifications => _pushNotifications;
   bool get tradeAlerts => _tradeAlerts;
   bool get chatNotifications => _chatNotifications;
@@ -65,17 +62,27 @@ class SettingsProvider with ChangeNotifier {
     _loadPreferences();
   }
 
+  static String _normalizeCurrency(String value) {
+    switch (value.trim().toUpperCase()) {
+      case 'GHS':
+        return 'GHS';
+      case 'USDC':
+      case 'USD': // Legacy installs used USD; migrate them to the USDC rail.
+      default:
+        return 'USDC';
+    }
+  }
+
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
     _pushNotifications = prefs.getBool('push_notifications') ?? true;
     _tradeAlerts = prefs.getBool('trade_alerts') ?? true;
     _chatNotifications = prefs.getBool('chat_notifications') ?? true;
-    _defaultCurrency = prefs.getString('default_currency') ?? 'USD';
+    _defaultCurrency = _normalizeCurrency(prefs.getString('default_currency') ?? 'USDC');
     _appLanguage = prefs.getString('app_language') ?? 'English';
     _vendorTagEnabled = prefs.getBool('vendor_tag_enabled') ?? false;
 
-    // Load shortcut states
     for (var shortcut in _shortcuts) {
       shortcut.enabled = prefs.getBool('shortcut_${shortcut.id}') ?? shortcut.enabled;
     }
@@ -83,8 +90,6 @@ class SettingsProvider with ChangeNotifier {
     _isLoaded = true;
     notifyListeners();
   }
-
-  // --- SETTERS (all persist locally + sync to backend) ---
 
   Future<void> setPushNotifications(bool value) async {
     _pushNotifications = value;
@@ -110,8 +115,6 @@ class SettingsProvider with ChangeNotifier {
     _syncPreferencesToBackend();
   }
 
-  /// Master Sprint v2 — toggle the vendor pull-tab visibility. Persists
-  /// locally only (UI affordance, not a backend-synced setting).
   Future<void> setVendorTagEnabled(bool value) async {
     _vendorTagEnabled = value;
     notifyListeners();
@@ -120,10 +123,11 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> setDefaultCurrency(String value) async {
-    _defaultCurrency = value;
+    final normalized = _normalizeCurrency(value);
+    _defaultCurrency = normalized;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('default_currency', value);
+    await prefs.setString('default_currency', normalized);
     _syncPreferencesToBackend();
   }
 
@@ -145,12 +149,6 @@ class SettingsProvider with ChangeNotifier {
     _syncShortcutsToBackend();
   }
 
-  // =========================================================================
-  // CROSS-DEVICE SYNC — Backend Persistence
-  // =========================================================================
-
-  /// Sync notification/general preferences to backend (fire-and-forget).
-  /// Called automatically on every setter. Non-fatal on failure.
   Future<void> _syncPreferencesToBackend() async {
     try {
       await apiClient.put('/users/preferences', {
@@ -162,12 +160,9 @@ class SettingsProvider with ChangeNotifier {
           'language': _appLanguage,
         },
       });
-    } catch (_) {
-      // Non-fatal: backend sync failure should never affect local UX
-    }
+    } catch (_) {}
   }
 
-  /// Sync shortcut arrangement to backend (fire-and-forget).
   Future<void> _syncShortcutsToBackend() async {
     try {
       final shortcuts = _shortcuts.map((s) => {
@@ -179,15 +174,9 @@ class SettingsProvider with ChangeNotifier {
       await apiClient.put('/users/preferences/shortcuts', {
         'shortcuts': shortcuts,
       });
-    } catch (_) {
-      // Non-fatal
-    }
+    } catch (_) {}
   }
 
-  /// Load preferences + shortcuts from backend (cross-device sync).
-  /// Call after successful authentication to restore user's settings
-  /// from the server. Falls back to local SharedPreferences if backend
-  /// is unreachable.
   Future<void> loadFromBackend() async {
     try {
       final response = await apiClient.get('/users/preferences');
@@ -200,7 +189,6 @@ class SettingsProvider with ChangeNotifier {
       bool changed = false;
       final prefs = await SharedPreferences.getInstance();
 
-      // --- Restore general preferences ---
       final preferences = data['preferences'] as Map<String, dynamic>?;
       if (preferences != null) {
         if (preferences['pushNotifications'] is bool) {
@@ -219,7 +207,7 @@ class SettingsProvider with ChangeNotifier {
           changed = true;
         }
         if (preferences['currencyDisplay'] is String && (preferences['currencyDisplay'] as String).isNotEmpty) {
-          _defaultCurrency = preferences['currencyDisplay'];
+          _defaultCurrency = _normalizeCurrency(preferences['currencyDisplay'] as String);
           await prefs.setString('default_currency', _defaultCurrency);
           changed = true;
         }
@@ -230,7 +218,6 @@ class SettingsProvider with ChangeNotifier {
         }
       }
 
-      // --- Restore shortcuts ---
       final shortcuts = data['shortcuts'] as List<dynamic>?;
       if (shortcuts != null && shortcuts.isNotEmpty) {
         for (final s in shortcuts) {
@@ -247,25 +234,11 @@ class SettingsProvider with ChangeNotifier {
             await prefs.setBool('shortcut_$id', _shortcuts[index].enabled);
           }
         }
-        // Sort by order
         _shortcuts.sort((a, b) => a.order.compareTo(b.order));
         changed = true;
       }
 
       if (changed) notifyListeners();
-    } catch (_) {
-      // Non-fatal: if backend is unreachable, keep local preferences
-    }
+    } catch (_) {}
   }
 }
-
-// =============================================================================
-// RIVERPOD HANDLE  (canonical V2 access path)
-//
-// Read in NEW code via:
-//   final settings = ref.watch(settingsProvider);
-//   ref.read(settingsProvider).setPushNotifications(true);
-// =============================================================================
-final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
-  return SettingsProvider();
-});
