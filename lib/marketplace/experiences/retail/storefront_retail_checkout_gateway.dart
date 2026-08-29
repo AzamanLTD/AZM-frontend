@@ -38,9 +38,8 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
               'quantity': line.quantity,
               if (line.variants.isNotEmpty) 'variants': line.variants,
             })
-        .toList();
+        .toList(growable: false);
 
-    // Single source of truth for the enum → string mapping.
     final paymentMode = options.paymentProtection == RetailPaymentProtection.escrow
         ? 'ESCROW'
         : 'DIRECT';
@@ -49,13 +48,22 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
       final data = await _storefrontService.checkoutCart(
         businessProfileId: businessProfileId,
         items: items,
+        idempotencyKey: options.idempotencyKey,
         paymentMode: paymentMode,
       );
 
-      final order = data['order'] as Map<String, dynamic>?;
+      final order = data['order'] is Map
+          ? Map<String, dynamic>.from(data['order'] as Map)
+          : null;
       final orderId = order?['id']?.toString() ?? data['orderId']?.toString() ?? '';
-      final orderRef = order?['orderRef']?.toString();
+      if (orderId.isEmpty) {
+        return const RetailCheckoutFailure(
+          message: 'The server did not return an order confirmation.',
+          retryable: true,
+        );
+      }
 
+      final orderRef = order?['orderRef']?.toString();
       return RetailCheckoutSuccess(
         orderId: orderId,
         trackingStatus: order?['status']?.toString(),
@@ -69,9 +77,8 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         retryable: false,
       );
     } catch (e) {
-      final message = e.toString();
       return RetailCheckoutFailure(
-        message: message,
+        message: e.toString(),
         retryable: true,
       );
     }
