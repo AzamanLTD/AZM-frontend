@@ -44,6 +44,20 @@ void main() {
         RetailPaymentProtection.direct);
   });
 
+  test('checkout preserves an idempotency key for the gateway', () async {
+    final cart = const RetailCart().add(product);
+    final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
+    const key = 'retail-test-attempt-1';
+
+    final result = await RetailCheckoutController(gateway).submit(
+      cart,
+      options: const RetailCheckoutOptions(idempotencyKey: key),
+    );
+
+    expect(result, isA<RetailCheckoutSuccess>());
+    expect(gateway.receivedOptions?.idempotencyKey, key);
+  });
+
   test('escrow selection is rejected when the store does not offer it', () async {
     final cart = const RetailCart().add(product);
     final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
