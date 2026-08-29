@@ -1,9 +1,8 @@
-# Azaman Flutter App
+# Azaman Flutter Mobile App
 
-> **Live web demo:** https://azm-web-demo.vercel.app
-> (Web build output lives in [pyraxxz/AZM-webdemo](https://github.com/pyraxxz/AZM-webdemo))
+Flutter mobile application for the Azaman P2P crypto exchange and social-finance platform.
 
-Flutter mobile application for the Azaman P2P crypto exchange platform.
+> **Mobile-only repository:** Android and iOS are the supported application targets. The separate web application is maintained in its own repository.
 
 ## Stack
 
@@ -24,30 +23,42 @@ flutter run
 
 ### Build-time configuration
 
-All environment-sensitive values are passed via `--dart-define`:
+Environment-sensitive values are passed via `--dart-define`:
 
 ```bash
-# Target a specific environment
-flutter run --dart-define=ENV=dev        # default — connects to live Render backend
+# Development — defaults to localhost:3000
+flutter run --dart-define=ENV=dev
+
+# Staging
 flutter run --dart-define=ENV=staging
+
+# Production
 flutter run --dart-define=ENV=prod
 
-# Override API host (e.g. local backend on LAN)
+# Override API host (for example, a backend running on your LAN)
 flutter run --dart-define=API_HOST=192.168.1.100 --dart-define=API_PORT=3000
 
 # Enable Sentry crash reporting
 flutter run --dart-define=SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz
 ```
 
-Defaults to the live deployed backend (`https://azm-backend.onrender.com`) so iOS Simulator and Android Emulator work out-of-the-box with no extra config.
+For a physical device or emulator, use an appropriate `API_HOST` when developing against a backend running on your local machine.
 
 ## Architecture
 
 - **Single socket**: `SocketService` owns the single authenticated Socket.IO connection. All socket events (balance updates, trade updates, AZM rewards, notifications) are routed through it.
-- **Granular Riverpod**: `.select(...)` on every provider watch to prevent full-tree rebuilds. Streams like live oracle rates repaint only their specific text widget.
-- **Financial safety**: Every destructive financial action (withdrawal, P2P trade, savings fund/withdraw, peer transfer) is behind a `SlideToConfirm` widget, with an optional biometric pre-gate.
-- **Biometric gate**: Users can enable "Biometric Lock on financial actions" in Security Settings — gated in both directions so the setting itself requires biometric to change.
-- **Connectivity banner**: `AzamanConnectivityBanner` overlays every screen and shows an offline strip when the device loses network, with a reconnected flash on recovery.
+- **Granular Riverpod**: `.select(...)` on provider watches to prevent unnecessary widget-tree rebuilds. Live oracle rates repaint only the widgets that consume them.
+- **Financial safety**: Destructive financial actions are protected by `SlideToConfirm`, with biometric pre-gating where enabled.
+- **Biometric gate**: Users can enable biometric protection for financial actions in Security Settings.
+- **Connectivity banner**: `AzamanConnectivityBanner` shows an offline strip immediately when network connectivity is lost and confirms recovery when it returns.
+
+## Supported Platforms
+
+| Platform | Status |
+|---|---|
+| Android | Supported |
+| iOS | Supported |
+| Web | Maintained in separate repository |
 
 ## Key Screens
 
@@ -66,4 +77,4 @@ Defaults to the live deployed backend (`https://azm-backend.onrender.com`) so iO
 
 ## Sentry (F-05)
 
-Sentry is disabled by default. Pass `--dart-define=SENTRY_DSN=<dsn>` at build time to enable it. The app bootstraps inside `SentryFlutter.init` only when the DSN is non-empty, so CI/dev builds produce no network calls to Sentry.
+Sentry is disabled by default. Pass `--dart-define=SENTRY_DSN=<dsn>` at build time to enable it. The app bootstraps inside `SentryFlutter.init` only when the DSN is non-empty.
