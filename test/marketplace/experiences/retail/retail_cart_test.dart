@@ -60,6 +60,32 @@ void main() {
     expect(second.lines, hasLength(2));
   });
 
+  test('removeSnapshot preserves quantities added after checkout started', () {
+    final snapshot = const RetailCart().add(product, quantity: 2);
+    final current = snapshot.add(product, quantity: 3);
+
+    final remaining = current.removeSnapshot(snapshot);
+
+    expect(remaining.itemCount, 3);
+    expect(remaining.lines.single.quantity, 3);
+  });
+
+  test('removeSnapshot does not remove newly added variant lines', () {
+    final snapshot = const RetailCart().add(
+      product,
+      variants: {'size': 'M'},
+    );
+    final current = snapshot.add(
+      product,
+      variants: {'size': 'L'},
+    );
+
+    final remaining = current.removeSnapshot(snapshot);
+
+    expect(remaining.lines, hasLength(1));
+    expect(remaining.lines.single.variants, {'size': 'L'});
+  });
+
   test('zero quantity removes a line', () {
     final cart = const RetailCart().add(product);
     final key = cart.lines.single.key;
