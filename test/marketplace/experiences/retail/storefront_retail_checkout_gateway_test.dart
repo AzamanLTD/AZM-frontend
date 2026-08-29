@@ -55,23 +55,31 @@ void main() {
     );
   }
 
-  test('maps direct protection and idempotency key', () async {
+  test('direct protection maps to DIRECT', () async {
     final service = buildService();
     final gateway = buildGateway(service);
 
     await gateway.checkout(
       const RetailCart().add(product),
       options: const RetailCheckoutOptions(
-        idempotencyKey: 'attempt-1',
+        escrowProtectionAvailable: true,
         paymentProtection: RetailPaymentProtection.direct,
       ),
     );
 
     expect(service.receivedPaymentMode, 'DIRECT');
-    expect(service.receivedIdempotencyKey, 'attempt-1');
   });
 
-  test('maps escrow protection to the backend payment mode', () async {
+  test('default options map to DIRECT', () async {
+    final service = buildService();
+    final gateway = buildGateway(service);
+
+    await gateway.checkout(const RetailCart().add(product));
+
+    expect(service.receivedPaymentMode, 'DIRECT');
+  });
+
+  test('escrow protection maps to ESCROW', () async {
     final service = buildService();
     final gateway = buildGateway(service);
 
@@ -84,6 +92,26 @@ void main() {
     );
 
     expect(service.receivedPaymentMode, 'ESCROW');
+  });
+
+  test('businessProfileId is passed through to the service', () async {
+    final service = buildService();
+    final gateway = buildGateway(service);
+
+    await gateway.checkout(const RetailCart().add(product));
+
+    expect(service.receivedBusinessProfileId, 'biz-001');
+  });
+
+  test('serializes cart items with productId and quantity', () async {
+    final service = buildService();
+    final gateway = buildGateway(service);
+
+    await gateway.checkout(const RetailCart().add(product));
+
+    expect(service.receivedItems, hasLength(1));
+    expect(service.receivedItems!.single['productId'], 'p1');
+    expect(service.receivedItems!.single['quantity'], 1);
   });
 
   test('serializes selected variants alongside product and quantity', () async {
@@ -99,15 +127,25 @@ void main() {
     );
 
     expect(service.receivedItems, hasLength(1));
-    expect(service.receivedItems!.single['productId'], 'p1');
-    expect(service.receivedItems!.single['quantity'], 2);
     expect(service.receivedItems!.single['variants'], {
       'Size': 'Large',
       'Color': 'Black',
     });
   });
 
-  test('successful response produces RetailCheckoutSuccess', () async {
+  test('maps idempotency key', () async {
+    final service = buildService();
+    final gateway = buildGateway(service);
+
+    await gateway.checkout(
+      const RetailCart().add(product),
+      options: const RetailCheckoutOptions(idempotencyKey: 'attempt-1'),
+    );
+
+    expect(service.receivedIdempotencyKey, 'attempt-1');
+  });
+
+  test('successful response produces RetailCheckoutSuccess with order details', () async {
     final service = buildService();
     final gateway = buildGateway(service);
 
@@ -120,7 +158,7 @@ void main() {
     expect(success.confirmationMessage, contains('ORD-001'));
   });
 
-  test('missing order id is treated as a failed confirmation', () async {
+  test('missing order id is a retryable failed confirmation', () async {
     final service = buildService();
     service.response = {
       'order': {
@@ -156,7 +194,7 @@ void main() {
     expect((result as RetailCheckoutFailure).retryable, isTrue);
   });
 
-  test('empty cart does not call the service', () async {
+  test('empty cart returns failure without calling the service', () async {
     final service = buildService();
     final gateway = buildGateway(service);
 
