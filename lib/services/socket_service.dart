@@ -1,28 +1,9 @@
 // =============================================================================
-// AZAMAN UNIFIED SOCKET SERVICE — V5 (Phase P3)
+// AZAMAN UNIFIED SOCKET SERVICE — V6
 //
-// Responsibilities:
-//   - Maintain a SINGLE persistent socket.io connection to the Node backend.
-//   - Listen to `balance_update` → write full V2 ledger balances + patch AuthProvider.
-//   - Listen to `rate_update` → write oracleRateProvider.
-//   - Listen to `azm_reward` / `azm_spend` → update hologram + notify callbacks.
-//   - Listen to `trade_update`, `market_update`, `new_notification`,
-//     `new_trade_request`, `trade_completed` → dispatch via registered callbacks.
-//   - Expose connect / disconnect / joinRoom / emit helpers.
-//   - Handle Android-emulator host aliasing + configurable environments.
-//   - Auto-authenticate via JWT token in handshake.
-//
-// Phase P3 unification (2026-05-25):
-//   Previously the app ran TWO concurrent socket.io connections — one from
-//   SocketService (hologram/balance/rate) and another from TradeProvider
-//   (trade/chat/vendor). This V5 consolidates both into a single connection,
-//   eliminating duplicate bandwidth, race conditions on balance_update, and
-//   confusion about which socket instance owns which events.
-//
-// Usage:
-//   In your app bootstrap (e.g. MainWrapper.initState):
-//     SocketService.instance.init(ref);
-//     SocketService.instance.joinUserRoom(userId);
+// One singleton owns one Socket.IO connection, one listener registry, and one
+// reconnectable room registry. Providers/screens register callbacks here;
+// they never create or destroy their own global socket.
 // =============================================================================
 
 import 'dart:io' show Platform;
@@ -34,297 +15,262 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 
-// ---------------------------------------------------------------------------
-// Riverpod provider so widgets / other providers can read service state.
-// Returns the static singleton instance so there's only ONE socket connection.
-// ---------------------------------------------------------------------------
 final socketServiceProvider = Provider<SocketService>((ref) {
-  ref.onDispose(SocketService.instance.disconnect);
   return SocketService.instance;
 });
 
-// ---------------------------------------------------------------------------
-// SocketService — singleton wrapper around socket_io_client
-// ---------------------------------------------------------------------------
 class SocketService {
   SocketService._internal();
   static final SocketService instance = SocketService._internal();
 
   io.Socket? _socket;
-  WidgetRef? _ref;
+  dynamic _ref;
   bool _connecting = false;
+  bool _authBlocked = false;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  // =========================================================================
-  // CALLBACK REGISTRY — modules register handlers instead of listening directly
-  // =========================================================================
+  String? _currentUserId;
+  final Set<String> _joinedTradeRooms = <String>{};
+  final Set<String> _joinedFriendRooms = <String>{};
+  final Set<String> _joinedGroupRooms = <String>{};
+  final Set<String> _joinedOrderRooms = <String>{};
 
-  /// AZM reward events (registered by the app shell)
-  void Function(double azmBalance, double awarded, String source, String reason)?
-      _onAzmReward;
-
-  /// AZM spend events (Phase E2: real-time debit notification)
-  void Function(double azmBalance, double spent, String source, String reason)?
-      _onAzmSpend;
-
-  /// Trade update events (registered by TradeProvider)
-  void Function(Map<String, dynamic> data)? _onTradeUpdate;
-
-  /// Market update events (registered by TradeProvider for vendor ad refresh)
+  void Function(double, double, String, String)? _onAzmReward;
+  void Function(double, double, String, String)? _onAzmSpend;
+  void Function(Map<String, dynamic>)? _onTradeUpdate;
   void Function()? _onMarketUpdate;
+  void Function(Map<String, dynamic>)? _onNewNotification;
+  void Function(Map<String, dynamic>)? _onNotificationsUpdated;
+  void Function(Map<String, dynamic>)? _onNewTradeRequest;
+  void Function(Map<String, dynamic>)? _onTradeCompleted;
+  void Function(Map<String, dynamic>)? _onBizNotification;
+  void Function(int)? _onBizNotificationsUpdated;
+  void Function(Map<String, dynamic>)? _onBusinessOrderDelivered;
+  void Function(Map<String, dynamic>)? _onOrderLocation;
+  void Function(Map<String, dynamic>)? _onOrderStatus;
+  void Function(Map<String, dynamic>)? _onOrderEta;
+  void Function(Map<String, dynamic>, String)? _onEscrowEvent;
+  void Function(double, double, String, String)? _onDepositSuccess;
 
-  /// New notification events (for notification badge)
-  void Function(Map<String, dynamic> data)? _onNewNotification;
+  void onAzmReward(void Function(double, double, String, String) cb) => _onAzmReward = cb;
+  void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
+  void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _onTradeUpdate = cb;
+  void onMarketUpdate(void Function() cb) => _onMarketUpdate = cb;
+  void onNewNotification(void Function(Map<String, dynamic>) cb) => _onNewNotification = cb;
+  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _onNotificationsUpdated = cb;
+  void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
+  void onTradeCompleted(void Function(Map<String, dynamic>) cb) => _onTradeCompleted = cb;
+  void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
+  void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
+  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
+  void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
+  void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
+  void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
+  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _onEscrowEvent = cb;
+  void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
 
-  /// Notifications updated (Phase B2: multi-device sync)
-  void Function(Map<String, dynamic> data)? _onNotificationsUpdated;
-
-  /// New trade request events (vendor snackbar)
-  void Function(Map<String, dynamic> data)? _onNewTradeRequest;
-
-  /// Trade completed events (success receipt dialog)
-  void Function(Map<String, dynamic> data)? _onTradeCompleted;
-
-  // ── V3 Marketplace Sprint (2026-06-21): business + escrow callbacks ────────
-
-  /// New owner-facing business notification (drives the badge + feed).
-  void Function(Map<String, dynamic> data)? _onBizNotification;
-
-  /// Authoritative unread-count push (multi-device sync).
-  void Function(int unreadCount)? _onBizNotificationsUpdated;
-
-  /// A business order was marked delivered (customer-facing nudge).
-  void Function(Map<String, dynamic> data)? _onBusinessOrderDelivered;
-
-  // ── Order tracking (real-time courier location, status, ETA) ──────────────
-  void Function(Map<String, dynamic> data)? _onOrderLocation;
-  void Function(Map<String, dynamic> data)? _onOrderStatus;
-  void Function(Map<String, dynamic> data)? _onOrderEta;
-
-  /// Any `escrow_*` / `invoice_paid` event — the second arg is the event name
-  /// so a single handler can fan out (the ticket workspace filters by ticket).
-  void Function(Map<String, dynamic> data, String eventName)? _onEscrowEvent;
-
-  /// Deposit confirmed by payment provider webhook (Moolre on-ramp).
-  /// Called with: amountGhs, amountUsdc, provider, reference.
-  void Function(double amountGhs, double amountUsdc, String provider, String reference)?
-      _onDepositSuccess;
-
-  // ── Registration methods ──────────────────────────────────────────────────
-
-  void onAzmReward(
-      void Function(double azmBalance, double awarded, String source, String reason) callback) {
-    _onAzmReward = callback;
-  }
-
-  void onAzmSpend(
-      void Function(double azmBalance, double spent, String source, String reason) callback) {
-    _onAzmSpend = callback;
-  }
-
-  void onTradeUpdate(void Function(Map<String, dynamic> data) callback) {
-    _onTradeUpdate = callback;
-  }
-
-  void onMarketUpdate(void Function() callback) {
-    _onMarketUpdate = callback;
-  }
-
-  void onNewNotification(void Function(Map<String, dynamic> data) callback) {
-    _onNewNotification = callback;
-  }
-
-  void onNotificationsUpdated(void Function(Map<String, dynamic> data) callback) {
-    _onNotificationsUpdated = callback;
-  }
-
-  void onNewTradeRequest(void Function(Map<String, dynamic> data) callback) {
-    _onNewTradeRequest = callback;
-  }
-
-  void onTradeCompleted(void Function(Map<String, dynamic> data) callback) {
-    _onTradeCompleted = callback;
-  }
-
-  // ── V3 Marketplace Sprint registration methods ────────────────────────────
-
-  void onBizNotification(void Function(Map<String, dynamic>) cb) {
-    _onBizNotification = cb;
-  }
-
-  void onBizNotificationsUpdated(void Function(int) cb) {
-    _onBizNotificationsUpdated = cb;
-  }
-
-  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) {
-    _onBusinessOrderDelivered = cb;
-  }
-
-  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) {
-    _onEscrowEvent = cb;
-  }
-
-  void onDepositSuccess(
-      void Function(double amountGhs, double amountUsdc, String provider, String reference) callback) {
-    _onDepositSuccess = callback;
-  }
-
-  // ── V3 Marketplace Sprint dispatch helpers ────────────────────────────────
-
-  Map<String, dynamic> _toMap(dynamic data) =>
-      data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
-
-  void _dispatchEscrow(dynamic data, String eventName) {
-    try {
-      _onEscrowEvent?.call(_toMap(data), eventName);
-    } catch (e) {
-      debugPrint('[SocketService] $eventName error: $e');
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Resolve the correct backend host:
-  //   - Android emulator → 10.0.2.2 (maps to host machine localhost)
-  //   - iOS simulator / physical device / web → use AppConfig.socketUrl
-  // -------------------------------------------------------------------------
   static String get _resolvedHost {
-    String host = AppConfig.socketUrl;
+    var host = AppConfig.socketUrl;
     try {
       if (!kIsWeb && Platform.isAndroid) {
-        // Only replace 'localhost' (emulator pattern).
-        // Keep 127.0.0.1 as-is — physical devices use adb reverse
-        // which maps 127.0.0.1 on the device to the host machine.
         host = host.replaceFirst('localhost', '10.0.2.2');
       }
-    } catch (_) {
-      // Platform.isAndroid throws on web; kIsWeb guard above prevents that
-    }
+    } catch (_) {}
     return host;
   }
 
-  // -------------------------------------------------------------------------
-  // init — call once after ProviderScope is available (e.g. MainWrapper)
-  // -------------------------------------------------------------------------
   void init(WidgetRef ref) {
     _ref = ref;
     _connect();
   }
 
-  // Overload for use outside widget tree (plain Ref from a provider)
   void initWithRef(Ref ref) {
-    _connectWithRef(ref);
+    _ref = ref;
+    _connect();
   }
 
-  // -------------------------------------------------------------------------
-  // Internal connect helpers
-  // -------------------------------------------------------------------------
   Future<void> _connect() async {
-    if (AppConfig.demoMode) return; // Skip socket in demo mode
-    // Skip if a socket already exists or connection is in progress
-    if (_socket != null || _connecting) return;
+    if (AppConfig.demoMode || _socket != null || _connecting || _authBlocked) return;
     _connecting = true;
 
-    // Get token for authenticated socket connection
-    final token = await _storage.read(key: 'auth_token');
-
-    final host = _resolvedHost;
-    debugPrint('[SocketService] _connect → host=$host, hasToken=${token != null && token.isNotEmpty}');
-
-    _socket = io.io(
-      host,
-      io.OptionBuilder()
-          .setTransports(['polling', 'websocket'])
-          .enableAutoConnect()
-          .enableReconnection()
-          .enableForceNew()
-          .enableForceNewConnection()
-          .setReconnectionAttempts(double.infinity)
-          .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
-          .setAuth({'token': token ?? ''})
-          .build(),
-    );
-
-    _attachCoreListeners();
-  }
-
-  Future<void> _connectWithRef(Ref ref) async {
-    if (AppConfig.demoMode) return; // Skip socket in demo mode
-    // Skip if a socket already exists or connection is in progress
-    if (_socket != null || _connecting) return;
-    _connecting = true;
-
-    final token = await _storage.read(key: 'auth_token');
-
-    final host = _resolvedHost;
-    debugPrint('[SocketService] _connectWithRef → host=$host, hasToken=${token != null && token.isNotEmpty}');
-
-    _socket = io.io(
-      host,
-      io.OptionBuilder()
-          .setTransports(['polling', 'websocket'])
-          .enableAutoConnect()
-          .enableReconnection()
-          .enableForceNew()
-          .enableForceNewConnection()
-          .setReconnectionAttempts(double.infinity)
-          .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
-          .setAuth({'token': token ?? ''})
-          .build(),
-    );
-
-    _attachCoreListenersPlainRef(ref);
-  }
-
-  // =========================================================================
-  // TRADE ROOM MANAGEMENT
-  // =========================================================================
-
-  /// Stored user ID to use for reconnect logic
-  String? _currentUserId;
-
-  /// Track which trade rooms we've joined to avoid duplicate joins
-  final Set<String> _joinedTradeRooms = {};
-  
-  /// Track which friend chat rooms we've joined to auto-rejoin on network flap
-  final Set<String> _joinedFriendRooms = {};
-
-  /// Track which group chat rooms we've joined to auto-rejoin on network flap
-  final Set<String> _joinedGroupRooms = {};
-  final Set<String> _joinedOrderRooms = {};
-
-  /// Join a specific trade room. Idempotent — safe to call multiple times.
-  void joinTradeRoom(String tradeId) {
-    final cleanId = tradeId.replaceAll('#', '');
-    if (_joinedTradeRooms.contains(cleanId)) {
-      if (AppConfig.enableNetworkLogs) {
-        debugPrint('[SocketService] Already in trade room: trade_$cleanId');
+    try {
+      final token = await _storage.read(key: 'auth_token');
+      if (token == null || token.isEmpty) {
+        _connecting = false;
+        return;
       }
-      return;
-    }
-    _socket?.emit('join_trade', cleanId);
-    _joinedTradeRooms.add(cleanId);
-    if (AppConfig.enableNetworkLogs) {
-      debugPrint('[SocketService] Joined trade room: trade_$cleanId');
+
+      final socket = io.io(
+        _resolvedHost,
+        io.OptionBuilder()
+            .setTransports(['polling', 'websocket'])
+            .enableAutoConnect()
+            .enableReconnection()
+            .enableForceNew()
+            .enableForceNewConnection()
+            .setReconnectionAttempts(double.infinity)
+            .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
+            .setAuth({'token': token})
+            .build(),
+      );
+
+      _socket = socket;
+      _attachListeners(socket);
+      _connecting = false;
+    } catch (e) {
+      _connecting = false;
+      _socket = null;
+      debugPrint('[SocketService] connection setup failed: $e');
     }
   }
 
-  /// Leave a trade room (call when navigating away from trade screen).
-  void leaveTradeRoom(String tradeId) {
-    final cleanId = tradeId.replaceAll('#', '');
-    _joinedTradeRooms.remove(cleanId);
-    if (AppConfig.enableNetworkLogs) {
-      debugPrint('[SocketService] Left trade room tracking: trade_$cleanId');
+  void _attachListeners(io.Socket socket) {
+    socket.onConnect((_) {
+      _authBlocked = false;
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] connected id=${socket.id}');
+      }
+      _restoreRooms(socket);
+    });
+
+    socket.onDisconnect((reason) {
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] disconnected: $reason');
+      }
+    });
+
+    socket.onConnectError((err) {
+      final message = err.toString();
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] connect error: $message');
+      }
+      if (_isAuthError(message)) {
+        _authBlocked = true;
+        socket.io.disconnect();
+      }
+    });
+
+    socket.on('balance_update', (data) {
+      try {
+        final raw = _toMap(data);
+        final balances = BalanceData(
+          availableBalance: _toDouble(raw['availableBalance']),
+          vendorUnallocatedBalance: _toDouble(raw['vendorUnallocatedBalance']),
+          escrowLockedBalance: _toDouble(raw['escrowLockedBalance']),
+          disputeEscrowBalance: _toDouble(raw['disputeEscrowBalance']),
+          azmBalance: _toDouble(raw['azmBalance']),
+        );
+        _read(balanceDataProvider.notifier).state = balances;
+        _read(userUsdcBalanceProvider.notifier).state =
+            balances.availableBalance + balances.vendorUnallocatedBalance;
+      } catch (e) {
+        debugPrint('[SocketService] balance_update parse error: $e');
+      }
+    });
+
+    socket.on('rate_update', (data) {
+      try {
+        final rate = _toDouble(_toMap(data)['rate']);
+        if (rate > 0) _read(oracleRateProvider.notifier).state = rate;
+      } catch (e) {
+        debugPrint('[SocketService] rate_update parse error: $e');
+      }
+    });
+
+    socket.on('deposit_success', (data) {
+      try {
+        final raw = _toMap(data);
+        _onDepositSuccess?.call(
+          _toDouble(raw['amountGhs']),
+          _toDouble(raw['amountUsdc']),
+          raw['provider']?.toString() ?? 'MOBILE_MONEY',
+          raw['reference']?.toString() ?? '',
+        );
+      } catch (e) {
+        debugPrint('[SocketService] deposit_success parse error: $e');
+      }
+    });
+
+    socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
+    socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
+
+    socket.on('trade_update', (data) => _safeMapCallback(_onTradeUpdate, data, 'trade_update'));
+    socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
+    socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));
+    socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));
+    socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
+    socket.on('trade_completed', (data) => _safeMapCallback(_onTradeCompleted, data, 'trade_completed'));
+    socket.on('biz_notification', (data) => _safeMapCallback(_onBizNotification, data, 'biz_notification'));
+    socket.on('biz_notifications_updated', (data) {
+      try {
+        _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
+      } catch (e) {
+        debugPrint('[SocketService] biz_notifications_updated parse error: $e');
+      }
+    });
+    socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
+    socket.on('order_location', (data) => _safeMapCallback(_onOrderLocation, data, 'order_location'));
+    socket.on('order_status', (data) => _safeMapCallback(_onOrderStatus, data, 'order_status'));
+    socket.on('order_eta', (data) => _safeMapCallback(_onOrderEta, data, 'order_eta'));
+
+    for (final event in const [
+      'escrow_funded',
+      'escrow_settled',
+      'escrow_pending_settlement',
+      'escrow_disputed',
+      'escrow_resolved',
+      'escrow_terms_updated',
+      'invoice_paid',
+    ]) {
+      socket.on(event, (data) => _dispatchEscrow(data, event));
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Friend Chat Room tracking
-  // -------------------------------------------------------------------------
+  void _handleAzmEvent(dynamic data, bool reward) {
+    try {
+      final raw = _toMap(data);
+      final balance = _toDouble(raw['azmBalance']);
+      final current = _read(balanceDataProvider);
+      _read(balanceDataProvider.notifier).state = current.copyWith(azmBalance: balance);
+      final amount = _toDouble(raw[reward ? 'awarded' : 'spent']);
+      final source = raw['source']?.toString() ?? '';
+      final reason = raw['reason']?.toString() ?? '';
+      if (reward) {
+        _onAzmReward?.call(balance, amount, source, reason);
+      } else {
+        _onAzmSpend?.call(balance, amount, source, reason);
+      }
+    } catch (e) {
+      debugPrint('[SocketService] AZM event parse error: $e');
+    }
+  }
+
+  void _restoreRooms(io.Socket socket) {
+    if (_currentUserId != null) {
+      socket.emit('join_user_room', {'userId': _currentUserId});
+      socket.emit('join_balance_room', _currentUserId);
+    }
+    for (final id in _joinedTradeRooms) socket.emit('join_trade', id);
+    for (final id in _joinedFriendRooms) {
+      socket.emit('join_friend_chat', {'friendshipId': id, 'userId': _currentUserId});
+    }
+    for (final id in _joinedGroupRooms) {
+      socket.emit('join_group', {'groupId': id, 'userId': _currentUserId});
+    }
+    for (final id in _joinedOrderRooms) socket.emit('join_order', {'orderId': id});
+  }
+
+  void joinTradeRoom(String tradeId) {
+    final id = tradeId.replaceAll('#', '');
+    if (!_joinedTradeRooms.add(id)) return;
+    _socket?.emit('join_trade', id);
+  }
+
+  void leaveTradeRoom(String tradeId) => _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
 
   void joinFriendRoom(String friendshipId, String userId) {
-    if (_joinedFriendRooms.contains(friendshipId)) return;
+    if (!_joinedFriendRooms.add(friendshipId)) return;
     _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
-    _joinedFriendRooms.add(friendshipId);
   }
 
   void leaveFriendRoom(String friendshipId, String userId) {
@@ -332,14 +278,9 @@ class SocketService {
     _joinedFriendRooms.remove(friendshipId);
   }
 
-  // -------------------------------------------------------------------------
-  // Group Chat Room tracking
-  // -------------------------------------------------------------------------
-
   void joinGroupRoom(String groupId, String userId) {
-    if (_joinedGroupRooms.contains(groupId)) return;
+    if (!_joinedGroupRooms.add(groupId)) return;
     _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
-    _joinedGroupRooms.add(groupId);
   }
 
   void leaveGroupRoom(String groupId, String userId) {
@@ -347,17 +288,9 @@ class SocketService {
     _joinedGroupRooms.remove(groupId);
   }
 
-  // -------------------------------------------------------------------------
-  // Order Tracking Room
-  // -------------------------------------------------------------------------
-
   void joinOrderRoom(String orderId) {
-    if (_joinedOrderRooms.contains(orderId)) return;
+    if (!_joinedOrderRooms.add(orderId)) return;
     _socket?.emit('join_order', {'orderId': orderId});
-    _joinedOrderRooms.add(orderId);
-    if (AppConfig.enableNetworkLogs) {
-      debugPrint('[SocketService] Joined order room: order_$orderId');
-    }
   }
 
   void leaveOrderRoom(String orderId) {
@@ -365,501 +298,52 @@ class SocketService {
     _joinedOrderRooms.remove(orderId);
   }
 
-  // ── Order tracking callbacks ─────────────────────────────────────────────
-  void onOrderLocation(void Function(Map<String, dynamic>) cb) {
-    _onOrderLocation = cb;
-  }
-
-  void onOrderStatus(void Function(Map<String, dynamic>) cb) {
-    _onOrderStatus = cb;
-  }
-
-  void onOrderEta(void Function(Map<String, dynamic>) cb) {
-    _onOrderEta = cb;
-  }
-
-  // -------------------------------------------------------------------------
-  // Room management
-  // -------------------------------------------------------------------------
-
-  /// Join the user's personal balance + notification rooms
   void joinUserRoom(String userId) {
     _currentUserId = userId;
     _socket?.emit('join_user_room', {'userId': userId});
     _socket?.emit('join_balance_room', userId);
-    if (AppConfig.enableNetworkLogs) {
-      debugPrint('[SocketService] Joined user + balance rooms: $userId');
-    }
   }
 
-  /// Leave a previously joined room
-  void leaveRoom(String roomId) {
-    _socket?.emit('leave_room', {'roomId': roomId});
-  }
+  void leaveRoom(String roomId) => _socket?.emit('leave_room', {'roomId': roomId});
 
-  // -------------------------------------------------------------------------
-  // Emit helper — allows screens to emit events without importing socket_io
-  // -------------------------------------------------------------------------
   void emit(String event, dynamic data) {
-    if (_socket == null) {
-      debugPrint('⚠️ [SocketService] emit "$event" FAILED — socket is null');
+    final socket = _socket;
+    if (socket == null || !socket.connected) {
+      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] emit skipped: $event');
       return;
     }
-    if (!_socket!.connected) {
-      debugPrint('⚠️ [SocketService] emit "$event" — socket NOT connected');
+    socket.emit(event, data);
+  }
+
+  Future<void> forceReconnect() async {
+    final socket = _socket;
+    if (socket != null) {
+      socket.offAny();
+      socket.disconnect();
+      socket.dispose();
     }
-    debugPrint('📤 [SocketService] emit "$event"');
-    _socket?.emit(event, data);
+    _socket = null;
+    _connecting = false;
+    _authBlocked = false;
+    await _connect();
   }
 
-  // -------------------------------------------------------------------------
-  // Core event listeners — WidgetRef variant
-  // -------------------------------------------------------------------------
-  void _attachCoreListeners() {
-    _socket!
-      ..onConnect((_) {
-        if (AppConfig.enableNetworkLogs) {
-          debugPrint('[SocketService] Connected → $_resolvedHost (ID: ${_socket?.id})');
-        }
-        // Re-join any trade rooms on reconnect
-        for (final roomId in _joinedTradeRooms) {
-          _socket?.emit('join_trade', roomId);
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] Re-joined trade room: trade_$roomId');
-          }
-        }
-        for (final roomId in _joinedFriendRooms) {
-          _socket?.emit('join_friend_chat', {'friendshipId': roomId, 'userId': _currentUserId});
-        }
-        for (final roomId in _joinedGroupRooms) {
-          _socket?.emit('join_group', {'groupId': roomId, 'userId': _currentUserId});
-        }
-      })
-      ..onDisconnect((_) {
-        if (AppConfig.enableNetworkLogs) {
-          debugPrint('[SocketService] Disconnected');
-        }
-      })
-      ..onConnectError((err) {
-        final errStr = err.toString();
-        if (AppConfig.enableNetworkLogs) {
-          debugPrint('[SocketService] Connect error: $err');
-        }
-        // Detect auth failures from the server's socketAuth middleware
-        if (errStr.contains('Authentication failed') ||
-            errStr.contains('Token expired') ||
-            errStr.contains('Token superseded') ||
-            errStr.contains('banned') ||
-            errStr.contains('no longer exists')) {
-          debugPrint('[SocketService] Auth-related socket rejection: $errStr');
-          // Stop reconnection attempts for auth failures — the client
-          // must refresh its token before reconnecting. Auto-reconnect
-          // would just hammer the server with bad tokens.
-          _socket?.io.disconnect();
-        }
-      })
-
-      // ── balance_update (V4: full ledger) ────────────────────────────────
-      ..on('balance_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final balances = BalanceData(
-            availableBalance: _toDouble(raw['availableBalance']),
-            vendorUnallocatedBalance: _toDouble(raw['vendorUnallocatedBalance']),
-            escrowLockedBalance: _toDouble(raw['escrowLockedBalance']),
-            disputeEscrowBalance: _toDouble(raw['disputeEscrowBalance']),
-            azmBalance: _toDouble(raw['azmBalance']),
-          );
-
-          _ref?.read(balanceDataProvider.notifier).state = balances;
-
-          // Also update legacy single-value provider for backwards compat
-          _ref?.read(userUsdcBalanceProvider.notifier).state =
-              balances.availableBalance + balances.vendorUnallocatedBalance;
-
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] balance_update → ${balances.totalBalance} USDC');
-          }
-        } catch (e) {
-          debugPrint('[SocketService] balance_update parse error: $e');
-        }
-      })
-
-      // ── rate_update ─────────────────────────────────────────────────────
-      ..on('rate_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          final double rate = _toDouble(raw['rate']);
-          if (rate > 0) {
-            _ref?.read(oracleRateProvider.notifier).state = rate;
-          }
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] rate_update → $rate GHS/USDC');
-          }
-        } catch (e) {
-          debugPrint('[SocketService] rate_update parse error: $e');
-        }
-      })
-
-      // ── deposit_success (Moolre on-ramp webhook confirmation) ────────────
-      ..on('deposit_success', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          final amountGhs  = _toDouble(raw['amountGhs']);
-          final amountUsdc = _toDouble(raw['amountUsdc']);
-          final provider   = raw['provider']?.toString() ?? 'MOBILE_MONEY';
-          final reference  = raw['reference']?.toString() ?? '';
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] deposit_success → GH₵$amountGhs / $amountUsdc USDC ($provider)');
-          }
-          _onDepositSuccess?.call(amountGhs, amountUsdc, provider, reference);
-        } catch (e) {
-          debugPrint('[SocketService] deposit_success parse error: $e');
-        }
-      })
-
-      // ── azm_reward (Phase E1: real-time AZM credit notification) ────────
-      ..on('azm_reward', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final newAzmBalance = _toDouble(raw['azmBalance']);
-          final awarded = _toDouble(raw['awarded']);
-          final source = raw['source']?.toString() ?? '';
-          final reason = raw['reason']?.toString() ?? '';
-
-          final current = _ref?.read(balanceDataProvider);
-          if (current != null) {
-            _ref?.read(balanceDataProvider.notifier).state =
-                current.copyWith(azmBalance: newAzmBalance);
-          }
-
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] azm_reward → +$awarded AZM ($source)');
-          }
-
-          _onAzmReward?.call(newAzmBalance, awarded, source, reason);
-        } catch (e) {
-          debugPrint('[SocketService] azm_reward parse error: $e');
-        }
-      })
-
-      // ── azm_spend (Phase E2: real-time AZM debit notification) ──────────
-      ..on('azm_spend', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final newAzmBalance = _toDouble(raw['azmBalance']);
-          final spent = _toDouble(raw['spent']);
-          final source = raw['source']?.toString() ?? '';
-          final reason = raw['reason']?.toString() ?? '';
-
-          final current = _ref?.read(balanceDataProvider);
-          if (current != null) {
-            _ref?.read(balanceDataProvider.notifier).state =
-                current.copyWith(azmBalance: newAzmBalance);
-          }
-
-          if (AppConfig.enableNetworkLogs) {
-            debugPrint('[SocketService] azm_spend → -$spent AZM ($source)');
-          }
-
-          _onAzmSpend?.call(newAzmBalance, spent, source, reason);
-        } catch (e) {
-          debugPrint('[SocketService] azm_spend parse error: $e');
-        }
-      })
-
-      // ── trade_update (Phase P3: unified from TradeProvider) ─────────────
-      ..on('trade_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onTradeUpdate?.call(raw);
-        } catch (e) {
-          debugPrint('[SocketService] trade_update parse error: $e');
-        }
-      })
-
-      // ── market_update (Phase P3: vendor ad refresh trigger) ─────────────
-      ..on('market_update', (_) {
-        _onMarketUpdate?.call();
-      })
-
-      // ── new_notification ────────────────────────────────────────────────
-      ..on('new_notification', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNewNotification?.call(raw);
-        } catch (e) {
-          debugPrint('[SocketService] new_notification parse error: $e');
-        }
-      })
-
-      // ── notifications_updated (Phase B2: multi-device sync) ─────────────
-      ..on('notifications_updated', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNotificationsUpdated?.call(raw);
-        } catch (e) {
-          debugPrint('[SocketService] notifications_updated parse error: $e');
-        }
-      })
-
-      // ── new_trade_request (vendor snackbar) ─────────────────────────────
-      ..on('new_trade_request', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNewTradeRequest?.call(raw);
-        } catch (e) {
-          debugPrint('[SocketService] new_trade_request parse error: $e');
-        }
-      })
-
-      // ── trade_completed (success receipt) ───────────────────────────────
-      ..on('trade_completed', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onTradeCompleted?.call(raw);
-        } catch (e) {
-          debugPrint('[SocketService] trade_completed parse error: $e');
-        }
-      })
-
-      // ── V3 Marketplace Sprint (2026-06-21): business + escrow events ────
-      ..on('biz_notification', (data) {
-        try {
-          _onBizNotification?.call(_toMap(data));
-        } catch (_) {}
-      })
-      ..on('biz_notifications_updated', (data) {
-        try {
-          _onBizNotificationsUpdated
-              ?.call(_toMap(data)['unreadCount'] as int? ?? 0);
-        } catch (_) {}
-      })
-      ..on('business_order_delivered', (data) {
-        try {
-          _onBusinessOrderDelivered?.call(_toMap(data));
-        } catch (_) {}
-      })
-      ..on('escrow_funded', (d) => _dispatchEscrow(d, 'escrow_funded'))
-      ..on('escrow_settled', (d) => _dispatchEscrow(d, 'escrow_settled'))
-      ..on('escrow_pending_settlement',
-          (d) => _dispatchEscrow(d, 'escrow_pending_settlement'))
-      ..on('escrow_disputed', (d) => _dispatchEscrow(d, 'escrow_disputed'))
-      ..on('escrow_resolved', (d) => _dispatchEscrow(d, 'escrow_resolved'))
-      ..on('escrow_terms_updated',
-          (d) => _dispatchEscrow(d, 'escrow_terms_updated'))
-      ..on('invoice_paid', (d) => _dispatchEscrow(d, 'invoice_paid'));
-  }
-
-  // -------------------------------------------------------------------------
-  // Core event listeners — plain Ref variant
-  // -------------------------------------------------------------------------
-  void _attachCoreListenersPlainRef(Ref ref) {
-    _socket!
-      ..onConnect((_) {
-          debugPrint('[SocketService] Connected → $_resolvedHost (ID: ${_socket?.id})');
-        for (final roomId in _joinedTradeRooms) {
-          _socket?.emit('join_trade', roomId);
-        }
-      })
-      ..onDisconnect((_) {
-          debugPrint('[SocketService] Disconnected');
-      })
-      ..onConnectError((err) {
-          debugPrint('[SocketService] Connect error: $err');
-        final errStr = err.toString();
-        if (errStr.contains('Authentication failed') ||
-            errStr.contains('Token expired') ||
-            errStr.contains('Token superseded') ||
-            errStr.contains('banned') ||
-            errStr.contains('no longer exists')) {
-          _socket?.io.disconnect();
-        }
-      })
-      ..on('balance_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final balances = BalanceData(
-            availableBalance: _toDouble(raw['availableBalance']),
-            vendorUnallocatedBalance: _toDouble(raw['vendorUnallocatedBalance']),
-            escrowLockedBalance: _toDouble(raw['escrowLockedBalance']),
-            disputeEscrowBalance: _toDouble(raw['disputeEscrowBalance']),
-            azmBalance: _toDouble(raw['azmBalance']),
-          );
-
-          ref.read(balanceDataProvider.notifier).state = balances;
-          ref.read(userUsdcBalanceProvider.notifier).state =
-              balances.availableBalance + balances.vendorUnallocatedBalance;
-        } catch (e) {
-          debugPrint('[SocketService] balance_update parse error: $e');
-        }
-      })
-      ..on('rate_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          final double rate = _toDouble(raw['rate']);
-          if (rate > 0) {
-            ref.read(oracleRateProvider.notifier).state = rate;
-          }
-        } catch (e) {
-          debugPrint('[SocketService] rate_update parse error: $e');
-        }
-      })
-      ..on('azm_reward', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final newAzmBalance = _toDouble(raw['azmBalance']);
-
-          final current = ref.read(balanceDataProvider);
-          ref.read(balanceDataProvider.notifier).state =
-              current.copyWith(azmBalance: newAzmBalance);
-
-          _onAzmReward?.call(
-            newAzmBalance,
-            _toDouble(raw['awarded']),
-            raw['source']?.toString() ?? '',
-            raw['reason']?.toString() ?? '',
-          );
-        } catch (e) {
-          debugPrint('[SocketService] azm_reward parse error: $e');
-        }
-      })
-      ..on('azm_spend', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-
-          final newAzmBalance = _toDouble(raw['azmBalance']);
-
-          final current = ref.read(balanceDataProvider);
-          ref.read(balanceDataProvider.notifier).state =
-              current.copyWith(azmBalance: newAzmBalance);
-
-          _onAzmSpend?.call(
-            newAzmBalance,
-            _toDouble(raw['spent']),
-            raw['source']?.toString() ?? '',
-            raw['reason']?.toString() ?? '',
-          );
-        } catch (e) {
-          debugPrint('[SocketService] azm_spend parse error: $e');
-        }
-      })
-      // Phase P3: dispatch trade/notification events via callbacks
-      ..on('trade_update', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onTradeUpdate?.call(raw);
-        } catch (_) {}
-      })
-      ..on('market_update', (_) => _onMarketUpdate?.call())
-      ..on('new_notification', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNewNotification?.call(raw);
-        } catch (_) {}
-      })
-      ..on('notifications_updated', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNotificationsUpdated?.call(raw);
-        } catch (_) {}
-      })
-      ..on('new_trade_request', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onNewTradeRequest?.call(raw);
-        } catch (_) {}
-      })
-      ..on('trade_completed', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          _onTradeCompleted?.call(raw);
-        } catch (_) {}
-      })
-
-      // ── V3 Marketplace Sprint (2026-06-21): business + escrow events ────
-      ..on('biz_notification', (data) {
-        try {
-          _onBizNotification?.call(_toMap(data));
-        } catch (_) {}
-      })
-      ..on('biz_notifications_updated', (data) {
-        try {
-          _onBizNotificationsUpdated
-              ?.call(_toMap(data)['unreadCount'] as int? ?? 0);
-        } catch (_) {}
-      })
-      ..on('business_order_delivered', (data) {
-        try {
-          _onBusinessOrderDelivered?.call(_toMap(data));
-        } catch (_) {}
-      })
-      ..on('escrow_funded', (d) => _dispatchEscrow(d, 'escrow_funded'))
-      ..on('escrow_settled', (d) => _dispatchEscrow(d, 'escrow_settled'))
-      ..on('escrow_pending_settlement',
-          (d) => _dispatchEscrow(d, 'escrow_pending_settlement'))
-      ..on('escrow_disputed', (d) => _dispatchEscrow(d, 'escrow_disputed'))
-      ..on('escrow_resolved', (d) => _dispatchEscrow(d, 'escrow_resolved'))
-      ..on('escrow_terms_updated',
-          (d) => _dispatchEscrow(d, 'escrow_terms_updated'))
-      ..on('invoice_paid', (d) => _dispatchEscrow(d, 'invoice_paid'));
-  }
-
-  // -------------------------------------------------------------------------
-  // Lifecycle
-  // -------------------------------------------------------------------------
   void disconnect() {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
     _ref = null;
     _connecting = false;
+    _authBlocked = false;
+    _currentUserId = null;
     _joinedTradeRooms.clear();
+    _joinedFriendRooms.clear();
+    _joinedGroupRooms.clear();
     _joinedOrderRooms.clear();
-    // Clear all registered callbacks
+    _clearCallbacks();
+  }
+
+  void _clearCallbacks() {
     _onAzmReward = null;
     _onAzmSpend = null;
     _onTradeUpdate = null;
@@ -868,7 +352,6 @@ class SocketService {
     _onNotificationsUpdated = null;
     _onNewTradeRequest = null;
     _onTradeCompleted = null;
-    // V3 Marketplace Sprint callbacks
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
     _onBusinessOrderDelivered = null;
@@ -877,63 +360,63 @@ class SocketService {
     _onOrderEta = null;
     _onEscrowEvent = null;
     _onDepositSuccess = null;
-    if (AppConfig.enableNetworkLogs) {
-      debugPrint('[SocketService] Disposed');
-    }
-  }
-
-  /// Force a full reconnect — tears down the existing socket and
-  /// re-establishes with a fresh token from secure storage. Called
-  /// when the auth provider refreshes the JWT or when the socket
-  /// auth middleware rejects a stale token.
-  Future<void> forceReconnect() async {
-    debugPrint('[SocketService] forceReconnect — tearing down and reconnecting');
-    // Preserve rooms + user ID across the reconnect
-    final savedRooms = Set<String>.from(_joinedTradeRooms);
-    final savedUserId = _currentUserId;
-
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _connecting = false;
-
-    // Re-init — _connect reads the fresh token from secure storage
-    if (_ref != null) {
-      _connect();
-    } else {
-      // No WidgetRef — use the Ref-less path
-      _connect();
-    }
-
-    // Give it a moment to connect, then rejoin rooms
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (savedUserId != null) {
-      joinUserRoom(savedUserId);
-    }
-    for (final roomId in savedRooms) {
-      _socket?.emit('join_trade', roomId);
-    }
   }
 
   bool get isConnected => _socket?.connected ?? false;
   io.Socket? get rawSocket => _socket;
-  
-  /// Public socket getter for WebRTC signaling
   io.Socket? get socket => _socket;
-  
-  /// Current user ID getter
   String? get userId => _currentUserId;
-  
-  /// Parsed user ID as int for APIs that need it
   int get userIdInt => int.tryParse(_currentUserId ?? '0') ?? 0;
 
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
+  bool _isAuthError(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('authentication failed') ||
+        lower.contains('token expired') ||
+        lower.contains('token superseded') ||
+        lower.contains('banned') ||
+        lower.contains('no longer exists');
+  }
+
+  Map<String, dynamic> _toMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const FormatException('Expected map payload');
+  }
+
+  dynamic _read(dynamic provider) => _ref.read(provider);
+
+  void _dispatchEscrow(dynamic data, String event) {
+    try {
+      _onEscrowEvent?.call(_toMap(data), event);
+    } catch (e) {
+      debugPrint('[SocketService] $event error: $e');
+    }
+  }
+
+  void _safeMapCallback(void Function(Map<String, dynamic>)? cb, dynamic data, String event) {
+    try {
+      cb?.call(_toMap(data));
+    } catch (e) {
+      debugPrint('[SocketService] $event error: $e');
+    }
+  }
+
+  void _safeVoidCallback(void Function()? cb) {
+    try {
+      cb?.call();
+    } catch (e) {
+      debugPrint('[SocketService] callback error: $e');
+    }
+  }
+
   static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
     if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
