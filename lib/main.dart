@@ -1,20 +1,13 @@
 // =============================================================================
-// AZAMAN V2 — APPLICATION BOOTSTRAP  (Phase 0b complete — Root Strip)
+// AZAMAN V2 — APPLICATION BOOTSTRAP
 //
-// V2 ground rules (AZAMAN_MASTER_SOUL.md §3):
-//   * Riverpod is the sole state-management layer. `ProviderScope` is mounted
-//     as the outermost composition root.
-//   * The `provider` package and its `MultiProvider` block have been removed.
-//     Every callsite now reads through `ref.watch(...)` / `ref.read(...)`
-//     against the canonical Riverpod handles declared in
-//     `lib/providers/*.dart` (and `lib/logic/vendor_provider.dart`).
-//   * Theme is read via `ref.watch(themeProvider.select((t) => t.themeData))`
-//     so the app shell does not repaint when an unrelated theme field flips.
+// The consumer application is a native Android/iOS client. Riverpod is the
+// sole state-management layer and ProviderScope is the composition root.
 // =============================================================================
 
-import 'dart:isolate';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,11 +45,6 @@ import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
-
-// =============================================================================
-// MODELS — preserved verbatim from previous main.dart
-// =============================================================================
-
 class P2POrder {
   final String id;
   final String coin;
@@ -79,60 +67,49 @@ class P2POrder {
   });
 }
 
-ValueNotifier<List<P2POrder>> openTransactionsNotifier =
-    ValueNotifier<List<P2POrder>>([]);
-ValueNotifier<List<P2POrder>> completedTransactionsNotifier =
-    ValueNotifier<List<P2POrder>>([]);
+ValueNotifier<List<P2POrder>> openTransactionsNotifier = ValueNotifier<List<P2POrder>>([]);
+ValueNotifier<List<P2POrder>> completedTransactionsNotifier = ValueNotifier<List<P2POrder>>([]);
 
 const storage = FlutterSecureStorage();
 
 Future<void> syncTradeHistory() async {
   try {
     final response = await apiClient.get('/trades/history');
+    if (response.statusCode != 200) return;
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      final List historyData = data['history'];
+    final Map<String, dynamic> data = json.decode(response.body);
+    final List historyData = data['history'];
 
-      completedTransactionsNotifier.value = historyData
-          .where((item) =>
-              item['status'] == 'COMPLETED' || item['status'] == 'CANCELLED')
-          .map((item) => P2POrder(
-                id: item['id'].toString(),
-                coin: item['crypto'] ?? 'USDT',
-                rate: 0.0,
-                totalAmount: (item['amountCrypto'] as num).toDouble(),
-                paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
-                timestamp:
-                    DateTime.parse(item['completedAt'] ?? item['createdAt']),
-                status: item['status'] ?? 'COMPLETED',
-              ))
-          .toList();
+    completedTransactionsNotifier.value = historyData
+        .where((item) => item['status'] == 'COMPLETED' || item['status'] == 'CANCELLED')
+        .map((item) => P2POrder(
+              id: item['id'].toString(),
+              coin: item['crypto'] ?? 'USDT',
+              rate: 0.0,
+              totalAmount: (item['amountCrypto'] as num).toDouble(),
+              paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
+              timestamp: DateTime.parse(item['completedAt'] ?? item['createdAt']),
+              status: item['status'] ?? 'COMPLETED',
+            ))
+        .toList();
 
-      openTransactionsNotifier.value = historyData
-          .where((item) =>
-              item['status'] != 'COMPLETED' && item['status'] != 'CANCELLED')
-          .map((item) => P2POrder(
-                id: item['id'].toString(),
-                coin: item['crypto'] ?? 'USDT',
-                rate: 0.0,
-                totalAmount: (item['amountCrypto'] as num).toDouble(),
-                paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
-                timestamp: DateTime.parse(item['createdAt']),
-                status: item['status'] ?? 'PENDING',
-              ))
-          .toList();
-    }
+    openTransactionsNotifier.value = historyData
+        .where((item) => item['status'] != 'COMPLETED' && item['status'] != 'CANCELLED')
+        .map((item) => P2POrder(
+              id: item['id'].toString(),
+              coin: item['crypto'] ?? 'USDT',
+              rate: 0.0,
+              totalAmount: (item['amountCrypto'] as num).toDouble(),
+              paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
+              timestamp: DateTime.parse(item['createdAt']),
+              status: item['status'] ?? 'PENDING',
+            ))
+        .toList();
   } catch (e) {
     debugPrint('Error syncing trade history: $e');
   }
 }
 
-// =============================================================================
-// ENTRY POINT
-// =============================================================================
-
-/// Top-level background message handler (must be a top-level function).
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -140,18 +117,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  // Ensure bindings are initialized before any zone wrapping (fixes Zone mismatch on web)
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Check for ?demo=true URL param on web to enable demo mode at runtime
-  if (kIsWeb) {
-    try {
-      final uri = Uri.base;
-      if (uri.queryParameters["demo"] == "true") {
-        AppConfig.enableDemoMode();
-      }
-    } catch (_) {}
-  }
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
       (options) {
@@ -168,24 +135,18 @@ void main() async {
   }
 }
 
-/// All app initialisation, factored out so it can run with or without the
-/// Sentry zone wrapper above.
 Future<void> _bootstrap() async {
-  // ── 1. GLOBAL ERROR BOUNDARY ─────────────────────────────────────────────
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('[AZM-FATAL] ${details.exception}');
     _lastFrameworkError.value = details.exception;
   };
-  // ── 2. ISOLATE ERROR GUARD ───────────────────────────────────────────────
-  if (!kIsWeb) {
-    Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
-      final list = data as List;
-      debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
-    }).sendPort);
-  }
 
-  // ── 3. ERROR WIDGET BUILDER ──────────────────────────────────────────────
+  Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
+    final list = data as List;
+    debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
+  }).sendPort);
+
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return const Material(
       color: Color(0xFF1A1A2E),
@@ -197,11 +158,9 @@ Future<void> _bootstrap() async {
             children: [
               Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
               SizedBox(height: 16),
-              Text('Something went wrong',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Something went wrong', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 8),
-              Text('Pull down to refresh, or restart the app.',
-                style: TextStyle(color: Colors.white54, fontSize: 13)),
+              Text('Pull down to refresh, or restart the app.', style: TextStyle(color: Colors.white54, fontSize: 13)),
             ],
           ),
         ),
@@ -209,40 +168,32 @@ Future<void> _bootstrap() async {
     );
   };
 
-  // ── 5. IMMERSIVE EDGE-TO-EDGE ────────────────────────────────────────────
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-  );
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
     systemNavigationBarContrastEnforced: false,
   ));
 
-  // ── 4. ZONE GUARD for async errors outside Flutter ───────────────────────
   runZonedGuarded<Future<void>>(
     () async {
       var firebaseReady = false;
-      if (!kIsWeb) {
-        try {
-          await Firebase.initializeApp();
-          FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-          firebaseReady = true;
-        } catch (e) {
-          debugPrint('[Bootstrap] Firebase init failed: $e');
-        }
+      try {
+        await Firebase.initializeApp();
+        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        firebaseReady = true;
+      } catch (e) {
+        debugPrint('[Bootstrap] Firebase init failed: $e');
       }
 
-      if (!kIsWeb && firebaseReady) {
+      if (firebaseReady) {
         await PushNotificationService.instance.init();
 
         PushNotificationService.instance.onNotificationTap = (data) {
           final action = data['action']?.toString() ?? '';
           if (action.isEmpty) return;
           final actionPayload = <String, dynamic>{};
-          data.forEach((k, v) {
-            if (k != 'action') actionPayload[k] = v;
-          });
+          data.forEach((k, v) { if (k != 'action') actionPayload[k] = v; });
           Future.delayed(const Duration(milliseconds: 1500), () {
             handleNotificationTap(action: action, actionPayload: actionPayload);
           });
@@ -279,12 +230,8 @@ Future<void> _bootstrap() async {
   );
 }
 
-/// ValueNotifier holding the last framework error, for optional display.
 final ValueNotifier<Object?> _lastFrameworkError = ValueNotifier<Object?>(null);
 
-// =============================================================================
-// ROOT APP
-// =============================================================================
 class AzamanApp extends ConsumerWidget {
   const AzamanApp({super.key});
 
@@ -296,40 +243,31 @@ class AzamanApp extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            colors.isDark ? Brightness.light : Brightness.dark,
-        statusBarBrightness:
-            colors.isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: colors.isDark ? Brightness.dark : Brightness.light,
         systemNavigationBarColor: colors.surface,
-        systemNavigationBarIconBrightness:
-            colors.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
       ),
       child: MaterialApp.router(
         title: 'Azaman P2P',
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        builder: (context, child) {
-          return ThemedAppBackdrop(
-            child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
-          );
-        },
+        builder: (context, child) => ThemedAppBackdrop(
+          child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }
 }
 
-// =============================================================================
-// MAIN WRAPPER — 4-tab layout (Home | Chat | P2P | Market)
-// =============================================================================
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
   @override
   ConsumerState<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends ConsumerState<MainWrapper>
-    with SingleTickerProviderStateMixin {
+class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -340,7 +278,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   @override
   void initState() {
     super.initState();
-
     _pages = [
       const AzamanHomePage(),
       const FriendsHubScreen(),
@@ -348,19 +285,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       const MarketplaceHomeScreen(),
     ];
 
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: MotionTokens.standard,
-    )..value = 1.0;
+    _fadeCtrl = AnimationController(vsync: this, duration: MotionTokens.standard)..value = 1.0;
     _fadeCtrl.addListener(() {
       if (_fadeCtrl.value >= 0.25 && _displayedIndex != _selectedIndex) {
         setState(() => _displayedIndex = _selectedIndex);
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initUnifiedSocket();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initUnifiedSocket());
   }
 
   void _onNavItemSelected(int i) {
@@ -388,7 +320,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void _initUnifiedSocket() {
     final socketService = ref.read(socketServiceProvider);
     socketService.init(ref);
-
     final webrtcService = ref.read(webrtcServiceProvider);
     webrtcService.initialize();
     webrtcService.setSocket(socketService);
@@ -400,17 +331,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     }
 
     socketService.onTradeCompleted((data) => _showSuccessReceipt(data));
-
     socketService.onNewNotification((data) {
       if (!mounted) return;
       HapticFeedback.lightImpact();
       ref.read(trade_pkg.tradeProvider).incrementNotificationCount();
       final colors = ref.read(theme_pkg.themeProvider).colors;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          data['title'] ?? 'New Message',
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        ),
+        content: Text(data['title'] ?? 'New Message', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: colors.danger,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
@@ -418,17 +345,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         dismissDirection: DismissDirection.up,
       ));
     });
-
     socketService.onNewTradeRequest((data) {
       if (!mounted) return;
       HapticFeedback.heavyImpact();
       ref.read(trade_pkg.tradeProvider).incrementNotificationCount();
       final colors = ref.read(theme_pkg.themeProvider).colors;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          '\u{1F514} New Trade: ${data['buyerName'] ?? 'Buyer'} wants to trade \$${data['amount'] ?? ''} USD',
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        ),
+        content: Text('\u{1F514} New Trade: ${data['buyerName'] ?? 'Buyer'} wants to trade \$${data['amount'] ?? ''} USD', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: colors.success,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
@@ -436,7 +359,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         dismissDirection: DismissDirection.up,
       ));
     });
-
     socketService.onBizNotification((data) {
       if (!mounted) return;
       ref.read(bizUnreadCountProvider.notifier).state++;
@@ -470,17 +392,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.check_circle_outline, color: colors.success, size: 80),
           const SizedBox(height: 16),
-          Text('Order Completed',
-              style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Order Completed', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Purchased ${data['amount']} ${data['crypto']}',
-              style: TextStyle(color: colors.textSecondary)),
+          Text('Purchased ${data['amount']} ${data['crypto']}', style: TextStyle(color: colors.textSecondary)),
           Divider(color: colors.divider, height: 32),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Done',
-                style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Done', style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold))),
         ]),
       ),
     );
@@ -489,41 +405,24 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
-
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
       extendBody: true,
-      bottomNavigationBar: PremiumBottomNav(
-        selectedIndex: _selectedIndex,
-        onItemSelected: _onNavItemSelected,
-      ),
+      bottomNavigationBar: PremiumBottomNav(selectedIndex: _selectedIndex, onItemSelected: _onNavItemSelected),
       body: Stack(
         children: [
           AnimatedBuilder(
             animation: _fadeCtrl,
-            builder: (context, child) => Opacity(
-              opacity: _tabFadeOpacity,
-              child: child,
-            ),
+            builder: (context, child) => Opacity(opacity: _tabFadeOpacity, child: child),
             child: IndexedStack(
               index: _displayedIndex,
-              children: [
-                _pages[0],
-                _pages[1],
-                _pages[2],
-                _pages[3],
-              ],
+              children: [_pages[0], _pages[1], _pages[2], _pages[3]],
             ),
           ),
-          if (_displayedIndex == 2 &&
-              ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
-            const VendorPullTab(),
-
-          DrawerPeekHint(
-            onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
-          ),
+          if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
+          DrawerPeekHint(onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer()),
         ],
       ),
     );
