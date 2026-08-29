@@ -60,7 +60,6 @@ class _RetailCollectionBoxWidgetState
                   variants: selection.variants,
                   quantity: selection.quantity,
                 );
-                // A cart mutation starts a new checkout attempt identity.
                 _checkoutCartFingerprint = null;
                 _checkoutIdempotencyKey = null;
               });
@@ -223,10 +222,36 @@ class _BagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: onPressed,
-      icon: const Icon(Icons.shopping_bag_outlined),
-      label: Text('$itemCount'),
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+    return Material(
+      elevation: 2,
+      color: Theme.of(context).colorScheme.primary,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.shopping_bag_outlined,
+                size: 18,
+                color: onPrimary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$itemCount',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: onPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -239,8 +264,13 @@ class _EmptyCollection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text('$title is currently unavailable.'),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        '$title is empty',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      ),
     );
   }
 }
