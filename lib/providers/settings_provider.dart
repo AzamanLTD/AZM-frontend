@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/services/api_client.dart';
 
-
 /// All available shortcuts the user can pin to their HQ drawer
 class HQShortcut {
   final String id;
@@ -19,21 +18,17 @@ class HQShortcut {
 }
 
 class SettingsProvider with ChangeNotifier {
-  // --- NOTIFICATION PREFERENCES ---
   bool _pushNotifications = true;
   bool _tradeAlerts = true;
   bool _chatNotifications = true;
 
-  // --- CURRENCY & LANGUAGE ---
   // USDC is AZAMAN's primary financial rail. GHS is a display/conversion
   // currency; USD is accepted only as a legacy value from older installs.
   String _defaultCurrency = 'USDC';
   String _appLanguage = 'English';
 
-  // --- VENDOR TAG (Master Sprint v2, 2026-05-27) ---
   bool _vendorTagEnabled = false;
 
-  // --- HQ SHORTCUTS ---
   final List<HQShortcut> _shortcuts = [
     HQShortcut(id: 'deposit', label: 'Deposit', icon: Icons.account_balance_wallet_outlined, order: 0),
     HQShortcut(id: 'withdraw', label: 'Withdraw', icon: Icons.send_outlined, order: 1),
@@ -67,7 +62,7 @@ class SettingsProvider with ChangeNotifier {
       case 'GHS':
         return 'GHS';
       case 'USDC':
-      case 'USD': // Legacy installs used USD; migrate them to the USDC rail.
+      case 'USD':
       default:
         return 'USDC';
     }
@@ -242,3 +237,8 @@ class SettingsProvider with ChangeNotifier {
     } catch (_) {}
   }
 }
+
+// Canonical Riverpod handle retained for existing consumers.
+final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
+  return SettingsProvider();
+});
