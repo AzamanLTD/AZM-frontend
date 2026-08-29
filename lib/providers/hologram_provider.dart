@@ -80,7 +80,7 @@ final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
 // Oracle rate: GHS per USDC. The backend is the source of truth; 12.50 is only
 // an offline bootstrap fallback and is never written over a successful rate.
 // -----------------------------------------------------------------------------
-final oracleRateProvider = StateProvider<double>((ref) {
+final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   const fallbackRate = 12.50;
   const refreshSeconds = 60;
 
