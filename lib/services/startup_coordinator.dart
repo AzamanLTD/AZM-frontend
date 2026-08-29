@@ -1,11 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:azaman/config.dart';
-import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/push_notification_service.dart';
 
 /// Coordinates non-critical application hydration after the first frame.
