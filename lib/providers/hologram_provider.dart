@@ -73,26 +73,14 @@ class OracleRateMetadata {
   }
 }
 
-final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) {
-  ref.listen<double>(oracleRateProvider, (previous, next) {
-    if (previous != next) {
-      final current = ref.read(oracleRateMetadataProvider);
-      ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
-        fetchedAt: DateTime.now(),
-        sourceLastSync: current.sourceLastSync,
-        refreshInterval: current.refreshInterval,
-        stale: false,
-      );
-    }
-  });
-  return OracleRateMetadata(fetchedAt: DateTime.now(), stale: true);
-});
+final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
+    OracleRateMetadata(fetchedAt: DateTime.now(), stale: true));
 
 // -----------------------------------------------------------------------------
 // Oracle rate: GHS per USDC. The backend is the source of truth; 12.50 is only
 // an offline bootstrap fallback and is never written over a successful rate.
 // -----------------------------------------------------------------------------
-final oracleRateProvider = StateProvider<double>((ref) {
+final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   const fallbackRate = 12.50;
   const refreshSeconds = 60;
 
