@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../marketplace/experiences/retail/retail_cart.dart';
@@ -118,9 +120,7 @@ class _RetailCollectionBoxWidgetState
     if (!mounted || paymentProtection == null) return;
 
     final cartSnapshot = _cart;
-    final fingerprint = cartSnapshot.lines
-        .map((line) => '${line.key}:${line.quantity}')
-        .join(';');
+    final fingerprint = _cartFingerprint(cartSnapshot);
     if (_checkoutCartFingerprint != fingerprint ||
         _checkoutIdempotencyKey == null) {
       _checkoutCartFingerprint = fingerprint;
@@ -146,7 +146,6 @@ class _RetailCollectionBoxWidgetState
           :final confirmationMessage,
           :final orderId,
         ) => () {
-            // Only a confirmed server success clears the local cart.
             setState(() {
               _cart = _cart.clear();
               _checkoutCartFingerprint = null;
@@ -198,6 +197,18 @@ class _RetailCollectionBoxWidgetState
         ],
       ),
     );
+  }
+
+  String _cartFingerprint(RetailCart cart) {
+    final lines = cart.lines
+        .map(
+          (line) => {
+            'key': line.key,
+            'quantity': line.quantity,
+          },
+        )
+        .toList(growable: false);
+    return jsonEncode(lines);
   }
 
   List<RetailProduct> _parseProducts(dynamic raw) {
