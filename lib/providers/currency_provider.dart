@@ -1,22 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/services/api_client.dart';
-
-/// The currencies users can choose for displaying balances and conversions.
-enum DisplayCurrency { usdc, ghs }
-
-extension DisplayCurrencyX on DisplayCurrency {
-  String get code => this == DisplayCurrency.usdc ? 'USDC' : 'GHS';
-
-  static DisplayCurrency fromCode(String? value) {
-    return (value ?? '').toUpperCase() == 'GHS'
-        ? DisplayCurrency.ghs
-        : DisplayCurrency.usdc;
-  }
-}
 
 /// Server-authoritative FX snapshot. USDC is treated as USD-parity for the
 /// current KotaniPay/mock rail, so the backend's USD/GHS rate is the source
