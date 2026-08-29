@@ -271,7 +271,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  late final List<Widget> _pages;
+  // Only the first surface is mounted during startup. Other primary surfaces
+  // are created on first navigation and then retained, preserving their state
+  // without paying construction/layout cost before the user needs them.
+  late final List<Widget?> _pages;
   late final AnimationController _fadeCtrl;
   int _displayedIndex = 0;
 
@@ -280,9 +283,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     super.initState();
     _pages = [
       const AzamanHomePage(),
-      const FriendsHubScreen(),
-      const P2PMarketplaceScreen(),
-      const MarketplaceHomeScreen(),
+      null,
+      null,
+      null,
     ];
 
     _fadeCtrl = AnimationController(vsync: this, duration: MotionTokens.standard)..value = 1.0;
@@ -295,8 +298,28 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     WidgetsBinding.instance.addPostFrameCallback((_) => _initUnifiedSocket());
   }
 
+  void _ensurePage(int index) {
+    if (_pages[index] != null) return;
+    final Widget page;
+    switch (index) {
+      case 1:
+        page = const FriendsHubScreen();
+        break;
+      case 2:
+        page = const P2PMarketplaceScreen();
+        break;
+      case 3:
+        page = const MarketplaceHomeScreen();
+        break;
+      default:
+        page = const AzamanHomePage();
+    }
+    setState(() => _pages[index] = page);
+  }
+
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
+    _ensurePage(i);
     setState(() => _selectedIndex = i);
     if (MediaQuery.of(context).disableAnimations) {
       setState(() => _displayedIndex = i);
@@ -416,9 +439,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
           AnimatedBuilder(
             animation: _fadeCtrl,
             builder: (context, child) => Opacity(opacity: _tabFadeOpacity, child: child),
-            child: IndexedStack(
-              index: _displayedIndex,
-              children: [_pages[0], _pages[1], _pages[2], _pages[3]],
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                for (var index = 0; index < _pages.length; index++)
+                  if (_pages[index] != null)
+                    Offstage(
+                      offstage: index != _displayedIndex,
+                      child: _pages[index],
+                    ),
+              ],
             ),
           ),
           if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
