@@ -19,9 +19,8 @@ class StartupCoordinator {
   bool _pushReady = false;
 
   /// Registers the FCM background callback at the earliest safe point.
-  ///
-  /// This is intentionally synchronous and lightweight. Firebase itself and
-  /// foreground push setup remain post-frame so they do not delay first paint.
+  /// Firebase itself and foreground push setup remain post-frame so they do
+  /// not delay first paint.
   static void registerBackgroundMessageHandler() {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
@@ -71,9 +70,12 @@ class StartupCoordinator {
   }) async {
     if (_pushReady) return;
 
-    await PushNotificationService.instance.init();
-    PushNotificationService.instance.onNotificationTap = onNotificationTap;
-    PushNotificationService.instance.onForegroundMessage = onForegroundMessage;
+    final push = PushNotificationService.instance;
+    // Install callbacks before init so getInitialMessage() can deliver a
+    // cold-start notification tap to the UI instead of dropping it.
+    push.onNotificationTap = onNotificationTap;
+    push.onForegroundMessage = onForegroundMessage;
+    await push.init();
     _pushReady = true;
   }
 
