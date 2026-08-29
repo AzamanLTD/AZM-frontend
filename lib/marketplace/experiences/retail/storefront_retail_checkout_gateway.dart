@@ -2,6 +2,13 @@ import 'retail_cart.dart';
 import 'retail_checkout.dart';
 import '../../../storefront/services/storefront_service.dart';
 
+typedef StorefrontCheckoutCall = Future<Map<String, dynamic>> Function({
+  required String businessProfileId,
+  required List<Map<String, dynamic>> items,
+  String? idempotencyKey,
+  required String paymentMode,
+});
+
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
 ///
 /// Translates the retail-experience cart + options into the backend's
@@ -15,10 +22,13 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
   StorefrontRetailCheckoutGateway({
     required this.businessProfileId,
     StorefrontService? storefrontService,
-  }) : _storefrontService = storefrontService ?? StorefrontService();
+    StorefrontCheckoutCall? checkoutCall,
+  })  : _storefrontService = storefrontService ?? StorefrontService(),
+        _checkoutCall = checkoutCall;
 
   final String businessProfileId;
   final StorefrontService _storefrontService;
+  final StorefrontCheckoutCall? _checkoutCall;
 
   @override
   Future<RetailCheckoutResult> checkout(
@@ -45,12 +55,20 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         : 'DIRECT';
 
     try {
-      final data = await _storefrontService.checkoutCart(
-        businessProfileId: businessProfileId,
-        items: items,
-        idempotencyKey: options.idempotencyKey,
-        paymentMode: paymentMode,
-      );
+      final call = _checkoutCall;
+      final data = call != null
+          ? await call(
+              businessProfileId: businessProfileId,
+              items: items,
+              idempotencyKey: options.idempotencyKey,
+              paymentMode: paymentMode,
+            )
+          : await _storefrontService.checkoutCart(
+              businessProfileId: businessProfileId,
+              items: items,
+              idempotencyKey: options.idempotencyKey,
+              paymentMode: paymentMode,
+            );
 
       final order = data['order'] is Map
           ? Map<String, dynamic>.from(data['order'] as Map)
