@@ -111,6 +111,7 @@ Future<void> syncTradeHistory() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  StartupCoordinator.registerBackgroundMessageHandler();
 
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init(
