@@ -47,6 +47,19 @@ void main() {
     expect(differentSelection.lines, hasLength(2));
   });
 
+  test('variant values containing delimiters cannot collide', () {
+    final first = const RetailCart().add(
+      product,
+      variants: {'finish': 'matte|blue'},
+    );
+    final second = first.add(
+      product,
+      variants: {'finish': 'matte', 'blue': ''},
+    );
+
+    expect(second.lines, hasLength(2));
+  });
+
   test('zero quantity removes a line', () {
     final cart = const RetailCart().add(product);
     final key = cart.lines.single.key;
