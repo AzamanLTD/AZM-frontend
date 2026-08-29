@@ -40,7 +40,7 @@ class RetailCartLine {
 }
 
 /// UI cart state only. Server-authoritative totals, inventory and payment
-/// authorization must be resolved by the checkout/order API.
+authorization must be resolved by the checkout/order API.
 class RetailCart {
   final List<RetailCartLine> lines;
 
@@ -90,6 +90,32 @@ class RetailCart {
     return RetailCart(
       lines: lines.where((line) => line.key != key).toList(growable: false),
     );
+  }
+
+  /// Removes only the quantities represented by a completed checkout snapshot.
+  ///
+  /// This prevents a successful in-flight checkout from deleting items the
+  /// customer added to the bag while the request was still being processed.
+  RetailCart removeSnapshot(RetailCart snapshot) {
+    if (snapshot.lines.isEmpty || lines.isEmpty) return this;
+    final checkedOutQuantities = <String, int>{};
+    for (final line in snapshot.lines) {
+      checkedOutQuantities.update(
+        line.key,
+        (quantity) => quantity + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
+    }
+
+    final remaining = <RetailCartLine>[];
+    for (final line in lines) {
+      final checkedOut = checkedOutQuantities[line.key] ?? 0;
+      final quantity = line.quantity - checkedOut;
+      if (quantity > 0) {
+        remaining.add(line.copyWith(quantity: quantity));
+      }
+    }
+    return RetailCart(lines: remaining);
   }
 
   RetailCart clear() => const RetailCart();
