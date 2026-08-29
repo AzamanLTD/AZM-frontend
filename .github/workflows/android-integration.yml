@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -38,6 +38,25 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # Hosted runners contain large SDKs that are not needed for an APK
+      # build. Flutter/Gradle also materialize native build dependencies, so
+      # reclaim the known disposable payloads before compilation.
+      - name: Reclaim runner disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Disk usage before cleanup:"
+          df -h /
+
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo rm -rf /usr/local/lib/android/sdk/emulator
+          sudo rm -rf /opt/ghc
+
+          echo "Disk usage after cleanup:"
+          df -h /
 
       # The real Firebase configuration is environment-specific and is not
       # committed. This placeholder validates Gradle/plugin integration.
