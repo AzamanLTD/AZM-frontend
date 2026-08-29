@@ -137,6 +137,25 @@ void main() {
     expect((result as RetailCheckoutFailure).retryable, isTrue);
   });
 
+  test('malformed response exceptions remain retryable', () async {
+    final gateway = StorefrontRetailCheckoutGateway(
+      businessProfileId: 'biz-001',
+      checkoutCall: ({
+        required businessProfileId,
+        required items,
+        idempotencyKey,
+        required paymentMode,
+      }) async {
+        throw const FormatException('malformed response');
+      },
+    );
+
+    final result = await gateway.checkout(const RetailCart().add(product));
+
+    expect(result, isA<RetailCheckoutFailure>());
+    expect((result as RetailCheckoutFailure).retryable, isTrue);
+  });
+
   test('empty cart does not call the service', () async {
     final service = buildService();
     final gateway = buildGateway(service);
