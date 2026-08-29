@@ -147,7 +147,7 @@ class _RetailCollectionBoxWidgetState
           :final orderId,
         ) => () {
             setState(() {
-              _cart = _cart.clear();
+              _cart = _cart.removeSnapshot(cartSnapshot);
               _checkoutCartFingerprint = null;
               _checkoutIdempotencyKey = null;
             });
