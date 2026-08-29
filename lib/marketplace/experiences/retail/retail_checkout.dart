@@ -9,10 +9,12 @@ enum RetailPaymentProtection {
 class RetailCheckoutOptions {
   final bool escrowProtectionAvailable;
   final RetailPaymentProtection paymentProtection;
+  final String? idempotencyKey;
 
   const RetailCheckoutOptions({
     this.escrowProtectionAvailable = false,
     this.paymentProtection = RetailPaymentProtection.direct,
+    this.idempotencyKey,
   });
 
   bool get usesEscrow =>
