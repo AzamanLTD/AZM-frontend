@@ -1,39 +1,55 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/config.dart';
 import 'package:azaman/models/transaction_quote.dart';
-import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/services/api_client.dart';
 
-/// Temporary quote source backed by the admin-controlled/mock oracle rate.
-/// Replace the implementation behind this seam when KotaniPay quote APIs
-/// become available; transaction screens should not read the oracle directly.
+/// Server-authoritative transaction quote client.
+///
+/// Display rates may come from the oracle cache, but a transaction quote must
+/// come from the backend so the server can own the rate, expiry and quote id.
 class TransactionQuoteService {
-  final Ref _ref;
+  final ApiClient _api;
 
-  const TransactionQuoteService(this._ref);
+  const TransactionQuoteService(this._api);
 
-  TransactionQuote createQuote({
-    Duration validity = const Duration(seconds: 60),
-    double? feeGhs,
-  }) {
-    final rate = _ref.read(oracleRateProvider);
-    final now = DateTime.now();
-    return TransactionQuote(
-      id: 'mock-${now.microsecondsSinceEpoch}',
-      rateGhsPerUsdc: rate,
-      feeGhs: feeGhs,
-      createdAt: now,
-      expiresAt: now.add(validity),
-    );
+  Future<TransactionQuote> createQuote({
+    required String purpose,
+    required double amountGhs,
+  }) async {
+    if (amountGhs <= 0) {
+      throw ArgumentError.value(amountGhs, 'amountGhs', 'Must be greater than zero.');
+    }
+
+    final response = await _api.post('/quotes', {
+      'purpose': purpose,
+      'amountGhs': amountGhs,
+    });
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('Unable to create transaction quote (${response.statusCode}).');
+    }
+
+    final decoded = jsonDecode(response.body);
+    final data = decoded is Map<String, dynamic>
+        ? (decoded['data'] is Map<String, dynamic> ? decoded['data'] : decoded)
+        : null;
+    if (data == null) throw StateError('Invalid transaction quote response.');
+
+    return TransactionQuote.fromJson(data);
   }
 }
 
 final transactionQuoteServiceProvider = Provider<TransactionQuoteService>(
-  (ref) => TransactionQuoteService(ref),
+  (ref) => TransactionQuoteService(apiClient),
 );
 
-/// Creates a short-lived quote from the current admin/mock rate.
-/// This is intentionally separate from the display-rate provider.
-final transactionQuoteProvider = Provider.family<TransactionQuote, String>((ref, purpose) {
-  // `purpose` is part of the provider key so purchase/deposit flows can hold
-  // independent quote instances without sharing lifecycle state.
-  return ref.read(transactionQuoteServiceProvider).createQuote();
-});
+/// Creates a server-issued, short-lived quote. `purpose` separates independent
+/// purchase/deposit flows so a quote cannot accidentally be reused across them.
+final transactionQuoteProvider = FutureProvider.family<TransactionQuote, ({String purpose, double amountGhs})>(
+  (ref, args) => ref.read(transactionQuoteServiceProvider).createQuote(
+        purpose: args.purpose,
+        amountGhs: args.amountGhs,
+      ),
+);
