@@ -40,7 +40,7 @@ class RetailCartLine {
 }
 
 /// UI cart state only. Server-authoritative totals, inventory and payment
-authorization must be resolved by the checkout/order API.
+/// authorization must be resolved by the checkout/order API.
 class RetailCart {
   final List<RetailCartLine> lines;
 
