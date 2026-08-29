@@ -73,7 +73,11 @@ class FiatUsdcEstimate extends ConsumerWidget {
               ],
             ),
           ),
-          if (!metadata.stale) const RateRefreshIndicator(),
+          const RateRefreshIndicator(),
+          if (metadata.stale) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.warning_amber_rounded, color: colors.warning, size: 16),
+          ],
         ],
       ),
     );
