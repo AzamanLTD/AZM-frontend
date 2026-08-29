@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'retail_experience.dart';
 
 class RetailCartLine {
@@ -22,10 +24,18 @@ class RetailCartLine {
     );
   }
 
+  /// Stable line identity independent of variant insertion order.
+  ///
+  /// JSON encoding avoids delimiter collisions when merchants use option names
+  /// or values containing `:` or `|` (the old hand-built key could merge two
+  /// distinct selections into the same cart line).
   String get key {
     final sorted = variants.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    return '${product.id}:${sorted.map((entry) => '${entry.key}=${entry.value}').join('|')}';
+    final canonicalVariants = <String, String>{
+      for (final entry in sorted) entry.key: entry.value,
+    };
+    return '${product.id}:${jsonEncode(canonicalVariants)}';
   }
 }
 
