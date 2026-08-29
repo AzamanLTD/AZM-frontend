@@ -18,6 +18,14 @@ class StartupCoordinator {
   bool _firebaseReady = false;
   bool _pushReady = false;
 
+  /// Registers the FCM background callback at the earliest safe point.
+  ///
+  /// This is intentionally synchronous and lightweight. Firebase itself and
+  /// foreground push setup remain post-frame so they do not delay first paint.
+  static void registerBackgroundMessageHandler() {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
+
   Future<void> start({
     required void Function(Map<String, dynamic> data) onNotificationTap,
     required void Function(RemoteMessage message) onForegroundMessage,
@@ -51,7 +59,6 @@ class StartupCoordinator {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp();
       }
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
       _firebaseReady = true;
     } catch (e) {
       debugPrint('[Startup] Firebase init failed: $e');
