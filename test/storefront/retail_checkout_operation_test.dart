@@ -78,7 +78,7 @@ void main() {
     final controller = RetailCheckoutController(_RecordingGateway());
 
     final first = controller.begin(_cart());
-    final changedCart = _cart().setQuantity('product-1:', 1);
+    final changedCart = _cart().setQuantity('product-1', 1);
     final second = controller.begin(changedCart);
 
     expect(second.idempotencyKey, isNot(first.idempotencyKey));
