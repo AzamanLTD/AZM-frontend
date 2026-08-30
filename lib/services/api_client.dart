@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
+import 'package:azaman/services/socket_service.dart';
 
 /// A centralized API client for handling HTTP requests to the Azaman backend.
 /// Provides consistent error handling, authentication headers, timeouts,
@@ -143,7 +144,12 @@ class ApiClient {
         if (newAccess == null || newAccess.isEmpty) return false;
         await _storage.write(key: 'auth_token', value: newAccess);
         if (newRefresh != null && newRefresh.isNotEmpty) await _storage.write(key: 'refresh_token', value: newRefresh);
-        debugPrint('[ApiClient] Token silently refreshed.');
+        try {
+          await SocketService.instance.forceReconnect();
+        } catch (e) {
+          debugPrint('[ApiClient] Socket re-auth reconnect failed: $e');
+        }
+        debugPrint('[ApiClient] Token silently refreshed and socket auth rotated.');
         return true;
       }
       await clearAuthData();
@@ -161,17 +167,11 @@ class ApiClient {
     try { await get('/auth/me/$userId'); return true; } catch (e) { debugPrint('[ApiClient] isAuthenticated check failed: $e'); return false; }
   }
 
-  /// Best-effort server-side refresh-token revocation. Local credentials are
-  /// always cleared by this method, even when the backend is unreachable.
   Future<void> logout() async {
     final refreshToken = await _storage.read(key: 'refresh_token');
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        await _client.post(
-          Uri.parse('$baseUrl/auth/logout'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'refreshToken': refreshToken}),
-        ).timeout(const Duration(seconds: 10));
+        await _client.post(Uri.parse('$baseUrl/auth/logout'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'refreshToken': refreshToken}),).timeout(const Duration(seconds: 10));
       } catch (e) {
         debugPrint('[ApiClient] Server logout failed (local logout continues): $e');
       }
@@ -194,7 +194,7 @@ class ApiException implements Exception {
   final int statusCode;
   final String? code;
   final List<String>? errors;
-  ApiException({required this.message, required this.statusCode, this.code, this.errors});
+  ApiException({required this.message, required this.statusCode, this.errors, this.code});
   @override
   String toString() => errors != null && errors!.isNotEmpty ? '$message: ${errors!.join(', ')}' : message;
 }
