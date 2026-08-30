@@ -6,6 +6,7 @@
 // they never create or destroy their own global socket.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,9 +17,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/services/realtime_event_deduper.dart';
 
-final socketServiceProvider = Provider<SocketService>((ref) {
-  return SocketService.instance;
-});
+final socketServiceProvider = Provider<SocketService>((ref) => SocketService.instance);
 
 class SocketService {
   SocketService._internal();
@@ -75,8 +74,6 @@ class SocketService {
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
-  // Callback removal is identity-based so a disposed screen cannot clear a
-  // newer screen/provider's callback from the singleton registry.
   void removeOrderLocationListener(void Function(Map<String, dynamic>) cb) {
     if (_onOrderLocation == cb) _onOrderLocation = null;
   }
@@ -92,34 +89,20 @@ class SocketService {
   static String get _resolvedHost {
     var host = AppConfig.socketUrl;
     try {
-      if (!kIsWeb && Platform.isAndroid) {
-        host = host.replaceFirst('localhost', '10.0.2.2');
-      }
+      if (!kIsWeb && Platform.isAndroid) host = host.replaceFirst('localhost', '10.0.2.2');
     } catch (_) {}
     return host;
   }
 
-  void init(WidgetRef ref) {
-    _ref = ref;
-    _connect();
-  }
-
-  void initWithRef(Ref ref) {
-    _ref = ref;
-    _connect();
-  }
+  void init(WidgetRef ref) { _ref = ref; _connect(); }
+  void initWithRef(Ref ref) { _ref = ref; _connect(); }
 
   Future<void> _connect() async {
     if (AppConfig.demoMode || _socket != null || _connecting || _authBlocked) return;
     _connecting = true;
-
     try {
       final token = await _storage.read(key: 'auth_token');
-      if (token == null || token.isEmpty) {
-        _connecting = false;
-        return;
-      }
-
+      if (token == null || token.isEmpty) { _connecting = false; return; }
       final socket = io.io(
         _resolvedHost,
         io.OptionBuilder()
@@ -133,7 +116,6 @@ class SocketService {
             .setAuth({'token': token})
             .build(),
       );
-
       _socket = socket;
       _attachListeners(socket);
       _connecting = false;
@@ -147,33 +129,20 @@ class SocketService {
   void _attachListeners(io.Socket socket) {
     socket.onConnect((_) {
       _authBlocked = false;
-      if (AppConfig.enableNetworkLogs) {
-        debugPrint('[SocketService] connected id=${socket.id}');
-      }
+      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] connected id=${socket.id}');
       _restoreRooms(socket);
     });
-
     socket.onDisconnect((reason) {
-      if (AppConfig.enableNetworkLogs) {
-        debugPrint('[SocketService] disconnected: $reason');
-      }
+      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] disconnected: $reason');
     });
-
     socket.onConnectError((err) {
       final message = err.toString();
-      if (AppConfig.enableNetworkLogs) {
-        debugPrint('[SocketService] connect error: $message');
-      }
-      if (_isAuthError(message)) {
-        _authBlocked = true;
-        socket.io.disconnect();
-      }
+      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] connect error: $message');
+      if (_isAuthError(message)) { _authBlocked = true; socket.io.disconnect(); }
     });
 
     // Financial socket payloads are convergence signals only. The backend's
     // GET /users/balance response remains the canonical ledger projection.
-    // Coalescing inside refreshCanonicalBalance prevents a burst of ledger
-    // events from creating a burst of HTTP reads.
     socket.on('balance_update', (_) {
       if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
     });
@@ -182,36 +151,27 @@ class SocketService {
       try {
         final rate = _toDouble(_toMap(data)['rate']);
         if (rate > 0) _read(oracleRateProvider.notifier).state = rate;
-      } catch (e) {
-        debugPrint('[SocketService] rate_update parse error: $e');
-      }
+      } catch (e) { debugPrint('[SocketService] rate_update parse error: $e'); }
     });
 
     socket.on('deposit_success', (data) {
       try {
         final raw = _toMap(data);
         _onDepositSuccess?.call(
-          _toDouble(raw['amountGhs']),
-          _toDouble(raw['amountUsdc']),
-          raw['provider']?.toString() ?? 'MOBILE_MONEY',
-          raw['reference']?.toString() ?? '',
+          _toDouble(raw['amountGhs']), _toDouble(raw['amountUsdc']),
+          raw['provider']?.toString() ?? 'MOBILE_MONEY', raw['reference']?.toString() ?? '',
         );
         if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
-      } catch (e) {
-        debugPrint('[SocketService] deposit_success parse error: $e');
-      }
+      } catch (e) { debugPrint('[SocketService] deposit_success parse error: $e'); }
     });
 
-    socket.on('withdrawal_progress', (data) =>
-        _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
+    socket.on('withdrawal_progress', (data) => _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
     socket.on('withdrawal_settled', (data) {
       _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled');
       if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
     });
-
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
-
     socket.on('trade_update', (data) => _safeMapCallback(_onTradeUpdate, data, 'trade_update'));
     socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
     socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));
@@ -220,17 +180,11 @@ class SocketService {
     socket.on('trade_completed', (data) => _safeMapCallback(_onTradeCompleted, data, 'trade_completed'));
     socket.on('biz_notification', (data) => _handleBizNotification(data));
     socket.on('biz_notifications_updated', (data) {
-      try {
-        _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
-      } catch (e) {
-        debugPrint('[SocketService] biz_notifications_updated parse error: $e');
-      }
+      try { _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount'])); }
+      catch (e) { debugPrint('[SocketService] biz_notifications_updated parse error: $e'); }
     });
     socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
 
-    // The backend's canonical tracking contract uses colon-delimited event
-    // names. Keep the legacy underscore aliases during rolling deployments so
-    // an older backend cannot silently stop delivering tracking updates.
     socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
     socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
     socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
@@ -239,13 +193,8 @@ class SocketService {
     socket.on('order_eta', (data) => _safeMapCallback(_onOrderEta, data, 'order_eta'));
 
     for (final event in const [
-      'escrow_funded',
-      'escrow_settled',
-      'escrow_pending_settlement',
-      'escrow_disputed',
-      'escrow_resolved',
-      'escrow_terms_updated',
-      'invoice_paid',
+      'escrow_funded', 'escrow_settled', 'escrow_pending_settlement',
+      'escrow_disputed', 'escrow_resolved', 'escrow_terms_updated', 'invoice_paid',
     ]) {
       socket.on(event, (data) => _dispatchEscrow(data, event));
     }
@@ -257,9 +206,7 @@ class SocketService {
       final notificationId = raw['notificationId']?.toString();
       if (!_bizNotificationDeduper.accept(notificationId)) return;
       _onBizNotification?.call(raw);
-    } catch (e) {
-      debugPrint('[SocketService] biz_notification error: $e');
-    }
+    } catch (e) { debugPrint('[SocketService] biz_notification error: $e'); }
   }
 
   void _handleAzmEvent(dynamic data, bool reward) {
@@ -268,20 +215,11 @@ class SocketService {
       final amount = _toDouble(raw[reward ? 'awarded' : 'spent']);
       final source = raw['source']?.toString() ?? '';
       final reason = raw['reason']?.toString() ?? '';
-      // The event is a signal that the AZM ledger projection changed. Never
-      // overwrite the canonical balance from the socket payload itself.
       if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
-      final canonicalBalance = _ref != null
-          ? _read(balanceDataProvider).azmBalance
-          : 0.0;
-      if (reward) {
-        _onAzmReward?.call(canonicalBalance, amount, source, reason);
-      } else {
-        _onAzmSpend?.call(canonicalBalance, amount, source, reason);
-      }
-    } catch (e) {
-      debugPrint('[SocketService] AZM event parse error: $e');
-    }
+      final canonicalBalance = _ref != null ? _read(balanceDataProvider).azmBalance : 0.0;
+      if (reward) _onAzmReward?.call(canonicalBalance, amount, source, reason);
+      else _onAzmSpend?.call(canonicalBalance, amount, source, reason);
+    } catch (e) { debugPrint('[SocketService] AZM event parse error: $e'); }
   }
 
   void _restoreRooms(io.Socket socket) {
@@ -290,118 +228,48 @@ class SocketService {
       socket.emit('join_balance_room', _currentUserId);
     }
     for (final id in _joinedTradeRooms) socket.emit('join_trade', id);
-    for (final id in _joinedFriendRooms) {
-      socket.emit('join_friend_chat', {'friendshipId': id, 'userId': _currentUserId});
-    }
-    for (final id in _joinedGroupRooms) {
-      socket.emit('join_group', {'groupId': id, 'userId': _currentUserId});
-    }
+    for (final id in _joinedFriendRooms) socket.emit('join_friend_chat', {'friendshipId': id, 'userId': _currentUserId});
+    for (final id in _joinedGroupRooms) socket.emit('join_group', {'groupId': id, 'userId': _currentUserId});
     for (final id in _joinedOrderRooms) socket.emit('join_order', {'orderId': id});
   }
 
-  void joinTradeRoom(String tradeId) {
-    final id = tradeId.replaceAll('#', '');
-    if (!_joinedTradeRooms.add(id)) return;
-    _socket?.emit('join_trade', id);
-  }
-
+  void joinTradeRoom(String tradeId) { final id = tradeId.replaceAll('#', ''); if (_joinedTradeRooms.add(id)) _socket?.emit('join_trade', id); }
   void leaveTradeRoom(String tradeId) => _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
-
-  void joinFriendRoom(String friendshipId, String userId) {
-    if (!_joinedFriendRooms.add(friendshipId)) return;
-    _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
-  }
-
-  void leaveFriendRoom(String friendshipId, String userId) {
-    _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
-    _joinedFriendRooms.remove(friendshipId);
-  }
-
-  void joinGroupRoom(String groupId, String userId) {
-    if (!_joinedGroupRooms.add(groupId)) return;
-    _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
-  }
-
-  void leaveGroupRoom(String groupId, String userId) {
-    _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
-    _joinedGroupRooms.remove(groupId);
-  }
-
-  void joinOrderRoom(String orderId) {
-    if (!_joinedOrderRooms.add(orderId)) return;
-    _socket?.emit('join_order', {'orderId': orderId});
-  }
-
-  void leaveOrderRoom(String orderId) {
-    _socket?.emit('leave_order', {'orderId': orderId});
-    _joinedOrderRooms.remove(orderId);
-  }
-
-  void joinUserRoom(String userId) {
-    _currentUserId = userId;
-    _socket?.emit('join_user_room', {'userId': userId});
-    _socket?.emit('join_balance_room', userId);
-  }
-
+  void joinFriendRoom(String friendshipId, String userId) { if (_joinedFriendRooms.add(friendshipId)) _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId}); }
+  void leaveFriendRoom(String friendshipId, String userId) { _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId}); _joinedFriendRooms.remove(friendshipId); }
+  void joinGroupRoom(String groupId, String userId) { if (_joinedGroupRooms.add(groupId)) _socket?.emit('join_group', {'groupId': groupId, 'userId': userId}); }
+  void leaveGroupRoom(String groupId, String userId) { _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId}); _joinedGroupRooms.remove(groupId); }
+  void joinOrderRoom(String orderId) { if (_joinedOrderRooms.add(orderId)) _socket?.emit('join_order', {'orderId': orderId}); }
+  void leaveOrderRoom(String orderId) { _socket?.emit('leave_order', {'orderId': orderId}); _joinedOrderRooms.remove(orderId); }
+  void joinUserRoom(String userId) { _currentUserId = userId; _socket?.emit('join_user_room', {'userId': userId}); _socket?.emit('join_balance_room', userId); }
   void leaveRoom(String roomId) => _socket?.emit('leave_room', {'roomId': roomId});
 
   void emit(String event, dynamic data) {
     final socket = _socket;
-    if (socket == null || !socket.connected) {
-      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] emit skipped: $event');
-      return;
-    }
+    if (socket == null || !socket.connected) { if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] emit skipped: $event'); return; }
     socket.emit(event, data);
   }
 
   Future<void> forceReconnect() async {
     final socket = _socket;
-    if (socket != null) {
-      socket.offAny();
-      socket.disconnect();
-      socket.dispose();
-    }
-    _socket = null;
-    _connecting = false;
-    _authBlocked = false;
+    if (socket != null) { socket.offAny(); socket.disconnect(); socket.dispose(); }
+    _socket = null; _connecting = false; _authBlocked = false;
     await _connect();
   }
 
   void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _ref = null;
-    _connecting = false;
-    _authBlocked = false;
-    _currentUserId = null;
-    _joinedTradeRooms.clear();
-    _joinedFriendRooms.clear();
-    _joinedGroupRooms.clear();
-    _joinedOrderRooms.clear();
-    _bizNotificationDeduper.clear();
-    _clearCallbacks();
+    _socket?.disconnect(); _socket?.dispose(); _socket = null; _ref = null;
+    _connecting = false; _authBlocked = false; _currentUserId = null;
+    _joinedTradeRooms.clear(); _joinedFriendRooms.clear(); _joinedGroupRooms.clear(); _joinedOrderRooms.clear();
+    _bizNotificationDeduper.clear(); _clearCallbacks();
   }
 
   void _clearCallbacks() {
-    _onAzmReward = null;
-    _onAzmSpend = null;
-    _onTradeUpdate = null;
-    _onMarketUpdate = null;
-    _onNewNotification = null;
-    _onNotificationsUpdated = null;
-    _onNewTradeRequest = null;
-    _onTradeCompleted = null;
-    _onBizNotification = null;
-    _onBizNotificationsUpdated = null;
-    _onBusinessOrderDelivered = null;
-    _onOrderLocation = null;
-    _onOrderStatus = null;
-    _onOrderEta = null;
-    _onEscrowEvent = null;
-    _onDepositSuccess = null;
-    _onWithdrawalProgress = null;
-    _onWithdrawalSettled = null;
+    _onAzmReward = null; _onAzmSpend = null; _onTradeUpdate = null; _onMarketUpdate = null;
+    _onNewNotification = null; _onNotificationsUpdated = null; _onNewTradeRequest = null; _onTradeCompleted = null;
+    _onBizNotification = null; _onBizNotificationsUpdated = null; _onBusinessOrderDelivered = null;
+    _onOrderLocation = null; _onOrderStatus = null; _onOrderEta = null; _onEscrowEvent = null;
+    _onDepositSuccess = null; _onWithdrawalProgress = null; _onWithdrawalSettled = null;
   }
 
   bool get isConnected => _socket?.connected ?? false;
@@ -412,11 +280,8 @@ class SocketService {
 
   bool _isAuthError(String value) {
     final lower = value.toLowerCase();
-    return lower.contains('authentication failed') ||
-        lower.contains('token expired') ||
-        lower.contains('token superseded') ||
-        lower.contains('banned') ||
-        lower.contains('no longer exists');
+    return lower.contains('authentication failed') || lower.contains('token expired') ||
+        lower.contains('token superseded') || lower.contains('banned') || lower.contains('no longer exists');
   }
 
   Map<String, dynamic> _toMap(dynamic data) {
@@ -428,37 +293,20 @@ class SocketService {
   dynamic _read(dynamic provider) => _ref.read(provider);
 
   void _dispatchEscrow(dynamic data, String event) {
-    try {
-      _onEscrowEvent?.call(_toMap(data), event);
-    } catch (e) {
-      debugPrint('[SocketService] $event error: $e');
-    }
+    try { _onEscrowEvent?.call(_toMap(data), event); }
+    catch (e) { debugPrint('[SocketService] $event error: $e'); }
   }
 
   void _safeMapCallback(void Function(Map<String, dynamic>)? cb, dynamic data, String event) {
-    try {
-      cb?.call(_toMap(data));
-    } catch (e) {
-      debugPrint('[SocketService] $event error: $e');
-    }
+    try { cb?.call(_toMap(data)); }
+    catch (e) { debugPrint('[SocketService] $event error: $e'); }
   }
 
   void _safeVoidCallback(void Function()? cb) {
-    try {
-      cb?.call();
-    } catch (e) {
-      debugPrint('[SocketService] callback error: $e');
-    }
+    try { cb?.call(); }
+    catch (e) { debugPrint('[SocketService] callback error: $e'); }
   }
 
-  static double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? 0.0;
-  }
-
-  static int _toInt(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
+  static double _toDouble(dynamic value) => value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '') ?? 0.0;
+  static int _toInt(dynamic value) => value is int ? value : value is num ? value.toInt() : int.tryParse(value?.toString() ?? '') ?? 0;
 }
