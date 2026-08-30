@@ -101,6 +101,7 @@ final draftLayoutProvider = StateNotifierProvider<DraftLayoutNotifier, DraftLayo
 final storefrontHistoryProvider = FutureProvider<List<StorefrontLayoutVersion>>((ref) => ref.read(storefrontServiceProvider).getHistory());
 final storefrontEligibilityProvider = FutureProvider<StorefrontEligibility>((ref) => ref.read(storefrontServiceProvider).getEligibility());
 final storefrontRenderProvider = FutureProvider.family<StorefrontRenderResponse?, String>((ref, bizId) => StorefrontService().renderStorefront(bizId));
+final storefrontProductsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, bizId) => ref.read(storefrontServiceProvider).getStorefrontProducts(bizId));
 final azmStakesProvider = FutureProvider<List<AzmStake>>((ref) => ref.read(storefrontServiceProvider).getStakes());
 final azmTierProvider = FutureProvider<Map<String, dynamic>>((ref) => ref.read(storefrontServiceProvider).getTierInfo());
 final stakesProvider = FutureProvider<List<AzmStake>>((ref) => ref.read(storefrontServiceProvider).getStakes());
