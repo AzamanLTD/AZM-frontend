@@ -68,6 +68,31 @@ class RetailCheckoutUnavailable extends RetailCheckoutResult {
   });
 }
 
+/// Immutable identity for one economic checkout intent.
+///
+/// A checkout operation owns the idempotency key for its immutable cart
+/// snapshot. Retrying an operation therefore reuses the same backend identity;
+/// starting a new operation requires a new snapshot and a new key.
+class RetailCheckoutOperation {
+  final RetailCart cart;
+  final RetailCheckoutOptions options;
+  final String idempotencyKey;
+
+  const RetailCheckoutOperation({
+    required this.cart,
+    required this.options,
+    required this.idempotencyKey,
+  });
+
+  Future<RetailCheckoutResult> submit(RetailCheckoutGateway gateway) {
+    return gateway.checkout(
+      cart,
+      options: options,
+      idempotencyKey: idempotencyKey,
+    );
+  }
+}
+
 /// Coordinates cart checkout without embedding transport or payment logic in
 /// the widget layer.
 class RetailCheckoutController {
@@ -75,6 +100,36 @@ class RetailCheckoutController {
 
   const RetailCheckoutController(this.gateway);
 
+  /// Creates a stable operation from the current cart snapshot.
+  ///
+  /// Callers should retain the returned operation while recovering from a
+  /// timeout, connection loss or other retryable failure. Mutating the cart
+  /// creates a new cart value and must be represented by a new operation.
+  RetailCheckoutOperation begin(
+    RetailCart cart, {
+    RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    String? idempotencyKey,
+  }) {
+    if (cart.lines.isEmpty) {
+      throw StateError('Cannot begin checkout with an empty cart.');
+    }
+
+    if (options.paymentProtection == RetailPaymentProtection.escrow &&
+        !options.escrowProtectionAvailable) {
+      throw StateError('Escrow protection is not available for this store.');
+    }
+
+    return RetailCheckoutOperation(
+      cart: cart,
+      options: options,
+      idempotencyKey: idempotencyKey ?? IdempotencyKey.generate(),
+    );
+  }
+
+  /// Performs a one-shot checkout.
+  ///
+  /// For retry/recovery, prefer [begin] and retain the returned operation so
+  /// that every subsequent attempt uses the same idempotency identity.
   Future<RetailCheckoutResult> submit(
     RetailCart cart, {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
@@ -95,14 +150,11 @@ class RetailCheckoutController {
       );
     }
 
-    // Generate once at the logical-operation boundary. Recovery callers pass
-    // the original key back into submit() so retries remain the same backend
-    // economic operation rather than creating a second checkout.
-    final operationKey = idempotencyKey ?? IdempotencyKey.generate();
-    return gateway.checkout(
-      cart,
+    final operation = RetailCheckoutOperation(
+      cart: cart,
       options: options,
-      idempotencyKey: operationKey,
+      idempotencyKey: idempotencyKey ?? IdempotencyKey.generate(),
     );
+    return operation.submit(gateway);
   }
 }
