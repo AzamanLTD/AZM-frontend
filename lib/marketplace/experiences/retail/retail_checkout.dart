@@ -1,4 +1,5 @@
 import 'retail_cart.dart';
+import '../../../utils/idempotency_key.dart';
 
 /// Payment protection choices presented to a retail customer.
 enum RetailPaymentProtection {
@@ -29,6 +30,7 @@ abstract class RetailCheckoutGateway {
   Future<RetailCheckoutResult> checkout(
     RetailCart cart, {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    required String idempotencyKey,
   });
 }
 
@@ -76,6 +78,7 @@ class RetailCheckoutController {
   Future<RetailCheckoutResult> submit(
     RetailCart cart, {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    String? idempotencyKey,
   }) async {
     if (cart.lines.isEmpty) {
       return const RetailCheckoutFailure(
@@ -92,6 +95,14 @@ class RetailCheckoutController {
       );
     }
 
-    return gateway.checkout(cart, options: options);
+    // Generate once at the logical-operation boundary. Recovery callers pass
+    // the original key back into submit() so retries remain the same backend
+    // economic operation rather than creating a second checkout.
+    final operationKey = idempotencyKey ?? IdempotencyKey.generate();
+    return gateway.checkout(
+      cart,
+      options: options,
+      idempotencyKey: operationKey,
+    );
   }
 }
