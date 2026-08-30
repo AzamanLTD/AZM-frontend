@@ -28,9 +28,9 @@ void main() {
       expect(deduper.accept('three'), isTrue);
       expect(deduper.length, 2);
 
-      // 'one' was evicted, so it is accepted again. That evicts 'two'.
+      // 'one' was evicted, so it is accepted again. The cache now contains
+      // 'three' and 'one', while 'three' remains a duplicate.
       expect(deduper.accept('one'), isTrue);
-      expect(deduper.accept('two'), isTrue);
       expect(deduper.accept('three'), isFalse);
     });
 
