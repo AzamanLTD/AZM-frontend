@@ -38,6 +38,7 @@ class _BusinessNotificationsScreenState
   bool _loadingMore = false;
   bool _hasMore = false;
   String? _cursor;
+  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _BusinessNotificationsScreenState
 
   @override
   void dispose() {
+    _refreshGeneration++;
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -64,9 +66,14 @@ class _BusinessNotificationsScreenState
   }
 
   Future<void> _load() async {
+    final generation = ++_refreshGeneration;
     try {
       final feed = await _service.getNotifications();
       if (!mounted) return;
+      if (generation != _refreshGeneration) {
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _items
           ..clear()
@@ -77,29 +84,42 @@ class _BusinessNotificationsScreenState
       });
       ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _refresh() async {
-    final feed = await _service.getNotifications();
-    if (!mounted) return;
-    setState(() {
-      _items
-        ..clear()
-        ..addAll(feed.notifications);
-      _hasMore = feed.hasMore;
-      _cursor = feed.nextCursor;
-    });
-    ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
+    final generation = ++_refreshGeneration;
+    try {
+      final feed = await _service.getNotifications();
+      if (!mounted || generation != _refreshGeneration) return;
+      setState(() {
+        _items
+          ..clear()
+          ..addAll(feed.notifications);
+        _hasMore = feed.hasMore;
+        _cursor = feed.nextCursor;
+        _loading = false;
+      });
+      ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
+    } catch (_) {
+      // Realtime refresh is best-effort; the existing feed remains usable.
+    }
   }
 
   Future<void> _loadMore() async {
     if (_loadingMore || !_hasMore || _cursor == null) return;
+    final generation = _refreshGeneration;
     setState(() => _loadingMore = true);
     try {
       final feed = await _service.getNotifications(cursor: _cursor);
       if (!mounted) return;
+      if (generation != _refreshGeneration) {
+        setState(() => _loadingMore = false);
+        return;
+      }
       setState(() {
         _items.addAll(feed.notifications);
         _hasMore = feed.hasMore;
@@ -107,7 +127,9 @@ class _BusinessNotificationsScreenState
         _loadingMore = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loadingMore = false);
+      }
     }
   }
 
