@@ -139,70 +139,79 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   LatLng? _deliveryPos;
   CameraPosition? _initialCamera;
 
+  late final void Function(Map<String, dynamic>) _orderLocationListener;
+  late final void Function(Map<String, dynamic>) _orderStatusListener;
+  late final void Function(Map<String, dynamic>) _orderEtaListener;
+
   @override
   void initState() {
     super.initState();
-    // Join the order's socket room for real-time updates
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final socket = ref.read(socketServiceProvider);
-      socket.joinOrderRoom(widget.orderId);
 
-      // Listen for real-time courier location updates
-      socket.onOrderLocation((data) {
-        if (!mounted) return;
-        final lat = (data['latitude'] as num?)?.toDouble();
-        final lng = (data['longitude'] as num?)?.toDouble();
-        final heading = (data['heading'] as num?)?.toDouble();
-        if (lat != null && lng != null) {
-          final target = LatLng(lat, lng);
-          if (_courierPos != null) {
-            // Smooth interpolation between old and new position
-            _animateMarkerTo(_courierPos!, target);
-          } else {
-            setState(() {
-              _courierPos = target;
-              _updateMarkersRealtime(lat, lng, heading ?? 0);
-            });
-          }
-          _animateCameraToCourier();
-        }
-      });
-
-      // Listen for status changes — refresh the timeline + trigger review
-      socket.onOrderStatus((data) {
-        if (!mounted) return;
-        ref.invalidate(orderTimelineProvider(widget.orderId));
-        ref.invalidate(orderTrackingProvider(widget.orderId));
-
-        // Auto-trigger review prompt 2s after delivery (matches Uber Eats UX)
-        final status = data['status'] as String? ?? '';
-        if (status == 'delivered' || status == 'completed') {
-          _reviewTriggered = false; // reset so it can fire
-          Future.delayed(const Duration(seconds: 2), () {
-            if (!mounted || _reviewTriggered) return;
-            _reviewTriggered = true;
-            _showReviewPrompt();
+    _orderLocationListener = (data) {
+      if (!mounted || !_isCurrentOrderEvent(data)) return;
+      final lat = (data['latitude'] as num?)?.toDouble();
+      final lng = (data['longitude'] as num?)?.toDouble();
+      final heading = (data['heading'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        final target = LatLng(lat, lng);
+        if (_courierPos != null) {
+          _animateMarkerTo(_courierPos!, target);
+        } else {
+          setState(() {
+            _courierPos = target;
+            _updateMarkersRealtime(lat, lng, heading ?? 0);
           });
         }
-      });
+        _animateCameraToCourier();
+      }
+    };
 
-      // Listen for ETA updates
-      socket.onOrderEta((data) {
-        if (!mounted) return;
-        ref.invalidate(orderTrackingProvider(widget.orderId));
-      });
+    _orderStatusListener = (data) {
+      if (!mounted || !_isCurrentOrderEvent(data)) return;
+      ref.invalidate(orderTimelineProvider(widget.orderId));
+      ref.invalidate(orderTrackingProvider(widget.orderId));
+
+      final status = data['status'] as String? ?? '';
+      if (status == 'delivered' || status == 'completed') {
+        _reviewTriggered = false;
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted || _reviewTriggered) return;
+          _reviewTriggered = true;
+          _showReviewPrompt();
+        });
+      }
+    };
+
+    _orderEtaListener = (data) {
+      if (!mounted || !_isCurrentOrderEvent(data)) return;
+      ref.invalidate(orderTrackingProvider(widget.orderId));
+    };
+
+    // Join the order's socket room for real-time updates. The mounted guard
+    // prevents a queued post-frame callback from registering listeners after
+    // this screen has already been disposed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final socket = ref.read(socketServiceProvider);
+      socket.joinOrderRoom(widget.orderId);
+      socket.onOrderLocation(_orderLocationListener);
+      socket.onOrderStatus(_orderStatusListener);
+      socket.onOrderEta(_orderEtaListener);
     });
+  }
+
+  bool _isCurrentOrderEvent(Map<String, dynamic> data) {
+    return data['orderId']?.toString() == widget.orderId;
   }
 
   @override
   void dispose() {
-    // Leave the order room and clear callbacks
     try {
       final socket = ref.read(socketServiceProvider);
       socket.leaveOrderRoom(widget.orderId);
-      socket.onOrderLocation((_) {});
-      socket.onOrderStatus((_) {});
-      socket.onOrderEta((_) {});
+      socket.removeOrderLocationListener(_orderLocationListener);
+      socket.removeOrderStatusListener(_orderStatusListener);
+      socket.removeOrderEtaListener(_orderEtaListener);
     } catch (_) {}
     super.dispose();
   }
@@ -317,13 +326,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
           return ListView(
             children: [
-              // ── Map section ──
               if (track.courierLatitude != null && track.courierLongitude != null) ...[
                 SizedBox(
                   height: 300,
                   child: GoogleMap(
                     initialCameraPosition: _initialCamera ?? CameraPosition(
-                      target: _courierPos ?? const LatLng(5.6037, -0.1870), // Accra default
+                      target: _courierPos ?? const LatLng(5.6037, -0.1870),
                       zoom: 14,
                     ),
                     markers: _markers,
@@ -354,18 +362,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
               const SizedBox(height: 16),
 
-              // ── ETA card ──
               if (track.estimatedArrival != null)
                 _EtaCard(eta: track.estimatedArrival!, colors: colors)
                     .animate().fadeIn(duration: 300.ms),
 
-              // ── Driver info ──
               if (track.driverName != null || track.vehiclePlate != null) ...[
                 const SizedBox(height: 12),
                 _DriverInfoCard(track: track, colors: colors),
               ],
 
-              // ── Timeline ──
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -394,7 +399,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
               const SizedBox(height: 32),
 
-              // ── Delivery address ──
               if (track.deliveryAddress != null) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -460,7 +464,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
     _markers = markers;
 
-    // Draw a simple straight-line polyline (in production, would use routing API)
     if (_courierPos != null && _deliveryPos != null) {
       _polylines = {
         Polyline(
@@ -655,7 +658,6 @@ class _TimelineTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Timeline rail
             SizedBox(
               width: 40,
               child: Column(
