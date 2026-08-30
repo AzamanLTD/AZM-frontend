@@ -73,6 +73,20 @@ class SocketService {
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
+  // Callback removal is identity-based so a disposed screen cannot clear a
+  // newer screen/provider's callback from the singleton registry.
+  void removeOrderLocationListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderLocation == cb) _onOrderLocation = null;
+  }
+
+  void removeOrderStatusListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderStatus == cb) _onOrderStatus = null;
+  }
+
+  void removeOrderEtaListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderEta == cb) _onOrderEta = null;
+  }
+
   static String get _resolvedHost {
     var host = AppConfig.socketUrl;
     try {
