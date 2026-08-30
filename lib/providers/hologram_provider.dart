@@ -2,13 +2,15 @@
 // HOLOGRAM LEDGER — RIVERPOD STATE LAYER (V5)
 //
 // Balance values are authoritative USDC ledger values. GHS is derived for
-// display only using the backend oracle rate. The realtime socket may update
-// the same rate immediately; this provider also refreshes it periodically.
+// display only using the backend oracle rate. Realtime balance events are
+// convergence signals and trigger a canonical REST refresh rather than
+// becoming a second source of financial truth.
 // =============================================================================
 
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:azaman/config.dart';
 
@@ -31,6 +33,14 @@ class BalanceData {
   double get totalLocked => escrowLockedBalance + disputeEscrowBalance;
   double get netWorth => totalBalance + totalLocked + azmBalance;
 
+  factory BalanceData.fromJson(Map<String, dynamic> json) => BalanceData(
+        availableBalance: _toDouble(json['availableBalance']),
+        vendorUnallocatedBalance: _toDouble(json['vendorUnallocatedBalance']),
+        escrowLockedBalance: _toDouble(json['escrowLockedBalance']),
+        disputeEscrowBalance: _toDouble(json['disputeEscrowBalance']),
+        azmBalance: _toDouble(json['azmBalance']),
+      );
+
   BalanceData copyWith({
     double? availableBalance,
     double? vendorUnallocatedBalance,
@@ -48,6 +58,51 @@ class BalanceData {
 
 final balanceDataProvider = StateProvider<BalanceData>((ref) => const BalanceData());
 final userUsdcBalanceProvider = StateProvider<double>((ref) => 0.0);
+
+Future<void>? _balanceRefreshFuture;
+
+Future<void> refreshCanonicalBalance(dynamic ref) {
+  final existing = _balanceRefreshFuture;
+  if (existing != null) return existing;
+
+  final future = () async {
+    if (AppConfig.demoMode) return;
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'auth_token');
+      if (token == null || token.isEmpty) return;
+
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.apiUrl}/users/balance'),
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(AppConfig.requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) return;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return;
+      final rawData = decoded['data'];
+      if (rawData is! Map<String, dynamic>) return;
+
+      final balances = BalanceData.fromJson(rawData);
+      ref.read(balanceDataProvider.notifier).state = balances;
+      ref.read(userUsdcBalanceProvider.notifier).state = balances.totalBalance;
+    } catch (_) {
+      // Realtime convergence is best-effort. Keep the last known canonical
+      // balance and let the next event or foreground refresh retry.
+    }
+  }();
+
+  _balanceRefreshFuture = future;
+  return future.whenComplete(() {
+    if (identical(_balanceRefreshFuture, future)) _balanceRefreshFuture = null;
+  });
+}
 
 class OracleRateMetadata {
   final DateTime fetchedAt;
@@ -76,10 +131,6 @@ class OracleRateMetadata {
 final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
     OracleRateMetadata(fetchedAt: DateTime.now(), stale: true));
 
-// -----------------------------------------------------------------------------
-// Oracle rate: GHS per USDC. The backend is the source of truth; 12.50 is only
-// an offline bootstrap fallback and is never written over a successful rate.
-// -----------------------------------------------------------------------------
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   const fallbackRate = 12.50;
   const refreshSeconds = 60;
@@ -115,7 +166,6 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
         stale: false,
       );
     } catch (_) {
-      // Keep the last known rate during transient network failures.
       final current = ref.read(oracleRateMetadataProvider);
       ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
         fetchedAt: current.fetchedAt,
@@ -148,3 +198,8 @@ final escrowBalanceProvider = Provider<double>((ref) =>
 
 final azmBalanceProvider = Provider<double>((ref) =>
     ref.watch(balanceDataProvider).azmBalance);
+
+double _toDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0.0;
+}

@@ -6,6 +6,7 @@
 // they never create or destroy their own global socket.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,8 +76,6 @@ class SocketService {
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
-  // Callback removal is identity-based so a disposed screen cannot clear a
-  // newer screen/provider's callback from the singleton registry.
   void removeOrderLocationListener(void Function(Map<String, dynamic>) cb) {
     if (_onOrderLocation == cb) _onOrderLocation = null;
   }
@@ -170,22 +169,10 @@ class SocketService {
       }
     });
 
-    socket.on('balance_update', (data) {
-      try {
-        final raw = _toMap(data);
-        final balances = BalanceData(
-          availableBalance: _toDouble(raw['availableBalance']),
-          vendorUnallocatedBalance: _toDouble(raw['vendorUnallocatedBalance']),
-          escrowLockedBalance: _toDouble(raw['escrowLockedBalance']),
-          disputeEscrowBalance: _toDouble(raw['disputeEscrowBalance']),
-          azmBalance: _toDouble(raw['azmBalance']),
-        );
-        _read(balanceDataProvider.notifier).state = balances;
-        _read(userUsdcBalanceProvider.notifier).state =
-            balances.availableBalance + balances.vendorUnallocatedBalance;
-      } catch (e) {
-        debugPrint('[SocketService] balance_update parse error: $e');
-      }
+    // Financial socket payloads are convergence signals only. The backend API
+    // remains the canonical ledger projection.
+    socket.on('balance_update', (_) {
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
     });
 
     socket.on('rate_update', (data) {
@@ -206,6 +193,7 @@ class SocketService {
           raw['provider']?.toString() ?? 'MOBILE_MONEY',
           raw['reference']?.toString() ?? '',
         );
+        if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
       } catch (e) {
         debugPrint('[SocketService] deposit_success parse error: $e');
       }
@@ -213,8 +201,10 @@ class SocketService {
 
     socket.on('withdrawal_progress', (data) =>
         _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
-    socket.on('withdrawal_settled', (data) =>
-        _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled'));
+    socket.on('withdrawal_settled', (data) {
+      _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled');
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+    });
 
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
@@ -235,9 +225,6 @@ class SocketService {
     });
     socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
 
-    // The backend's canonical tracking contract uses colon-delimited event
-    // names. Keep the legacy underscore aliases during rolling deployments so
-    // an older backend cannot silently stop delivering tracking updates.
     socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
     socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
     socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
@@ -272,16 +259,17 @@ class SocketService {
   void _handleAzmEvent(dynamic data, bool reward) {
     try {
       final raw = _toMap(data);
-      final balance = _toDouble(raw['azmBalance']);
-      final current = _read(balanceDataProvider);
-      _read(balanceDataProvider.notifier).state = current.copyWith(azmBalance: balance);
       final amount = _toDouble(raw[reward ? 'awarded' : 'spent']);
       final source = raw['source']?.toString() ?? '';
       final reason = raw['reason']?.toString() ?? '';
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+      final canonicalBalance = _ref != null
+          ? _read(balanceDataProvider).azmBalance
+          : 0.0;
       if (reward) {
-        _onAzmReward?.call(balance, amount, source, reason);
+        _onAzmReward?.call(canonicalBalance, amount, source, reason);
       } else {
-        _onAzmSpend?.call(balance, amount, source, reason);
+        _onAzmSpend?.call(canonicalBalance, amount, source, reason);
       }
     } catch (e) {
       debugPrint('[SocketService] AZM event parse error: $e');
@@ -310,43 +298,35 @@ class SocketService {
   }
 
   void leaveTradeRoom(String tradeId) => _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
-
   void joinFriendRoom(String friendshipId, String userId) {
     if (!_joinedFriendRooms.add(friendshipId)) return;
     _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
   }
-
   void leaveFriendRoom(String friendshipId, String userId) {
     _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
     _joinedFriendRooms.remove(friendshipId);
   }
-
   void joinGroupRoom(String groupId, String userId) {
     if (!_joinedGroupRooms.add(groupId)) return;
     _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
   }
-
   void leaveGroupRoom(String groupId, String userId) {
     _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
     _joinedGroupRooms.remove(groupId);
   }
-
   void joinOrderRoom(String orderId) {
     if (!_joinedOrderRooms.add(orderId)) return;
     _socket?.emit('join_order', {'orderId': orderId});
   }
-
   void leaveOrderRoom(String orderId) {
     _socket?.emit('leave_order', {'orderId': orderId});
     _joinedOrderRooms.remove(orderId);
   }
-
   void joinUserRoom(String userId) {
     _currentUserId = userId;
     _socket?.emit('join_user_room', {'userId': userId});
     _socket?.emit('join_balance_room', userId);
   }
-
   void leaveRoom(String roomId) => _socket?.emit('leave_room', {'roomId': roomId});
 
   void emit(String event, dynamic data) {
