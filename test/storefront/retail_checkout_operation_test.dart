@@ -50,6 +50,30 @@ void main() {
     expect(gateway.keys[1], operation.idempotencyKey);
   });
 
+  test('operation freezes the cart intent at creation', () {
+    final gateway = _RecordingGateway();
+    final controller = RetailCheckoutController(gateway);
+    final variants = <String, String>{'size': 'M'};
+    final sourceLines = <RetailCartLine>[
+      RetailCartLine(
+        product: const RetailProduct(
+          id: 'product-1',
+          name: 'Test product',
+        ),
+        quantity: 2,
+        variants: variants,
+      ),
+    ];
+    final sourceCart = RetailCart(lines: sourceLines);
+    final operation = controller.begin(sourceCart);
+
+    sourceLines.clear();
+    variants['size'] = 'XL';
+
+    expect(operation.cart.itemCount, 2);
+    expect(operation.cart.lines.single.variants['size'], 'M');
+  });
+
   test('a new cart requires a new operation identity', () {
     final controller = RetailCheckoutController(_RecordingGateway());
 
