@@ -65,21 +65,29 @@ class _BusinessNotificationsScreenState
     }
   }
 
+  void _replaceFeed(BizNotificationFeed feed) {
+    final seen = <String>{};
+    _items
+      ..clear()
+      ..addAll(feed.notifications.where((notification) => seen.add(notification.id)));
+    _hasMore = feed.hasMore;
+    _cursor = feed.nextCursor;
+  }
+
+  void _appendUnique(List<BizNotification> notifications) {
+    final seen = _items.map((notification) => notification.id).toSet();
+    _items.addAll(
+      notifications.where((notification) => seen.add(notification.id)),
+    );
+  }
+
   Future<void> _load() async {
     final generation = ++_refreshGeneration;
     try {
       final feed = await _service.getNotifications();
-      if (!mounted) return;
-      if (generation != _refreshGeneration) {
-        setState(() => _loading = false);
-        return;
-      }
+      if (!mounted || generation != _refreshGeneration) return;
       setState(() {
-        _items
-          ..clear()
-          ..addAll(feed.notifications);
-        _hasMore = feed.hasMore;
-        _cursor = feed.nextCursor;
+        _replaceFeed(feed);
         _loading = false;
       });
       ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
@@ -96,11 +104,7 @@ class _BusinessNotificationsScreenState
       final feed = await _service.getNotifications();
       if (!mounted || generation != _refreshGeneration) return;
       setState(() {
-        _items
-          ..clear()
-          ..addAll(feed.notifications);
-        _hasMore = feed.hasMore;
-        _cursor = feed.nextCursor;
+        _replaceFeed(feed);
         _loading = false;
       });
       ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
@@ -121,7 +125,7 @@ class _BusinessNotificationsScreenState
         return;
       }
       setState(() {
-        _items.addAll(feed.notifications);
+        _appendUnique(feed.notifications);
         _hasMore = feed.hasMore;
         _cursor = feed.nextCursor;
         _loadingMore = false;
