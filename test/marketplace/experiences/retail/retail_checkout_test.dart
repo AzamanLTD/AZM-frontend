@@ -6,6 +6,7 @@ import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 class _Gateway implements RetailCheckoutGateway {
   RetailCart? received;
   RetailCheckoutOptions? receivedOptions;
+  String? receivedIdempotencyKey;
   final RetailCheckoutResult result;
 
   _Gateway(this.result);
@@ -14,9 +15,11 @@ class _Gateway implements RetailCheckoutGateway {
   Future<RetailCheckoutResult> checkout(
     RetailCart cart, {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    required String idempotencyKey,
   }) async {
     received = cart;
     receivedOptions = options;
+    receivedIdempotencyKey = idempotencyKey;
     return result;
   }
 }
@@ -32,16 +35,16 @@ void main() {
     expect(gateway.received, isNull);
   });
 
-  test('checkout delegates cart to authoritative gateway', () async {
+  test('checkout delegates cart and operation identity to authoritative gateway', () async {
     final cart = const RetailCart().add(product);
     final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
 
-    final result = await RetailCheckoutController(gateway).submit(cart);
+    final result = await RetailCheckoutController(gateway).submit(cart, idempotencyKey: 'checkout-1');
 
     expect(result, isA<RetailCheckoutSuccess>());
     expect(gateway.received?.itemCount, 1);
-    expect(gateway.receivedOptions?.paymentProtection,
-        RetailPaymentProtection.direct);
+    expect(gateway.receivedOptions?.paymentProtection, RetailPaymentProtection.direct);
+    expect(gateway.receivedIdempotencyKey, 'checkout-1');
   });
 
   test('escrow selection is rejected when the store does not offer it', () async {
@@ -49,9 +52,7 @@ void main() {
     final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
     final result = await RetailCheckoutController(gateway).submit(
       cart,
-      options: const RetailCheckoutOptions(
-        paymentProtection: RetailPaymentProtection.escrow,
-      ),
+      options: const RetailCheckoutOptions(paymentProtection: RetailPaymentProtection.escrow),
     );
 
     expect(result, isA<RetailCheckoutFailure>());
@@ -70,7 +71,12 @@ void main() {
     );
 
     expect(result, isA<RetailCheckoutSuccess>());
-    expect(gateway.received, cart);
+    final received = gateway.received;
+    expect(received, isNotNull);
+    expect(received!.itemCount, cart.itemCount);
+    expect(received!.lines.single.key, cart.lines.single.key);
+    expect(received!.lines.single.quantity, cart.lines.single.quantity);
+    expect(received!.lines.single.product.id, cart.lines.single.product.id);
     expect(gateway.receivedOptions?.usesEscrow, isTrue);
   });
 }

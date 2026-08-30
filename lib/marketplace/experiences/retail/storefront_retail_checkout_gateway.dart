@@ -1,16 +1,16 @@
 import 'retail_cart.dart';
 import 'retail_checkout.dart';
 import '../../../storefront/services/storefront_service.dart';
+import '../../../storefront/services/storefront_conflict_exception.dart';
 
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
 ///
 /// Translates the retail-experience cart + options into the backend's
 /// `POST /storefront/{businessProfileId}/checkout` contract.
 ///
-/// The enum mapping lives here so the experience layer never touches
-/// raw string constants:
-///   RetailPaymentProtection.direct → 'DIRECT'
-///   RetailPaymentProtection.escrow  → 'ESCROW'
+/// The controller owns the operation identity. This gateway deliberately does
+/// not generate a new key, so retries/recovery can reuse the same economic
+/// operation identity.
 class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
   StorefrontRetailCheckoutGateway({
     required this.businessProfileId,
@@ -24,6 +24,7 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
   Future<RetailCheckoutResult> checkout(
     RetailCart cart, {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    required String idempotencyKey,
   }) async {
     if (cart.lines.isEmpty) {
       return const RetailCheckoutFailure(
@@ -40,7 +41,6 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
             })
         .toList();
 
-    // Single source of truth for the enum → string mapping.
     final paymentMode = options.paymentProtection == RetailPaymentProtection.escrow
         ? 'ESCROW'
         : 'DIRECT';
@@ -50,10 +50,14 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         businessProfileId: businessProfileId,
         items: items,
         paymentMode: paymentMode,
+        idempotencyKey: idempotencyKey,
       );
 
       final order = data['order'] as Map<String, dynamic>?;
       final orderId = order?['id']?.toString() ?? data['orderId']?.toString() ?? '';
+      if (orderId.isEmpty) {
+        throw const FormatException('Checkout response did not contain an order id.');
+      }
       final orderRef = order?['orderRef']?.toString();
 
       return RetailCheckoutSuccess(
@@ -63,6 +67,8 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
             ? 'Order $orderRef created.'
             : 'Order placed successfully.',
       );
+    } on StorefrontConflictException {
+      rethrow;
     } on FormatException catch (_) {
       return const RetailCheckoutFailure(
         message: 'Received an invalid response from the server.',
