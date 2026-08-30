@@ -51,6 +51,8 @@ class SocketService {
   void Function(Map<String, dynamic>)? _onOrderEta;
   void Function(Map<String, dynamic>, String)? _onEscrowEvent;
   void Function(double, double, String, String)? _onDepositSuccess;
+  void Function(Map<String, dynamic>)? _onWithdrawalProgress;
+  void Function(Map<String, dynamic>)? _onWithdrawalSettled;
 
   void onAzmReward(void Function(double, double, String, String) cb) => _onAzmReward = cb;
   void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
@@ -68,6 +70,8 @@ class SocketService {
   void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
   void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _onEscrowEvent = cb;
   void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
+  void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
+  void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
   static String get _resolvedHost {
     var host = AppConfig.socketUrl;
@@ -190,6 +194,11 @@ class SocketService {
         debugPrint('[SocketService] deposit_success parse error: $e');
       }
     });
+
+    socket.on('withdrawal_progress', (data) =>
+        _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
+    socket.on('withdrawal_settled', (data) =>
+        _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled'));
 
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
@@ -360,6 +369,8 @@ class SocketService {
     _onOrderEta = null;
     _onEscrowEvent = null;
     _onDepositSuccess = null;
+    _onWithdrawalProgress = null;
+    _onWithdrawalSettled = null;
   }
 
   bool get isConnected => _socket?.connected ?? false;
