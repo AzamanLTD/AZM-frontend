@@ -6,14 +6,16 @@
 // opens the invoice detail (payment screen for unpaid, receipt for paid).
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/staggered_item.dart';
@@ -31,6 +33,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _scrollCtrl = ScrollController();
+  late final void Function(Map<String, dynamic>) _invoicePaidHandler;
 
   @override
   void initState() {
@@ -38,6 +41,15 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
     _tabs = TabController(length: 3, vsync: this);
     _tabs.addListener(() => setState(() {}));
     _scrollCtrl.addListener(_onScroll);
+
+    _invoicePaidHandler = (_) {
+      if (!mounted) return;
+      // `invoice_paid` is a convergence signal. Reload the canonical invoice
+      // projection rather than mutating a cached invoice from socket data.
+      unawaited(ref.read(myInvoicesProvider.notifier).load());
+    };
+    ref.read(socketServiceProvider).onInvoicePaid(_invoicePaidHandler);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(myInvoicesProvider.notifier).load();
     });
@@ -45,6 +57,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
 
   @override
   void dispose() {
+    ref.read(socketServiceProvider).removeInvoicePaidListener(_invoicePaidHandler);
     _tabs.dispose();
     _scrollCtrl.dispose();
     super.dispose();
