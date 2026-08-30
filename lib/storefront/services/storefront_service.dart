@@ -81,8 +81,10 @@ class StorefrontService {
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<StorefrontLayout> publish() async {
-    final response = await _apiClient.post('/storefront/me/publish', {});
+  Future<StorefrontLayout> publish({String? expectedUpdatedAt}) async {
+    final response = await _apiClient.post('/storefront/me/publish', {
+      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
+    });
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
