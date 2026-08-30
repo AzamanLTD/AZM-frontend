@@ -1,6 +1,7 @@
 import 'retail_cart.dart';
 import 'retail_checkout.dart';
 import '../../../storefront/services/storefront_service.dart';
+import '../../../storefront/services/storefront_conflict_exception.dart';
 
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
 ///
@@ -54,6 +55,9 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
 
       final order = data['order'] as Map<String, dynamic>?;
       final orderId = order?['id']?.toString() ?? data['orderId']?.toString() ?? '';
+      if (orderId.isEmpty) {
+        throw const FormatException('Checkout response did not contain an order id.');
+      }
       final orderRef = order?['orderRef']?.toString();
 
       return RetailCheckoutSuccess(
@@ -63,6 +67,8 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
             ? 'Order $orderRef created.'
             : 'Order placed successfully.',
       );
+    } on StorefrontConflictException {
+      rethrow;
     } on FormatException catch (_) {
       return const RetailCheckoutFailure(
         message: 'Received an invalid response from the server.',
