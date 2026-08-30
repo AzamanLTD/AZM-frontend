@@ -28,8 +28,10 @@ void main() {
       expect(deduper.accept('three'), isTrue);
       expect(deduper.length, 2);
 
+      // 'one' was evicted, so it is accepted again. That evicts 'two'.
       expect(deduper.accept('one'), isTrue);
-      expect(deduper.accept('two'), isFalse);
+      expect(deduper.accept('two'), isTrue);
+      expect(deduper.accept('three'), isFalse);
     });
 
     test('clear resets the session cache', () {
