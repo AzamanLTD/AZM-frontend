@@ -11,13 +11,12 @@ import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
+import 'storefront_conflict_exception.dart';
 
 class StorefrontService {
   final ApiClient _apiClient = ApiClient();
 
   static String get _baseUrl => AppConfig.apiUrl;
-
-  // ── Public endpoints ────────────────────────────────────────────────────────
 
   Future<List<StorefrontTheme>> listThemes({String? category}) async {
     final query = category != null ? '?category=$category' : '';
@@ -52,8 +51,6 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  // ── Authenticated endpoints ─────────────────────────────────────────────────
-
   Future<StorefrontLayout> getDraft() async {
     final response = await _apiClient.get('/storefront/me/draft');
     final data = _parseResponse(response);
@@ -81,8 +78,10 @@ class StorefrontService {
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<StorefrontLayout> publish() async {
-    final response = await _apiClient.post('/storefront/me/publish', {});
+  Future<StorefrontLayout> publish({String? expectedUpdatedAt}) async {
+    final response = await _apiClient.post('/storefront/me/publish', {
+      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
+    });
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
@@ -93,14 +92,26 @@ class StorefrontService {
     return (data as List).map((v) => StorefrontLayoutVersion.fromJson(v as Map<String, dynamic>)).toList();
   }
 
-  Future<StorefrontLayout> revertToVersion(String versionId) async {
-    final response = await _apiClient.post('/storefront/me/revert', {'versionId': versionId});
+  Future<StorefrontLayout> revertToVersion(
+    String versionId, {
+    String? expectedUpdatedAt,
+  }) async {
+    final response = await _apiClient.post('/storefront/me/revert', {
+      'versionId': versionId,
+      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
+    });
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<StorefrontLayout> applyTemplate(String templateId) async {
-    final response = await _apiClient.post('/storefront/me/apply-template', {'templateId': templateId});
+  Future<StorefrontLayout> applyTemplate(
+    String templateId, {
+    String? expectedUpdatedAt,
+  }) async {
+    final response = await _apiClient.post('/storefront/me/apply-template', {
+      'templateId': templateId,
+      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
+    });
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
@@ -114,8 +125,6 @@ class StorefrontService {
   Future<void> recordEvent(String eventType, Map<String, dynamic> metadata) async {
     await _apiClient.post('/storefront/me/analytics', {'eventType': eventType, 'metadata': metadata});
   }
-
-  // ── AZM Staking ──────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> createStake(double amountAzm) async {
     final response = await _apiClient.post('/azm-stake/create', {'amountAzm': amountAzm});
@@ -139,49 +148,24 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  // ── Discovery ────────────────────────────────────────────────────────────────
-
-  Future<List<Map<String, dynamic>>> discoverStorefronts({
-    String? query,
-    String? category,
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    final params = <String, String>{
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    };
+  Future<List<Map<String, dynamic>>> discoverStorefronts({String? query, String? category, int limit = 20, int offset = 0}) async {
+    final params = <String, String>{'limit': limit.toString(), 'offset': offset.toString()};
     if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
     if (category != null && category.trim().isNotEmpty) params['category'] = category.trim();
-
     final queryString = Uri(queryParameters: params).query;
-    final response = await _apiClient.get(
-      '/storefront/discover?$queryString',
-      requireAuth: false,
-    );
+    final response = await _apiClient.get('/storefront/discover?$queryString', requireAuth: false);
     final data = _parseResponse(response) as Map<String, dynamic>;
     final results = data['results'];
     if (results is! List) return const [];
     return results.whereType<Map<String, dynamic>>().toList();
   }
 
-  // ── Direct Ordering ──────────────────────────────────────────────────────────
-
   Future<Map<String, dynamic>> getStorefrontProducts(String businessProfileId) async {
-    final response = await _apiClient.get(
-      '/storefront/$businessProfileId/products',
-      requireAuth: false,
-    );
+    final response = await _apiClient.get('/storefront/$businessProfileId/products', requireAuth: false);
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> placeStorefrontOrder({
-    required String businessProfileId,
-    required String productId,
-    int quantity = 1,
-    String? customerNotes,
-    String? deliveryNotes,
-  }) async {
+  Future<Map<String, dynamic>> placeStorefrontOrder({required String businessProfileId, required String productId, int quantity = 1, String? customerNotes, String? deliveryNotes}) async {
     final response = await _apiClient.post('/storefront/$businessProfileId/order', {
       'productId': productId,
       'quantity': quantity,
@@ -191,14 +175,7 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> checkoutCart({
-    required String businessProfileId,
-    required List<Map<String, dynamic>> items,
-    String? customerNotes,
-    String? deliveryNotes,
-    String? idempotencyKey,
-    String paymentMode = 'DIRECT',
-  }) async {
+  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
     final response = await _apiClient.post('/storefront/$businessProfileId/checkout', {
       'items': items,
       if (customerNotes != null) 'customerNotes': customerNotes,
@@ -209,18 +186,8 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  // ── Customer Order History ──────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> getMyOrders({
-    String? status,
-    int limit = 20,
-    String? cursor,
-  }) async {
-    final params = <String, String>{
-      'limit': limit.toString(),
-      if (status != null && status.isNotEmpty) 'status': status,
-      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-    };
+  Future<Map<String, dynamic>> getMyOrders({String? status, int limit = 20, String? cursor}) async {
+    final params = <String, String>{'limit': limit.toString(), if (status != null && status.isNotEmpty) 'status': status, if (cursor != null && cursor.isNotEmpty) 'cursor': cursor};
     final queryString = Uri(queryParameters: params).query;
     final response = await _apiClient.get('/storefront/me/orders?$queryString');
     return _parseResponse(response) as Map<String, dynamic>;
@@ -231,11 +198,20 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  // ── Helper ──────────────────────────────────────────────────────────────────
-
   dynamic _parseResponse(http.Response response) {
     if (response.statusCode >= 400) {
-      final body = jsonDecode(response.body);
+      Map<String, dynamic> body = {};
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) body = decoded;
+      } catch (_) {}
+      final code = body['code'];
+      if (response.statusCode == 409 || code == 'STOREFRONT_DRAFT_CONFLICT') {
+        throw StorefrontConflictException(
+          message: body['message'] ?? 'This storefront draft changed elsewhere. Refresh before continuing.',
+          code: code ?? 'STOREFRONT_DRAFT_CONFLICT',
+        );
+      }
       throw Exception(body['message'] ?? 'Request failed: ${response.statusCode}');
     }
     final body = jsonDecode(response.body);
