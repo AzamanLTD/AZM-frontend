@@ -14,6 +14,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/services/realtime_event_deduper.dart';
 
 final socketServiceProvider = Provider<SocketService>((ref) {
   return SocketService.instance;
@@ -28,6 +29,7 @@ class SocketService {
   bool _connecting = false;
   bool _authBlocked = false;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final RealtimeEventDeduper _bizNotificationDeduper = RealtimeEventDeduper();
 
   String? _currentUserId;
   final Set<String> _joinedTradeRooms = <String>{};
@@ -223,7 +225,7 @@ class SocketService {
     socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));
     socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
     socket.on('trade_completed', (data) => _safeMapCallback(_onTradeCompleted, data, 'trade_completed'));
-    socket.on('biz_notification', (data) => _safeMapCallback(_onBizNotification, data, 'biz_notification'));
+    socket.on('biz_notification', (data) => _handleBizNotification(data));
     socket.on('biz_notifications_updated', (data) {
       try {
         _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
@@ -246,6 +248,17 @@ class SocketService {
       'invoice_paid',
     ]) {
       socket.on(event, (data) => _dispatchEscrow(data, event));
+    }
+  }
+
+  void _handleBizNotification(dynamic data) {
+    try {
+      final raw = _toMap(data);
+      final notificationId = raw['notificationId']?.toString();
+      if (!_bizNotificationDeduper.accept(notificationId)) return;
+      _onBizNotification?.call(raw);
+    } catch (e) {
+      debugPrint('[SocketService] biz_notification error: $e');
     }
   }
 
@@ -363,6 +376,7 @@ class SocketService {
     _joinedFriendRooms.clear();
     _joinedGroupRooms.clear();
     _joinedOrderRooms.clear();
+    _bizNotificationDeduper.clear();
     _clearCallbacks();
   }
 
