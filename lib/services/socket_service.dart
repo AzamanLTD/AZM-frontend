@@ -234,6 +234,13 @@ class SocketService {
       }
     });
     socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
+
+    // The backend's canonical tracking contract uses colon-delimited event
+    // names. Keep the legacy underscore aliases during rolling deployments so
+    // an older backend cannot silently stop delivering tracking updates.
+    socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
+    socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
+    socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
     socket.on('order_location', (data) => _safeMapCallback(_onOrderLocation, data, 'order_location'));
     socket.on('order_status', (data) => _safeMapCallback(_onOrderStatus, data, 'order_status'));
     socket.on('order_eta', (data) => _safeMapCallback(_onOrderEta, data, 'order_eta'));
