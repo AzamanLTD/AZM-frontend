@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/marketplace/experiences/retail/retail_cart.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_checkout.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
-import 'package:azaman/marketplace/experiences/retail/retail_cart.dart';
 
 class _RecordingGateway implements RetailCheckoutGateway {
   final List<String> keys = [];
@@ -42,8 +42,8 @@ void main() {
     final controller = RetailCheckoutController(gateway);
     final operation = controller.begin(_cart());
 
-    await operation.submit(gateway);
-    await operation.submit(gateway);
+    await operation.submit();
+    await operation.submit();
 
     expect(gateway.keys, hasLength(2));
     expect(gateway.keys[0], operation.idempotencyKey);
