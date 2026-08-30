@@ -69,7 +69,11 @@ class _BusinessNotificationsScreenState
     final generation = ++_refreshGeneration;
     try {
       final feed = await _service.getNotifications();
-      if (!mounted || generation != _refreshGeneration) return;
+      if (!mounted) return;
+      if (generation != _refreshGeneration) {
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _items
           ..clear()
@@ -97,6 +101,7 @@ class _BusinessNotificationsScreenState
           ..addAll(feed.notifications);
         _hasMore = feed.hasMore;
         _cursor = feed.nextCursor;
+        _loading = false;
       });
       ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
     } catch (_) {
@@ -110,7 +115,11 @@ class _BusinessNotificationsScreenState
     setState(() => _loadingMore = true);
     try {
       final feed = await _service.getNotifications(cursor: _cursor);
-      if (!mounted || generation != _refreshGeneration) return;
+      if (!mounted) return;
+      if (generation != _refreshGeneration) {
+        setState(() => _loadingMore = false);
+        return;
+      }
       setState(() {
         _items.addAll(feed.notifications);
         _hasMore = feed.hasMore;
