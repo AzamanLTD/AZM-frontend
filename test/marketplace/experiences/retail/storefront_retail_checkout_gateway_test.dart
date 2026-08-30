@@ -194,6 +194,52 @@ void main() {
     expect((result as RetailCheckoutFailure).retryable, isTrue);
   });
 
+  test('client validation errors are not marked retryable', () async {
+    final gateway = StorefrontRetailCheckoutGateway(
+      businessProfileId: 'biz-001',
+      checkoutCall: ({
+        required businessProfileId,
+        required items,
+        idempotencyKey,
+        required paymentMode,
+      }) async {
+        throw const StorefrontApiException(
+          statusCode: 400,
+          message: 'Selected variant is invalid.',
+        );
+      },
+    );
+
+    final result = await gateway.checkout(const RetailCart().add(product));
+
+    expect(result, isA<RetailCheckoutFailure>());
+    final failure = result as RetailCheckoutFailure;
+    expect(failure.retryable, isFalse);
+    expect(failure.message, contains('Selected variant is invalid.'));
+  });
+
+  test('server overload remains retryable', () async {
+    final gateway = StorefrontRetailCheckoutGateway(
+      businessProfileId: 'biz-001',
+      checkoutCall: ({
+        required businessProfileId,
+        required items,
+        idempotencyKey,
+        required paymentMode,
+      }) async {
+        throw const StorefrontApiException(
+          statusCode: 503,
+          message: 'Storefront temporarily unavailable.',
+        );
+      },
+    );
+
+    final result = await gateway.checkout(const RetailCart().add(product));
+
+    expect(result, isA<RetailCheckoutFailure>());
+    expect((result as RetailCheckoutFailure).retryable, isTrue);
+  });
+
   test('empty cart returns failure without calling the service', () async {
     final service = buildService();
     final gateway = buildGateway(service);
