@@ -79,12 +79,23 @@ class RetailCheckoutOperation {
   final String idempotencyKey;
   final RetailCheckoutGateway _gateway;
 
-  const RetailCheckoutOperation({
-    required this.cart,
+  RetailCheckoutOperation({
+    required RetailCart cart,
     required this.options,
     required this.idempotencyKey,
     required RetailCheckoutGateway gateway,
-  }) : _gateway = gateway;
+  })  : cart = RetailCart(
+          lines: List.unmodifiable(
+            cart.lines
+                .map(
+                  (line) => line.copyWith(
+                    variants: Map.unmodifiable(line.variants),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
+        _gateway = gateway;
 
   Future<RetailCheckoutResult> submit() {
     return _gateway.checkout(
