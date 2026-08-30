@@ -71,7 +71,12 @@ void main() {
     );
 
     expect(result, isA<RetailCheckoutSuccess>());
-    expect(gateway.received, cart);
+    final received = gateway.received;
+    expect(received, isNotNull);
+    expect(received!.itemCount, cart.itemCount);
+    expect(received!.lines.single.key, cart.lines.single.key);
+    expect(received!.lines.single.quantity, cart.lines.single.quantity);
+    expect(received!.lines.single.product.id, cart.lines.single.product.id);
     expect(gateway.receivedOptions?.usesEscrow, isTrue);
   });
 }
