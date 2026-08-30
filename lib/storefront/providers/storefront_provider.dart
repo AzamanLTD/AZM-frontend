@@ -106,8 +106,10 @@ class DraftLayoutNotifier extends StateNotifier<DraftLayoutState> {
   Future<bool> publish() async {
     state = state.copyWith(isPublishing: true, clearError: true);
     try {
-      await _service.publish();
-      state = state.copyWith(isPublishing: false);
+      final published = await _service.publish(
+        expectedUpdatedAt: state.layout?.updatedAt?.toIso8601String(),
+      );
+      state = state.copyWith(layout: published, isPublishing: false);
       return true;
     } catch (e) {
       state = state.copyWith(isPublishing: false, error: e.toString());
@@ -260,15 +262,9 @@ class StorefrontDiscoveryQuery {
       other is StorefrontDiscoveryQuery &&
       other.search == search &&
       other.category == category &&
+      other.limit == limit &&
       other.offset == offset;
 
   @override
-  int get hashCode => Object.hash(search, category, offset);
+  int get hashCode => Object.hash(search, category, limit, offset);
 }
-
-/// Public product listing for a business's storefront (Phase 4 — direct ordering).
-final storefrontProductsProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, businessProfileId) async {
-  final service = ref.read(storefrontServiceProvider);
-  return service.getStorefrontProducts(businessProfileId);
-});
