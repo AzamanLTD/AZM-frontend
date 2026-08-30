@@ -170,22 +170,12 @@ class SocketService {
       }
     });
 
-    socket.on('balance_update', (data) {
-      try {
-        final raw = _toMap(data);
-        final balances = BalanceData(
-          availableBalance: _toDouble(raw['availableBalance']),
-          vendorUnallocatedBalance: _toDouble(raw['vendorUnallocatedBalance']),
-          escrowLockedBalance: _toDouble(raw['escrowLockedBalance']),
-          disputeEscrowBalance: _toDouble(raw['disputeEscrowBalance']),
-          azmBalance: _toDouble(raw['azmBalance']),
-        );
-        _read(balanceDataProvider.notifier).state = balances;
-        _read(userUsdcBalanceProvider.notifier).state =
-            balances.availableBalance + balances.vendorUnallocatedBalance;
-      } catch (e) {
-        debugPrint('[SocketService] balance_update parse error: $e');
-      }
+    // Financial socket payloads are convergence signals only. The backend's
+    // GET /users/balance response remains the canonical ledger projection.
+    // Coalescing inside refreshCanonicalBalance prevents a burst of ledger
+    // events from creating a burst of HTTP reads.
+    socket.on('balance_update', (_) {
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
     });
 
     socket.on('rate_update', (data) {
@@ -206,6 +196,7 @@ class SocketService {
           raw['provider']?.toString() ?? 'MOBILE_MONEY',
           raw['reference']?.toString() ?? '',
         );
+        if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
       } catch (e) {
         debugPrint('[SocketService] deposit_success parse error: $e');
       }
@@ -213,8 +204,10 @@ class SocketService {
 
     socket.on('withdrawal_progress', (data) =>
         _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
-    socket.on('withdrawal_settled', (data) =>
-        _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled'));
+    socket.on('withdrawal_settled', (data) {
+      _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled');
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+    });
 
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
@@ -272,16 +265,19 @@ class SocketService {
   void _handleAzmEvent(dynamic data, bool reward) {
     try {
       final raw = _toMap(data);
-      final balance = _toDouble(raw['azmBalance']);
-      final current = _read(balanceDataProvider);
-      _read(balanceDataProvider.notifier).state = current.copyWith(azmBalance: balance);
       final amount = _toDouble(raw[reward ? 'awarded' : 'spent']);
       final source = raw['source']?.toString() ?? '';
       final reason = raw['reason']?.toString() ?? '';
+      // The event is a signal that the AZM ledger projection changed. Never
+      // overwrite the canonical balance from the socket payload itself.
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+      final canonicalBalance = _ref != null
+          ? _read(balanceDataProvider).azmBalance
+          : 0.0;
       if (reward) {
-        _onAzmReward?.call(balance, amount, source, reason);
+        _onAzmReward?.call(canonicalBalance, amount, source, reason);
       } else {
-        _onAzmSpend?.call(balance, amount, source, reason);
+        _onAzmSpend?.call(canonicalBalance, amount, source, reason);
       }
     } catch (e) {
       debugPrint('[SocketService] AZM event parse error: $e');
