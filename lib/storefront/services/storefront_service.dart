@@ -12,6 +12,18 @@ import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
 
+class StorefrontApiException implements Exception {
+  const StorefrontApiException({required this.statusCode, required this.message});
+
+  final int statusCode;
+  final String message;
+
+  bool get isRetryable => statusCode >= 500 || statusCode == 408 || statusCode == 429;
+
+  @override
+  String toString() => message;
+}
+
 class StorefrontService {
   final ApiClient _apiClient = ApiClient();
 
@@ -231,12 +243,18 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  // ── Helper ──────────────────────────────────────────────────────────────────
-
   dynamic _parseResponse(http.Response response) {
     if (response.statusCode >= 400) {
-      final body = jsonDecode(response.body);
-      throw Exception(body['message'] ?? 'Request failed: ${response.statusCode}');
+      String message = 'Request failed: ${response.statusCode}';
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['message'] != null) {
+          message = decoded['message'].toString();
+        }
+      } catch (_) {
+        // Preserve the HTTP status when a proxy/gateway returns non-JSON text.
+      }
+      throw StorefrontApiException(statusCode: response.statusCode, message: message);
     }
     final body = jsonDecode(response.body);
     if (body['success'] == true) return body['data'];
