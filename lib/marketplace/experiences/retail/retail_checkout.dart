@@ -77,15 +77,17 @@ class RetailCheckoutOperation {
   final RetailCart cart;
   final RetailCheckoutOptions options;
   final String idempotencyKey;
+  final RetailCheckoutGateway _gateway;
 
   const RetailCheckoutOperation({
     required this.cart,
     required this.options,
     required this.idempotencyKey,
-  });
+    required RetailCheckoutGateway gateway,
+  }) : _gateway = gateway;
 
-  Future<RetailCheckoutResult> submit(RetailCheckoutGateway gateway) {
-    return gateway.checkout(
+  Future<RetailCheckoutResult> submit() {
+    return _gateway.checkout(
       cart,
       options: options,
       idempotencyKey: idempotencyKey,
@@ -123,6 +125,7 @@ class RetailCheckoutController {
       cart: cart,
       options: options,
       idempotencyKey: idempotencyKey ?? IdempotencyKey.generate(),
+      gateway: gateway,
     );
   }
 
@@ -154,7 +157,8 @@ class RetailCheckoutController {
       cart: cart,
       options: options,
       idempotencyKey: idempotencyKey ?? IdempotencyKey.generate(),
+      gateway: gateway,
     );
-    return operation.submit(gateway);
+    return operation.submit();
   }
 }
