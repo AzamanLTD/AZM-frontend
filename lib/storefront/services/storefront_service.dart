@@ -13,6 +13,19 @@ import 'package:azaman/services/api_client.dart';
 import '../models/storefront_models.dart';
 import 'storefront_conflict_exception.dart';
 
+class StorefrontApiException implements Exception {
+  final int statusCode;
+  final String message;
+  final String? code;
+
+  const StorefrontApiException({required this.statusCode, required this.message, this.code});
+
+  bool get isRetryable => statusCode == 408 || statusCode == 425 || statusCode == 429 || statusCode >= 500;
+
+  @override
+  String toString() => 'StorefrontApiException($statusCode${code == null ? '' : ', $code'}): $message';
+}
+
 class StorefrontService {
   final ApiClient _apiClient = ApiClient();
 
@@ -64,24 +77,14 @@ class StorefrontService {
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<StorefrontLayout> saveDraft({
-    required LayoutJson layoutJson,
-    required String themeId,
-    String? expectedUpdatedAt,
-  }) async {
-    final response = await _apiClient.put('/storefront/me/draft', {
-      'layoutJson': layoutJson.toJson(),
-      'themeId': themeId,
-      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
-    });
+  Future<StorefrontLayout> saveDraft({required LayoutJson layoutJson, required String themeId, String? expectedUpdatedAt}) async {
+    final response = await _apiClient.put('/storefront/me/draft', {'layoutJson': layoutJson.toJson(), 'themeId': themeId, if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt});
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
   Future<StorefrontLayout> publish({String? expectedUpdatedAt}) async {
-    final response = await _apiClient.post('/storefront/me/publish', {
-      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
-    });
+    final response = await _apiClient.post('/storefront/me/publish', {if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt});
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
@@ -92,26 +95,14 @@ class StorefrontService {
     return (data as List).map((v) => StorefrontLayoutVersion.fromJson(v as Map<String, dynamic>)).toList();
   }
 
-  Future<StorefrontLayout> revertToVersion(
-    String versionId, {
-    String? expectedUpdatedAt,
-  }) async {
-    final response = await _apiClient.post('/storefront/me/revert', {
-      'versionId': versionId,
-      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
-    });
+  Future<StorefrontLayout> revertToVersion(String versionId, {String? expectedUpdatedAt}) async {
+    final response = await _apiClient.post('/storefront/me/revert', {'versionId': versionId, if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt});
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<StorefrontLayout> applyTemplate(
-    String templateId, {
-    String? expectedUpdatedAt,
-  }) async {
-    final response = await _apiClient.post('/storefront/me/apply-template', {
-      'templateId': templateId,
-      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
-    });
+  Future<StorefrontLayout> applyTemplate(String templateId, {String? expectedUpdatedAt}) async {
+    final response = await _apiClient.post('/storefront/me/apply-template', {'templateId': templateId, if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt});
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
@@ -166,23 +157,12 @@ class StorefrontService {
   }
 
   Future<Map<String, dynamic>> placeStorefrontOrder({required String businessProfileId, required String productId, int quantity = 1, String? customerNotes, String? deliveryNotes}) async {
-    final response = await _apiClient.post('/storefront/$businessProfileId/order', {
-      'productId': productId,
-      'quantity': quantity,
-      if (customerNotes != null) 'customerNotes': customerNotes,
-      if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
-    });
+    final response = await _apiClient.post('/storefront/$businessProfileId/order', {'productId': productId, 'quantity': quantity, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes});
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
-    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', {
-      'items': items,
-      if (customerNotes != null) 'customerNotes': customerNotes,
-      if (deliveryNotes != null) 'deliveryNotes': deliveryNotes,
-      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
-      'paymentMode': paymentMode,
-    });
+    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', {'items': items, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes, if (idempotencyKey != null) 'idempotencyKey': idempotencyKey, 'paymentMode': paymentMode});
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
@@ -207,14 +187,12 @@ class StorefrontService {
       } catch (_) {}
       final code = body['code'];
       if (response.statusCode == 409 || code == 'STOREFRONT_DRAFT_CONFLICT') {
-        throw StorefrontConflictException(
-          message: body['message'] ?? 'This storefront draft changed elsewhere. Refresh before continuing.',
-          code: code ?? 'STOREFRONT_DRAFT_CONFLICT',
-        );
+        throw StorefrontConflictException(message: body['message'] ?? 'This storefront draft changed elsewhere. Refresh before continuing.', code: code ?? 'STOREFRONT_DRAFT_CONFLICT');
       }
-      throw Exception(body['message'] ?? 'Request failed: ${response.statusCode}');
+      throw StorefrontApiException(statusCode: response.statusCode, code: code?.toString(), message: body['message']?.toString() ?? 'Request failed: ${response.statusCode}');
     }
     final body = jsonDecode(response.body);
+    if (body is! Map<String, dynamic>) throw const FormatException('Storefront response must be a JSON object.');
     if (body['success'] == true) return body['data'];
     if (body['data'] != null) return body['data'];
     return body;
