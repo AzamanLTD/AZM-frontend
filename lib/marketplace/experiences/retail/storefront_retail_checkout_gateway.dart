@@ -89,6 +89,11 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
             ? 'Order $orderRef created.'
             : 'Order placed successfully.',
       );
+    } on StorefrontApiException catch (e) {
+      return RetailCheckoutFailure(
+        message: e.message,
+        retryable: e.isRetryable,
+      );
     } on FormatException catch (_) {
       return const RetailCheckoutFailure(
         message: 'Received an invalid response from the server.',
