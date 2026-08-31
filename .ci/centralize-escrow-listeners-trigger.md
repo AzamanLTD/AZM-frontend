@@ -1,1 +1,0 @@
-Temporary retrigger for the corrected ticket lifecycle anchor.

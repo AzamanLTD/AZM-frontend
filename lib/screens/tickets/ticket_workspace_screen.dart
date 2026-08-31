@@ -59,24 +59,14 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   // in flight so a fast second hold can't kick off a parallel upload.
   bool _isUploadingAudio = false;
 
-  // V3 Marketplace Sprint (2026-06-21): per-ticket escrow socket subscriptions.
-  // We keep the handler refs so dispose() can `off(event, handler)` precisely —
-  // a bare `off(event)` would also nuke SocketService's own dispatcher for that
-  // event name.
-  static const _escrowEvents = [
-    'escrow_funded',
-    'escrow_settled',
-    'escrow_pending_settlement',
-    'escrow_disputed',
-    'escrow_resolved',
-    'escrow_terms_updated',
-  ];
-  final List<MapEntry<String, void Function(dynamic)>> _escrowSubs = [];
+  late final void Function(Map<String, dynamic>, String) _escrowHandler;
+  bool _escrowListening = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _registerEscrowHandler();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await ref
@@ -91,7 +81,8 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
           ref.read(ticketWorkspaceProvider(widget.ticketId)).ticket;
       if (loaded?.type == TicketType.escrow) {
         ref.read(escrowProvider(widget.ticketId).notifier).load();
-        _wireEscrowSocket();
+        ref.read(socketServiceProvider).onEscrowEvent(_escrowHandler);
+        _escrowListening = true;
       }
     });
   }
@@ -100,42 +91,23 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _leaveRoom();
-    _unwireEscrowSocket();
+    if (_escrowListening) {
+      ref.read(socketServiceProvider).removeEscrowEventListener(_escrowHandler);
+    }
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _wireEscrowSocket() {
-    final socket = SocketService.instance.rawSocket;
-    if (socket == null) return;
-    for (final evt in _escrowEvents) {
-      void handler(dynamic data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          if (raw['ticketId']?.toString() == widget.ticketId) {
-            ref
-                .read(escrowProvider(widget.ticketId).notifier)
-                .onRealtimeUpdate(raw, evt);
-            if (evt == 'escrow_settled') AzamanHaptics.confirm();
-            if (evt == 'escrow_disputed') AzamanHaptics.warn();
-          }
-        } catch (_) {}
-      }
-
-      _escrowSubs.add(MapEntry(evt, handler));
-      socket.on(evt, handler);
-    }
-  }
-
-  void _unwireEscrowSocket() {
-    final socket = SocketService.instance.rawSocket;
-    for (final sub in _escrowSubs) {
-      socket?.off(sub.key, sub.value);
-    }
-    _escrowSubs.clear();
+  void _registerEscrowHandler() {
+    _escrowHandler = (raw, evt) {
+      if (!mounted || raw['ticketId']?.toString() != widget.ticketId) return;
+      ref
+          .read(escrowProvider(widget.ticketId).notifier)
+          .onRealtimeUpdate(raw, evt);
+      if (evt == 'escrow_settled') AzamanHaptics.confirm();
+      if (evt == 'escrow_disputed') AzamanHaptics.warn();
+    };
   }
 
   @override

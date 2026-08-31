@@ -51,7 +51,7 @@ class SocketService {
   void Function(Map<String, dynamic>)? _onOrderLocation;
   void Function(Map<String, dynamic>)? _onOrderStatus;
   void Function(Map<String, dynamic>)? _onOrderEta;
-  void Function(Map<String, dynamic>, String)? _onEscrowEvent;
+  final Set<void Function(Map<String, dynamic>, String)> _escrowListeners = <void Function(Map<String, dynamic>, String)>{};
   void Function(Map<String, dynamic>)? _onInvoicePaid;
   void Function(Map<String, dynamic>)? _onInvoiceReceived;
   void Function(double, double, String, String)? _onDepositSuccess;
@@ -71,7 +71,8 @@ class SocketService {
   void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
   void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
   void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
-  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _onEscrowEvent = cb;
+  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.add(cb);
+  void removeEscrowEventListener(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.remove(cb);
   void onInvoicePaid(void Function(Map<String, dynamic>) cb) => _onInvoicePaid = cb;
   void onInvoiceReceived(void Function(Map<String, dynamic>) cb) => _onInvoiceReceived = cb;
   void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
@@ -389,7 +390,7 @@ class SocketService {
     _onOrderLocation = null;
     _onOrderStatus = null;
     _onOrderEta = null;
-    _onEscrowEvent = null;
+    _escrowListeners.clear();
     _onInvoicePaid = null;
     _onInvoiceReceived = null;
     _onDepositSuccess = null;
@@ -422,7 +423,14 @@ class SocketService {
 
   void _dispatchEscrow(dynamic data, String event) {
     try {
-      _onEscrowEvent?.call(_toMap(data), event);
+      final payload = _toMap(data);
+      for (final cb in List<void Function(Map<String, dynamic>, String)>.from(_escrowListeners)) {
+        try {
+          cb(payload, event);
+        } catch (callbackError) {
+          debugPrint('[SocketService] $event listener error: $callbackError');
+        }
+      }
     } catch (e) {
       debugPrint('[SocketService] $event error: $e');
     }
