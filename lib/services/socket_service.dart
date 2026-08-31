@@ -45,7 +45,6 @@ class SocketService {
   void Function(Map<String, dynamic>)? _onNewNotification;
   void Function(Map<String, dynamic>)? _onNotificationsUpdated;
   void Function(Map<String, dynamic>)? _onNewTradeRequest;
-  void Function(Map<String, dynamic>)? _onTradeCompleted;
   void Function(Map<String, dynamic>)? _onBizNotification;
   void Function(int)? _onBizNotificationsUpdated;
   void Function(Map<String, dynamic>)? _onBusinessOrderDelivered;
@@ -66,7 +65,6 @@ class SocketService {
   void onNewNotification(void Function(Map<String, dynamic>) cb) => _onNewNotification = cb;
   void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _onNotificationsUpdated = cb;
   void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
-  void onTradeCompleted(void Function(Map<String, dynamic>) cb) => _onTradeCompleted = cb;
   void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
   void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
   void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
@@ -226,7 +224,6 @@ class SocketService {
     socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));
     socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));
     socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
-    socket.on('trade_completed', (data) => _safeMapCallback(_onTradeCompleted, data, 'trade_completed'));
     socket.on('biz_notification', (data) => _handleBizNotification(data));
     socket.on('biz_notifications_updated', (data) {
       try {
@@ -240,9 +237,6 @@ class SocketService {
     socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
     socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
     socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
-    socket.on('order_location', (data) => _safeMapCallback(_onOrderLocation, data, 'order_location'));
-    socket.on('order_status', (data) => _safeMapCallback(_onOrderStatus, data, 'order_status'));
-    socket.on('order_eta', (data) => _safeMapCallback(_onOrderEta, data, 'order_eta'));
 
     for (final event in const [
       'escrow_funded',
@@ -389,7 +383,6 @@ class SocketService {
     _onNewNotification = null;
     _onNotificationsUpdated = null;
     _onNewTradeRequest = null;
-    _onTradeCompleted = null;
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
     _onBusinessOrderDelivered = null;
