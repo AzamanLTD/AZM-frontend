@@ -1,0 +1,106 @@
+name: Centralize notification socket listeners
+
+on:
+  push:
+    branches:
+      - refactor/centralize-notification-listeners
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard and migrate notification listener API
+        shell: python
+        run: |
+          from pathlib import Path
+
+          socket_path = Path('lib/services/socket_service.dart')
+          provider_path = Path('lib/providers/notification_provider.dart')
+          s = socket_path.read_text()
+          p = provider_path.read_text()
+
+          socket_anchors = [
+              "void Function(Map<String, dynamic>)? _onNewNotification;",
+              "void Function(Map<String, dynamic>)? _onNotificationsUpdated;",
+              "void onNewNotification(void Function(Map<String, dynamic>) cb) => _onNewNotification = cb;",
+              "void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _onNotificationsUpdated = cb;",
+              "socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));",
+              "socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));",
+              "_onNewNotification = null;",
+              "_onNotificationsUpdated = null;",
+          ]
+          for anchor in socket_anchors:
+              if anchor not in s:
+                  raise SystemExit(f'missing SocketService anchor: {anchor}')
+
+          provider_anchors = [
+              "final socket = SocketService.instance.rawSocket;",
+              "socket.on('new_notification', (data) {",
+              "socket.on('notifications_updated', (data) {",
+              "socket.off('new_notification');",
+              "socket.off('notifications_updated');",
+          ]
+          for anchor in provider_anchors:
+              if anchor not in p:
+                  raise SystemExit(f'missing NotificationNotifier anchor: {anchor}')
+
+          s = s.replace(
+              "  void Function(Map<String, dynamic>)? _onNewNotification;\n  void Function(Map<String, dynamic>)? _onNotificationsUpdated;",
+              "  final Set<void Function(Map<String, dynamic>)> _newNotificationListeners = <void Function(Map<String, dynamic>)>{};\n  final Set<void Function(Map<String, dynamic>)> _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};",
+              1,
+          )
+          s = s.replace(
+              "  void onNewNotification(void Function(Map<String, dynamic>) cb) => _onNewNotification = cb;\n  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _onNotificationsUpdated = cb;",
+              "  void onNewNotification(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.add(cb);\n  void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.remove(cb);\n  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.add(cb);\n  void removeNotificationsUpdatedListener(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.remove(cb);",
+              1,
+          )
+          s = s.replace("    _onNewNotification = null;\n    _onNotificationsUpdated = null;", "    _newNotificationListeners.clear();\n    _notificationsUpdatedListeners.clear();", 1)
+          s = s.replace(
+              "    socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));\n    socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));",
+              "    socket.on('new_notification', (data) => _dispatchMapListeners(_newNotificationListeners, data, 'new_notification'));\n    socket.on('notifications_updated', (data) => _dispatchMapListeners(_notificationsUpdatedListeners, data, 'notifications_updated'));",
+              1,
+          )
+          marker = "  void _safeMapCallback(void Function(Map<String, dynamic>)? cb, dynamic data, String event) {\n"
+          if marker not in s:
+              raise SystemExit('SocketService safe callback marker changed unexpectedly')
+          helper = """  void _dispatchMapListeners(\n      Set<void Function(Map<String, dynamic>)> listeners,\n      dynamic data,\n      String event,\n  ) {\n    try {\n      final payload = _toMap(data);\n      for (final cb in List<void Function(Map<String, dynamic>)>.from(listeners)) {\n        try {\n          cb(payload);\n        } catch (callbackError) {\n          debugPrint('[SocketService] $event listener error: $callbackError');\n        }\n      }\n    } catch (e) {\n      debugPrint('[SocketService] $event parse error: $e');\n    }\n  }\n\n"""
+          s = s.replace(marker, helper + marker, 1)
+
+          old_provider = p[p.index('  void _initSocketListener() {'):p.index('  @override\n  void dispose()')]
+          new_provider = """  void _initSocketListener() {\n    final socketService = _ref.read(socketServiceProvider);\n    socketService.onNewNotification(_handleNewNotification);\n    socketService.onNotificationsUpdated(_handleNotificationsUpdated);\n  }\n\n  void _handleNewNotification(Map<String, dynamic> data) {\n    try {\n      final notification = AppNotification.fromJson(data);\n      addNotification(notification);\n    } catch (e) {\n      debugPrint('[NotificationProvider] new_notification parse error: $e');\n    }\n  }\n\n  void _handleNotificationsUpdated(Map<String, dynamic> raw) {\n    try {\n      final type = raw['type']?.toString();\n      if (type == 'MARKED_READ') {\n        final id = raw['notificationId']?.toString();\n        if (id != null && id.isNotEmpty) {\n          _applyMarkAsReadLocal(id);\n        }\n      } else if (type == 'MARKED_ALL_READ') {\n        _applyMarkAllAsReadLocal();\n      }\n    } catch (e) {\n      debugPrint('[NotificationProvider] notifications_updated parse error: $e');\n    }\n  }\n\n"""
+          p = p.replace(old_provider, new_provider, 1)
+
+          old_dispose = """  @override\n  void dispose() {\n    final socket = SocketService.instance.rawSocket;\n    if (socket != null) {\n      socket.off('new_notification');\n      socket.off('notifications_updated');\n    }\n    super.dispose();\n  }\n"""
+          new_dispose = """  @override\n  void dispose() {\n    final socketService = _ref.read(socketServiceProvider);\n    socketService.removeNewNotificationListener(_handleNewNotification);\n    socketService.removeNotificationsUpdatedListener(_handleNotificationsUpdated);\n    super.dispose();\n  }\n"""
+          p = p.replace(old_dispose, new_dispose, 1)
+
+          socket_path.write_text(s)
+          provider_path.write_text(p)
+
+      - name: Verify migration shape
+        run: |
+          grep -q "_newNotificationListeners" lib/services/socket_service.dart
+          grep -q "removeNewNotificationListener" lib/services/socket_service.dart
+          grep -q "_notificationsUpdatedListeners" lib/services/socket_service.dart
+          grep -q "removeNotificationsUpdatedListener" lib/services/socket_service.dart
+          grep -q "socketService.onNewNotification(_handleNewNotification)" lib/providers/notification_provider.dart
+          grep -q "socketService.onNotificationsUpdated(_handleNotificationsUpdated)" lib/providers/notification_provider.dart
+          ! grep -q "SocketService.instance.rawSocket" lib/providers/notification_provider.dart
+          ! grep -q "socket.on('new_notification'\|socket.on('notifications_updated'\|socket.off('new_notification'\|socket.off('notifications_updated'" lib/providers/notification_provider.dart
+
+      - name: Remove temporary workflow and commit
+        run: |
+          rm -f .github/workflows/centralize-notification-listeners.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/services/socket_service.dart lib/providers/notification_provider.dart .github/workflows/centralize-notification-listeners.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'refactor(realtime): centralize notification listeners'
+          git push
