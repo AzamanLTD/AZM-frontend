@@ -78,9 +78,9 @@ jobs:
           replacement = '''  void _registerEscrowHandler() {\n    _escrowHandler = (raw, evt) {\n      if (!mounted || raw['ticketId']?.toString() != widget.ticketId) return;\n      ref\n          .read(escrowProvider(widget.ticketId).notifier)\n          .onRealtimeUpdate(raw, evt);\n      if (evt == 'escrow_settled') AzamanHaptics.confirm();\n      if (evt == 'escrow_disputed') AzamanHaptics.warn();\n    };\n  }\n\n'''
           t = t[:start] + replacement + t[end:]
 
-          init_marker = '''    _tabs.addListener(() => setState(() {}));'''
+          init_marker = '''    WidgetsBinding.instance.addObserver(this);'''
           if init_marker not in t:
-              raise SystemExit('ticket init marker unexpectedly missing')
+              raise SystemExit('ticket lifecycle marker unexpectedly missing')
           t = t.replace(init_marker, init_marker + "\n    _registerEscrowHandler();", 1)
 
           socket.write_text(s)
