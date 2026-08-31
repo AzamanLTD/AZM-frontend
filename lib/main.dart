@@ -360,7 +360,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       ref.read(trade_pkg.tradeProvider).syncRoleFromAuth(auth.user!.role);
     }
 
-    socketService.onTradeCompleted((data) => _showSuccessReceipt(data));
     socketService.onNewNotification((data) {
       if (!mounted) return;
       HapticFeedback.lightImpact();
@@ -397,27 +396,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       if (!mounted) return;
       ref.read(bizUnreadCountProvider.notifier).state = count;
     });
-  }
-
-  void _showSuccessReceipt(dynamic data) {
-    final colors = ref.read(theme_pkg.themeProvider.select((t) => t.colors));
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: colors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.check_circle_outline, color: colors.success, size: 80),
-          const SizedBox(height: 16),
-          Text('Order Completed', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Purchased ${data['amount']} ${data['crypto']}', style: TextStyle(color: colors.textSecondary)),
-          Divider(color: colors.divider, height: 32),
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Done', style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold))),
-        ]),
-      ),
-    );
   }
 
   @override
