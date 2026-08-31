@@ -251,6 +251,7 @@ class SocketService {
       'escrow_disputed',
       'escrow_resolved',
       'escrow_terms_updated',
+      'escrow_refunded',
     ]) {
       socket.on(event, (data) => _dispatchEscrow(data, event));
     }
