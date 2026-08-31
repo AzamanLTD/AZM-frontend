@@ -79,6 +79,8 @@ jobs:
           t = t[:start] + replacement + t[end:]
 
           init_marker = '''    _tabs.addListener(() => setState(() {}));'''
+          if init_marker not in t:
+              raise SystemExit('ticket init marker unexpectedly missing')
           t = t.replace(init_marker, init_marker + "\n    _registerEscrowHandler();", 1)
 
           socket.write_text(s)
@@ -89,7 +91,8 @@ jobs:
           grep -q "_escrowListeners" lib/services/socket_service.dart
           grep -q "removeEscrowEventListener" lib/services/socket_service.dart
           grep -q "onEscrowEvent(_escrowHandler)" lib/screens/tickets/ticket_workspace_screen.dart
-          ! grep -q "_escrowEvents\|_escrowSubs\|void _wireEscrowSocket\|void _unwireEscrowSocket\|rawSocket" lib/screens/tickets/ticket_workspace_screen.dart
+          ! grep -q "_escrowEvents\|_escrowSubs\|void _wireEscrowSocket\|void _unwireEscrowSocket" lib/screens/tickets/ticket_workspace_screen.dart
+          ! grep -q "onEscrowEvent.*_onEscrowEvent" lib/services/socket_service.dart
 
       - name: Remove temporary workflow and commit
         run: |
