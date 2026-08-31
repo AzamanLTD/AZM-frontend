@@ -26,60 +26,41 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   ///     user (web + phone) stay in sync without pull-to-refresh.
   ///     Two subtypes: `MARKED_READ` (single id) and `MARKED_ALL_READ`.
   void _initSocketListener() {
+    final socketService = _ref.read(socketServiceProvider);
+    socketService.onNewNotification(_handleNewNotification);
+    socketService.onNotificationsUpdated(_handleNotificationsUpdated);
+  }
+
+  void _handleNewNotification(Map<String, dynamic> data) {
     try {
-      // Phase P3: Use the unified SocketService's raw socket for direct
-      // .on() listeners. These are per-trade-level listeners that need
-      // dedup logic, so we attach directly rather than via the callback
-      // registry (which is for app-shell level events like snackbars).
-      final socket = SocketService.instance.rawSocket;
-      if (socket == null) {
-        debugPrint('[NotificationProvider] Socket not yet initialized, deferring listeners');
-        return;
-      }
-
-      socket.on('new_notification', (data) {
-        if (data is Map<String, dynamic>) {
-          final notification = AppNotification.fromJson(data);
-          addNotification(notification);
-        } else if (data is Map) {
-          final notification = AppNotification.fromJson(
-            Map<String, dynamic>.from(data),
-          );
-          addNotification(notification);
-        }
-      });
-
-      // Phase B2 (2026-05-25): multi-device badge sync.
-      socket.on('notifications_updated', (data) {
-        try {
-          final raw = data is Map<String, dynamic>
-              ? data
-              : Map<String, dynamic>.from(data as Map);
-          final type = raw['type']?.toString();
-          if (type == 'MARKED_READ') {
-            final id = raw['notificationId']?.toString();
-            if (id != null && id.isNotEmpty) {
-              _applyMarkAsReadLocal(id);
-            }
-          } else if (type == 'MARKED_ALL_READ') {
-            _applyMarkAllAsReadLocal();
-          }
-        } catch (e) {
-          debugPrint('[NotificationProvider] notifications_updated parse error: $e');
-        }
-      });
+      final notification = AppNotification.fromJson(data);
+      addNotification(notification);
     } catch (e) {
-      debugPrint('[NotificationProvider] Socket listener init error: $e');
+      debugPrint('[NotificationProvider] new_notification parse error: $e');
+    }
+  }
+
+  void _handleNotificationsUpdated(Map<String, dynamic> raw) {
+    try {
+      final type = raw['type']?.toString();
+      if (type == 'MARKED_READ') {
+        final id = raw['notificationId']?.toString();
+        if (id != null && id.isNotEmpty) {
+          _applyMarkAsReadLocal(id);
+        }
+      } else if (type == 'MARKED_ALL_READ') {
+        _applyMarkAllAsReadLocal();
+      }
+    } catch (e) {
+      debugPrint('[NotificationProvider] notifications_updated parse error: $e');
     }
   }
 
   @override
   void dispose() {
-    final socket = SocketService.instance.rawSocket;
-    if (socket != null) {
-      socket.off('new_notification');
-      socket.off('notifications_updated');
-    }
+    final socketService = _ref.read(socketServiceProvider);
+    socketService.removeNewNotificationListener(_handleNewNotification);
+    socketService.removeNotificationsUpdatedListener(_handleNotificationsUpdated);
     super.dispose();
   }
 

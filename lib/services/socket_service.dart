@@ -42,8 +42,8 @@ class SocketService {
   void Function(double, double, String, String)? _onAzmSpend;
   void Function(Map<String, dynamic>)? _onTradeUpdate;
   void Function()? _onMarketUpdate;
-  void Function(Map<String, dynamic>)? _onNewNotification;
-  void Function(Map<String, dynamic>)? _onNotificationsUpdated;
+  final Set<void Function(Map<String, dynamic>)> _newNotificationListeners = <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)> _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};
   void Function(Map<String, dynamic>)? _onNewTradeRequest;
   void Function(Map<String, dynamic>)? _onBizNotification;
   void Function(int)? _onBizNotificationsUpdated;
@@ -62,8 +62,10 @@ class SocketService {
   void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
   void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _onTradeUpdate = cb;
   void onMarketUpdate(void Function() cb) => _onMarketUpdate = cb;
-  void onNewNotification(void Function(Map<String, dynamic>) cb) => _onNewNotification = cb;
-  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _onNotificationsUpdated = cb;
+  void onNewNotification(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.add(cb);
+  void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.remove(cb);
+  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.add(cb);
+  void removeNotificationsUpdatedListener(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.remove(cb);
   void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
   void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
   void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
@@ -222,8 +224,8 @@ class SocketService {
 
     socket.on('trade_update', (data) => _safeMapCallback(_onTradeUpdate, data, 'trade_update'));
     socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
-    socket.on('new_notification', (data) => _safeMapCallback(_onNewNotification, data, 'new_notification'));
-    socket.on('notifications_updated', (data) => _safeMapCallback(_onNotificationsUpdated, data, 'notifications_updated'));
+    socket.on('new_notification', (data) => _dispatchMapListeners(_newNotificationListeners, data, 'new_notification'));
+    socket.on('notifications_updated', (data) => _dispatchMapListeners(_notificationsUpdatedListeners, data, 'notifications_updated'));
     socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
     socket.on('biz_notification', (data) => _handleBizNotification(data));
     socket.on('biz_notifications_updated', (data) {
@@ -381,8 +383,8 @@ class SocketService {
     _onAzmSpend = null;
     _onTradeUpdate = null;
     _onMarketUpdate = null;
-    _onNewNotification = null;
-    _onNotificationsUpdated = null;
+    _newNotificationListeners.clear();
+    _notificationsUpdatedListeners.clear();
     _onNewTradeRequest = null;
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
@@ -433,6 +435,25 @@ class SocketService {
       }
     } catch (e) {
       debugPrint('[SocketService] $event error: $e');
+    }
+  }
+
+  void _dispatchMapListeners(
+      Set<void Function(Map<String, dynamic>)> listeners,
+      dynamic data,
+      String event,
+  ) {
+    try {
+      final payload = _toMap(data);
+      for (final cb in List<void Function(Map<String, dynamic>)>.from(listeners)) {
+        try {
+          cb(payload);
+        } catch (callbackError) {
+          debugPrint('[SocketService] $event listener error: $callbackError');
+        }
+      }
+    } catch (e) {
+      debugPrint('[SocketService] $event parse error: $e');
     }
   }
 
