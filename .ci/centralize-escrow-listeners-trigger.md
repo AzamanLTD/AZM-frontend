@@ -1,1 +1,1 @@
-Temporary retrigger for the narrowed migration verification.
+Temporary retrigger for the corrected ticket lifecycle anchor.
