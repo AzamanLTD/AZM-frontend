@@ -6,6 +6,8 @@
 // and date. Tapping an order with a linked ticket opens its workspace.
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
@@ -35,6 +38,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _scrollCtrl = ScrollController();
+  late final void Function(dynamic) _orderDeliveredHandler;
 
   @override
   void initState() {
@@ -42,6 +46,18 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
     _tabs = TabController(length: 3, vsync: this);
     _tabs.addListener(() => setState(() {}));
     _scrollCtrl.addListener(_onScroll);
+
+    // The backend emits this only after the authoritative order mutation.
+    // Re-fetch the canonical order projection instead of trusting the socket
+    // payload as state. Keep the handler local and remove it precisely on
+    // dispose so other singleton socket consumers remain untouched.
+    final socket = SocketService.instance.rawSocket;
+    _orderDeliveredHandler = (_) {
+      if (!mounted) return;
+      unawaited(ref.read(myOrdersProvider.notifier).load());
+    };
+    socket?.on('business_order_delivered', _orderDeliveredHandler);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(myOrdersProvider.notifier).load();
     });
@@ -49,6 +65,10 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
 
   @override
   void dispose() {
+    SocketService.instance.rawSocket?.off(
+      'business_order_delivered',
+      _orderDeliveredHandler,
+    );
     _tabs.dispose();
     _scrollCtrl.dispose();
     super.dispose();
