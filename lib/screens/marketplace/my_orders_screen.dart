@@ -92,6 +92,18 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
     }
   }
 
+  void _openOrderWorkspace(BusinessOrder order) {
+    final tid = order.ticketId;
+    if (tid == null || tid.isEmpty) return;
+    pushWithVerticalTransition(
+      context,
+      TicketWorkspaceScreen(
+        ticketId: tid,
+        friendUsername: order.title,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -144,18 +156,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                       child: _OrderCard(
                       order: orders[i],
                       colors: colors,
-                      onTap: () {
-                        final tid = orders[i].ticketId;
-                        if (tid != null && tid.isNotEmpty) {
-                          pushWithVerticalTransition(
-                            context,
-                            TicketWorkspaceScreen(
-                              ticketId: tid,
-                              friendUsername: orders[i].title,
-                            ),
-                          );
-                        }
-                      },
+                      onTap: () => _openOrderWorkspace(orders[i]),
                     ),
                     ),
                   ),
@@ -190,6 +191,12 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor();
+    final needsEscrowFunding =
+        order.status == BusinessOrderStatus.awaitingPayment &&
+        order.escrowId != null &&
+        order.escrowId!.isNotEmpty &&
+        order.ticketId != null &&
+        order.ticketId!.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
       child: PremiumGlassContainer(
@@ -212,7 +219,28 @@ class _OrderCard extends StatelessWidget {
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('\$${order.amountUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: colors.accent)),
-            if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
+            if (needsEscrowFunding) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline, size: 12, color: colors.warning),
+                      const SizedBox(width: 3),
+                      Text('Fund escrow', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: colors.warning)),
+                    ],
+                  ),
+                ),
+              ),
+            ] else if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () => pushWithVerticalTransition(context,
