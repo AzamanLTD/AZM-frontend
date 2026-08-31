@@ -1,1 +1,1 @@
-Temporary retrigger for the corrected guarded migration.
+Temporary retrigger for the narrowed migration verification.
