@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -48,8 +49,8 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
 
     // The backend emits this only after the authoritative order mutation.
     // Re-fetch the canonical order projection instead of trusting the socket
-    // payload as state. Use the singleton's underlying socket and remove the
-    // exact handler on dispose so other listeners remain untouched.
+    // payload as state. Keep the handler local and remove it precisely on
+    // dispose so other singleton socket consumers remain untouched.
     final socket = SocketService.instance.rawSocket;
     _orderDeliveredHandler = (_) {
       if (!mounted) return;
@@ -131,9 +132,9 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                   subtitle: 'Your marketplace orders will appear here.',
                 )
               : AzPullToRefresh(
-                  onRefresh: () =>
+        onRefresh: () =>
                       ref.read(myOrdersProvider.notifier).load(),
-                  child: ListView.separated(
+        child: ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: orders.length,
@@ -141,21 +142,21 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
                     itemBuilder: (_, i) => StaggeredItem(
                       index: i,
                       child: _OrderCard(
-                        order: orders[i],
-                        colors: colors,
-                        onTap: () {
-                          final tid = orders[i].ticketId;
-                          if (tid != null && tid.isNotEmpty) {
-                            pushWithVerticalTransition(
-                              context,
-                              TicketWorkspaceScreen(
-                                ticketId: tid,
-                                friendUsername: orders[i].title,
-                              ),
-                            );
-                          }
-                        },
-                      ),
+                      order: orders[i],
+                      colors: colors,
+                      onTap: () {
+                        final tid = orders[i].ticketId;
+                        if (tid != null && tid.isNotEmpty) {
+                          pushWithVerticalTransition(
+                            context,
+                            TicketWorkspaceScreen(
+                              ticketId: tid,
+                              friendUsername: orders[i].title,
+                            ),
+                          );
+                        }
+                      },
+                    ),
                     ),
                   ),
                 ),
@@ -240,6 +241,8 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () {
+                  // Reorder: navigate to the business storefront for re-ordering
+                  // The cart system handles adding items from the storefront
                   if (order.businessProfileId.isNotEmpty) {
                     pushWithVerticalTransition(context,
                       StorefrontScreen(
