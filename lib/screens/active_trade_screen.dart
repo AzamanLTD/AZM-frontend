@@ -145,7 +145,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
     socket.on('new_trade_message', _onNewMessage);
     socket.on('new_message', _onNewMessage); // REST endpoint emits this
     socket.on('user_typing_trade', _onVendorTyping);
-    socket.on('trade_update', _onTradeUpdate);
+    SocketService.instance.onTradeUpdate(_onTradeUpdateMap);
     socket.on('messages_read_update', _onMessagesRead);
     // CHAT DEBUG: optimistic-reconcile listeners
     socket.on('message_saved', _onMessageSaved);
@@ -263,7 +263,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
     if (mounted) setState(() => _vendorIsTyping = data['isTyping']);
   }
 
-  void _onTradeUpdate(dynamic data) {
+  void _onTradeUpdateMap(Map<String, dynamic> data) {
     if (!mounted) return;
     setState(() {
       if (data['status'] == 'PENDING_PAYMENT') _isAccepted = true;
@@ -1618,7 +1618,7 @@ class _ActiveTradeScreenState extends ConsumerState<ActiveTradeScreen> {
     socket.off('new_trade_message', _onNewMessage);
     socket.off('new_message', _onNewMessage);
     socket.off('user_typing_trade', _onVendorTyping);
-    socket.off('trade_update', _onTradeUpdate);
+    SocketService.instance.removeTradeUpdateListener(_onTradeUpdateMap);
     socket.off('messages_read_update', _onMessagesRead);
     socket.off('message_saved', _onMessageSaved);
     socket.off('message_delivered', _onMessageDelivered);

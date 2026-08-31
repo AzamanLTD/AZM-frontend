@@ -40,7 +40,7 @@ class SocketService {
 
   void Function(double, double, String, String)? _onAzmReward;
   void Function(double, double, String, String)? _onAzmSpend;
-  void Function(Map<String, dynamic>)? _onTradeUpdate;
+  final Set<void Function(Map<String, dynamic>)> _tradeUpdateListeners = <void Function(Map<String, dynamic>)>{};
   void Function()? _onMarketUpdate;
   final Set<void Function(Map<String, dynamic>)> _newNotificationListeners = <void Function(Map<String, dynamic>)>{};
   final Set<void Function(Map<String, dynamic>)> _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};
@@ -60,7 +60,8 @@ class SocketService {
 
   void onAzmReward(void Function(double, double, String, String) cb) => _onAzmReward = cb;
   void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
-  void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _onTradeUpdate = cb;
+  void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.add(cb);
+  void removeTradeUpdateListener(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.remove(cb);
   void onMarketUpdate(void Function() cb) => _onMarketUpdate = cb;
   void onNewNotification(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.add(cb);
   void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.remove(cb);
@@ -222,7 +223,7 @@ class SocketService {
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
 
-    socket.on('trade_update', (data) => _safeMapCallback(_onTradeUpdate, data, 'trade_update'));
+    socket.on('trade_update', (data) => _dispatchMapListeners(_tradeUpdateListeners, data, 'trade_update'));
     socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
     socket.on('new_notification', (data) => _dispatchMapListeners(_newNotificationListeners, data, 'new_notification'));
     socket.on('notifications_updated', (data) => _dispatchMapListeners(_notificationsUpdatedListeners, data, 'notifications_updated'));
@@ -381,7 +382,7 @@ class SocketService {
   void _clearCallbacks() {
     _onAzmReward = null;
     _onAzmSpend = null;
-    _onTradeUpdate = null;
+    _tradeUpdateListeners.clear();
     _onMarketUpdate = null;
     _newNotificationListeners.clear();
     _notificationsUpdatedListeners.clear();
