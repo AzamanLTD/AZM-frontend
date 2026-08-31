@@ -54,6 +54,7 @@ class SocketService {
   void Function(Map<String, dynamic>)? _onOrderEta;
   void Function(Map<String, dynamic>, String)? _onEscrowEvent;
   void Function(Map<String, dynamic>)? _onInvoicePaid;
+  void Function(Map<String, dynamic>)? _onInvoiceReceived;
   void Function(double, double, String, String)? _onDepositSuccess;
   void Function(Map<String, dynamic>)? _onWithdrawalProgress;
   void Function(Map<String, dynamic>)? _onWithdrawalSettled;
@@ -74,6 +75,7 @@ class SocketService {
   void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
   void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _onEscrowEvent = cb;
   void onInvoicePaid(void Function(Map<String, dynamic>) cb) => _onInvoicePaid = cb;
+  void onInvoiceReceived(void Function(Map<String, dynamic>) cb) => _onInvoiceReceived = cb;
   void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
@@ -92,6 +94,10 @@ class SocketService {
 
   void removeInvoicePaidListener(void Function(Map<String, dynamic>) cb) {
     if (_onInvoicePaid == cb) _onInvoicePaid = null;
+  }
+
+  void removeInvoiceReceivedListener(void Function(Map<String, dynamic>) cb) {
+    if (_onInvoiceReceived == cb) _onInvoiceReceived = null;
   }
 
   static String get _resolvedHost {
@@ -249,6 +255,7 @@ class SocketService {
       socket.on(event, (data) => _dispatchEscrow(data, event));
     }
     socket.on('invoice_paid', (data) => _safeMapCallback(_onInvoicePaid, data, 'invoice_paid'));
+    socket.on('invoice_received', (data) => _safeMapCallback(_onInvoiceReceived, data, 'invoice_received'));
   }
 
   void _handleBizNotification(dynamic data) {
@@ -390,6 +397,7 @@ class SocketService {
     _onOrderEta = null;
     _onEscrowEvent = null;
     _onInvoicePaid = null;
+    _onInvoiceReceived = null;
     _onDepositSuccess = null;
     _onWithdrawalProgress = null;
     _onWithdrawalSettled = null;

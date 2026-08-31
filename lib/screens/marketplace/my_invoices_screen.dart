@@ -34,6 +34,7 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
   late final TabController _tabs;
   final _scrollCtrl = ScrollController();
   late final void Function(Map<String, dynamic>) _invoicePaidHandler;
+  late final void Function(Map<String, dynamic>) _invoiceReceivedHandler;
 
   @override
   void initState() {
@@ -42,13 +43,21 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
     _tabs.addListener(() => setState(() {}));
     _scrollCtrl.addListener(_onScroll);
 
+    final socket = ref.read(socketServiceProvider);
     _invoicePaidHandler = (_) {
       if (!mounted) return;
       // `invoice_paid` is a convergence signal. Reload the canonical invoice
       // projection rather than mutating a cached invoice from socket data.
       unawaited(ref.read(myInvoicesProvider.notifier).load());
     };
-    ref.read(socketServiceProvider).onInvoicePaid(_invoicePaidHandler);
+    _invoiceReceivedHandler = (_) {
+      if (!mounted) return;
+      // `invoice_received` only signals that a new SENT invoice exists. The
+      // canonical API owns the invoice projection and pagination state.
+      unawaited(ref.read(myInvoicesProvider.notifier).load());
+    };
+    socket.onInvoicePaid(_invoicePaidHandler);
+    socket.onInvoiceReceived(_invoiceReceivedHandler);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(myInvoicesProvider.notifier).load();
@@ -57,7 +66,9 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
 
   @override
   void dispose() {
-    ref.read(socketServiceProvider).removeInvoicePaidListener(_invoicePaidHandler);
+    final socket = ref.read(socketServiceProvider);
+    socket.removeInvoicePaidListener(_invoicePaidHandler);
+    socket.removeInvoiceReceivedListener(_invoiceReceivedHandler);
     _tabs.dispose();
     _scrollCtrl.dispose();
     super.dispose();
