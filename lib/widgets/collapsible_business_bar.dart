@@ -36,6 +36,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
+import 'package:azaman/widgets/featured_products_section.dart';
 
 // ── Open-now status helpers (§3 of Marketplace Enhancement Spec) ───────────────
 
@@ -165,6 +166,28 @@ class CollapsibleBusinessBar extends ConsumerWidget {
         if (products.isNotEmpty) {
           return '${products.length} product${products.length == 1 ? '' : 's'} available';
         }
+        return null;
+    }
+  }
+
+  String? _previewTitle() {
+    switch (business.category) {
+      case 'FOOD_BEVERAGE':
+        return 'Popular dishes';
+      case 'RETAIL':
+        return 'Bestsellers';
+      default:
+        return null;
+    }
+  }
+
+  String? _previewActionLabel() {
+    switch (business.category) {
+      case 'FOOD_BEVERAGE':
+        return 'View menu';
+      case 'RETAIL':
+        return 'View store';
+      default:
         return null;
     }
   }
@@ -489,12 +512,18 @@ class CollapsibleBusinessBar extends ConsumerWidget {
   //   Cover photo 150px (with collapse button + name overlay at bottom)
   //   Category dot · label · ★ rating · n reviews
   //   Vertical-specific stat line
-  //   [Full-width CTA button in category color]
+  //   Optional category-native product preview
+  //   [Visit + Review action pills]
 
   Widget _expandedCard(
       BuildContext context, AzamanColors colors, BusinessCategory cat) {
     final cover = _coverUrl();
     final stat = _verticalStat();
+    final previewTitle = _previewTitle();
+    final previewActionLabel = _previewActionLabel();
+    final showProductPreview = previewTitle != null &&
+        previewActionLabel != null &&
+        business.products.isNotEmpty;
 
     return GestureDetector(
       // Tapping the card body (not the button) does nothing — prevents
@@ -707,6 +736,25 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 12,
                         color: colors.textTertiary,
+                      ),
+                    ),
+                  ],
+
+                  if (showProductPreview) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: FeaturedProductsSection(
+                        bizId: business.bizId,
+                        title: previewTitle!,
+                        actionLabel: previewActionLabel!,
+                        maxItems: 3,
+                        productLoader: (_) async => (
+                          products: business.products,
+                          hasMore: false,
+                          nextCursor: null,
+                        ),
+                        onOrder: (_) => _openProfile(context),
                       ),
                     ),
                   ],
