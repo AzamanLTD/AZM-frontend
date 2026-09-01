@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage.dart';
 
 /// Customer-facing business experience surface.
 ///
-/// The surrounding business profile stays shared, but each primary marketplace
-/// category now gets its own interaction primitive: restaurant menu book,
-/// retail shelf, hotel floor plan, or transit seat map.
+/// The surrounding business profile stays shared, but the primary marketplace
+/// journey can now be selected by the business's published Experience Blueprint.
+/// Older businesses safely fall back to the capability catalog in the stage.
 class BusinessBookTab extends StatelessWidget {
   final BusinessProfile business;
   final AzamanColors colors;
@@ -32,8 +34,7 @@ class BusinessBookTab extends StatelessWidget {
     this.onOrderProduct,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _stage(Map<String, dynamic>? experience) {
     return MarketplaceVerticalExperienceStage(
       business: business,
       colors: colors,
@@ -43,6 +44,21 @@ class BusinessBookTab extends StatelessWidget {
       menuSections: menuSections,
       uncategorisedProducts: uncategorisedProducts,
       onOrderProduct: onOrderProduct,
+      experience: experience,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final experience = ref.watch(storefrontExperienceProvider(business.id));
+        return experience.when(
+          data: _stage,
+          loading: () => _stage(null),
+          error: (_, __) => _stage(null),
+        );
+      },
     );
   }
 }
