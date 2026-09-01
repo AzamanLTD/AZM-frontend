@@ -59,6 +59,19 @@ class StorefrontService {
     return StorefrontRenderResponse.fromJson(data as Map<String, dynamic>);
   }
 
+  /// Retrieve the published category-native experience contract separately
+  /// from the legacy render model while that model remains intentionally
+  /// focused on SDUI layout concerns.
+  Future<Map<String, dynamic>?> getPublicExperience(String businessProfileId) async {
+    final response = await _apiClient.get('/storefront/$businessProfileId/experience');
+    if (response.statusCode == 404) return null;
+    final data = _parseResponse(response);
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Storefront experience response must be a JSON object.');
+    }
+    return data;
+  }
+
   Future<Map<String, dynamic>> getPublicTheme(String businessProfileId) async {
     final response = await _apiClient.get('/storefront/$businessProfileId/theme');
     return _parseResponse(response) as Map<String, dynamic>;
