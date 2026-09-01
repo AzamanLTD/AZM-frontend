@@ -38,6 +38,8 @@ class PushNotificationService {
   /// Initializes FCM once. Callbacks are installed before getInitialMessage()
   /// is queried so a notification tap that launched a cold app is not lost.
   /// The in-flight Future also makes concurrent callers share one init.
+  /// Failures are rethrown so the StartupCoordinator can retry the whole
+  /// post-frame initialization attempt on a later lifecycle entry.
   Future<void> init() {
     return _initialization ??= _initialize();
   }
@@ -78,6 +80,7 @@ class PushNotificationService {
       // Permit a later lifecycle-triggered retry after a transient failure.
       _initialization = null;
       debugPrint('⚠️ [Push] init failed: $e');
+      rethrow;
     }
   }
 
