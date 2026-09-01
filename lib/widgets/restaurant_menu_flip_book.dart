@@ -364,9 +364,9 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
             style: const TextStyle(color: _inkSoft, fontSize: 11, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 24),
-          const ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 250),
-            child: Row(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 250),
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.swipe_left_rounded, size: 16, color: _inkSoft),
