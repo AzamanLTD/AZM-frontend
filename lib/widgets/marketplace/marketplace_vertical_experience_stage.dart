@@ -75,9 +75,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       case 'SERVICE_JOURNEY':
         stage = _bookCtaCard(
           icon: BusinessCategories.fromWire(profile.categoryWire).icon,
-          title: blueprint.detailPresentation == MarketplaceDetailPresentation.serviceDossier
-              ? 'Browse Services'
-              : 'Browse Offerings',
+          title: 'Browse Offerings',
           subtitle: 'See what this business offers and continue through its primary customer flow.',
           buttonLabel: profile.primaryActionLabel,
           onTap: onOpenOrderSheet ?? onOpenCatalogView,
