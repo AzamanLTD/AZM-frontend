@@ -91,7 +91,24 @@ class StorefrontService {
   }
 
   Future<StorefrontLayout> saveDraft({required LayoutJson layoutJson, required String themeId, String? expectedUpdatedAt}) async {
-    final response = await _apiClient.put('/storefront/me/draft', {'layoutJson': layoutJson.toJson(), 'themeId': themeId, if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt});
+    // LayoutJson intentionally models only the stable SDUI layout fields. The
+    // backend now also stores the versioned Experience Blueprint in the same
+    // draft snapshot, so preserve that opaque field when an editor save occurs.
+    final currentResponse = await _apiClient.get('/storefront/me/draft');
+    final currentData = _parseResponse(currentResponse);
+    final currentLayout = currentData is Map<String, dynamic> ? currentData['layoutJson'] : null;
+    final currentExperience = currentLayout is Map<String, dynamic> ? currentLayout['experience'] : null;
+
+    final payload = layoutJson.toJson();
+    if (currentExperience is Map<String, dynamic>) {
+      payload['experience'] = currentExperience;
+    }
+
+    final response = await _apiClient.put('/storefront/me/draft', {
+      'layoutJson': payload,
+      'themeId': themeId,
+      if (expectedUpdatedAt != null) 'expectedUpdatedAt': expectedUpdatedAt,
+    });
     final data = _parseResponse(response);
     return StorefrontLayout.fromJson(data as Map<String, dynamic>);
   }
