@@ -67,8 +67,11 @@ class TransitSeatPreview extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.directions_bus_outlined,
-              size: 38, color: colors.textTertiary),
+          Icon(
+            Icons.directions_bus_outlined,
+            size: 38,
+            color: colors.textTertiary,
+          ),
           const SizedBox(height: 10),
           Text(
             'No upcoming trips yet',
@@ -128,54 +131,7 @@ class _TripPreview extends ConsumerWidget {
             ],
           ),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.divider),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trip.routeLabel,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_time(trip.departureAt)} · ${trip.vehicleLabel}',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: colors.accentSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${trip.availableSeats} seats',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _TripJourneySummary(trip: trip, colors: colors),
         const SizedBox(height: 10),
         SizedBox(
           height: 280,
@@ -238,11 +194,199 @@ class _TripPreview extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _TripJourneySummary extends StatelessWidget {
+  final TransitTrip trip;
+  final AzamanColors colors;
+
+  const _TripJourneySummary({
+    required this.trip,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = _durationLabel();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  trip.routeLabel,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _MetaPill(
+                label: '${trip.availableSeats} seats',
+                icon: Icons.event_seat_outlined,
+                colors: colors,
+                accent: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              _MetaPill(
+                label: _date(trip.departureAt),
+                icon: Icons.calendar_today_outlined,
+                colors: colors,
+              ),
+              _MetaPill(
+                label: _time(trip.departureAt),
+                icon: Icons.schedule_outlined,
+                colors: colors,
+              ),
+              if (duration != null)
+                _MetaPill(
+                  label: duration,
+                  icon: Icons.timelapse_outlined,
+                  colors: colors,
+                ),
+              _MetaPill(
+                label: '${trip.fareUsdc.toStringAsFixed(2)} USDC',
+                icon: Icons.payments_outlined,
+                colors: colors,
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              Icon(Icons.directions_bus_outlined,
+                  size: 15, color: colors.textTertiary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _vehicleLine(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _vehicleLine() {
+    final details = <String>[trip.vehicleLabel];
+    if (trip.plateNumber != null && trip.plateNumber!.isNotEmpty) {
+      details.add(trip.plateNumber!);
+    }
+    if (trip.driverName != null && trip.driverName!.isNotEmpty) {
+      details.add('Driver: ${trip.driverName!}');
+    }
+    return details.join(' · ');
+  }
+
+  String _date(DateTime value) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${weekdays[value.weekday - 1]}, ${months[value.month - 1]} ${value.day}';
+  }
 
   String _time(DateTime value) {
     final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
     final minute = value.minute.toString().padLeft(2, '0');
     final suffix = value.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $suffix';
+  }
+
+  String? _durationLabel() {
+    final arrival = trip.arrivalAt;
+    if (arrival == null || !arrival.isAfter(trip.departureAt)) return null;
+    final minutes = arrival.difference(trip.departureAt).inMinutes;
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    if (hours == 0) return '${remainder}m';
+    if (remainder == 0) return '${hours}h';
+    return '${hours}h ${remainder}m';
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final AzamanColors colors;
+  final bool accent;
+
+  const _MetaPill({
+    required this.label,
+    required this.icon,
+    required this.colors,
+    this.accent = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent ? colors.accentSurface : colors.softSurface,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: accent ? colors.accent : colors.textTertiary,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: accent ? colors.accent : colors.textSecondary,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
