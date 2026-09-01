@@ -68,7 +68,20 @@ Map<String, dynamic> _experience({bool persistentTray = true}) {
 }
 
 Future<void> _openFirstMenuPage(WidgetTester tester) async {
-  await tester.tap(find.bySemanticsLabel('Next page'));
+  final bookFinder = find.byWidgetPredicate(
+    (widget) => widget.runtimeType.toString() == 'FlipBook',
+  );
+  final book = tester.getRect(bookFinder);
+  final gesture = await tester.startGesture(
+    book.bottomRight - const Offset(6, 12),
+  );
+  final target = book.bottomLeft + const Offset(-40, -12);
+  final delta = (target - (book.bottomRight - const Offset(6, 12))) / 12;
+  for (var i = 0; i < 12; i++) {
+    await gesture.moveBy(delta);
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await gesture.up();
   await tester.pumpAndSettle();
 }
 
