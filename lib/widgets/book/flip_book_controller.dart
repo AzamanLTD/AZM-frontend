@@ -22,11 +22,17 @@ class FlipBookController extends ChangeNotifier {
     int initialPage = 0,
     this.physics = const FlipPhysics(),
     this.hapticsEnabled = true,
+    this.edgeAnchored = false,
   })  : assert(initialPage >= 0),
         _page = initialPage;
 
   final FlipPhysics physics;
   final bool hapticsEnabled;
+
+  /// Restricts gesture grabs to the horizontal outer edge and keeps the curl
+  /// axis stable. Menu-style books therefore turn predictably instead of
+  /// allowing top/middle/bottom corner curls.
+  final bool edgeAnchored;
 
   AnimationController? _anim;
   int _pageCount = 0;
@@ -71,7 +77,7 @@ class FlipBookController extends ChangeNotifier {
     _pageCount = pageCount;
     if (_size != size) {
       _size = size;
-      _anchorY = size.height * 0.82;
+      _anchorY = edgeAnchored ? size.height * 0.5 : size.height * 0.82;
     }
     if (_page > math.max(0, pageCount - 1)) {
       _page = math.max(0, pageCount - 1);
@@ -92,11 +98,22 @@ class FlipBookController extends ChangeNotifier {
     if (_size.isEmpty) return false;
     final dir = forward ? FlipDirection.forward : FlipDirection.backward;
     if (!_canTurn(dir)) return false;
+    if (edgeAnchored) {
+      final edgeThreshold = _size.width * 0.58;
+      final validEdge = forward
+          ? local.dx >= edgeThreshold
+          : local.dx <= _size.width - edgeThreshold;
+      if (!validEdge) return false;
+    }
 
     _anim?.stop();
     _direction = dir;
-    _anchor = FlipPath.anchorForGrab(local, _size);
-    _anchorY = FlipPath.cornerFor(_anchor, _size).dy;
+    _anchor = edgeAnchored
+        ? FlipAnchor.middleOuter
+        : FlipPath.anchorForGrab(local, _size);
+    _anchorY = edgeAnchored
+        ? _size.height * 0.5
+        : FlipPath.cornerFor(_anchor, _size).dy;
     _state = FlipState.dragging;
     _fingerDriven = true;
     _touch = _effectiveTouch(local);
@@ -109,8 +126,11 @@ class FlipBookController extends ChangeNotifier {
   Offset _effectiveTouch(Offset local) {
     final clamped = Offset(
       local.dx,
-      local.dy.clamp(-_size.height * 0.35, _size.height * 1.35),
+      edgeAnchored
+          ? _anchorY
+          : local.dy.clamp(-_size.height * 0.35, _size.height * 1.35),
     );
+    if (edgeAnchored) return clamped;
     if (_direction == FlipDirection.forward) return clamped;
     final a = FlipPath.cornerFor(_anchor, _size);
     return Offset(clamped.dx * 2 - a.dx, clamped.dy * 2 - a.dy);
@@ -130,14 +150,18 @@ class FlipBookController extends ChangeNotifier {
     final v = -velocityPx.dx / gain;
 
     final outcome = physics.resolve(_progress, v);
-    _anchorY = _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
+    _anchorY = edgeAnchored
+        ? _size.height * 0.5
+        : _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
     _startSettle(outcome == FlipRelease.complete ? 1.0 : 0.0, v);
   }
 
   void cancelDrag() {
     if (_state != FlipState.dragging) return;
     _fingerDriven = false;
-    _anchorY = _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
+    _anchorY = edgeAnchored
+        ? _size.height * 0.5
+        : _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
     _startSettle(_progress >= 0.5 ? 1.0 : 0.0, 0);
   }
 
@@ -147,8 +171,8 @@ class FlipBookController extends ChangeNotifier {
     if (_state == FlipState.dragging || !_canTurn(FlipDirection.forward)) return false;
     _anim?.stop();
     _direction = FlipDirection.forward;
-    _anchor = FlipAnchor.bottomOuter;
-    _anchorY = _size.height * 0.86;
+    _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
+    _anchorY = edgeAnchored ? _size.height * 0.5 : _size.height * 0.86;
     _progress = 0;
     _fingerDriven = false;
     _crossedThreshold = false;
@@ -160,8 +184,8 @@ class FlipBookController extends ChangeNotifier {
     if (_state == FlipState.dragging || !_canTurn(FlipDirection.backward)) return false;
     _anim?.stop();
     _direction = FlipDirection.backward;
-    _anchor = FlipAnchor.bottomOuter;
-    _anchorY = _size.height * 0.86;
+    _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
+    _anchorY = edgeAnchored ? _size.height * 0.5 : _size.height * 0.86;
     _progress = 1;
     _fingerDriven = false;
     _crossedThreshold = true;
@@ -174,8 +198,8 @@ class FlipBookController extends ChangeNotifier {
     final anim = _anim;
     if (anim == null) return;
     _direction = FlipDirection.forward;
-    _anchor = FlipAnchor.bottomOuter;
-    _anchorY = _size.height * 0.92;
+    _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
+    _anchorY = edgeAnchored ? _size.height * 0.5 : _size.height * 0.92;
     _state = FlipState.hinting;
     _fingerDriven = false;
     _pendingSettleTarget = null;
@@ -257,7 +281,14 @@ class FlipBookController extends ChangeNotifier {
 
   void _setProgress(double p) {
     if (!_fingerDriven) {
-      _touch = FlipPath.touchFor(progress: p, size: _size, anchorY: _anchorY);
+      final nextTouch = FlipPath.touchFor(
+        progress: p,
+        size: _size,
+        anchorY: _anchorY,
+      );
+      _touch = edgeAnchored
+          ? Offset(nextTouch.dx, _anchorY)
+          : nextTouch;
     }
     final crossed = p >= 0.5;
     if (crossed != _crossedThreshold && _state != FlipState.hinting) {

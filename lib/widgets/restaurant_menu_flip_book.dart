@@ -10,8 +10,8 @@
 // Layout: a cover page (business name/logo/hero dish) followed by one page per
 // chunk of menu section, each holding a short list of dish rows. Tapping a
 // dish pops it out into a detail card (image, description, tags, price, add to
-// order); tapping the scrim returns it to the book. Dragging any corner or the
-// outer edge turns the page.
+// order); tapping the scrim returns it to the book. Dragging from the outer
+// edge turns the page along a stable horizontal spine.
 //
 // Note on Hero: the book keeps up to three copies of a page mounted at once
 // (leaf, page underneath, occluded pre-raster), so dish images deliberately do
@@ -26,16 +26,13 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/book/book.dart';
 
-/// Paper palette. Kept here rather than in theme_provider because these are
-/// physical paper tones, not app theme tokens.
-const _paperEven = Color(0xFFFDF6E3); // warm cream
-const _paperOdd = Color(0xFFF5EDE0); // slightly deeper parchment
-const _ink = Color(0xFF2D2416); // dark warm brown for headings
-const _inkSoft = Color(0xFF8B7A5A); // muted brown for body text
-const _gold = Color(0xFFB8860B); // dark goldenrod for prices
-const _rule = Color(0xFFE8DCC4); // separator lines on the page
+const _paperEven = Color(0xFFFDF6E3);
+const _paperOdd = Color(0xFFF5EDE0);
+const _ink = Color(0xFF2D2416);
+const _inkSoft = Color(0xFF8B7A5A);
+const _gold = Color(0xFFB8860B);
+const _rule = Color(0xFFE8DCC4);
 
-/// One flat "page worth" of dishes, built from CatalogSections.
 class _MenuPage {
   final String sectionTitle;
   final String? sectionSubtitle;
@@ -49,8 +46,6 @@ class _MenuPage {
   });
 }
 
-/// Ambient dining-room stage behind the book — a warm radial vignette with a
-/// blurred interior photo, giving the book a room to sit in.
 class _AmbientStage extends StatelessWidget {
   const _AmbientStage();
 
@@ -68,7 +63,11 @@ class _AmbientStage extends StatelessWidget {
         ),
       ),
       child: ImageFiltered(
-        imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14, tileMode: ui.TileMode.mirror),
+        imageFilter: ui.ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+          tileMode: ui.TileMode.mirror,
+        ),
         child: Image.asset(
           'assets/images/food/restaurant_interior.jpg',
           fit: BoxFit.cover,
@@ -88,8 +87,6 @@ class RestaurantMenuFlipBook extends StatefulWidget {
   final List<BusinessProduct> uncategorisedProducts;
   final AzamanColors colors;
   final void Function(BusinessProduct product) onOrder;
-
-  /// Whether to render the ambient dining-room stage behind the book.
   final bool ambient;
   final bool idleHint;
 
@@ -121,7 +118,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
   @override
   void initState() {
     super.initState();
-    _controller = FlipBookController();
+    _controller = FlipBookController(edgeAnchored: true);
     _pages = _buildPages();
   }
 
@@ -182,16 +179,17 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
             children: [
               Icon(Icons.menu_book_outlined, size: 40, color: colors.textTertiary),
               const SizedBox(height: 10),
-              Text('Menu not yet available',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                'Menu not yet available',
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final pageCount = _pages.length + 1; // +1 for the cover
-
+    final pageCount = _pages.length + 1;
     final book = Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: FlipBookFrame(
@@ -206,34 +204,30 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
             castShadow: Color(0xFF1A1206),
             edge: Color(0xFFD8C6A2),
           ),
-          pageBuilder: (context, index) =>
-              index == 0 ? _coverPage(colors) : _sectionPage(_pages[index - 1], colors, index),
+          pageBuilder: (context, index) => index == 0
+              ? _coverPage(colors)
+              : _sectionPage(_pages[index - 1], colors, index),
         ),
       ),
-    );
-
-    final content = Column(
-      children: [
-        Expanded(child: book),
-        _bookControls(pageCount),
-      ],
     );
 
     return Stack(
       fit: StackFit.expand,
       children: [
         if (widget.ambient) const _AmbientStage(),
-        content,
+        Column(
+          children: [
+            Expanded(child: book),
+            _bookControls(pageCount),
+          ],
+        ),
         if (_poppedItem != null) _popOutOverlay(_poppedItem!, colors),
       ],
     );
   }
 
-  // ── Chrome under the book ─────────────────────────────────────────────────
-
   Widget _bookControls(int pageCount) {
-    final onDark = widget.ambient;
-    final fg = onDark ? Colors.white : _ink;
+    final fg = widget.ambient ? Colors.white : _ink;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
       child: Row(
@@ -277,10 +271,11 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
     required VoidCallback onTap,
     required Color fg,
   }) {
+    final label = icon == Icons.chevron_left_rounded ? 'Previous page' : 'Next page';
     return Semantics(
       button: true,
       enabled: enabled,
-      label: icon == Icons.chevron_left_rounded ? 'Previous page' : 'Next page',
+      label: label,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: enabled ? onTap : null,
@@ -301,8 +296,6 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
       ),
     );
   }
-
-  // ── Pages ──────────────────────────────────────────────────────────────────
 
   Widget _pageSurface({required int pageIndex, required Widget child}) {
     final even = pageIndex.isEven;
@@ -336,22 +329,12 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
           if (heroImage != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: AzamanNetworkImage(
-                imageUrl: heroImage,
-                width: 120,
-                height: 120,
-                fit: BoxFit.cover,
-              ),
+              child: AzamanNetworkImage(imageUrl: heroImage, width: 120, height: 120, fit: BoxFit.cover),
             )
           else if (widget.logoUrl != null && widget.logoUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: AzamanNetworkImage(
-                imageUrl: widget.logoUrl!,
-                width: 84,
-                height: 84,
-                fit: BoxFit.cover,
-              ),
+              child: AzamanNetworkImage(imageUrl: widget.logoUrl!, width: 84, height: 84, fit: BoxFit.cover),
             )
           else
             ClipRRect(
@@ -361,30 +344,19 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                 width: 120,
                 height: 120,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Icon(Icons.restaurant_menu_rounded, size: 64, color: colors.accent),
+                errorBuilder: (_, __, ___) => Icon(Icons.restaurant_menu_rounded, size: 64, color: colors.accent),
               ),
             ),
           const SizedBox(height: 18),
           Text(
             widget.businessName,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
+            style: const TextStyle(color: _ink, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.3),
           ),
           const SizedBox(height: 6),
           Text(
             'MENU',
-            style: TextStyle(
-              color: colors.accent,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 4,
-            ),
+            style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 4),
           ),
           const SizedBox(height: 8),
           Text(
@@ -392,13 +364,22 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
             style: const TextStyle(color: _inkSoft, fontSize: 11, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 24),
-          const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.swipe_left_rounded, size: 16, color: _inkSoft),
-              SizedBox(width: 6),
-              Text('Drag a corner to open', style: TextStyle(color: _inkSoft, fontSize: 11.5)),
-            ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 250),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.swipe_left_rounded, size: 16, color: _inkSoft),
+                SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Swipe from the page edge to turn',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _inkSoft, fontSize: 11.5),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -412,26 +393,17 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (page.isSectionStart) ...[
-            Text(
-              page.sectionTitle,
-              style: const TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800),
-            ),
+            Text(page.sectionTitle, style: const TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800)),
             if (page.sectionSubtitle != null && page.sectionSubtitle!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  page.sectionSubtitle!,
-                  style: const TextStyle(color: _inkSoft, fontSize: 11),
-                ),
+                child: Text(page.sectionSubtitle!, style: const TextStyle(color: _inkSoft, fontSize: 11)),
               ),
             const SizedBox(height: 10),
             const Divider(color: _rule, height: 1),
             const SizedBox(height: 10),
           ] else ...[
-            Text(
-              '${page.sectionTitle} (cont.)',
-              style: const TextStyle(color: _inkSoft, fontSize: 12, fontWeight: FontWeight.w700),
-            ),
+            Text('${page.sectionTitle} (cont.)', style: const TextStyle(color: _inkSoft, fontSize: 12, fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
           ],
           Expanded(
@@ -447,12 +419,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
           Center(
             child: Text(
               '$pageIndex',
-              style: const TextStyle(
-                color: Color(0xFFB8A88A),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-              ),
+              style: const TextStyle(color: Color(0xFFB8A88A), fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.2),
             ),
           ),
         ],
@@ -475,12 +442,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: product.primaryImage != null
-                ? AzamanNetworkImage(
-                    imageUrl: product.primaryImage!,
-                    width: 46,
-                    height: 46,
-                    fit: BoxFit.cover,
-                  )
+                ? AzamanNetworkImage(imageUrl: product.primaryImage!, width: 46, height: 46, fit: BoxFit.cover)
                 : Container(
                     width: 46,
                     height: 46,
@@ -506,11 +468,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                       product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: const TextStyle(color: _ink, fontSize: 12.5, fontWeight: FontWeight.w700),
                     ),
                   ),
                   if (isPopular)
@@ -520,39 +478,23 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                         color: colors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        'Popular',
-                        style: TextStyle(
-                          color: colors.accent,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: Text('Popular', style: TextStyle(color: colors.accent, fontSize: 8, fontWeight: FontWeight.w700)),
                     ),
                 ]),
                 if (product.description != null && product.description!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      product.description!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: _inkSoft, fontSize: 10.5),
-                    ),
+                    child: Text(product.description!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _inkSoft, fontSize: 10.5)),
                   ),
                 const SizedBox(height: 3),
                 Row(children: [
                   Text(
                     '${product.priceUsdc.toStringAsFixed(2)} USDC',
-                    style: const TextStyle(
-                      color: _gold,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(color: _gold, fontSize: 11.5, fontWeight: FontWeight.w800),
                   ),
                   if (isSpicy) ...[
                     const SizedBox(width: 6),
-                    const Text('🌶', style: TextStyle(fontSize: 10)),
+                    const Icon(Icons.local_fire_department_outlined, size: 13, color: Color(0xFFE05A33)),
                   ],
                 ]),
               ],
@@ -562,8 +504,6 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
       ),
     );
   }
-
-  // ── Dish detail ────────────────────────────────────────────────────────────
 
   Widget _popOutOverlay(BusinessProduct product, AzamanColors colors) {
     return Positioned.fill(
@@ -610,17 +550,11 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                         child: product.primaryImage != null
-                            ? AzamanNetworkImage(
-                                imageUrl: product.primaryImage!,
-                                height: 170,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              )
+                            ? AzamanNetworkImage(imageUrl: product.primaryImage!, height: 170, width: double.infinity, fit: BoxFit.cover)
                             : Container(
                                 height: 170,
                                 color: colors.softSurface,
-                                child: Icon(Icons.restaurant_rounded,
-                                    size: 48, color: colors.textTertiary),
+                                child: Icon(Icons.restaurant_rounded, size: 48, color: colors.textTertiary),
                               ),
                       ),
                       Padding(
@@ -628,21 +562,11 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              product.name,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                            Text(product.name, style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
                             if (product.description != null && product.description!.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  product.description!,
-                                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                                ),
+                                child: Text(product.description!, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                               ),
                             if (product.tags.isNotEmpty)
                               Padding(
@@ -653,20 +577,9 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                                   children: [
                                     for (final tag in product.tags.take(5))
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: colors.softSurface,
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          tag,
-                                          style: TextStyle(
-                                            color: colors.textSecondary,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(999)),
+                                        child: Text(tag, style: TextStyle(color: colors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                                       ),
                                   ],
                                 ),
@@ -681,11 +594,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                                     child: Text(
                                       '${product.priceUsdc.toStringAsFixed(2)} USDC',
                                       maxLines: 1,
-                                      style: TextStyle(
-                                        color: colors.accent,
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w900,
-                                      ),
+                                      style: TextStyle(color: colors.accent, fontSize: 17, fontWeight: FontWeight.w900),
                                     ),
                                   ),
                                 ),
@@ -694,20 +603,14 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: colors.accent,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 18, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                                   ),
                                   onPressed: () {
                                     setState(() => _poppedItem = null);
                                     widget.onOrder(product);
                                   },
-                                  child: const Text(
-                                    'Add to order',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                                  ),
+                                  child: const Text('Add to order', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                                 ),
                               ],
                             ),
