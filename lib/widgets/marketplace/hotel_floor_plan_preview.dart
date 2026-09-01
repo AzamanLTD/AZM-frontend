@@ -4,10 +4,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-/// Compact read-only hotel floor-plan preview for marketplace business pages.
+/// Compact hotel building explorer for marketplace business pages.
 ///
-/// This previews the same room/floor mental model used by the full hotel
-/// booking flow without duplicating its booking state or network lifecycle.
+/// The preview keeps the full booking flow authoritative while giving the
+/// customer a spatial property model: building floors first, then the rooms
+/// on the selected floor.
 class HotelFloorPlanPreview extends StatefulWidget {
   final List<BusinessProduct> products;
   final String? selectedRoomId;
@@ -82,20 +83,13 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
             ],
           ),
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final floor in orderedFloors) ...[
-                  ChoiceChip(
-                    label: Text('Floor $floor'),
-                    selected: floor == activeFloor,
-                    onSelected: (_) => setState(() => _selectedFloor = floor),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
+          _BuildingOverview(
+            floors: orderedFloors,
+            roomsByFloor: floors,
+            activeFloor: activeFloor,
+            colors: widget.colors,
+            onFloorSelected: (floor) =>
+                setState(() => _selectedFloor = floor),
           ),
           const SizedBox(height: 12),
           Container(
@@ -154,7 +148,7 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Select a room to continue in the full booking flow.',
+            'Select an available room to continue in the full booking flow.',
             style: TextStyle(
               color: widget.colors.textTertiary,
               fontSize: 11.5,
@@ -167,52 +161,65 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
 
   Widget _roomTile(BusinessProduct room) {
     final selected = room.id == widget.selectedRoomId;
+    final available = room.isActive;
     final match = RegExp(r'(\d+)').firstMatch(room.name);
     final roomNumber = match?.group(1) ?? '?';
     final deluxe = room.tags.any((tag) => tag.toLowerCase().contains('deluxe'));
     final accent = deluxe ? const Color(0xFFF59E0B) : widget.colors.accent;
 
     return Semantics(
-      button: true,
+      button: available,
+      enabled: available,
       selected: selected,
-      label: '${room.name}, ${room.priceUsdc.toStringAsFixed(0)} USDC per night',
+      label: available
+          ? '${room.name}, ${room.priceUsdc.toStringAsFixed(0)} USDC per night'
+          : '${room.name}, unavailable',
       child: GestureDetector(
-        onTap: () => widget.onRoomSelected(room.id),
-        child: AnimatedContainer(
-          duration: 200.ms,
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? accent.withValues(alpha: 0.14) : widget.colors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
+        onTap: available ? () => widget.onRoomSelected(room.id) : null,
+        child: AnimatedOpacity(
+          opacity: available ? 1 : 0.48,
+          duration: 180.ms,
+          child: AnimatedContainer(
+            duration: 200.ms,
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
               color: selected
-                  ? accent
-                  : widget.colors.divider.withValues(alpha: 0.55),
-              width: selected ? 1.4 : 0.6,
+                  ? accent.withValues(alpha: 0.14)
+                  : widget.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? accent
+                    : widget.colors.divider.withValues(alpha: 0.55),
+                width: selected ? 1.4 : 0.6,
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                roomNumber,
-                style: TextStyle(
-                  color: selected ? accent : widget.colors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
+            child: Column(
+              children: [
+                Text(
+                  roomNumber,
+                  style: TextStyle(
+                    color: selected ? accent : widget.colors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '\$${room.priceUsdc.toStringAsFixed(0)}',
-                style: TextStyle(
-                  color: selected ? accent : widget.colors.textTertiary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10,
+                const SizedBox(height: 2),
+                Text(
+                  available
+                      ? '\$${room.priceUsdc.toStringAsFixed(0)}'
+                      : 'Unavailable',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selected ? accent : widget.colors.textTertiary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 9.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -234,6 +241,185 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
               style: TextStyle(color: widget.colors.textSecondary),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BuildingOverview extends StatelessWidget {
+  final List<int> floors;
+  final Map<int, List<BusinessProduct>> roomsByFloor;
+  final int activeFloor;
+  final AzamanColors colors;
+  final ValueChanged<int> onFloorSelected;
+
+  const _BuildingOverview({
+    required this.floors,
+    required this.roomsByFloor,
+    required this.activeFloor,
+    required this.colors,
+    required this.onFloorSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final visualFloors = [...floors]..sort((a, b) => b.compareTo(a));
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colors.accent.withValues(alpha: 0.08),
+            colors.card.withValues(alpha: 0.55),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.divider.withValues(alpha: 0.65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.apartment_outlined, size: 17, color: colors.accent),
+              const SizedBox(width: 7),
+              Text(
+                'Building overview',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${floors.length} floor${floors.length == 1 ? '' : 's'}',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 10.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Column(
+            children: [
+              for (final floor in visualFloors) ...[
+                _FloorStrip(
+                  floor: floor,
+                  rooms: roomsByFloor[floor]!,
+                  selected: floor == activeFloor,
+                  colors: colors,
+                  onTap: () => onFloorSelected(floor),
+                ),
+                if (floor != visualFloors.last)
+                  Container(
+                    width: 1,
+                    height: 5,
+                    color: colors.divider,
+                  ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FloorStrip extends StatelessWidget {
+  final int floor;
+  final List<BusinessProduct> rooms;
+  final bool selected;
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  const _FloorStrip({
+    required this.floor,
+    required this.rooms,
+    required this.selected,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final available = rooms.where((room) => room.isActive).length;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Floor $floor, $available of ${rooms.length} rooms available',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: 200.ms,
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? colors.accent.withValues(alpha: 0.13) : colors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? colors.accent : colors.divider,
+              width: selected ? 1.1 : 0.6,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? colors.accent : colors.softSurface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'F$floor',
+                  style: TextStyle(
+                    color: selected ? Colors.white : colors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Floor $floor',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$available of ${rooms.length} rooms available',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.chevron_right_rounded,
+                color: selected ? colors.accent : colors.textTertiary,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );
