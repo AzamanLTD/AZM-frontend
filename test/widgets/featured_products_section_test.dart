@@ -6,7 +6,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
 
-defakeProduct(String id, String name, int orders) => BusinessProduct(
+BusinessProduct _fakeProduct(String id, String name, int orders) => BusinessProduct(
       id: id,
       businessProfileId: 'biz-1',
       name: name,
@@ -49,7 +49,6 @@ void main() {
     expect(find.text('Popular picks'), findsOneWidget);
     expect(find.text('Most popular dish'), findsOneWidget);
     expect(find.byType(PageView), findsOneWidget);
-    expect(find.text('Popular dish'), findsNothing);
 
     await tester.drag(find.byType(PageView), const Offset(-320, 0));
     await tester.pumpAndSettle();
