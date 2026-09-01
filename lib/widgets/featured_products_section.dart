@@ -19,6 +19,8 @@ class FeaturedProductsSection extends ConsumerStatefulWidget {
   final String bizId;
   final ValueChanged<BusinessProduct>? onOrder;
   final String title;
+  final String actionLabel;
+  final int maxItems;
   final Future<ProductPage> Function(String bizId)? productLoader;
 
   const FeaturedProductsSection({
@@ -26,6 +28,8 @@ class FeaturedProductsSection extends ConsumerStatefulWidget {
     required this.bizId,
     this.onOrder,
     this.title = 'Popular picks',
+    this.actionLabel = 'Order',
+    this.maxItems = 6,
     this.productLoader,
   });
 
@@ -52,12 +56,15 @@ class _FeaturedProductsSectionState
     try {
       final page = widget.productLoader != null
           ? await widget.productLoader!(widget.bizId)
-          : await BusinessService().getBusinessProducts(widget.bizId, limit: 6);
+          : await BusinessService().getBusinessProducts(
+              widget.bizId,
+              limit: widget.maxItems,
+            );
       if (!mounted) return;
       final products = [...page.products]
         ..sort((a, b) => b.totalOrders.compareTo(a.totalOrders));
       setState(() {
-        _products = products.take(6).toList(growable: false);
+        _products = products.take(widget.maxItems).toList(growable: false);
         _loading = false;
       });
     } catch (_) {
@@ -162,6 +169,7 @@ class _FeaturedProductsSectionState
                         child: ProductCard(
                           product: _products[index],
                           isHorizontal: true,
+                          actionLabel: widget.actionLabel,
                           onOrder: (p) => widget.onOrder?.call(p),
                         ),
                       ),
