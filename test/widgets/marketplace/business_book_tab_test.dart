@@ -57,7 +57,7 @@ CatalogSection _section(BusinessProduct product) {
   );
 }
 
-Map<String, dynamic> _experience({bool persistentTray = true}) => {
+Map<String, dynamic> _experience({bool persistentTray = true}) {
   return {
     'preset': 'DINING_JOURNEY',
     'commit': {
