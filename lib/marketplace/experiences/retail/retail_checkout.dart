@@ -32,6 +32,18 @@ abstract class RetailCheckoutGateway {
     RetailCheckoutOptions options = const RetailCheckoutOptions(),
     required String idempotencyKey,
   });
+
+  /// Funds an escrow created by an escrow-protected checkout.
+  ///
+  /// The backend performs step-up verification. Callers provide either a
+  /// TOTP token (for 2FA-enabled accounts) or the account password.
+  Future<void> fundEscrow(
+    String escrowId, {
+    String? totpToken,
+    String? password,
+  }) async {
+    throw UnimplementedError('This checkout gateway does not support escrow funding.');
+  }
 }
 
 sealed class RetailCheckoutResult {
@@ -42,12 +54,16 @@ class RetailCheckoutSuccess extends RetailCheckoutResult {
   final String orderId;
   final String? trackingStatus;
   final String? confirmationMessage;
+  final String? escrowId;
 
   const RetailCheckoutSuccess({
     required this.orderId,
     this.trackingStatus,
     this.confirmationMessage,
+    this.escrowId,
   });
+
+  bool get isEscrowCheckout => escrowId != null && escrowId!.isNotEmpty;
 }
 
 class RetailCheckoutFailure extends RetailCheckoutResult {
