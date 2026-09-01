@@ -5,7 +5,7 @@ import 'package:azaman/widgets/book/book.dart';
 
 void main() {
   test('edge-anchored turns reject center grabs and fix the turn axis', () {
-    final controller = FlipBookController();
+    final controller = FlipBookController(edgeAnchored: true);
     controller.updateMetrics(
       pageCount: 4,
       size: const Size(320, 480),
@@ -28,7 +28,10 @@ void main() {
   });
 
   test('backward edge turns start from the left side', () {
-    final controller = FlipBookController(initialPage: 1);
+    final controller = FlipBookController(
+      initialPage: 1,
+      edgeAnchored: true,
+    );
     controller.updateMetrics(
       pageCount: 4,
       size: const Size(320, 480),
