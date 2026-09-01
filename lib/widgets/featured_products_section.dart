@@ -131,7 +131,7 @@ class _FeaturedProductsSectionState
           ),
         ),
         SizedBox(
-          height: 250,
+          height: 280,
           child: PageView.builder(
             controller: _pageController,
             padEnds: false,
@@ -210,8 +210,9 @@ class _FeaturedProductsSectionState
         maximumSize: const Size(34, 34),
         padding: EdgeInsets.zero,
         backgroundColor: colors.card,
-        foregroundColor:
-            enabled ? colors.textPrimary : colors.textTertiary.withValues(alpha: 0.4),
+        foregroundColor: enabled
+            ? colors.textPrimary
+            : colors.textTertiary.withValues(alpha: 0.4),
         side: BorderSide(color: colors.divider, width: 0.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -222,7 +223,7 @@ class _FeaturedProductsSectionState
 
   Widget _shimmerRow(AzamanColors colors) {
     return SizedBox(
-      height: 250,
+      height: 280,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
