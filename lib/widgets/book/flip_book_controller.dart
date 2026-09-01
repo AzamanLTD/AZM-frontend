@@ -22,7 +22,7 @@ class FlipBookController extends ChangeNotifier {
     int initialPage = 0,
     this.physics = const FlipPhysics(),
     this.hapticsEnabled = true,
-    this.edgeAnchored = true,
+    this.edgeAnchored = false,
   })  : assert(initialPage >= 0),
         _page = initialPage;
 
@@ -108,8 +108,12 @@ class FlipBookController extends ChangeNotifier {
 
     _anim?.stop();
     _direction = dir;
-    _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipPath.anchorForGrab(local, _size);
-    _anchorY = edgeAnchored ? _size.height * 0.5 : FlipPath.cornerFor(_anchor, _size).dy;
+    _anchor = edgeAnchored
+        ? FlipAnchor.middleOuter
+        : FlipPath.anchorForGrab(local, _size);
+    _anchorY = edgeAnchored
+        ? _size.height * 0.5
+        : FlipPath.cornerFor(_anchor, _size).dy;
     _state = FlipState.dragging;
     _fingerDriven = true;
     _touch = _effectiveTouch(local);
@@ -168,7 +172,7 @@ class FlipBookController extends ChangeNotifier {
     _anim?.stop();
     _direction = FlipDirection.forward;
     _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
-    _anchorY = _size.height * 0.5;
+    _anchorY = edgeAnchored ? _size.height * 0.5 : _size.height * 0.86;
     _progress = 0;
     _fingerDriven = false;
     _crossedThreshold = false;
@@ -181,7 +185,7 @@ class FlipBookController extends ChangeNotifier {
     _anim?.stop();
     _direction = FlipDirection.backward;
     _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
-    _anchorY = _size.height * 0.5;
+    _anchorY = edgeAnchored ? _size.height * 0.5 : _size.height * 0.86;
     _progress = 1;
     _fingerDriven = false;
     _crossedThreshold = true;
