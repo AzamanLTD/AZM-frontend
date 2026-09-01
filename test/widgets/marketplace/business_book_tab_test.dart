@@ -67,6 +67,11 @@ Map<String, dynamic> _experience({bool persistentTray = true}) {
   };
 }
 
+Future<void> _openFirstMenuPage(WidgetTester tester) async {
+  await tester.tap(find.bySemanticsLabel('Next page'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('persistent dining tray routes dish additions into canonical cart', (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -99,6 +104,8 @@ void main() {
     expect(find.text('Jollof Rice'), findsOneWidget);
     expect(cart.state.itemCount, 0);
 
+    await _openFirstMenuPage(tester);
+    expect(find.text('Jollof Rice'), findsOneWidget);
     await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add to order'));
@@ -138,6 +145,7 @@ void main() {
     );
 
     await tester.pump();
+    await _openFirstMenuPage(tester);
     await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add to order'));
@@ -177,6 +185,7 @@ void main() {
     );
 
     await tester.pump();
+    await _openFirstMenuPage(tester);
     await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add to order'));
