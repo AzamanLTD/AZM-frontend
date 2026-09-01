@@ -1,6 +1,6 @@
 import 'retail_cart.dart';
 import 'retail_checkout.dart';
-import '../../../storefront/services/storefront_service.dart';
+../../../storefront/services/storefront_service.dart';
 import '../../../storefront/services/storefront_conflict_exception.dart';
 
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
@@ -42,11 +42,18 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         throw const FormatException('Checkout response did not contain an order id.');
       }
       final orderRef = order?['orderRef']?.toString();
+      final escrow = order?['escrow'];
+      final escrowId = escrow is Map<String, dynamic> ? escrow['id']?.toString() : null;
+
+      if (paymentMode == 'ESCROW' && (escrowId == null || escrowId.isEmpty)) {
+        throw const FormatException('Escrow checkout response did not contain an escrow id.');
+      }
 
       return RetailCheckoutSuccess(
         orderId: orderId,
         trackingStatus: order?['status']?.toString(),
         confirmationMessage: orderRef != null ? 'Order $orderRef created.' : 'Order placed successfully.',
+        escrowId: escrowId,
       );
     } on StorefrontConflictException {
       // Concurrency conflicts are authoritative domain failures. Do not turn
@@ -64,5 +71,14 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
       // a retry safe.
       return RetailCheckoutFailure(message: e.toString(), retryable: true);
     }
+  }
+
+  @override
+  Future<void> fundEscrow(String escrowId, {String? totpToken, String? password}) {
+    return _storefrontService.fundEscrow(
+      escrowId: escrowId,
+      totpToken: totpToken,
+      password: password,
+    );
   }
 }
