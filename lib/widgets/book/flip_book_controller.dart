@@ -22,7 +22,7 @@ class FlipBookController extends ChangeNotifier {
     int initialPage = 0,
     this.physics = const FlipPhysics(),
     this.hapticsEnabled = true,
-    this.edgeAnchored = false,
+    this.edgeAnchored = true,
   })  : assert(initialPage >= 0),
         _page = initialPage;
 
@@ -30,8 +30,8 @@ class FlipBookController extends ChangeNotifier {
   final bool hapticsEnabled;
 
   /// Restricts gesture grabs to the horizontal outer edge and keeps the curl
-  /// axis stable. This gives menu-style books a predictable, spine-driven turn
-  /// instead of allowing top/middle/bottom corner curls.
+  /// axis stable. Menu-style books therefore turn predictably instead of
+  /// allowing top/middle/bottom corner curls.
   final bool edgeAnchored;
 
   AnimationController? _anim;
@@ -100,7 +100,9 @@ class FlipBookController extends ChangeNotifier {
     if (!_canTurn(dir)) return false;
     if (edgeAnchored) {
       final edgeThreshold = _size.width * 0.58;
-      final validEdge = forward ? local.dx >= edgeThreshold : local.dx <= _size.width - edgeThreshold;
+      final validEdge = forward
+          ? local.dx >= edgeThreshold
+          : local.dx <= _size.width - edgeThreshold;
       if (!validEdge) return false;
     }
 
@@ -275,7 +277,14 @@ class FlipBookController extends ChangeNotifier {
 
   void _setProgress(double p) {
     if (!_fingerDriven) {
-      _touch = FlipPath.touchFor(progress: p, size: _size, anchorY: _anchorY);
+      final nextTouch = FlipPath.touchFor(
+        progress: p,
+        size: _size,
+        anchorY: _anchorY,
+      );
+      _touch = edgeAnchored
+          ? Offset(nextTouch.dx, _anchorY)
+          : nextTouch;
     }
     final crossed = p >= 0.5;
     if (crossed != _crossedThreshold && _state != FlipState.hinting) {
