@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
@@ -86,7 +85,7 @@ void main() {
     expect(selected, contains('A1'));
   });
 
-  testWidgets('renders the canonical selector error state through the screen',
+  testWidgets('renders the screen retry state when seat availability fails',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(
