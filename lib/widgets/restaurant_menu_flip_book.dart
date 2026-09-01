@@ -10,8 +10,8 @@
 // Layout: a cover page (business name/logo/hero dish) followed by one page per
 // chunk of menu section, each holding a short list of dish rows. Tapping a
 // dish pops it out into a detail card (image, description, tags, price, add to
-// order); tapping the scrim returns it to the book. Dragging any corner or the
-// outer edge turns the page.
+// order); tapping the scrim returns it to the book. Dragging from the outer
+// edge turns the page along a stable horizontal spine.
 //
 // Note on Hero: the book keeps up to three copies of a page mounted at once
 // (leaf, page underneath, occluded pre-raster), so dish images deliberately do
@@ -121,7 +121,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
   @override
   void initState() {
     super.initState();
-    _controller = FlipBookController();
+    _controller = FlipBookController(edgeAnchored: true);
     _pages = _buildPages();
   }
 
@@ -397,7 +397,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
             children: [
               Icon(Icons.swipe_left_rounded, size: 16, color: _inkSoft),
               SizedBox(width: 6),
-              Text('Drag a corner to open', style: TextStyle(color: _inkSoft, fontSize: 11.5)),
+              Text('Swipe from the page edge to turn', style: TextStyle(color: _inkSoft, fontSize: 11.5)),
             ],
           ),
         ],
