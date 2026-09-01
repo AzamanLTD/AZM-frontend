@@ -157,4 +157,19 @@ void main() {
 
     expect(find.text('No upcoming trips yet'), findsOneWidget);
   });
+
+  testWidgets('unknown categories use the safe generic customer flow', (tester) async {
+    var opened = false;
+    await _pump(
+      tester,
+      business: _business('UNKNOWN_CATEGORY'),
+      onOrder: () => opened = true,
+    );
+
+    expect(find.text('Browse Offerings'), findsOneWidget);
+    expect(find.text('View business'), findsOneWidget);
+
+    await tester.tap(find.text('View business'));
+    expect(opened, isTrue);
+  });
 }

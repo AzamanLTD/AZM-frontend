@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
@@ -10,6 +11,9 @@ import 'package:azaman/widgets/marketplace/transit_seat_preview.dart';
 /// Category-native business experience stage used by marketplace business
 /// pages. The shared shell stays stable while the interaction surface changes
 /// to match what the business actually sells.
+///
+/// Selection is capability-driven so category knowledge lives in one catalog
+/// instead of being duplicated across marketplace widgets.
 class MarketplaceVerticalExperienceStage extends StatelessWidget {
   final BusinessProfile business;
   final AzamanColors colors;
@@ -37,11 +41,14 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (business.category) {
-      case 'FOOD_BEVERAGE':
-        if (_hasMenu && onOrderProduct != null) {
-          return _restaurantStage();
-        }
+    final profile =
+        MarketplaceExperienceCatalog.fromCategory(business.category);
+
+    if (profile.supports(MarketplaceExperienceCapability.menuFlipbook)) {
+      if (_hasMenu && onOrderProduct != null) {
+        return _restaurantStage();
+      }
+      if (profile.supports(MarketplaceExperienceCapability.reservation)) {
         return _bookCtaCard(
           icon: Icons.table_restaurant_outlined,
           title: 'Reserve a Table',
@@ -50,26 +57,29 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           buttonLabel: 'Request Reservation',
           onTap: onOpenOrderSheet,
         );
-
-      case 'RETAIL':
-        return _retailStage();
-
-      case 'HOSPITALITY':
-        return _hotelStage();
-
-      case 'LOGISTICS':
-        return _transitStage();
-
-      default:
-        return _bookCtaCard(
-          icon: Icons.storefront_outlined,
-          title: 'Browse Offerings',
-          subtitle:
-              'See what this business offers and continue through its primary customer flow.',
-          buttonLabel: 'View Offerings',
-          onTap: onOpenOrderSheet ?? onOpenCatalogView,
-        );
+      }
     }
+
+    if (profile.supports(MarketplaceExperienceCapability.retailCollection)) {
+      return _retailStage();
+    }
+
+    if (profile.supports(MarketplaceExperienceCapability.hotelFloorMap)) {
+      return _hotelStage();
+    }
+
+    if (profile.supports(MarketplaceExperienceCapability.transitSeatMap)) {
+      return _transitStage();
+    }
+
+    return _bookCtaCard(
+      icon: BusinessCategories.fromWire(profile.categoryWire).icon,
+      title: 'Browse Offerings',
+      subtitle:
+          'See what this business offers and continue through its primary customer flow.',
+      buttonLabel: profile.primaryActionLabel,
+      onTap: onOpenOrderSheet ?? onOpenCatalogView,
+    );
   }
 
   Widget _restaurantStage() {
@@ -199,8 +209,8 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         HotelFloorPlanPreview(
           products: business.products,
           selectedRoomId: null,
-          onRoomSelected: (_) =>
-              onNavigate?.call('/business-market/${business.bizId}/hotel-booking'),
+          onRoomSelected: (_) => onNavigate?.call(
+              '/business-market/${business.bizId}/hotel-booking'),
           colors: colors,
         ),
         Padding(
