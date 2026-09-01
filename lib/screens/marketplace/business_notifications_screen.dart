@@ -2,19 +2,18 @@
 // BUSINESS NOTIFICATIONS SCREEN — Flutter V3 Marketplace Sprint (2026-06-21)
 //
 // Owner-facing notification feed with pull-to-refresh, infinite scroll and a
-// mark-all-read action. Registers a `biz_notification` socket listener while
-// mounted so a fresh notification refreshes the feed in real time.
+// mark-all-read action. The canonical business unread-count provider drives
+// realtime refreshes so this screen does not replace the app-level socket
+// listener when it is mounted.
 // =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/business_service.dart';
-import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/biz_notification_card.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
@@ -37,6 +36,7 @@ class _BusinessNotificationsScreenState
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = false;
+  bool _listenForUnreadChanges = false;
   String? _cursor;
   int _refreshGeneration = 0;
 
@@ -45,10 +45,6 @@ class _BusinessNotificationsScreenState
     super.initState();
     _scrollCtrl.addListener(_onScroll);
     _load();
-    // Realtime: a new biz_notification refreshes the feed + badge.
-    SocketService.instance.onBizNotification((_) {
-      if (mounted) _refresh();
-    });
   }
 
   @override
@@ -90,6 +86,7 @@ class _BusinessNotificationsScreenState
         _replaceFeed(feed);
         _loading = false;
       });
+      _listenForUnreadChanges = true;
       ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
     } catch (_) {
       if (mounted && generation == _refreshGeneration) {
@@ -186,6 +183,14 @@ class _BusinessNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(bizUnreadCountProvider, (previous, next) {
+      if (!_listenForUnreadChanges || !mounted) return;
+      final previousCount = previous ?? 0;
+      if (next > previousCount) {
+        _refresh();
+      }
+    });
+
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(
