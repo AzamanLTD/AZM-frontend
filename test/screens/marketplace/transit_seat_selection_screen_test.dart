@@ -64,7 +64,10 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  // BusSeatSelector intentionally keeps a repeating pulse animation alive,
+  // so pumpAndSettle() can never observe a settled frame here. Advance time
+  // deterministically instead.
+  await tester.pump(const Duration(milliseconds: 250));
 }
 
 void main() {
