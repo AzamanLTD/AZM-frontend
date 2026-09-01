@@ -13,7 +13,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -24,12 +23,14 @@ class ProductCard extends ConsumerWidget {
   final BusinessProduct product;
   final ValueChanged<BusinessProduct> onOrder;
   final bool isHorizontal;
+  final String actionLabel;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.onOrder,
     this.isHorizontal = false,
+    this.actionLabel = 'Order',
   });
 
   @override
@@ -119,10 +120,12 @@ class ProductCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text(
-                      'Order',
-                      style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    child: Text(
+                      actionLabel,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
@@ -139,7 +142,6 @@ class ProductCard extends ConsumerWidget {
   Widget _image(BuildContext context, AzamanColors colors) {
     final urls = product.imageUrls;
     if (urls.isEmpty) return _placeholder(colors);
-    // Tap opens the full-screen lightbox (Marketplace Premium Upgrade).
     return GestureDetector(
       onTap: () => ImageLightbox.show(context, urls: urls, initialIndex: 0),
       child: Hero(
