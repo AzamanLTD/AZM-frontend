@@ -2,24 +2,9 @@ import 'package:flutter/widgets.dart';
 
 import 'package:azaman/theme/motion_tokens.dart';
 
-enum MarketplaceNavigationMode {
-  contextual,
-  floorTraverse,
-  aisleTraverse,
-  journeyTimeline,
-}
-
-enum MarketplaceDetailPresentation {
-  morph,
-  dishDossier,
-  productDossier,
-  roomDossier,
-  seatDossier,
-  serviceDossier,
-}
-
+enum MarketplaceNavigationMode { contextual, floorTraverse, aisleTraverse, journeyTimeline }
+enum MarketplaceDetailPresentation { morph, dishDossier, productDossier, roomDossier, seatDossier, serviceDossier }
 enum MarketplaceMotionTempo { relaxed, balanced, quick }
-
 enum MarketplaceCommitStyle { material, paperRip, liftIntoTray }
 
 class MarketplaceCustomerContextPolicy {
@@ -71,8 +56,7 @@ class MarketplaceExperienceBlueprint {
     Map<String, dynamic>? json,
     String category,
   ) {
-    final key = category.trim().toUpperCase();
-    final defaults = _defaultsForCategory(key);
+    final defaults = _defaultsForCategory(category.trim().toUpperCase());
     final raw = json ?? const <String, dynamic>{};
     final navigation = _asMap(raw['navigation']);
     final detail = _asMap(raw['detail']);
@@ -81,55 +65,24 @@ class MarketplaceExperienceBlueprint {
     final motion = _asMap(raw['motion']);
 
     return MarketplaceExperienceBlueprint(
-      // The backend deliberately constrains the preset to the category. Keep
-      // that invariant at the Flutter boundary as well so malformed/stale
-      // remote data cannot redirect a category into the wrong primitive.
-      preset: _enumValue<String>(
-            raw['preset'],
-            <String>[defaults.preset],
-          ) ??
-          defaults.preset,
-      navigationMode: _navigationMode(
-        navigation['mode'],
-        defaults.navigationMode,
-      ),
-      showNavigationContext: _bool(
-        navigation['showProgress'],
-        defaults.showNavigationContext,
-      ),
-      detailPresentation: _detailPresentation(
-        detail['presentation'],
-        defaults.detailPresentation,
-      ),
+      preset: raw['preset'] == defaults.preset ? raw['preset'] as String : defaults.preset,
+      navigationMode: _navigationMode(navigation['mode'], defaults.navigationMode),
+      showNavigationContext: _bool(navigation['showProgress'], defaults.showNavigationContext),
+      detailPresentation: _detailPresentation(detail['presentation'], defaults.detailPresentation),
       showGallery: _bool(detail['showGallery'], defaults.showGallery),
-      showSpecifications: _bool(
-        detail['showSpecifications'],
-        defaults.showSpecifications,
-      ),
+      showSpecifications: _bool(detail['showSpecifications'], defaults.showSpecifications),
       showOptions: _bool(detail['showOptions'], defaults.showOptions),
       showQuantity: _bool(detail['showQuantity'], defaults.showQuantity),
       customerContext: MarketplaceCustomerContextPolicy(
         enabled: _bool(context['enabled'], defaults.customerContext.enabled),
-        tableNumber: _bool(
-          context['tableNumber'],
-          defaults.customerContext.tableNumber,
-        ),
-        serviceMode: _bool(
-          context['serviceMode'],
-          defaults.customerContext.serviceMode,
-        ),
-        passenger: _bool(
-          context['passenger'],
-          defaults.customerContext.passenger,
-        ),
+        tableNumber: _bool(context['tableNumber'], defaults.customerContext.tableNumber),
+        serviceMode: _bool(context['serviceMode'], defaults.customerContext.serviceMode),
+        passenger: _bool(context['passenger'], defaults.customerContext.passenger),
       ),
       commitStyle: _commitStyle(commit['style'], defaults.commitStyle),
-      persistentTray: _bool(
-        commit['persistentTray'],
-        defaults.persistentTray,
-      ),
+      persistentTray: _bool(commit['persistentTray'], defaults.persistentTray),
       motionTempo: _motionTempo(motion['tempo'], defaults.motionTempo),
-      // This is non-negotiable at the platform boundary.
+      // Accessibility behavior is enforced by the platform motion helper.
       reducedMotionSafe: true,
     );
   }
@@ -142,21 +95,6 @@ class MarketplaceExperienceBlueprint {
     };
     return MotionTokens.accessibleDuration(context, normal);
   }
-
-  IconData get commitIcon => switch (commitStyle) {
-        MarketplaceCommitStyle.material => IconData(
-            0xe8b6,
-            fontFamily: 'MaterialIcons',
-          ),
-        MarketplaceCommitStyle.paperRip => IconData(
-            0xe8b8,
-            fontFamily: 'MaterialIcons',
-          ),
-        MarketplaceCommitStyle.liftIntoTray => IconData(
-            0xe59c,
-            fontFamily: 'MaterialIcons',
-          ),
-      };
 
   String get navigationLabel => switch (navigationMode) {
         MarketplaceNavigationMode.contextual => 'Explore what matters here',
@@ -180,32 +118,32 @@ class MarketplaceExperienceBlueprint {
     var detailPresentation = MarketplaceDetailPresentation.serviceDossier;
     var context = const MarketplaceCustomerContextPolicy();
     var commitStyle = MarketplaceCommitStyle.material;
-    var motionTempo = MarketplaceMotionTempo.balanced;
 
     switch (category) {
       case 'FOOD_BEVERAGE':
         preset = 'DINING_JOURNEY';
         detailPresentation = MarketplaceDetailPresentation.dishDossier;
-        context = const MarketplaceCustomerContextPolicy(
-          tableNumber: true,
-          serviceMode: true,
-        );
+        context = const MarketplaceCustomerContextPolicy(tableNumber: true, serviceMode: true);
         commitStyle = MarketplaceCommitStyle.paperRip;
+        break;
       case 'RETAIL':
         preset = 'SHOP_FLOOR';
         navigationMode = MarketplaceNavigationMode.aisleTraverse;
         detailPresentation = MarketplaceDetailPresentation.productDossier;
         commitStyle = MarketplaceCommitStyle.liftIntoTray;
+        break;
       case 'HOSPITALITY':
         preset = 'BUILDING_WALK';
         navigationMode = MarketplaceNavigationMode.floorTraverse;
         detailPresentation = MarketplaceDetailPresentation.roomDossier;
         commitStyle = MarketplaceCommitStyle.liftIntoTray;
+        break;
       case 'LOGISTICS':
         preset = 'TRAVEL_JOURNEY';
         navigationMode = MarketplaceNavigationMode.journeyTimeline;
         detailPresentation = MarketplaceDetailPresentation.seatDossier;
         context = const MarketplaceCustomerContextPolicy(passenger: true);
+        break;
       default:
         break;
     }
@@ -222,73 +160,57 @@ class MarketplaceExperienceBlueprint {
       customerContext: context,
       commitStyle: commitStyle,
       persistentTray: true,
-      motionTempo: motionTempo,
+      motionTempo: MarketplaceMotionTempo.balanced,
       reducedMotionSafe: true,
     );
   }
 
-  static Map<String, dynamic> _asMap(dynamic value) {
-    if (value is Map) return Map<String, dynamic>.from(value);
-    return const <String, dynamic>{};
-  }
+  static Map<String, dynamic> _asMap(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : const <String, dynamic>{};
 
-  static bool _bool(dynamic value, bool fallback) =>
-      value is bool ? value : fallback;
-
-  static T? _enumValue<T>(dynamic value, List<T> allowed) {
-    if (allowed.contains(value)) return value as T;
-    return null;
-  }
+  static bool _bool(dynamic value, bool fallback) => value is bool ? value : fallback;
 
   static MarketplaceNavigationMode _navigationMode(
     dynamic value,
     MarketplaceNavigationMode fallback,
-  ) {
-    return switch (value) {
-      'CONTEXTUAL' => MarketplaceNavigationMode.contextual,
-      'FLOOR_TRAVERSE' => MarketplaceNavigationMode.floorTraverse,
-      'AISLE_TRAVERSE' => MarketplaceNavigationMode.aisleTraverse,
-      'JOURNEY_TIMELINE' => MarketplaceNavigationMode.journeyTimeline,
-      _ => fallback,
-    };
-  }
+  ) => switch (value) {
+        'CONTEXTUAL' => MarketplaceNavigationMode.contextual,
+        'FLOOR_TRAVERSE' => MarketplaceNavigationMode.floorTraverse,
+        'AISLE_TRAVERSE' => MarketplaceNavigationMode.aisleTraverse,
+        'JOURNEY_TIMELINE' => MarketplaceNavigationMode.journeyTimeline,
+        _ => fallback,
+      };
 
   static MarketplaceDetailPresentation _detailPresentation(
     dynamic value,
     MarketplaceDetailPresentation fallback,
-  ) {
-    return switch (value) {
-      'MORPH' => MarketplaceDetailPresentation.morph,
-      'DISH_DOSSIER' => MarketplaceDetailPresentation.dishDossier,
-      'PRODUCT_DOSSIER' => MarketplaceDetailPresentation.productDossier,
-      'ROOM_DOSSIER' => MarketplaceDetailPresentation.roomDossier,
-      'SEAT_DOSSIER' => MarketplaceDetailPresentation.seatDossier,
-      'SERVICE_DOSSIER' => MarketplaceDetailPresentation.serviceDossier,
-      _ => fallback,
-    };
-  }
+  ) => switch (value) {
+        'MORPH' => MarketplaceDetailPresentation.morph,
+        'DISH_DOSSIER' => MarketplaceDetailPresentation.dishDossier,
+        'PRODUCT_DOSSIER' => MarketplaceDetailPresentation.productDossier,
+        'ROOM_DOSSIER' => MarketplaceDetailPresentation.roomDossier,
+        'SEAT_DOSSIER' => MarketplaceDetailPresentation.seatDossier,
+        'SERVICE_DOSSIER' => MarketplaceDetailPresentation.serviceDossier,
+        _ => fallback,
+      };
 
   static MarketplaceCommitStyle _commitStyle(
     dynamic value,
     MarketplaceCommitStyle fallback,
-  ) {
-    return switch (value) {
-      'MATERIAL' => MarketplaceCommitStyle.material,
-      'PAPER_RIP' => MarketplaceCommitStyle.paperRip,
-      'LIFT_INTO_TRAY' => MarketplaceCommitStyle.liftIntoTray,
-      _ => fallback,
-    };
-  }
+  ) => switch (value) {
+        'MATERIAL' => MarketplaceCommitStyle.material,
+        'PAPER_RIP' => MarketplaceCommitStyle.paperRip,
+        'LIFT_INTO_TRAY' => MarketplaceCommitStyle.liftIntoTray,
+        _ => fallback,
+      };
 
   static MarketplaceMotionTempo _motionTempo(
     dynamic value,
     MarketplaceMotionTempo fallback,
-  ) {
-    return switch (value) {
-      'RELAXED' => MarketplaceMotionTempo.relaxed,
-      'BALANCED' => MarketplaceMotionTempo.balanced,
-      'QUICK' => MarketplaceMotionTempo.quick,
-      _ => fallback,
-    };
-  }
+  ) => switch (value) {
+        'RELAXED' => MarketplaceMotionTempo.relaxed,
+        'BALANCED' => MarketplaceMotionTempo.balanced,
+        'QUICK' => MarketplaceMotionTempo.quick,
+        _ => fallback,
+      };
 }
