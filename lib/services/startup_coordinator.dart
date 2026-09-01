@@ -60,15 +60,14 @@ class StartupCoordinator {
       onNotificationTap: onNotificationTap,
       onForegroundMessage: onForegroundMessage,
     );
-    _running = attempt;
-
-    attempt.whenComplete(() {
-      if (identical(_running, attempt) && (!_firebaseReady || !_pushReady)) {
+    late final Future<void> tracked;
+    tracked = attempt.whenComplete(() {
+      if (identical(_running, tracked) && (!_firebaseReady || !_pushReady)) {
         _running = null;
       }
     });
-
-    return attempt;
+    _running = tracked;
+    return tracked;
   }
 
   Future<void> _start({
