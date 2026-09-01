@@ -166,6 +166,21 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
+  /// Fund the escrow created by an escrow-protected storefront checkout.
+  ///
+  /// The backend's /escrow/fund endpoint performs step-up authentication and
+  /// atomically moves the customer's USDC. We deliberately keep this separate
+  /// from checkout creation so an order can safely exist in AWAITING_PAYMENT
+  /// until the authenticated funding transaction commits.
+  Future<void> fundEscrow({required String escrowId, String? totpToken, String? password}) async {
+    final response = await _apiClient.post('/escrow/fund', {
+      'escrowId': escrowId,
+      if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
+      if (password != null && password.isNotEmpty) 'password': password,
+    });
+    _parseResponse(response);
+  }
+
   Future<Map<String, dynamic>> getMyOrders({String? status, int limit = 20, String? cursor}) async {
     final params = <String, String>{'limit': limit.toString(), if (status != null && status.isNotEmpty) 'status': status, if (cursor != null && cursor.isNotEmpty) 'cursor': cursor};
     final queryString = Uri(queryParameters: params).query;

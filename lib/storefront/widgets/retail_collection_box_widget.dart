@@ -115,20 +115,109 @@ class _RetailCollectionBoxWidgetState
     );
     if (!mounted) return;
 
-    final message = switch (result) {
-      RetailCheckoutSuccess(
-        :final confirmationMessage,
-        :final orderId,
-      ) => () {
-          // Clear the cart after a successful checkout.
-          setState(() => _cart = _cart.clear());
-          return confirmationMessage ?? 'Order $orderId created.';
-        }(),
-      RetailCheckoutFailure(:final message) => message,
-      RetailCheckoutUnavailable(:final message) => message,
-    };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    switch (result) {
+      case RetailCheckoutSuccess(
+          :final confirmationMessage,
+          :final orderId,
+          :final escrowId,
+        ):
+        if (escrowId != null && escrowId.isNotEmpty) {
+          final funded = await _fundEscrow(
+            gateway,
+            escrowId,
+            orderId: orderId,
+          );
+          if (!mounted) return;
+          if (funded) {
+            setState(() => _cart = _cart.clear());
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  confirmationMessage == null
+                      ? 'Order $orderId created and escrow funded.'
+                      : '$confirmationMessage Escrow funded.',
+                ),
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() => _cart = _cart.clear());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(confirmationMessage ?? 'Order $orderId created.')),
+        );
+        return;
+
+      case RetailCheckoutFailure(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        return;
+
+      case RetailCheckoutUnavailable(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        return;
+    }
+  }
+
+  Future<bool> _fundEscrow(
+    RetailCheckoutGateway gateway,
+    String escrowId, {
+    required String orderId,
+  }) async {
+    final credentials = await _showEscrowCredentials(orderId);
+    if (!mounted || credentials == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order created, but escrow payment was not completed.'),
+          ),
+        );
+      }
+      return false;
+    }
+
+    try {
+      await gateway.fundEscrow(
+        escrowId,
+        totpToken: credentials.totpToken,
+        password: credentials.password,
+      );
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      final retry = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Escrow funding failed'),
+          content: Text(error.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Leave unpaid'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+      if (retry == true) {
+        return _fundEscrow(gateway, escrowId, orderId: orderId);
+      }
+      return false;
+    }
+  }
+
+  Future<_EscrowCredentials?> _showEscrowCredentials(String orderId) {
+    return showDialog<_EscrowCredentials>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _EscrowCredentialsDialog(orderId: orderId),
     );
   }
 
@@ -178,6 +267,90 @@ class _RetailCollectionBoxWidgetState
         )
         .where((product) => product.id.isNotEmpty)
         .toList(growable: false);
+  }
+}
+
+class _EscrowCredentials {
+  final String? totpToken;
+  final String? password;
+
+  const _EscrowCredentials({this.totpToken, this.password});
+}
+
+class _EscrowCredentialsDialog extends StatefulWidget {
+  final String orderId;
+
+  const _EscrowCredentialsDialog({required this.orderId});
+
+  @override
+  State<_EscrowCredentialsDialog> createState() =>
+      _EscrowCredentialsDialogState();
+}
+
+class _EscrowCredentialsDialogState extends State<_EscrowCredentialsDialog> {
+  final _totpController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _totpController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Fund escrow'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Confirm payment for order ${widget.orderId}.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _totpController,
+              keyboardType: TextInputType.number,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              decoration: const InputDecoration(
+                labelText: '2FA code',
+                helperText: 'Use this when two-factor authentication is enabled.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Account password',
+                helperText: 'Use this when 2FA is not enabled.',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            _EscrowCredentials(
+              totpToken: _totpController.text.trim().isEmpty
+                  ? null
+                  : _totpController.text.trim(),
+              password: _passwordController.text.isEmpty
+                  ? null
+                  : _passwordController.text,
+            ),
+          ),
+          child: const Text('Fund escrow'),
+        ),
+      ],
+    );
   }
 }
 

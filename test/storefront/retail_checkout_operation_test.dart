@@ -7,6 +7,7 @@ import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 class _RecordingGateway implements RetailCheckoutGateway {
   final List<String> keys = [];
   final List<RetailCart> carts = [];
+  final List<String> fundedEscrowIds = [];
 
   @override
   Future<RetailCheckoutResult> checkout(
@@ -17,6 +18,15 @@ class _RecordingGateway implements RetailCheckoutGateway {
     keys.add(idempotencyKey);
     carts.add(cart);
     return const RetailCheckoutSuccess(orderId: 'order-1');
+  }
+
+  @override
+  Future<void> fundEscrow(
+    String escrowId, {
+    String? totpToken,
+    String? password,
+  }) async {
+    fundedEscrowIds.add(escrowId);
   }
 }
 
