@@ -133,7 +133,7 @@ void main() {
     expect(find.text('Open rooms & availability'), findsOneWidget);
 
     await tester.tap(find.text('Open rooms & availability'));
-    expect(route, '/business-market/bp-1/hotel-booking');
+    expect(route, '/business-market/BIZ-1/hotel-booking');
   });
 
   testWidgets('restaurant businesses keep the flip-book experience', (tester) async {

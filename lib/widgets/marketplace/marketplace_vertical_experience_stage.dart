@@ -55,62 +55,10 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         return _retailStage();
 
       case 'HOSPITALITY':
-      case 'REAL_ESTATE':
         return _hotelStage();
 
       case 'LOGISTICS':
         return _transitStage();
-
-      case 'TECHNOLOGY':
-        return _bookCtaCard(
-          icon: Icons.devices_other_outlined,
-          title: 'Shop the Catalog',
-          subtitle:
-              'Explore this business\'s products and services and continue through its full storefront.',
-          buttonLabel: 'Open Catalog',
-          onTap: onOpenCatalogView,
-        );
-
-      case 'HEALTH_WELLNESS':
-      case 'FREELANCE_SERVICES':
-        return _bookCtaCard(
-          icon: Icons.design_services_outlined,
-          title: 'Book a Service',
-          subtitle:
-              'Pick a listed service or package and request it directly from the business.',
-          buttonLabel: 'View Services',
-          onTap: onOpenOrderSheet,
-        );
-
-      case 'EDUCATION':
-        return _bookCtaCard(
-          icon: Icons.school_outlined,
-          title: 'Enroll in a Course',
-          subtitle:
-              'Browse available courses and continue to enrollment with escrow-backed payment protection.',
-          buttonLabel: 'View Courses',
-          onTap: onOpenOrderSheet,
-        );
-
-      case 'ENTERTAINMENT':
-        return _bookCtaCard(
-          icon: Icons.confirmation_number_outlined,
-          title: 'Get Tickets',
-          subtitle:
-              'Browse tickets and experiences from this business and secure yours with escrow protection.',
-          buttonLabel: 'View Tickets',
-          onTap: onOpenOrderSheet,
-        );
-
-      case 'FINANCIAL_SERVICES':
-        return _bookCtaCard(
-          icon: Icons.account_balance_outlined,
-          title: 'View Plans',
-          subtitle:
-              'Browse this business\'s financial products and request the plan that fits your needs.',
-          buttonLabel: 'View Plans',
-          onTap: onOpenOrderSheet,
-        );
 
       default:
         return _bookCtaCard(
@@ -252,7 +200,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           products: business.products,
           selectedRoomId: null,
           onRoomSelected: (_) =>
-              onNavigate?.call('/business-market/${business.id}/hotel-booking'),
+              onNavigate?.call('/business-market/${business.bizId}/hotel-booking'),
           colors: colors,
         ),
         Padding(
@@ -263,7 +211,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
               onPressed: onNavigate == null
                   ? null
                   : () => onNavigate!.call(
-                      '/business-market/${business.id}/hotel-booking'),
+                      '/business-market/${business.bizId}/hotel-booking'),
               icon: const Icon(Icons.hotel_outlined),
               label: const Text('Open rooms & availability'),
             ),
@@ -278,7 +226,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       businessProfileId: business.id,
       colors: colors,
       onOpenTrips: () =>
-          onNavigate?.call('/business-market/${business.id}/transit'),
+          onNavigate?.call('/business-market/${business.bizId}/transit'),
     );
   }
 
