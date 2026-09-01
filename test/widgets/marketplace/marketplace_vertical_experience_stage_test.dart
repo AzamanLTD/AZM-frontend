@@ -10,8 +10,6 @@ import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 
-autoload() => const SizedBox.shrink();
-
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
 BusinessProduct _product(
