@@ -35,7 +35,9 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
       final match = RegExp(r'Room\s+(\d+)', caseSensitive: false)
           .firstMatch(product.name);
       final roomNumber = int.tryParse(match?.group(1) ?? '');
-      final floor = roomNumber == null ? 1 : (roomNumber ~/ 100).clamp(1, 99);
+      final floor = roomNumber == null
+          ? 1
+          : (roomNumber ~/ 100).clamp(1, 99).toInt();
       floors.putIfAbsent(floor, () => []).add(product);
     }
     return floors;
