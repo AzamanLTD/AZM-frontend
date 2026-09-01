@@ -4,6 +4,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
+import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
@@ -133,9 +134,19 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  blueprint.navigationLabel,
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
+              ],
             ),
           ),
           Text(
@@ -229,7 +240,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stageHeader(blueprint, title: blueprint.navigationLabel),
+        _stageHeader(blueprint, title: 'Bestsellers'),
         RetailCollectionBox(
           collection: RetailCollection(
             id: 'marketplace-${business.bizId}',
@@ -260,7 +271,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stageHeader(blueprint, title: blueprint.navigationLabel),
+        _stageHeader(blueprint, title: 'Explore the property'),
         HotelFloorPlanPreview(
           products: business.products,
           selectedRoomId: null,
@@ -290,7 +301,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stageHeader(blueprint, title: blueprint.navigationLabel),
+        _stageHeader(blueprint, title: 'Choose your ride'),
         TransitSeatPreview(
           businessProfileId: business.id,
           colors: colors,
