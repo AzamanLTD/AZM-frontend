@@ -286,6 +286,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
 
   @override
   void dispose() {
+    final socketService = ref.read(socketServiceProvider);
+    socketService.removeNewTradeRequestListener();
+    socketService.removeBizNotificationListener();
+    socketService.removeBizNotificationsUpdatedListener();
     _fadeCtrl.dispose();
     super.dispose();
   }
