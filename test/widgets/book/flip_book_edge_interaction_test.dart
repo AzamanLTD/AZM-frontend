@@ -19,7 +19,25 @@ void main() {
     controller.cancelDrag();
   });
 
-  test('edge-anchored turns reject center grabs and fix the turn axis', () {
+  test('edge mode requires a true outer-edge grab', () {
+    final controller = FlipBookController(edgeAnchored: true);
+    controller.updateMetrics(
+      pageCount: 4,
+      size: const Size(320, 480),
+    );
+
+    expect(
+      controller.beginDrag(const Offset(180, 240), forward: true),
+      isFalse,
+    );
+    expect(
+      controller.beginDrag(const Offset(210, 240), forward: true),
+      isTrue,
+    );
+    controller.cancelDrag();
+  });
+
+  test('edge-anchored turns fix the vertical axis', () {
     final controller = FlipBookController(edgeAnchored: true);
     controller.updateMetrics(
       pageCount: 4,
@@ -33,12 +51,10 @@ void main() {
     expect(controller.anchor, FlipAnchor.middleOuter);
     expect(controller.anchorCorner, const Offset(320, 240));
     expect(controller.touch.dy, 240);
+    controller.updateDrag(const Offset(250, 470));
+    expect(controller.touch.dy, 240);
     controller.cancelDrag();
 
-    expect(
-      controller.beginDrag(const Offset(160, 240), forward: true),
-      isFalse,
-    );
     expect(controller.state, FlipState.idle);
   });
 
