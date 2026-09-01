@@ -100,7 +100,8 @@ class DraftLayoutNotifier extends StateNotifier<DraftLayoutState> {
 final draftLayoutProvider = StateNotifierProvider<DraftLayoutNotifier, DraftLayoutState>((ref) => DraftLayoutNotifier(ref.read(storefrontServiceProvider)));
 final storefrontHistoryProvider = FutureProvider<List<StorefrontLayoutVersion>>((ref) => ref.read(storefrontServiceProvider).getHistory());
 final storefrontEligibilityProvider = FutureProvider<StorefrontEligibility>((ref) => ref.read(storefrontServiceProvider).getEligibility());
-final storefrontRenderProvider = FutureProvider.family<StorefrontRenderResponse?, String>((ref, bizId) => StorefrontService().renderStorefront(bizId));
+final storefrontRenderProvider = FutureProvider.family<StorefrontRenderResponse?, String>((ref, bizId) => ref.read(storefrontServiceProvider).renderStorefront(bizId));
+final storefrontExperienceProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, bizId) => ref.read(storefrontServiceProvider).getPublicExperience(bizId));
 final storefrontProductsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, bizId) => ref.read(storefrontServiceProvider).getStorefrontProducts(bizId));
 final azmStakesProvider = FutureProvider<List<AzmStake>>((ref) => ref.read(storefrontServiceProvider).getStakes());
 final azmTierProvider = FutureProvider<Map<String, dynamic>>((ref) => ref.read(storefrontServiceProvider).getTierInfo());
