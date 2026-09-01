@@ -7,6 +7,9 @@ class _Gateway implements RetailCheckoutGateway {
   RetailCart? received;
   RetailCheckoutOptions? receivedOptions;
   String? receivedIdempotencyKey;
+  String? fundedEscrowId;
+  String? fundedTotpToken;
+  String? fundedPassword;
   final RetailCheckoutResult result;
 
   _Gateway(this.result);
@@ -21,6 +24,17 @@ class _Gateway implements RetailCheckoutGateway {
     receivedOptions = options;
     receivedIdempotencyKey = idempotencyKey;
     return result;
+  }
+
+  @override
+  Future<void> fundEscrow(
+    String escrowId, {
+    String? totpToken,
+    String? password,
+  }) async {
+    fundedEscrowId = escrowId;
+    fundedTotpToken = totpToken;
+    fundedPassword = password;
   }
 }
 
