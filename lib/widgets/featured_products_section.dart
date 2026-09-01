@@ -19,12 +19,14 @@ class FeaturedProductsSection extends ConsumerStatefulWidget {
   final String bizId;
   final ValueChanged<BusinessProduct>? onOrder;
   final String title;
+  final Future<ProductPage> Function(String bizId)? productLoader;
 
   const FeaturedProductsSection({
     super.key,
     required this.bizId,
     this.onOrder,
     this.title = 'Popular picks',
+    this.productLoader,
   });
 
   @override
@@ -48,8 +50,9 @@ class _FeaturedProductsSectionState
 
   Future<void> _load() async {
     try {
-      final page =
-          await BusinessService().getBusinessProducts(widget.bizId, limit: 6);
+      final page = widget.productLoader != null
+          ? await widget.productLoader!(widget.bizId)
+          : await BusinessService().getBusinessProducts(widget.bizId, limit: 6);
       if (!mounted) return;
       final products = [...page.products]
         ..sort((a, b) => b.totalOrders.compareTo(a.totalOrders));
