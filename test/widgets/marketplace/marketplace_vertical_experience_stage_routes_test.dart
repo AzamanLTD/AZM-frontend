@@ -18,6 +18,7 @@ BusinessProduct _product(String name) => BusinessProduct(
       totalRevenue: 0,
       imageUrls: const [],
       isActive: true,
+      totalOrders: 0,
     );
 
 BusinessProfile _business(String category) => BusinessProfile(
@@ -76,21 +77,18 @@ void main() {
     expect(route, '/business-market/public-biz-123/hotel-booking');
   });
 
-  testWidgets('transit preview navigates with public bizId', (tester) async {
-    String? route;
+  testWidgets('transit preview keeps internal id for provider', (tester) async {
     await _pump(
       tester,
       business: _business('LOGISTICS'),
-      onNavigate: (value) => route = value,
+      onNavigate: (_) {},
     );
 
     expect(find.text('No upcoming trips yet'), findsOneWidget);
-    // This control is only rendered when a scheduled trip exists, so this
-    // test locks the route contract through a direct preview callback below.
     final widget = tester.widget<MarketplaceVerticalExperienceStage>(
       find.byType(MarketplaceVerticalExperienceStage),
     );
+    expect(widget.business.id, 'internal-profile-1');
     expect(widget.business.bizId, 'public-biz-123');
-    expect(route, isNull);
   });
 }
