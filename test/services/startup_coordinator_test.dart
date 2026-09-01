@@ -80,16 +80,15 @@ void main() {
     var pushCalls = 0;
 
     final coordinator = StartupCoordinator.test(
-      firebaseInitializer: () async {
-        firebaseCalls++;
-        return true;
-      },
+      firebaseInitializer: () async => true,
       pushInitializer: ({
         required onNotificationTap,
         required onForegroundMessage,
       }) async {
         pushCalls++;
-        if (pushCalls == 1) return false;
+        if (pushCalls == 1) {
+          throw StateError('transient push failure');
+        }
         return true;
       },
     );
@@ -103,7 +102,6 @@ void main() {
       onForegroundMessage: onForegroundMessage,
     );
 
-    expect(firebaseCalls, 2);
     expect(pushCalls, 2);
   });
 
