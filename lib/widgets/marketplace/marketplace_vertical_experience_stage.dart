@@ -271,7 +271,17 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stageHeader(blueprint, title: 'Explore the property'),
+        // HotelFloorPlanPreview already owns the canonical "Explore the property"
+        // heading; this adapter adds only the blueprint-specific navigation/detail
+        // context to avoid duplicating customer-facing copy.
+        if (blueprint.showNavigationContext)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            child: Text(
+              blueprint.navigationLabel,
+              style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
         HotelFloorPlanPreview(
           products: business.products,
           selectedRoomId: null,
