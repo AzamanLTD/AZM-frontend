@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
-import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 
@@ -44,9 +43,6 @@ BusinessProfile _business(String category) => BusinessProfile(
 Future<void> _pumpBar(WidgetTester tester, BusinessProfile business) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        followingListProvider.overrideWith((ref) async => const []),
-      ],
       child: MaterialApp(
         home: SingleChildScrollView(
           child: CollapsibleBusinessBar(
