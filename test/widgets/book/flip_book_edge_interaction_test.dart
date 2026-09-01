@@ -4,6 +4,21 @@ import 'package:flutter/widgets.dart';
 import 'package:azaman/widgets/book/book.dart';
 
 void main() {
+  test('generic books keep corner interaction by default', () {
+    final controller = FlipBookController();
+    controller.updateMetrics(
+      pageCount: 3,
+      size: const Size(320, 480),
+    );
+
+    expect(
+      controller.beginDrag(const Offset(300, 40), forward: true),
+      isTrue,
+    );
+    expect(controller.anchor, isNot(FlipAnchor.middleOuter));
+    controller.cancelDrag();
+  });
+
   test('edge-anchored turns reject center grabs and fix the turn axis', () {
     final controller = FlipBookController(edgeAnchored: true);
     controller.updateMetrics(
