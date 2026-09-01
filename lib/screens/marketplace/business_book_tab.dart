@@ -85,7 +85,7 @@ class BusinessBookTab extends StatelessWidget {
         Positioned(
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: 84,
           child: FloatingCartBar(
             label: 'Open order tray',
             onTap: () => Navigator.of(context).push(
