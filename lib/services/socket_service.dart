@@ -68,8 +68,11 @@ class SocketService {
   void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.add(cb);
   void removeNotificationsUpdatedListener(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.remove(cb);
   void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
+  void removeNewTradeRequestListener() => _onNewTradeRequest = null;
   void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
+  void removeBizNotificationListener() => _onBizNotification = null;
   void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
+  void removeBizNotificationsUpdatedListener() => _onBizNotificationsUpdated = null;
   void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
   void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
   void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
@@ -100,6 +103,36 @@ class SocketService {
 
   void removeInvoiceReceivedListener(void Function(Map<String, dynamic>) cb) {
     if (_onInvoiceReceived == cb) _onInvoiceReceived = null;
+  }
+
+  @visibleForTesting
+  bool get hasNewTradeRequestListener => _onNewTradeRequest != null;
+
+  @visibleForTesting
+  bool get hasBizNotificationListener => _onBizNotification != null;
+
+  @visibleForTesting
+  bool get hasBizNotificationsUpdatedListener => _onBizNotificationsUpdated != null;
+
+  @visibleForTesting
+  void dispatchTestEvent(String event, dynamic data) {
+    switch (event) {
+      case 'new_trade_request':
+        _safeMapCallback(_onNewTradeRequest, data, event);
+        break;
+      case 'biz_notification':
+        _handleBizNotification(data);
+        break;
+      case 'biz_notifications_updated':
+        try {
+          _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
+        } catch (e) {
+          debugPrint('[SocketService] $event parse error: $e');
+        }
+        break;
+      default:
+        throw ArgumentError.value(event, 'event', 'Unsupported test event');
+    }
   }
 
   static String get _resolvedHost {
