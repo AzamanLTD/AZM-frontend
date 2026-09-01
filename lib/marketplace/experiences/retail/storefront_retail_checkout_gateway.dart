@@ -1,6 +1,6 @@
 import 'retail_cart.dart';
 import 'retail_checkout.dart';
-../../../storefront/services/storefront_service.dart';
+import '../../../storefront/services/storefront_service.dart';
 import '../../../storefront/services/storefront_conflict_exception.dart';
 
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
