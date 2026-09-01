@@ -7,10 +7,7 @@ import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
-void main() {
-  testWidgets('uses the canonical seat selector and bridges selection state',
-      (tester) async {
-    final trip = TransitTrip(
+TransitTrip _trip() => TransitTrip(
       id: 'trip-1',
       businessProfileId: 'business-1',
       vehicleId: 'vehicle-1',
@@ -24,9 +21,10 @@ void main() {
       status: TripStatus.scheduled,
       vehicleType: 'Coach',
     );
-    final availability = SeatAvailability(
+
+SeatAvailability _availability() => const SeatAvailability(
       tripId: 'trip-1',
-      seats: const [
+      seats: [
         TransitSeat(
           seatId: 'A1',
           row: 1,
@@ -52,56 +50,81 @@ void main() {
       fareUsdc: 18,
     );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          tripDetailProvider('trip-1').overrideWith((ref) async => trip),
-          seatAvailabilityProvider('trip-1')
-              .overrideWith((ref) async => availability),
-        ],
-        child: MaterialApp(
-          theme: ThemeData.dark(),
-          home: const TransitSeatSelectionScreen(tripId: 'trip-1'),
-        ),
+Future<void> _pump(
+  WidgetTester tester, {
+  required String tripId,
+  required ProviderContainer container,
+}) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: ThemeData.dark(),
+        home: TransitSeatSelectionScreen(tripId: tripId),
       ),
-    );
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
-    await tester.pumpAndSettle();
+void main() {
+  testWidgets('uses the canonical seat selector and bridges selection state',
+      (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        tripDetailProvider('trip-1').overrideWith((ref) async => _trip()),
+        seatAvailabilityProvider('trip-1')
+            .overrideWith((ref) async => _availability()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await _pump(tester, tripId: 'trip-1', container: container);
 
     expect(find.byType(BusSeatSelector), findsOneWidget);
     expect(find.text('Accra → Kumasi'), findsOneWidget);
     expect(find.text('Choose your seats'), findsOneWidget);
-    expect(find.text('1 seat'), findsNothing);
-    expect(find.text('0.00'), findsNothing);
+    expect(find.text('\$18/seat'), findsOneWidget);
 
     final selectable = find.bySemanticsLabel(RegExp(r'A1'));
     expect(selectable, findsOneWidget);
     await tester.tap(selectable);
     await tester.pump();
 
-    final selected = ProviderScope.containerOf(
-      tester.element(find.byType(BusSeatSelector)),
-    ).read(selectedSeatsProvider);
-    expect(selected, contains('A1'));
+    expect(container.read(selectedSeatsProvider), contains('A1'));
+  });
+
+  testWidgets('clears stale selection when a fresh trip screen mounts',
+      (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        tripDetailProvider('trip-1').overrideWith((ref) async => _trip()),
+        seatAvailabilityProvider('trip-1')
+            .overrideWith((ref) async => _availability()),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(selectedSeatsProvider.notifier).state = {'A1'};
+
+    expect(container.read(selectedSeatsProvider), contains('A1'));
+    await _pump(tester, tripId: 'trip-1', container: container);
+
+    expect(container.read(selectedSeatsProvider), isEmpty);
   });
 
   testWidgets('renders the screen retry state when seat availability fails',
       (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          seatAvailabilityProvider('trip-error').overrideWith(
-            (ref) async => throw Exception('seat service unavailable'),
-          ),
-          tripDetailProvider('trip-error').overrideWith((ref) async => null),
-        ],
-        child: MaterialApp(
-          home: const TransitSeatSelectionScreen(tripId: 'trip-error'),
+    final container = ProviderContainer(
+      overrides: [
+        seatAvailabilityProvider('trip-error').overrideWith(
+          (ref) async => throw Exception('seat service unavailable'),
         ),
-      ),
+        tripDetailProvider('trip-error').overrideWith((ref) async => null),
+      ],
     );
+    addTearDown(container.dispose);
 
-    await tester.pumpAndSettle();
+    await _pump(tester, tripId: 'trip-error', container: container);
 
     expect(find.text('Retry seat availability'), findsOneWidget);
     expect(find.byIcon(Icons.event_seat_outlined), findsOneWidget);
