@@ -85,7 +85,7 @@ void main() {
     await _pump(tester, tripId: 'trip-1', container: container);
 
     expect(find.byType(BusSeatSelector), findsOneWidget);
-    expect(find.text('Accra → Kumasi'), findsOneWidget);
+    expect(find.text('Accra → Kumasi'), findsNWidgets(2));
     expect(find.text('Choose your seats'), findsOneWidget);
     expect(find.text('\$18/seat'), findsOneWidget);
 
