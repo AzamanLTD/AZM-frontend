@@ -72,4 +72,24 @@ void main() {
       },
     ]);
   });
+
+  test('clearing a cart keeps presentation only in memory and not in persisted state', () {
+    final notifier = CartNotifier();
+    addTearDown(notifier.dispose);
+
+    notifier.addItem(
+      businessProfileId: 'biz-1',
+      businessName: 'The Copper Spoon',
+      productId: 'dish-1',
+      name: 'Jollof',
+      unitPrice: 8,
+      experiencePreset: 'DINING_JOURNEY',
+    );
+
+    notifier.clearCart();
+
+    expect(notifier.state.items, isEmpty);
+    expect(notifier.state.experiencePreset, 'DINING_JOURNEY');
+    expect(notifier.state.toPersistJson().containsKey('experiencePreset'), isFalse);
+  });
 }
