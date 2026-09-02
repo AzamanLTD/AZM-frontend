@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +24,7 @@ class BusinessBookTab extends StatelessWidget {
   final List<CatalogSection> menuSections;
   final List<BusinessProduct> uncategorisedProducts;
   final void Function(BusinessProduct product)? onOrderProduct;
+  final Future<void> Function(BusinessProduct product, Map<String, String> selections, int quantity)? onDineInAddToTab;
   final String? dineInContext;
 
   const BusinessBookTab({
@@ -34,6 +37,7 @@ class BusinessBookTab extends StatelessWidget {
     this.menuSections = const [],
     this.uncategorisedProducts = const [],
     this.onOrderProduct,
+    this.onDineInAddToTab,
     this.dineInContext,
   });
 
@@ -73,9 +77,17 @@ class BusinessBookTab extends StatelessWidget {
       dishes: dishesById.values,
     );
     final blueprint = MarketplaceExperienceBlueprint.fromJson(effectiveExperience, business.category);
-    final useRestaurantTray = blueprint.preset == 'DINING_JOURNEY' && blueprint.persistentTray && onOrderProduct != null;
+    final useRestaurantTray = blueprint.preset == 'DINING_JOURNEY' && blueprint.persistentTray && (onOrderProduct != null || onDineInAddToTab != null);
 
     void handleRestaurantOrder(BusinessProduct product, Map<String, String> selections, int quantity) {
+      if (onDineInAddToTab != null) {
+        unawaited(onDineInAddToTab!(product, selections, quantity).catchError((error) {
+          if (!context.mounted) return;
+          AzamanHaptics.warn();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not add ${product.name}: $error')));
+        }));
+        return;
+      }
       if (!useRestaurantTray) {
         onOrderProduct?.call(product);
         return;
@@ -100,7 +112,7 @@ class BusinessBookTab extends StatelessWidget {
       experience: effectiveExperience,
     );
 
-    if (!useRestaurantTray) return stage;
+    if (!useRestaurantTray || onDineInAddToTab != null) return stage;
 
     return Stack(
       fit: StackFit.expand,
