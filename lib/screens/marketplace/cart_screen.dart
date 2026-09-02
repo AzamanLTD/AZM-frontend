@@ -9,14 +9,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -53,7 +51,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       final service = ref.read(storefrontServiceProvider);
 
-      // Build combined notes
       final combinedNotes = [
         if (_orderNotesCtrl.text.trim().isNotEmpty)
           'Order notes: ${_orderNotesCtrl.text.trim()}',
@@ -64,13 +61,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           _deliveryAddressCtrl.text.trim(),
       ].join(' | ');
 
-      // Use the multi-item checkout endpoint (single BusinessOrder with items)
-      final itemsJson = cart.items.map((item) => {
-        'productId': item.productId,
-        'quantity': item.quantity,
-        if (item.notes != null && item.notes!.isNotEmpty)
-          'notes': item.notes,
-      }).toList();
+      final itemsJson = cart.toCheckoutItems();
 
       final result = await service.checkoutCart(
         businessProfileId: cart.businessProfileId!,
@@ -80,7 +71,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         idempotencyKey: 'cart_${DateTime.now().millisecondsSinceEpoch}',
       );
 
-      // Clear cart on success
       ref.read(cartProvider.notifier).clearCart();
 
       if (mounted) {
@@ -175,8 +165,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             width: double.infinity,
             child: FilledButton(
               onPressed: () {
-                Navigator.pop(ctx); // close dialog
-                Navigator.pop(context); // close cart screen
+                Navigator.pop(ctx);
+                Navigator.pop(context);
               },
               child: const Text('Track Order'),
             ),
@@ -203,7 +193,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             onPressed: () {
               ref.read(cartProvider.notifier).clearCart();
               Navigator.pop(ctx);
-              Navigator.pop(context); // close cart screen too
+              Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: colors.danger),
             child: const Text('Clear'),
@@ -278,7 +268,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
-        // ── Business header ─────────────────────────────────────────────
         if (cart.businessName != null)
           Container(
             padding: const EdgeInsets.all(12),
@@ -304,26 +293,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ],
             ),
           ),
-
-        // ── Cart items ───────────────────────────────────────────────────
         ...cart.items.map((item) => _CartTile(
               item: item,
               colors: colors,
               onIncrement: () {
                 AzamanHaptics.toggle();
-                ref.read(cartProvider.notifier).incrementItem(item.productId);
+                ref.read(cartProvider.notifier).incrementLine(item.lineKey);
               },
               onDecrement: () {
                 AzamanHaptics.toggle();
-                ref.read(cartProvider.notifier).decrementItem(item.productId);
+                ref.read(cartProvider.notifier).decrementLine(item.lineKey);
               },
               onRemove: () {
                 AzamanHaptics.nav();
-                ref.read(cartProvider.notifier).removeItem(item.productId);
+                ref.read(cartProvider.notifier).removeLine(item.lineKey);
               },
             )),
-
-        // ── Delivery address ─────────────────────────────────────────────
         const SizedBox(height: 16),
         _SectionHeader(title: 'Delivery Details', colors: colors),
         const SizedBox(height: 8),
@@ -348,8 +333,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             style: TextStyle(color: colors.textPrimary, fontSize: 14),
           ),
         ),
-
-        // ── Order notes ──────────────────────────────────────────────────
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
@@ -372,8 +355,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             style: TextStyle(color: colors.textPrimary, fontSize: 14),
           ),
         ),
-
-        // ── Order summary ────────────────────────────────────────────────
         const SizedBox(height: 20),
         _SectionHeader(title: 'Order Summary', colors: colors),
         const SizedBox(height: 8),
@@ -458,8 +439,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 }
 
-// ── Helper Widgets ─────────────────────────────────────────────────────────────
-
 class _CartTile extends StatelessWidget {
   final CartItem item;
   final AzamanColors colors;
@@ -478,7 +457,7 @@ class _CartTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: Key(item.productId),
+      key: Key(item.lineKey),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onRemove(),
       background: Container(
@@ -499,12 +478,11 @@ class _CartTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // ── Product image ───────────────────────────────────────────
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: item.image_url != null
-                  ? AzamanNetworkImage(imageUrl: 
-                      item.image_url!,
+                  ? AzamanNetworkImage(
+                      imageUrl: item.image_url!,
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
@@ -513,7 +491,6 @@ class _CartTile extends StatelessWidget {
                   : _placeholderImage(),
             ),
             const SizedBox(width: 12),
-            // ── Name + price ──────────────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,6 +513,19 @@ class _CartTile extends StatelessWidget {
                       color: colors.textTertiary,
                     ),
                   ),
+                  if (item.variants.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.variants.entries.map((entry) => '${entry.key}: ${entry.value}').join(' • '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   if (item.notes != null && item.notes!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -553,7 +543,6 @@ class _CartTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            // ── Quantity stepper ──────────────────────────────────────────
             Container(
               decoration: BoxDecoration(
                 color: colors.background,
@@ -589,7 +578,7 @@ class _CartTile extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.05);
+    );
   }
 
   Widget _placeholderImage() {
