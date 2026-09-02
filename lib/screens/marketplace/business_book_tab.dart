@@ -111,15 +111,8 @@ class BusinessBookTab extends StatelessWidget {
     );
   }
 
-  void _addToRestaurantTray(
-    BuildContext context,
-    WidgetRef ref,
-    BusinessProduct product, {
-    Map<String, String> selections = const {},
-    int quantity = 1,
-    required double unitPrice,
-  }) {
-    if (!product.isActive || !product.isAvailable) {
+  void _addToRestaurantTray(BuildContext context, WidgetRef ref, BusinessProduct product, {Map<String, String> selections = const {}, int quantity = 1, required double unitPrice}) {
+    if (!product.isActive) {
       AzamanHaptics.warn();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This dish is currently unavailable.')));
       return;
@@ -159,17 +152,7 @@ class BusinessBookTab extends StatelessWidget {
             onPressed: () {
               Navigator.pop(dialogContext);
               notifier.clearCart();
-              notifier.addItem(
-                businessProfileId: business.id,
-                businessName: business.businessName,
-                productId: product.id,
-                name: product.name,
-                unitPrice: unitPrice,
-                imageUrl: product.primaryImage,
-                category: product.category,
-                quantity: quantity,
-                variants: selections,
-              );
+              notifier.addItem(businessProfileId: business.id, businessName: business.businessName, productId: product.id, name: product.name, unitPrice: unitPrice, imageUrl: product.primaryImage, category: product.category, quantity: quantity, variants: selections);
               AzamanHaptics.confirm();
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${product.name} added to your new order tray.'), duration: const Duration(milliseconds: 1400)));
             },
