@@ -56,7 +56,6 @@ class _TransitSeatSelectionScreenState
 
       final result = state.result!;
       final trip = ref.read(tripDetailProvider(widget.tripId)).valueOrNull;
-      final selected = ref.read(selectedSeatsProvider);
       final total = result.totalFare;
 
       ref.invalidate(seatAvailabilityProvider(widget.tripId));
@@ -417,3 +416,60 @@ class _BookingDock extends StatelessWidget {
                   Expanded(
                     child: Wrap(
                       spacing: 5,
+                      children: selected
+                          .map(
+                            (id) => Chip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text(id),
+                              backgroundColor: colors.accentSurface,
+                              side: BorderSide.none,
+                              labelStyle: TextStyle(
+                                color: colors.accent,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  Text(
+                    '\$${total.toStringAsFixed(2)} USDC',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onNames,
+                    icon: const Icon(Icons.person_outline_rounded, size: 18),
+                    label: const Text('Names'),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: busy ? null : onBook,
+                      icon: busy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.arrow_forward_rounded, size: 18),
+                      label: Text(busy ? 'Booking…' : 'Continue to book'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).animate().slideY(begin: 0.12, end: 0, duration: 220.ms);
+  }
+}
