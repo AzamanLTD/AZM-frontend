@@ -33,7 +33,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
     if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
     if (MediaQuery.of(context).disableAnimations) {
       setState(() => _showReducedMotion = true);
-      Future<void>.delayed(MotionTokens.accessibleDuration(context, MotionTokens.celebration), () {
+      Future<void>.delayed(MotionTokens.celebration, () {
         if (mounted) setState(() => _showReducedMotion = false);
       });
       return;
