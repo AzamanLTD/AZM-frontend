@@ -6,13 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
+typedef RestaurantCommitAction = void Function();
+typedef RestaurantCommitRunner = Future<void> Function(RestaurantCommitAction action);
+
 /// Owns the physical commit ritual for dining actions.
 class RestaurantCommitSurface extends StatefulWidget {
-  final Widget Function(VoidCallback onCommitted) childBuilder;
+  final Widget Function(RestaurantCommitRunner onCommit) childBuilder;
   final MarketplaceCommitStyle style;
-  final VoidCallback? onCommitAction;
 
-  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style, this.onCommitAction});
+  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style});
 
   @override
   State<RestaurantCommitSurface> createState() => _RestaurantCommitSurfaceState();
@@ -30,18 +32,18 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     _lastPointerPosition = event.localPosition;
   }
 
-  Future<void> _commit() async {
+  Future<void> _commit(RestaurantCommitAction action) async {
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
     try {
       if (widget.style != MarketplaceCommitStyle.paperRip) {
-        widget.onCommitAction?.call();
+        action();
         return;
       }
 
       if (MediaQuery.of(context).disableAnimations) {
-        widget.onCommitAction?.call();
+        action();
         setState(() {
           _showReducedMotion = true;
           _showPaperRip = false;
@@ -57,16 +59,13 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         _showPaperRip = true;
       });
 
-      // Let the torn sheet visibly leave the menu before the authoritative
-      // cart mutation fires. This makes the animation a representation of
-      // the commit, rather than a decoration that happens after it.
       await _controller.animateTo(
         0.46,
         duration: const Duration(milliseconds: 340),
         curve: Curves.easeOutCubic,
       );
       if (!mounted) return;
-      widget.onCommitAction?.call();
+      action();
       await _controller.animateTo(
         1,
         duration: const Duration(milliseconds: 380),
