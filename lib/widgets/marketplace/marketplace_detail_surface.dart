@@ -151,7 +151,7 @@ class MarketplaceDetailSurface extends StatelessWidget {
     return SizedBox(
       width: width,
       child: Padding(
-        padding: const EdgeInsets.only(top: 28, bottom: 8),
+        padding: const EdgeInsets.only(top: 28, right: 8, bottom: 8),
         child: _card(maxHeight: 720),
       ),
     );
