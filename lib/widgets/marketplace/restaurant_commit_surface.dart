@@ -10,8 +10,9 @@ import 'package:azaman/theme/motion_tokens.dart';
 class RestaurantCommitSurface extends StatefulWidget {
   final Widget Function(VoidCallback onCommitted) childBuilder;
   final MarketplaceCommitStyle style;
+  final VoidCallback? onCommitAction;
 
-  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style});
+  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style, this.onCommitAction});
 
   @override
   State<RestaurantCommitSurface> createState() => _RestaurantCommitSurfaceState();
@@ -22,41 +23,70 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   Timer? _reducedMotionTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
+  bool _commitInFlight = false;
   Offset? _lastPointerPosition;
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
   }
 
-  void _commit() {
-    if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
+  Future<void> _commit() async {
+    if (!mounted || _commitInFlight) return;
+    _commitInFlight = true;
     _reducedMotionTimer?.cancel();
-    if (MediaQuery.of(context).disableAnimations) {
+    try {
+      if (widget.style != MarketplaceCommitStyle.paperRip) {
+        widget.onCommitAction?.call();
+        return;
+      }
+
+      if (MediaQuery.of(context).disableAnimations) {
+        widget.onCommitAction?.call();
+        setState(() {
+          _showReducedMotion = true;
+          _showPaperRip = false;
+        });
+        _reducedMotionTimer = Timer(MotionTokens.celebration, () {
+          if (mounted) setState(() => _showReducedMotion = false);
+        });
+        return;
+      }
+
       setState(() {
-        _showReducedMotion = true;
-        _showPaperRip = false;
+        _showReducedMotion = false;
+        _showPaperRip = true;
       });
-      _reducedMotionTimer = Timer(MotionTokens.celebration, () {
-        if (mounted) setState(() => _showReducedMotion = false);
-      });
-      return;
+
+      // Let the torn sheet visibly leave the menu before the authoritative
+      // cart mutation fires. This makes the animation a representation of
+      // the commit, rather than a decoration that happens after it.
+      await _controller.animateTo(
+        0.46,
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+      );
+      if (!mounted) return;
+      widget.onCommitAction?.call();
+      await _controller.animateTo(
+        1,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeInOutCubic,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _showPaperRip = false;
+          _showReducedMotion = false;
+        });
+      }
+      _commitInFlight = false;
     }
-    setState(() {
-      _showReducedMotion = false;
-      _showPaperRip = true;
-    });
-    _controller.forward(from: 0);
   }
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720))
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() => _showPaperRip = false);
-        }
-      });
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
   }
 
   @override
