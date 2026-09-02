@@ -6,7 +6,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/book/book.dart';
-import 'package:azaman/widgets/book/flip_book_controller.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
 
@@ -67,7 +66,6 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   @override
   void initState() {
     super.initState();
-    // Physical-menu grammar: turns are anchored to the outer edge/spine.
     _bookController = FlipBookController(edgeAnchored: true);
     _pages = _buildPages();
   }
@@ -311,24 +309,20 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     );
   }
 
-  Widget _chip(String label) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: widget.colors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)));
-  }
+  Widget _chip(String label) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: widget.colors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)));
 
-  Widget _variantChoices(RestaurantDish dish) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 15),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Size', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 7),
-        Wrap(spacing: 7, runSpacing: 7, children: dish.variants.map((variant) => ChoiceChip(
-          label: Text(variant.priceDelta == 0 ? variant.name : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}'),
-          selected: _size == variant.name,
-          onSelected: (_) => setState(() => _size = variant.name),
-        )).toList()),
-      ]),
-    );
-  }
+  Widget _variantChoices(RestaurantDish dish) => Padding(
+    padding: const EdgeInsets.only(top: 15),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Size', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 7),
+      Wrap(spacing: 7, runSpacing: 7, children: dish.variants.map((variant) => ChoiceChip(
+        label: Text(variant.priceDelta == 0 ? variant.name : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}'),
+        selected: _size == variant.name,
+        onSelected: (_) => setState(() => _size = variant.name),
+      )).toList()),
+    ]),
+  );
 
   Widget _modifierGroup(RestaurantOptionGroup group) {
     final selected = _options.putIfAbsent(group.id, () => <String>{});
@@ -385,6 +379,20 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
       if (group.required && (_options[group.id]?.isEmpty ?? true)) return false;
     }
     return true;
+  }
+
+  Widget _quantityControl() {
+    return Container(
+      decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(13)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null, icon: const Icon(Icons.remove_rounded, size: 18)),
+          SizedBox(width: 22, child: Text('$_quantity', textAlign: TextAlign.center, style: TextStyle(color: widget.colors.textPrimary, fontWeight: FontWeight.w800))),
+          IconButton(onPressed: _quantity < 20 ? () => setState(() => _quantity++) : null, icon: const Icon(Icons.add_rounded, size: 18)),
+        ],
+      ),
+    );
   }
 
   void _commit() {
