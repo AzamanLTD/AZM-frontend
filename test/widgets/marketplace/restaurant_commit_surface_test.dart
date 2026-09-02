@@ -22,10 +22,10 @@ void main() {
       ),
     );
 
-    expect(find.byType(CustomPaint), findsNothing);
+    expect(find.byKey(const ValueKey('paper-rip-animation')), findsNothing);
     await tester.tap(find.text('Add'));
     await tester.pump(const Duration(milliseconds: 120));
-    expect(find.byType(CustomPaint), findsOneWidget);
+    expect(find.byKey(const ValueKey('paper-rip-animation')), findsOneWidget);
   });
 
   testWidgets('non-paper commit styles do not add a tear overlay', (tester) async {
@@ -47,7 +47,7 @@ void main() {
 
     await tester.tap(find.text('Add'));
     await tester.pump(const Duration(milliseconds: 120));
-    expect(find.byType(CustomPaint), findsNothing);
+    expect(find.byKey(const ValueKey('paper-rip-animation')), findsNothing);
   });
 
   testWidgets('paper-rip uses semantic confirmation when reduced motion is enabled', (tester) async {
@@ -71,8 +71,8 @@ void main() {
     );
 
     await tester.tap(find.text('Add'));
-    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
     expect(find.text('Added to your order tray'), findsOneWidget);
-    expect(find.byType(CustomPaint), findsNothing);
+    expect(find.byKey(const ValueKey('paper-rip-animation')), findsNothing);
   });
 }
