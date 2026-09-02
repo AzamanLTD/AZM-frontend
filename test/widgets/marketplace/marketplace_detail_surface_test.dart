@@ -18,7 +18,12 @@ Widget _harness(MarketplaceDetailPresentation presentation) {
             colors: _colors,
             duration: Duration.zero,
             onDismiss: () {},
-            child: const ColoredBox(key: ValueKey('detail-content'), color: Colors.red),
+            child: const SizedBox(
+              key: ValueKey('detail-content'),
+              width: 430,
+              height: 200,
+              child: ColoredBox(color: Colors.red),
+            ),
           ),
         ],
       ),
