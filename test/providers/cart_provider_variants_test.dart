@@ -38,4 +38,26 @@ void main() {
     expect(cart.state.items, hasLength(1));
     expect(cart.state.items.single.variants['size'], 'Large');
   });
+
+  test('checkout serialization preserves configured selections', () {
+    final cart = CartNotifier();
+    cart.clearCart();
+    cart.addItem(
+      businessProfileId: 'bp-1',
+      businessName: 'Restaurant',
+      productId: 'dish-1',
+      name: 'Jollof Rice',
+      unitPrice: 18.5,
+      quantity: 2,
+      variants: const {'size': 'Large', 'Extras': 'Egg, Plantain'},
+    );
+
+    expect(cart.state.toCheckoutItems(), [
+      {
+        'productId': 'dish-1',
+        'quantity': 2,
+        'variants': {'size': 'Large', 'Extras': 'Egg, Plantain'},
+      },
+    ]);
+  });
 }
