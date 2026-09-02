@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -27,17 +28,20 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  Timer? _reducedMotionTimer;
   bool _showReducedMotion = false;
 
   void _commit() {
     if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
+    _reducedMotionTimer?.cancel();
     if (MediaQuery.of(context).disableAnimations) {
       setState(() => _showReducedMotion = true);
-      Future<void>.delayed(MotionTokens.celebration, () {
+      _reducedMotionTimer = Timer(MotionTokens.celebration, () {
         if (mounted) setState(() => _showReducedMotion = false);
       });
       return;
     }
+    setState(() => _showReducedMotion = false);
     _controller.forward(from: 0);
   }
 
@@ -52,6 +56,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
 
   @override
   void dispose() {
+    _reducedMotionTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -72,12 +77,12 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
             child: _showReducedMotion
                 ? _reducedMotionConfirmation(duration)
                 : AnimatedBuilder(
+                    key: const ValueKey('paper-rip-animation'),
                     animation: _controller,
                     builder: (context, child) {
                       final progress = _controller.value;
                       if (progress <= 0) return const SizedBox.shrink();
                       return CustomPaint(
-                        key: const ValueKey('paper-rip-animation'),
                         painter: _PaperRipPainter(
                           progress: Curves.easeInOutCubic.transform(progress),
                           textColor: Theme.of(context).colorScheme.onSurface,
