@@ -3,15 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 
 void main() {
-  test('DineInTab parses business and table context from the authoritative payload', () {
+  test('DineInTab parses business, table context, and Prisma decimal strings', () {
     final tab = DineInTab.fromJson({
       'id': 'tab-1',
       'status': 'OPEN',
       'openedAt': '2026-09-02T10:00:00Z',
-      'subtotalUsdc': 24,
-      'taxTotalUsdc': 0,
-      'tipUsdc': 0,
-      'grandTotalUsdc': 24,
+      'subtotalUsdc': '24.50',
+      'taxTotalUsdc': '2.45',
+      'tipUsdc': '3.00',
+      'grandTotalUsdc': '29.95',
       'businessProfile': {
         'id': 'business-1',
         'bizId': 'BIZ-123456789',
@@ -26,7 +26,16 @@ void main() {
         'locationId': 'location-1',
         'isActive': true,
       },
-      'items': [],
+      'items': [
+        {
+          'id': 'item-1',
+          'name': 'Jollof rice',
+          'unitPriceUsdc': '12.25',
+          'quantity': '2',
+          'lineTotalUsdc': '24.50',
+          'addedAt': '2026-09-02T10:05:00Z',
+        },
+      ],
     });
 
     expect(tab.businessProfileId, 'business-1');
@@ -35,6 +44,13 @@ void main() {
     expect(tab.tableId, 'table-7');
     expect(tab.tableLabel, 'Table 7');
     expect(tab.locationId, 'location-1');
+    expect(tab.subtotal, 24.50);
+    expect(tab.taxTotal, 2.45);
+    expect(tab.tip, 3.00);
+    expect(tab.grandTotal, 29.95);
+    expect(tab.items.single.unitPrice, 12.25);
+    expect(tab.items.single.quantity, 2);
+    expect(tab.items.single.lineTotal, 24.50);
   });
 
   test('DineInTab tolerates tab payloads without table context', () {
@@ -54,5 +70,6 @@ void main() {
     expect(tab.tableId, isNull);
     expect(tab.tableLabel, isNull);
     expect(tab.locationId, isNull);
+    expect(tab.grandTotal, 0);
   });
 }
