@@ -41,8 +41,8 @@ class RestaurantOptionGroup {
       required: json['required'] == true,
       maxSelection: parsedMax < 1 ? 1 : parsedMax,
       options: rawOptions is List
-          ? rawOptions.whereType<Map<String, dynamic>>().toList(growable: false).asMap().entries
-              .map((entry) => RestaurantOption.fromJson(entry.value, entry.key))
+          ? rawOptions.whereType<Map>().toList(growable: false).asMap().entries
+              .map((entry) => RestaurantOption.fromJson(Map<String, dynamic>.from(entry.value), entry.key))
               .toList(growable: false)
           : const [],
     );
@@ -101,6 +101,31 @@ class RestaurantDish {
   factory RestaurantDish.fromJson(Map<String, dynamic> json) {
     final rawVariants = json['variants'];
     final rawGroups = json['modifierGroups'] ?? json['optionGroups'] ?? json['options'];
+
+    final variants = <RestaurantProductVariant>[];
+    if (rawVariants is List) {
+      variants.addAll(rawVariants.whereType<Map>().toList(growable: false).asMap().entries.map((entry) => RestaurantProductVariant.fromJson(Map<String, dynamic>.from(entry.value), entry.key)));
+    } else if (rawVariants is Map) {
+      for (final entry in rawVariants.entries) {
+        final values = entry.value;
+        if (values is! List) continue;
+        final options = values.whereType<Map>().toList(growable: false);
+        for (var index = 0; index < options.length; index++) {
+          final option = Map<String, dynamic>.from(options[index]);
+          variants.add(RestaurantProductVariant(
+            id: (option['id'] ?? option['value'] ?? '${entry.key}-$index').toString(),
+            name: (option['name'] ?? option['label'] ?? option['value'] ?? '').toString(),
+            priceDelta: option['priceDelta'] is num ? (option['priceDelta'] as num).toDouble() : double.tryParse('${option['priceDelta'] ?? 0}') ?? 0,
+          ));
+        }
+      }
+    }
+
+    final groups = <RestaurantOptionGroup>[];
+    if (rawGroups is List) {
+      groups.addAll(rawGroups.whereType<Map>().toList(growable: false).asMap().entries.map((entry) => RestaurantOptionGroup.fromJson(Map<String, dynamic>.from(entry.value), entry.key)));
+    }
+
     return RestaurantDish(
       id: (json['id'] ?? json['dishId'] ?? '').toString(),
       name: (json['name'] ?? json['title'] ?? 'Dish').toString(),
@@ -112,16 +137,8 @@ class RestaurantDish {
       imageUrls: (json['imageUrls'] ?? json['images']) is List
           ? ((json['imageUrls'] ?? json['images']) as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList(growable: false)
           : const [],
-      variants: rawVariants is List
-          ? rawVariants.whereType<Map<String, dynamic>>().toList(growable: false).asMap().entries
-              .map((entry) => RestaurantProductVariant.fromJson(entry.value, entry.key))
-              .toList(growable: false)
-          : const [],
-      optionGroups: rawGroups is List
-          ? rawGroups.whereType<Map<String, dynamic>>().toList(growable: false).asMap().entries
-              .map((entry) => RestaurantOptionGroup.fromJson(entry.value, entry.key))
-              .toList(growable: false)
-          : const [],
+      variants: variants,
+      optionGroups: groups,
       locationId: json['locationId']?.toString(),
       deliveryTerms: json['deliveryTerms']?.toString(),
       estimatedDelivery: json['estimatedDelivery']?.toString(),
