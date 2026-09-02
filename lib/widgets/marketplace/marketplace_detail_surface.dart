@@ -51,13 +51,13 @@ class MarketplaceDetailSurface extends StatelessWidget {
           ),
         );
       case MarketplaceDetailPresentation.dishDossier:
-        return _slideFromBottom(context, child: _dossierCard(), distanceFactor: 1);
+        return _slideFromBottom(context, child: _dossierCard(context), distanceFactor: 1);
       case MarketplaceDetailPresentation.productDossier:
-        return _slideFromRight(context, child: _dossierCard(), scale: 0.98);
+        return _slideFromRight(context, child: _dossierCard(context), scale: 0.98);
       case MarketplaceDetailPresentation.roomDossier:
-        return _slideFromBottomRight(context, child: _dossierCard(), scale: 0.985);
+        return _slideFromBottomRight(context, child: _dossierCard(context), scale: 0.985);
       case MarketplaceDetailPresentation.seatDossier:
-        return _slideFromRight(context, child: _dossierCard(), scale: 0.975);
+        return _slideFromRight(context, child: _dossierCard(context), scale: 0.975);
       case MarketplaceDetailPresentation.serviceDossier:
         return Center(
           child: TweenAnimationBuilder<double>(
@@ -146,11 +146,12 @@ class MarketplaceDetailSurface extends StatelessWidget {
     );
   }
 
-  Widget _dossierCard() {
-    return Align(
-      alignment: Alignment.bottomCenter,
+  Widget _dossierCard(BuildContext context) {
+    final width = (MediaQuery.sizeOf(context).width - 16).clamp(280.0, 430.0).toDouble();
+    return SizedBox(
+      width: width,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 28, 8, 8),
+        padding: const EdgeInsets.only(top: 28, bottom: 8),
         child: _card(maxHeight: 720),
       ),
     );
