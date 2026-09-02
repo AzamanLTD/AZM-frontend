@@ -1,0 +1,49 @@
+name: Transit server fare patch
+
+on:
+  push:
+    branches: [fix/transit-success-use-server-fare]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/transit-success-use-server-fare
+      - name: Use authoritative booking total
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/screens/marketplace/transit_seat_selection_screen.dart')
+          s = p.read_text()
+          old = '''      final selected = ref.read(selectedSeatsProvider);\n      final total = _totalFare(availability, selected);\n\n      ref.invalidate(seatAvailabilityProvider(widget.tripId));'''
+          new = '''      final selected = ref.read(selectedSeatsProvider);\n      final total = result.totalFare;\n\n      ref.invalidate(seatAvailabilityProvider(widget.tripId));'''
+          if old not in s: raise SystemExit('missing success-sheet fare block')
+          p.write_text(s.replace(old, new, 1))
+          test = Path('test/screens/marketplace/transit_seat_selection_server_fare_test.dart')
+          test.write_text(r'''import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('transit booking success uses server returned total fare', () {
+    final source = File('lib/screens/marketplace/transit_seat_selection_screen.dart').readAsStringSync();
+    expect(source, contains('final total = result.totalFare;'));
+    expect(source, isNot(contains('final total = _totalFare(availability, selected);')));
+  });
+}
+''')
+          p = Path('.github/workflows/transit-server-fare-patch.yml')
+          p.unlink()
+          import subprocess
+          subprocess.run(['git','config','user.name','azaman-automation'], check=True)
+          subprocess.run(['git','config','user.email','automation@azaman.local'], check=True)
+          subprocess.run(['git','add','lib/screens/marketplace/transit_seat_selection_screen.dart','test/screens/marketplace/transit_seat_selection_server_fare_test.dart','.github/workflows/transit-server-fare-patch.yml'], check=True)
+          subprocess.run(['git','commit','-m','fix(transit): display server-authoritative booking fare'], check=True)
+          subprocess.run(['git','push','origin','HEAD:fix/transit-success-use-server-fare'], check=True)
+          PY
