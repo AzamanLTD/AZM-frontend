@@ -17,8 +17,14 @@ typedef RestaurantCommitRunner = Future<void> Function(
 class RestaurantCommitSurface extends StatefulWidget {
   final Widget Function(RestaurantCommitRunner onCommit) childBuilder;
   final MarketplaceCommitStyle style;
+  final MarketplaceMotionTempo motionTempo;
 
-  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style});
+  const RestaurantCommitSurface({
+    super.key,
+    required this.childBuilder,
+    required this.style,
+    this.motionTempo = MarketplaceMotionTempo.balanced,
+  });
 
   @override
   State<RestaurantCommitSurface> createState() => _RestaurantCommitSurfaceState();
@@ -34,6 +40,17 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   Offset? _lastPointerPosition;
   String? _commitLabel;
   String? _commitSubtitle;
+
+  Duration get _commitDuration {
+    switch (widget.motionTempo) {
+      case MarketplaceMotionTempo.relaxed:
+        return const Duration(milliseconds: 820);
+      case MarketplaceMotionTempo.balanced:
+        return const Duration(milliseconds: 720);
+      case MarketplaceMotionTempo.quick:
+        return const Duration(milliseconds: 560);
+    }
+  }
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
@@ -86,7 +103,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     try {
       await _controller.animateTo(
         1,
-        duration: const Duration(milliseconds: 720),
+        duration: _commitDuration,
         curve: Curves.easeInOutCubic,
       );
     } finally {
@@ -107,7 +124,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
+    _controller = AnimationController(vsync: this, duration: _commitDuration);
   }
 
   @override
