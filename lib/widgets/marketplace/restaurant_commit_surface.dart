@@ -54,8 +54,9 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   }
 
   /// The authoritative cart mutation happens once the paper has visibly
-  /// peeled away. Keeping this as animation progress (rather than a parallel
-  /// timer) makes the commit point move with the selected motion tempo.
+  /// peeled away. The controller timeline stays linear because the painter
+  /// owns the visual easing; this makes the mutation threshold deterministic
+  /// across all configured motion tempos.
   static const double _commitMutationProgress = 0.39;
 
   void _handleAnimationProgress() {
@@ -119,7 +120,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
       await _controller.animateTo(
         1,
         duration: _commitDuration,
-        curve: Curves.easeInOutCubic,
+        curve: Curves.linear,
       );
     } finally {
       if (mounted) {
