@@ -8,6 +8,7 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:azaman/widgets/book/flip_book.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
@@ -81,6 +82,12 @@ Future<void> _openFirstMenuPage(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 16));
   }
   await gesture.up();
+  await tester.pumpAndSettle();
+}
+
+Future<void> _turnFirstMenuPage(WidgetTester tester) async {
+  final state = tester.state<FlipBookState>(find.byType(FlipBook));
+  state.turnForward();
   await tester.pumpAndSettle();
 }
 
@@ -197,8 +204,7 @@ void main() {
     );
 
     await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Next page'));
-    await tester.pumpAndSettle();
+    await _turnFirstMenuPage(tester);
     await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add to order'));
