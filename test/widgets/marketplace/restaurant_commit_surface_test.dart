@@ -50,26 +50,19 @@ void main() {
     expect(find.byType(CustomPaint), findsNothing);
   });
 
-  testWidgets('paper-rip falls back to semantic confirmation with reduced motion', (tester) async {
-    // Motion preference is controlled by the platform binding. This test
-    // exercises the fallback widget directly through the same production path
-    // after a commit and remains deterministic on CI.
-    tester.binding.window
-      ..platformBrightnessTestValue = Brightness.light;
-
-    addTearDown(() {
-      tester.binding.window.clearPlatformBrightnessTestValue();
-    });
-
+  testWidgets('paper-rip uses semantic confirmation when reduced motion is enabled', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: SizedBox.expand(
-          child: RestaurantCommitSurface(
-            style: MarketplaceCommitStyle.paperRip,
-            childBuilder: (onCommitted) => Center(
-              child: FilledButton(
-                onPressed: onCommitted,
-                child: const Text('Add'),
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: SizedBox.expand(
+            child: RestaurantCommitSurface(
+              style: MarketplaceCommitStyle.paperRip,
+              childBuilder: (onCommitted) => Center(
+                child: FilledButton(
+                  onPressed: onCommitted,
+                  child: const Text('Add'),
+                ),
               ),
             ),
           ),
@@ -79,7 +72,7 @@ void main() {
 
     await tester.tap(find.text('Add'));
     await tester.pump(const Duration(milliseconds: 250));
-    expect(find.text('Added to your order tray'), findsNothing);
-    expect(find.byType(CustomPaint), findsOneWidget);
+    expect(find.text('Added to your order tray'), findsOneWidget);
+    expect(find.byType(CustomPaint), findsNothing);
   });
 }
