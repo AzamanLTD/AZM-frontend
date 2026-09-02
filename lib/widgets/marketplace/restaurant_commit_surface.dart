@@ -27,10 +27,17 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _showReducedMotion = false;
 
   void _commit() {
-    if (!mounted) return;
-    if (widget.style != MarketplaceCommitStyle.paperRip) return;
+    if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      setState(() => _showReducedMotion = true);
+      Future<void>.delayed(MotionTokens.accessibleDuration(context, MotionTokens.celebration), () {
+        if (mounted) setState(() => _showReducedMotion = false);
+      });
+      return;
+    }
     _controller.forward(from: 0);
   }
 
@@ -62,22 +69,22 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
         widget.childBuilder(_commit),
         if (widget.style == MarketplaceCommitStyle.paperRip)
           IgnorePointer(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                final progress = _controller.value;
-                if (progress <= 0) return const SizedBox.shrink();
-                if (MediaQuery.of(context).disableAnimations) {
-                  return _reducedMotionConfirmation(duration);
-                }
-                return CustomPaint(
-                  painter: _PaperRipPainter(
-                    progress: Curves.easeInOutCubic.transform(progress),
-                    textColor: Theme.of(context).colorScheme.onSurface,
+            child: _showReducedMotion
+                ? _reducedMotionConfirmation(duration)
+                : AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      final progress = _controller.value;
+                      if (progress <= 0) return const SizedBox.shrink();
+                      return CustomPaint(
+                        key: const ValueKey('paper-rip-animation'),
+                        painter: _PaperRipPainter(
+                          progress: Curves.easeInOutCubic.transform(progress),
+                          textColor: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
       ],
     );
