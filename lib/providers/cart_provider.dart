@@ -50,6 +50,13 @@ class CartItem {
         variants: variants,
       );
 
+  Map<String, dynamic> toCheckoutJson() => {
+        'productId': productId,
+        'quantity': quantity,
+        if (notes != null && notes!.isNotEmpty) 'notes': notes,
+        if (variants.isNotEmpty) 'variants': Map<String, String>.from(variants),
+      };
+
   Map<String, dynamic> toJson() => {
         'productId': productId,
         'name': name,
@@ -97,6 +104,8 @@ class CartState {
   bool get isEmpty => items.isEmpty;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
   double get subtotal => items.fold(0.0, (sum, item) => sum + item.lineTotal);
+
+  List<Map<String, dynamic>> toCheckoutItems() => items.map((item) => item.toCheckoutJson()).toList(growable: false);
 
   CartState copyWith({String? businessProfileId, String? businessName, List<CartItem>? items, bool? isCheckingOut, bool clearBusiness = false}) => CartState(
         businessProfileId: clearBusiness ? null : (businessProfileId ?? this.businessProfileId),
