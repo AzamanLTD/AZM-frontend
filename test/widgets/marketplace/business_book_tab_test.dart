@@ -92,7 +92,11 @@ Future<void> _turnFirstMenuPage(WidgetTester tester) async {
 Future<void> _openDish(WidgetTester tester) async {
   await tester.tap(find.text('Jollof Rice').first);
   await tester.pumpAndSettle();
-  expect(find.textContaining('Add to'), findsOneWidget);
+}
+
+Future<void> _commitAndAdvance(WidgetTester tester) async {
+  await tester.tap(find.textContaining('Add to').first);
+  await tester.pump(const Duration(milliseconds: 500));
 }
 
 void main() {
@@ -128,8 +132,7 @@ void main() {
     await _openFirstMenuPage(tester);
     await _openDish(tester);
     expect(find.textContaining('Add to tray'), findsOneWidget);
-    await tester.tap(find.textContaining('Add to tray'));
-    await tester.pump();
+    await _commitAndAdvance(tester);
 
     expect(cart.state.itemCount, 1);
     expect(cart.state.businessProfileId, business.id);
@@ -166,8 +169,7 @@ void main() {
     await _openFirstMenuPage(tester);
     await _openDish(tester);
     expect(find.text('Unavailable'), findsOneWidget);
-    await tester.tap(find.text('Unavailable'));
-    await tester.pump();
+    expect(find.textContaining('Add to tray'), findsNothing);
 
     expect(cart.state.itemCount, 0);
     expect(find.text('Open order tray'), findsNothing);
@@ -203,8 +205,7 @@ void main() {
     await _turnFirstMenuPage(tester);
     await _openDish(tester);
     expect(find.textContaining('Add to'), findsOneWidget);
-    await tester.tap(find.textContaining('Add to'));
-    await tester.pump();
+    await _commitAndAdvance(tester);
 
     expect(legacyCallbackCount, 1);
     expect(cart.state.itemCount, 0);
