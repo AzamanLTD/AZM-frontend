@@ -118,13 +118,17 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         dishesById: restaurantDishesById,
         colors: colors,
         onAddToTray: (product, selections, quantity) {
-          unawaited(onCommit(() {
-            if (onAddToTray != null) {
-              onAddToTray!.call(product, selections, quantity);
-            } else {
-              onOrderProduct?.call(product);
-            }
-          }));
+          unawaited(onCommit(
+            () {
+              if (onAddToTray != null) {
+                onAddToTray!.call(product, selections, quantity);
+              } else {
+                onOrderProduct?.call(product);
+              }
+            },
+            label: product.name,
+            subtitle: '${quantity} × ${product.priceUsdc.toStringAsFixed(2)} USDC',
+          ));
         },
         showGallery: blueprint.showGallery,
         showSpecifications: blueprint.showSpecifications,
