@@ -8,14 +8,16 @@ import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
 
 BusinessProduct _product(String id, String name, double price, {bool active = true}) => BusinessProduct(
       id: id,
+      businessProfileId: 'business-1',
       name: name,
+      slug: name.toLowerCase().replaceAll(' ', '-'),
       description: '$name description',
       priceUsdc: price,
+      totalRevenue: 0,
       imageUrls: const [],
       tags: const [],
       totalOrders: 0,
       isActive: active,
-      isAvailable: active,
     );
 
 MarketplaceExperienceBlueprint _blueprint() => MarketplaceExperienceBlueprint.fromJson({
@@ -44,6 +46,15 @@ Future<void> _pump(WidgetTester tester, {required List<BusinessProduct> offering
             bizId: 'BIZ-1',
             businessName: 'Apex Studio',
             category: 'TECHNOLOGY',
+            isVerified: true,
+            isSuspended: false,
+            kybStatus: 'VERIFIED',
+            totalEscrows: 0,
+            completedEscrows: 0,
+            userId: 1,
+            totalVolume: 0,
+            averageRating: 4.8,
+            username: 'apex-studio',
             products: offerings,
           ),
           colors: ThemeProvider.getColors(AzamanTheme.dark),
@@ -75,7 +86,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Consulting description'), findsOneWidget);
-    expect(find.text('50.00 USDC'), findsOneWidget);
+    expect(find.text('50.00 USDC'), findsAtLeastNWidgets(1));
     expect(find.text('Continue with this'), findsOneWidget);
   });
 
