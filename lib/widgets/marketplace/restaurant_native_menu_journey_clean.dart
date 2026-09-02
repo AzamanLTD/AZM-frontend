@@ -6,6 +6,8 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/book/book.dart';
+import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
 
 class RestaurantNativeMenuJourneyClean extends StatefulWidget {
   final String businessName;
@@ -19,6 +21,7 @@ class RestaurantNativeMenuJourneyClean extends StatefulWidget {
   final bool showOptions;
   final bool showQuantity;
   final String? dineInContext;
+  final MarketplaceDetailPresentation detailPresentation;
 
   const RestaurantNativeMenuJourneyClean({
     super.key,
@@ -33,6 +36,7 @@ class RestaurantNativeMenuJourneyClean extends StatefulWidget {
     this.showOptions = true,
     this.showQuantity = true,
     this.dineInContext,
+    this.detailPresentation = MarketplaceDetailPresentation.dishDossier,
   });
 
   @override
@@ -258,34 +262,12 @@ class _RestaurantNativeMenuJourneyCleanState extends State<RestaurantNativeMenuJ
 
   Widget _detailSheet(BusinessProduct product, RestaurantDish dish) {
     final duration = MotionTokens.accessibleDuration(context, MotionTokens.standard);
-    return Positioned.fill(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _closeDetail,
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.58),
-          child: Center(
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.96, end: 1),
-              duration: duration,
-              curve: MotionTokens.enter,
-              builder: (_, value, child) => Transform.scale(scale: value, child: child),
-              child: GestureDetector(
-                onTap: () {},
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380, maxHeight: 660),
-                  child: Material(
-                    borderRadius: BorderRadius.circular(22),
-                    clipBehavior: Clip.antiAlias,
-                    color: widget.colors.card,
-                    child: _detailBody(product, dish),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return MarketplaceDetailSurface(
+      presentation: widget.detailPresentation,
+      colors: widget.colors,
+      duration: duration,
+      onDismiss: _closeDetail,
+      child: _detailBody(product, dish),
     );
   }
 
