@@ -82,7 +82,7 @@ void main() {
   testWidgets('focuses an offering into a detail surface', (tester) async {
     await _pump(tester, offerings: [_product('1', 'Consulting', 50)]);
 
-    await tester.tap(find.bySemanticsLabel('Consulting, 50.00 USDC'));
+    await tester.tap(find.byKey(const ValueKey('service-offering-1')));
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Consulting description'), findsOneWidget);
