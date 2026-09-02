@@ -13,6 +13,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class FloatingCartBar extends ConsumerStatefulWidget {
   /// Called when the tray is opened.
@@ -61,12 +62,24 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
     super.dispose();
   }
 
+  IconData _trayIcon(String? experiencePreset) {
+    switch (experiencePreset) {
+      case 'DINING_JOURNEY':
+        return Icons.restaurant_rounded;
+      case 'SHOP_FLOOR':
+        return Icons.shopping_bag_rounded;
+      default:
+        return Icons.shopping_bag_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final colors = ref.watch(themeProvider.select((t) => t.colors));
     final visible = !cart.isEmpty;
     final leadItem = cart.items.isEmpty ? null : cart.items.last;
+    final fallbackIcon = _trayIcon(cart.experiencePreset);
 
     return IgnorePointer(
       ignoring: !visible,
@@ -104,7 +117,10 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
                     ),
                     child: Row(
                       children: [
-                        _ItemPreview(imageUrl: leadItem?.image_url),
+                        _ItemPreview(
+                          imageUrl: leadItem?.image_url,
+                          fallbackIcon: fallbackIcon,
+                        ),
                         const SizedBox(width: 10),
                         ScaleTransition(
                           scale: Tween<double>(begin: 1, end: 1.10).chain(
@@ -201,8 +217,9 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
 
 class _ItemPreview extends StatelessWidget {
   final String? imageUrl;
+  final IconData fallbackIcon;
 
-  const _ItemPreview({this.imageUrl});
+  const _ItemPreview({required this.imageUrl, required this.fallbackIcon});
 
   @override
   Widget build(BuildContext context) {
@@ -212,17 +229,15 @@ class _ItemPreview extends StatelessWidget {
         width: 42,
         height: 42,
         child: imageUrl == null || imageUrl!.isEmpty
-            ? const ColoredBox(
-                color: Color(0x22000000),
-                child: Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 20),
+            ? ColoredBox(
+                color: Colors.white.withValues(alpha: 0.12),
+                child: Icon(fallbackIcon, color: Colors.white, size: 20),
               )
-            : Image.network(
-                imageUrl!,
+            : AzamanNetworkImage(
+                imageUrl: imageUrl!,
+                width: 42,
+                height: 42,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const ColoredBox(
-                  color: Color(0x22000000),
-                  child: Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 20),
-                ),
               ),
       ),
     );
