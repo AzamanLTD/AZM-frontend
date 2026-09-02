@@ -178,6 +178,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 320));
     expect(quickCommitted, isTrue);
 
+    // Let the quick ritual settle before replacing the widget. The stateful
+    // surface intentionally ignores a second commit while a ritual is active;
+    // this keeps the test focused on tempo rather than cross-widget cancellation.
+    await tester.pump(const Duration(milliseconds: 300));
+
     var relaxedCommitted = false;
     await tester.pumpWidget(
       MaterialApp(
