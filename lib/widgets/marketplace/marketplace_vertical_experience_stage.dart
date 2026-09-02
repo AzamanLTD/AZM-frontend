@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
-import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
-import 'package:azaman/widgets/marketplace/restaurant_native_menu_experience.dart';
+import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey_clean.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
@@ -43,17 +42,18 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   });
 
   bool get _hasMenu => menuSections.isNotEmpty || uncategorisedProducts.isNotEmpty;
-
   MarketplaceExperienceBlueprint get _blueprint => MarketplaceExperienceBlueprint.fromJson(experience, business.category);
 
   @override
   Widget build(BuildContext context) {
     final blueprint = _blueprint;
     final profile = MarketplaceExperienceCatalog.fromCategory(business.category);
-    Widget stage;
+    late final Widget stage;
     switch (blueprint.preset) {
       case 'DINING_JOURNEY':
-        stage = _hasMenu && (onAddToTray != null || onOrderProduct != null) ? _restaurantStage(blueprint) : _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: blueprint);
+        stage = _hasMenu && (onAddToTray != null || onOrderProduct != null)
+            ? _restaurantStage(blueprint)
+            : _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: blueprint);
         break;
       case 'SHOP_FLOOR':
         stage = _retailStage(blueprint);
@@ -91,19 +91,15 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   }
 
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
-    final native = RestaurantNativeMenuExperience(
+    final native = RestaurantNativeMenuJourneyClean(
       businessName: business.businessName,
-      logoUrl: business.logoUrl,
       sections: menuSections,
       uncategorisedProducts: uncategorisedProducts,
       dishesById: restaurantDishesById,
       colors: colors,
       onAddToTray: (product, selections, quantity) {
-        if (onAddToTray != null) {
-          onAddToTray!(product, selections, quantity);
-        } else {
-          onOrderProduct?.call(product);
-        }
+        onAddToTray?.call(product, selections, quantity);
+        if (onAddToTray == null) onOrderProduct?.call(product);
       },
       showGallery: blueprint.showGallery,
       showSpecifications: blueprint.showSpecifications,
