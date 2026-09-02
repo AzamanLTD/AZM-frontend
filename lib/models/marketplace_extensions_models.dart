@@ -4,6 +4,18 @@
 // =============================================================================
 
 
+double _decimalToDouble(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? 0;
+}
+
+int _jsonInt(dynamic value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
 // ── FollowState ─────────────────────────────────────────────────────────────
 class FollowState {
   final bool isFollowing;
@@ -20,7 +32,7 @@ class FollowState {
 // ── BusinessAdPost ──────────────────────────────────────────────────────────
 class BusinessAdPost {
   final String id;
-  final String templateType; // PROMO, NEW_ITEM, EVENT, ANNOUNCEMENT
+  final String templateType;
   final String title;
   final String? bodyText;
   final String? mediaUrl;
@@ -66,7 +78,7 @@ class BusinessAdPost {
 // ── DineInTab ───────────────────────────────────────────────────────────────
 class DineInTab {
   final String id;
-  final String status; // OPEN, FINALIZED, PAID, CLOSED, DEFAULTED
+  final String status;
   final DateTime openedAt;
   final double subtotal;
   final double taxTotal;
@@ -74,7 +86,12 @@ class DineInTab {
   final double grandTotal;
   final String? invoiceRef;
   final String businessName;
+  final String? businessProfileId;
+  final String? businessBizId;
   final String? businessLogoUrl;
+  final String? tableId;
+  final String? tableLabel;
+  final String? locationId;
   final List<DineInTabItem> items;
 
   DineInTab({
@@ -87,23 +104,45 @@ class DineInTab {
     required this.grandTotal,
     this.invoiceRef,
     required this.businessName,
+    this.businessProfileId,
+    this.businessBizId,
     this.businessLogoUrl,
+    this.tableId,
+    this.tableLabel,
+    this.locationId,
     required this.items,
   });
 
-  factory DineInTab.fromJson(Map<String, dynamic> json) => DineInTab(
-    id: json['id'],
-    status: json['status'] ?? 'OPEN',
-    openedAt: DateTime.parse(json['openedAt']),
-    subtotal: (json['subtotalUsdc'] as num?)?.toDouble() ?? 0,
-    taxTotal: (json['taxTotalUsdc'] as num?)?.toDouble() ?? 0,
-    tip: (json['tipUsdc'] as num?)?.toDouble() ?? 0,
-    grandTotal: (json['grandTotalUsdc'] as num?)?.toDouble() ?? 0,
-    invoiceRef: json['invoice']?['invoiceRef'],
-    businessName: json['businessProfile']?['businessName'] ?? '',
-    businessLogoUrl: json['businessProfile']?['logoUrl'],
-    items: (json['items'] as List?)?.map((e) => DineInTabItem.fromJson(e)).toList() ?? [],
-  );
+  factory DineInTab.fromJson(Map<String, dynamic> json) {
+    final business = json['businessProfile'] is Map
+        ? Map<String, dynamic>.from(json['businessProfile'] as Map)
+        : const <String, dynamic>{};
+    final table = json['table'] is Map
+        ? Map<String, dynamic>.from(json['table'] as Map)
+        : const <String, dynamic>{};
+    return DineInTab(
+      id: json['id'],
+      status: json['status'] ?? 'OPEN',
+      openedAt: DateTime.parse(json['openedAt']),
+      subtotal: _decimalToDouble(json['subtotalUsdc']),
+      taxTotal: _decimalToDouble(json['taxTotalUsdc']),
+      tip: _decimalToDouble(json['tipUsdc']),
+      grandTotal: _decimalToDouble(json['grandTotalUsdc']),
+      invoiceRef: json['invoice']?['invoiceRef'],
+      businessName: business['businessName'] ?? '',
+      businessProfileId: business['id']?.toString(),
+      businessBizId: business['bizId']?.toString(),
+      businessLogoUrl: business['logoUrl'],
+      tableId: (json['tableId'] ?? table['id'])?.toString(),
+      tableLabel: table['label']?.toString(),
+      locationId: (json['locationId'] ?? table['locationId'])?.toString(),
+      items: (json['items'] as List?)
+              ?.whereType<Map>()
+              .map((e) => DineInTabItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList() ??
+          const [],
+    );
+  }
 }
 
 class DineInTabItem {
@@ -126,9 +165,9 @@ class DineInTabItem {
   factory DineInTabItem.fromJson(Map<String, dynamic> json) => DineInTabItem(
     id: json['id'],
     name: json['name'] ?? '',
-    unitPrice: (json['unitPriceUsdc'] as num?)?.toDouble() ?? 0,
-    quantity: json['quantity'] ?? 1,
-    lineTotal: (json['lineTotalUsdc'] as num?)?.toDouble() ?? 0,
+    unitPrice: _decimalToDouble(json['unitPriceUsdc']),
+    quantity: _jsonInt(json['quantity'], fallback: 1),
+    lineTotal: _decimalToDouble(json['lineTotalUsdc']),
     addedAt: DateTime.parse(json['addedAt']),
   );
 }
@@ -163,7 +202,7 @@ class BusinessShowcase {
 
 // ── TrustScore ──────────────────────────────────────────────────────────────
 class TrustScore {
-  final String trustLevel; // EXCELLENT, GOOD, CAUTION, RISK
+  final String trustLevel;
   final double noShowRate;
   final int totalBookings;
   final int noShowCount;
@@ -179,10 +218,10 @@ class TrustScore {
 
   factory TrustScore.fromJson(Map<String, dynamic> json) => TrustScore(
     trustLevel: json['trustLevel'] ?? 'GOOD',
-    noShowRate: (json['noShowRate'] as num?)?.toDouble() ?? 0,
-    totalBookings: json['totalBookings'] ?? 0,
-    noShowCount: json['noShowCount'] ?? 0,
-    completedBookings: json['completedBookings'] ?? 0,
+    noShowRate: _decimalToDouble(json['noShowRate']),
+    totalBookings: _jsonInt(json['totalBookings']),
+    noShowCount: _jsonInt(json['noShowCount']),
+    completedBookings: _jsonInt(json['completedBookings']),
   );
 
   String get colorHex {
