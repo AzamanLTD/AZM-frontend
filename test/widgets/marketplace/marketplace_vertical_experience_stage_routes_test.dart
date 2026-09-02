@@ -73,7 +73,7 @@ void main() {
       onNavigate: (value) => route = value,
     );
 
-    await tester.tap(find.text('Open rooms & availability'));
+    await tester.tap(find.text('Continue to rooms'));
     expect(route, '/business-market/public-biz-123/hotel-booking');
   });
 

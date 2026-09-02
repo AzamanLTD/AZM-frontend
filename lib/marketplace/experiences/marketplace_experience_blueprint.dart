@@ -56,33 +56,45 @@ class MarketplaceExperienceBlueprint {
     Map<String, dynamic>? json,
     String category,
   ) {
-    final defaults = _defaultsForCategory(category.trim().toUpperCase());
+    final categoryKey = category.trim().toUpperCase();
+    final defaults = _defaultsForCategory(categoryKey);
     final raw = json ?? const <String, dynamic>{};
     final navigation = _asMap(raw['navigation']);
     final detail = _asMap(raw['detail']);
     final context = _asMap(raw['customerContext']);
     final commit = _asMap(raw['commit']);
     final motion = _asMap(raw['motion']);
+    final policy = _policyForCategory(categoryKey);
+
+    final requestedPreset = raw['preset'];
+    final preset = requestedPreset == defaults.preset ? requestedPreset as String : defaults.preset;
 
     return MarketplaceExperienceBlueprint(
-      preset: raw['preset'] == defaults.preset ? raw['preset'] as String : defaults.preset,
-      navigationMode: _navigationMode(navigation['mode'], defaults.navigationMode),
+      preset: preset,
+      navigationMode: _navigationMode(navigation['mode'], defaults.navigationMode, policy.navigationModes),
       showNavigationContext: _bool(navigation['showProgress'], defaults.showNavigationContext),
-      detailPresentation: _detailPresentation(detail['presentation'], defaults.detailPresentation),
+      detailPresentation: _detailPresentation(detail['presentation'], defaults.detailPresentation, policy.detailPresentations),
       showGallery: _bool(detail['showGallery'], defaults.showGallery),
       showSpecifications: _bool(detail['showSpecifications'], defaults.showSpecifications),
       showOptions: _bool(detail['showOptions'], defaults.showOptions),
       showQuantity: _bool(detail['showQuantity'], defaults.showQuantity),
       customerContext: MarketplaceCustomerContextPolicy(
         enabled: _bool(context['enabled'], defaults.customerContext.enabled),
-        tableNumber: _bool(context['tableNumber'], defaults.customerContext.tableNumber),
-        serviceMode: _bool(context['serviceMode'], defaults.customerContext.serviceMode),
-        passenger: _bool(context['passenger'], defaults.customerContext.passenger),
+        tableNumber: policy.customerContext.tableNumber
+            ? _bool(context['tableNumber'], defaults.customerContext.tableNumber)
+            : false,
+        serviceMode: policy.customerContext.serviceMode
+            ? _bool(context['serviceMode'], defaults.customerContext.serviceMode)
+            : false,
+        passenger: policy.customerContext.passenger
+            ? _bool(context['passenger'], defaults.customerContext.passenger)
+            : false,
       ),
-      commitStyle: _commitStyle(commit['style'], defaults.commitStyle),
-      persistentTray: _bool(commit['persistentTray'], defaults.persistentTray),
+      commitStyle: _commitStyle(commit['style'], defaults.commitStyle, policy.commitStyles),
+      persistentTray: policy.persistentTray
+          ? _bool(commit['persistentTray'], defaults.persistentTray)
+          : false,
       motionTempo: _motionTempo(motion['tempo'], defaults.motionTempo),
-      // Accessibility behavior is enforced by the platform motion helper.
       reducedMotionSafe: true,
     );
   }
@@ -112,18 +124,66 @@ class MarketplaceExperienceBlueprint {
         MarketplaceDetailPresentation.serviceDossier => 'Service details',
       };
 
+  static _MarketplaceCategoryPolicy _policyForCategory(String category) {
+    switch (category) {
+      case 'FOOD_BEVERAGE':
+      case 'RESTAURANT':
+        return const _MarketplaceCategoryPolicy(
+          navigationModes: [MarketplaceNavigationMode.contextual],
+          detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.dishDossier],
+          commitStyles: [MarketplaceCommitStyle.material, MarketplaceCommitStyle.paperRip],
+          customerContext: MarketplaceCustomerContextPolicy(tableNumber: true, serviceMode: true),
+          persistentTray: true,
+        );
+      case 'RETAIL':
+        return const _MarketplaceCategoryPolicy(
+          navigationModes: [MarketplaceNavigationMode.contextual, MarketplaceNavigationMode.aisleTraverse],
+          detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.productDossier],
+          commitStyles: [MarketplaceCommitStyle.material, MarketplaceCommitStyle.liftIntoTray],
+          customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: true,
+        );
+      case 'HOSPITALITY':
+      case 'HOTEL':
+        return const _MarketplaceCategoryPolicy(
+          navigationModes: [MarketplaceNavigationMode.contextual, MarketplaceNavigationMode.floorTraverse],
+          detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.roomDossier],
+          commitStyles: [MarketplaceCommitStyle.material],
+          customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: false,
+        );
+      case 'LOGISTICS':
+      case 'TRANSIT':
+        return const _MarketplaceCategoryPolicy(
+          navigationModes: [MarketplaceNavigationMode.contextual, MarketplaceNavigationMode.journeyTimeline],
+          detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.seatDossier],
+          commitStyles: [MarketplaceCommitStyle.material],
+          customerContext: MarketplaceCustomerContextPolicy(passenger: true),
+          persistentTray: false,
+        );
+      default:
+        return const _MarketplaceCategoryPolicy(
+          navigationModes: [MarketplaceNavigationMode.contextual],
+          detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.serviceDossier],
+          commitStyles: [MarketplaceCommitStyle.material],
+          customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: false,
+        );
+    }
+  }
+
   static MarketplaceExperienceBlueprint _defaultsForCategory(String category) {
+    final policy = _policyForCategory(category);
     var preset = 'SERVICE_JOURNEY';
-    var navigationMode = MarketplaceNavigationMode.contextual;
-    var detailPresentation = MarketplaceDetailPresentation.serviceDossier;
-    var context = const MarketplaceCustomerContextPolicy();
-    var commitStyle = MarketplaceCommitStyle.material;
+    var navigationMode = policy.navigationModes.first;
+    var detailPresentation = policy.detailPresentations.last;
+    var commitStyle = policy.commitStyles.first;
 
     switch (category) {
       case 'FOOD_BEVERAGE':
+      case 'RESTAURANT':
         preset = 'DINING_JOURNEY';
         detailPresentation = MarketplaceDetailPresentation.dishDossier;
-        context = const MarketplaceCustomerContextPolicy(tableNumber: true, serviceMode: true);
         commitStyle = MarketplaceCommitStyle.paperRip;
         break;
       case 'RETAIL':
@@ -133,16 +193,18 @@ class MarketplaceExperienceBlueprint {
         commitStyle = MarketplaceCommitStyle.liftIntoTray;
         break;
       case 'HOSPITALITY':
+      case 'HOTEL':
         preset = 'BUILDING_WALK';
         navigationMode = MarketplaceNavigationMode.floorTraverse;
         detailPresentation = MarketplaceDetailPresentation.roomDossier;
-        commitStyle = MarketplaceCommitStyle.liftIntoTray;
+        commitStyle = MarketplaceCommitStyle.material;
         break;
       case 'LOGISTICS':
+      case 'TRANSIT':
         preset = 'TRAVEL_JOURNEY';
         navigationMode = MarketplaceNavigationMode.journeyTimeline;
         detailPresentation = MarketplaceDetailPresentation.seatDossier;
-        context = const MarketplaceCustomerContextPolicy(passenger: true);
+        commitStyle = MarketplaceCommitStyle.material;
         break;
       default:
         break;
@@ -157,9 +219,9 @@ class MarketplaceExperienceBlueprint {
       showSpecifications: true,
       showOptions: true,
       showQuantity: true,
-      customerContext: context,
+      customerContext: policy.customerContext,
       commitStyle: commitStyle,
-      persistentTray: true,
+      persistentTray: policy.persistentTray,
       motionTempo: MarketplaceMotionTempo.balanced,
       reducedMotionSafe: true,
     );
@@ -173,36 +235,48 @@ class MarketplaceExperienceBlueprint {
   static MarketplaceNavigationMode _navigationMode(
     dynamic value,
     MarketplaceNavigationMode fallback,
-  ) => switch (value) {
-        'CONTEXTUAL' => MarketplaceNavigationMode.contextual,
-        'FLOOR_TRAVERSE' => MarketplaceNavigationMode.floorTraverse,
-        'AISLE_TRAVERSE' => MarketplaceNavigationMode.aisleTraverse,
-        'JOURNEY_TIMELINE' => MarketplaceNavigationMode.journeyTimeline,
-        _ => fallback,
-      };
+    List<MarketplaceNavigationMode> allowed,
+  ) {
+    final requested = switch (value) {
+      'CONTEXTUAL' => MarketplaceNavigationMode.contextual,
+      'FLOOR_TRAVERSE' => MarketplaceNavigationMode.floorTraverse,
+      'AISLE_TRAVERSE' => MarketplaceNavigationMode.aisleTraverse,
+      'JOURNEY_TIMELINE' => MarketplaceNavigationMode.journeyTimeline,
+      _ => null,
+    };
+    return requested != null && allowed.contains(requested) ? requested : fallback;
+  }
 
   static MarketplaceDetailPresentation _detailPresentation(
     dynamic value,
     MarketplaceDetailPresentation fallback,
-  ) => switch (value) {
-        'MORPH' => MarketplaceDetailPresentation.morph,
-        'DISH_DOSSIER' => MarketplaceDetailPresentation.dishDossier,
-        'PRODUCT_DOSSIER' => MarketplaceDetailPresentation.productDossier,
-        'ROOM_DOSSIER' => MarketplaceDetailPresentation.roomDossier,
-        'SEAT_DOSSIER' => MarketplaceDetailPresentation.seatDossier,
-        'SERVICE_DOSSIER' => MarketplaceDetailPresentation.serviceDossier,
-        _ => fallback,
-      };
+    List<MarketplaceDetailPresentation> allowed,
+  ) {
+    final requested = switch (value) {
+      'MORPH' => MarketplaceDetailPresentation.morph,
+      'DISH_DOSSIER' => MarketplaceDetailPresentation.dishDossier,
+      'PRODUCT_DOSSIER' => MarketplaceDetailPresentation.productDossier,
+      'ROOM_DOSSIER' => MarketplaceDetailPresentation.roomDossier,
+      'SEAT_DOSSIER' => MarketplaceDetailPresentation.seatDossier,
+      'SERVICE_DOSSIER' => MarketplaceDetailPresentation.serviceDossier,
+      _ => null,
+    };
+    return requested != null && allowed.contains(requested) ? requested : fallback;
+  }
 
   static MarketplaceCommitStyle _commitStyle(
     dynamic value,
     MarketplaceCommitStyle fallback,
-  ) => switch (value) {
-        'MATERIAL' => MarketplaceCommitStyle.material,
-        'PAPER_RIP' => MarketplaceCommitStyle.paperRip,
-        'LIFT_INTO_TRAY' => MarketplaceCommitStyle.liftIntoTray,
-        _ => fallback,
-      };
+    List<MarketplaceCommitStyle> allowed,
+  ) {
+    final requested = switch (value) {
+      'MATERIAL' => MarketplaceCommitStyle.material,
+      'PAPER_RIP' => MarketplaceCommitStyle.paperRip,
+      'LIFT_INTO_TRAY' => MarketplaceCommitStyle.liftIntoTray,
+      _ => null,
+    };
+    return requested != null && allowed.contains(requested) ? requested : fallback;
+  }
 
   static MarketplaceMotionTempo _motionTempo(
     dynamic value,
@@ -213,4 +287,20 @@ class MarketplaceExperienceBlueprint {
         'QUICK' => MarketplaceMotionTempo.quick,
         _ => fallback,
       };
+}
+
+class _MarketplaceCategoryPolicy {
+  final List<MarketplaceNavigationMode> navigationModes;
+  final List<MarketplaceDetailPresentation> detailPresentations;
+  final List<MarketplaceCommitStyle> commitStyles;
+  final MarketplaceCustomerContextPolicy customerContext;
+  final bool persistentTray;
+
+  const _MarketplaceCategoryPolicy({
+    required this.navigationModes,
+    required this.detailPresentations,
+    required this.commitStyles,
+    required this.customerContext,
+    required this.persistentTray,
+  });
 }
