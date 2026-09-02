@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/cart_provider.dart';
-import 'package:azaman/theme/theme.dart';
 import 'package:azaman/widgets/floating_cart_bar.dart';
 
 void main() {
