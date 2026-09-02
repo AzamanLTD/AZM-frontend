@@ -8,7 +8,7 @@ import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/widgets/marketplace/business_book_tab.dart';
+import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 
 class DineInRestaurantOrderingScreen extends ConsumerStatefulWidget {
