@@ -197,7 +197,8 @@ void main() {
     );
 
     await tester.pump();
-    await _openFirstMenuPage(tester);
+    await tester.tap(find.bySemanticsLabel('Next page'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add to order'));
