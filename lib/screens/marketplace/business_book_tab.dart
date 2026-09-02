@@ -75,7 +75,7 @@ class BusinessBookTab extends StatelessWidget {
       }
       final dish = dishesById[product.id];
       final adjustedUnitPrice = dish == null ? product.priceUsdc : _selectedUnitPrice(product, dish, selections);
-      _addToRestaurantTray(context, ref, product, selections: selections, quantity: quantity, unitPrice: adjustedUnitPrice);
+      _addToRestaurantTray(context, ref, product, experiencePreset: blueprint.preset, selections: selections, quantity: quantity, unitPrice: adjustedUnitPrice);
     }
 
     final stage = MarketplaceVerticalExperienceStage(
@@ -111,7 +111,7 @@ class BusinessBookTab extends StatelessWidget {
     );
   }
 
-  void _addToRestaurantTray(BuildContext context, WidgetRef ref, BusinessProduct product, {Map<String, String> selections = const {}, int quantity = 1, required double unitPrice}) {
+  void _addToRestaurantTray(BuildContext context, WidgetRef ref, BusinessProduct product, {required String experiencePreset, Map<String, String> selections = const {}, int quantity = 1, required double unitPrice}) {
     if (!product.isActive) {
       AzamanHaptics.warn();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This dish is currently unavailable.')));
@@ -127,6 +127,7 @@ class BusinessBookTab extends StatelessWidget {
       unitPrice: unitPrice,
       imageUrl: product.primaryImage,
       category: product.category,
+      experiencePreset: experiencePreset,
       quantity: quantity,
       variants: selections,
     );
@@ -152,7 +153,7 @@ class BusinessBookTab extends StatelessWidget {
             onPressed: () {
               Navigator.pop(dialogContext);
               notifier.clearCart();
-              notifier.addItem(businessProfileId: business.id, businessName: business.businessName, productId: product.id, name: product.name, unitPrice: unitPrice, imageUrl: product.primaryImage, category: product.category, quantity: quantity, variants: selections);
+              notifier.addItem(businessProfileId: business.id, businessName: business.businessName, productId: product.id, name: product.name, unitPrice: unitPrice, imageUrl: product.primaryImage, category: product.category, experiencePreset: experiencePreset, quantity: quantity, variants: selections);
               AzamanHaptics.confirm();
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${product.name} added to your new order tray.'), duration: const Duration(milliseconds: 1400)));
             },
