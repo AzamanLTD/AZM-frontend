@@ -33,11 +33,11 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
+  Timer? _commitTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
   bool _commitInFlight = false;
   bool _actionCommitted = false;
-  RestaurantCommitAction? _pendingAction;
   Offset? _lastPointerPosition;
   String? _commitLabel;
   String? _commitSubtitle;
@@ -53,23 +53,22 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     }
   }
 
-  /// The authoritative cart mutation happens once the paper has visibly
-  /// peeled away. The controller timeline stays linear because the painter
-  /// owns the visual easing; this makes the mutation threshold deterministic
-  /// across all configured motion tempos.
   static const double _commitMutationProgress = 0.39;
-
-  void _handleAnimationProgress() {
-    if (!_commitInFlight || _actionCommitted || _pendingAction == null) return;
-    if (_controller.value < _commitMutationProgress) return;
-
-    _actionCommitted = true;
-    final action = _pendingAction!;
-    action();
-  }
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
+  }
+
+  void _scheduleCommitMutation(RestaurantCommitAction action) {
+    _commitTimer?.cancel();
+    final delay = Duration(
+      milliseconds: (_commitDuration.inMilliseconds * _commitMutationProgress).round(),
+    );
+    _commitTimer = Timer(delay, () {
+      if (!mounted || !_commitInFlight || _actionCommitted) return;
+      _actionCommitted = true;
+      action();
+    });
   }
 
   Future<void> _commit(
@@ -80,21 +79,18 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
-    _pendingAction = action;
-    _actionCommitted = false;
+    _commitTimer?.cancel();
     _commitLabel = label;
     _commitSubtitle = subtitle;
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
       action();
       _commitInFlight = false;
-      _pendingAction = null;
       return;
     }
 
     if (MediaQuery.of(context).disableAnimations) {
       action();
-      _pendingAction = null;
       _actionCommitted = true;
       if (!mounted) return;
       setState(() => _showReducedMotion = true);
@@ -102,19 +98,19 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         if (!mounted) return;
         setState(() => _showReducedMotion = false);
         _commitInFlight = false;
-        _pendingAction = null;
         _actionCommitted = false;
+        _commitLabel = null;
+        _commitSubtitle = null;
       });
       return;
     }
 
-    // A surface can be reused for several orders. Always restart the paper
-    // from rest so the next ritual has the same physical starting point.
     _controller.value = 0;
     setState(() {
       _showReducedMotion = false;
       _showPaperRip = true;
     });
+    _scheduleCommitMutation(action);
 
     try {
       await _controller.animateTo(
@@ -123,6 +119,8 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         curve: Curves.linear,
       );
     } finally {
+      _commitTimer?.cancel();
+      _commitTimer = null;
       if (mounted) {
         setState(() {
           _showPaperRip = false;
@@ -131,7 +129,6 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         _controller.value = 0;
       }
       _commitInFlight = false;
-      _pendingAction = null;
       _actionCommitted = false;
       _commitLabel = null;
       _commitSubtitle = null;
@@ -141,8 +138,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: _commitDuration)
-      ..addListener(_handleAnimationProgress);
+    _controller = AnimationController(vsync: this, duration: _commitDuration);
   }
 
   @override
@@ -156,7 +152,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void dispose() {
     _reducedMotionTimer?.cancel();
-    _controller.removeListener(_handleAnimationProgress);
+    _commitTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
