@@ -148,7 +148,7 @@ void main() {
 
     expect(find.byType(RestaurantNativeMenuJourneyClean), findsOneWidget);
     expect(find.text('MENU'), findsOneWidget);
-    expect(find.text('Turn the page to browse'), findsOneWidget);
+    expect(find.text('Turn from the edge to browse'), findsOneWidget);
   });
 
   testWidgets('transit businesses expose schedule fallback when no trips exist', (tester) async {

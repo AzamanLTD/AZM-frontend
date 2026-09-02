@@ -6,6 +6,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/book/book.dart';
+import 'package:azaman/widgets/book/flip_book_controller.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
 
@@ -53,6 +54,7 @@ class _MenuPage {
 class _RestaurantNativeMenuJourneyCleanState extends State<RestaurantNativeMenuJourneyClean> {
   static const _pageSize = 4;
   final _bookKey = GlobalKey<FlipBookState>();
+  late final FlipBookController _bookController;
   late List<_MenuPage> _pages;
   int _page = 0;
   BusinessProduct? _product;
@@ -65,7 +67,17 @@ class _RestaurantNativeMenuJourneyCleanState extends State<RestaurantNativeMenuJ
   @override
   void initState() {
     super.initState();
+    // Restaurant menus should behave like a physical book: turns begin at the
+    // outer edge and stay on a stable spine axis rather than curling from
+    // arbitrary corners or the middle of the page.
+    _bookController = FlipBookController(edgeAnchored: true);
     _pages = _buildPages();
+  }
+
+  @override
+  void dispose() {
+    _bookController.dispose();
+    super.dispose();
   }
 
   @override
@@ -130,6 +142,7 @@ class _RestaurantNativeMenuJourneyCleanState extends State<RestaurantNativeMenuJ
                 child: FlipBookFrame(
                   child: FlipBook(
                     key: _bookKey,
+                    controller: _bookController,
                     pageCount: _pages.length + 1,
                     onPageChanged: (index) => setState(() => _page = index),
                     idleHint: true,
@@ -177,7 +190,7 @@ class _RestaurantNativeMenuJourneyCleanState extends State<RestaurantNativeMenuJ
           const SizedBox(height: 6),
           Text('MENU', style: TextStyle(color: widget.colors.accent, fontSize: 12, letterSpacing: 4, fontWeight: FontWeight.w800)),
           const SizedBox(height: 22),
-          const Text('Turn the page to browse', style: TextStyle(color: Color(0xFF8B7A5A), fontSize: 11.5)),
+          const Text('Turn from the edge to browse', style: TextStyle(color: Color(0xFF8B7A5A), fontSize: 11.5)),
         ],
       ),
     );
