@@ -40,6 +40,44 @@ void main() {
     expect(find.byKey(const ValueKey('paper-rip-animation')), findsNothing);
   });
 
+  testWidgets('paper-rip carries item context into the tear semantics', (tester) async {
+    var committed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: false),
+          child: SizedBox.expand(
+            child: RestaurantCommitSurface(
+              style: MarketplaceCommitStyle.paperRip,
+              childBuilder: (onCommit) => Center(
+                child: FilledButton(
+                  onPressed: () => onCommit(
+                    () => committed = true,
+                    label: 'Jollof rice',
+                    subtitle: '2 × 14.00 USDC',
+                  ),
+                  child: const Text('Add'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Add'));
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(
+      find.bySemanticsLabel('Jollof rice, 2 × 14.00 USDC'),
+      findsOneWidget,
+    );
+    expect(committed, isFalse);
+
+    await tester.pump(const Duration(milliseconds: 220));
+    expect(committed, isTrue);
+  });
+
   testWidgets('non-paper commit styles execute the action immediately without a tear', (tester) async {
     var committed = false;
     await tester.pumpWidget(
