@@ -130,9 +130,9 @@ void main() {
 
     expect(find.text('Explore the property'), findsOneWidget);
     expect(find.byType(HotelFloorPlanPreview), findsOneWidget);
-    expect(find.text('Open rooms & availability'), findsOneWidget);
+    expect(find.text('Continue to rooms'), findsOneWidget);
 
-    await tester.tap(find.text('Open rooms & availability'));
+    await tester.tap(find.text('Continue to rooms'));
     expect(route, '/business-market/BIZ-1/hotel-booking');
   });
 
