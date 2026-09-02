@@ -37,6 +37,47 @@ void main() {
     expect(content.bottom, closeTo(viewport.height - 8, 1));
   });
 
+  testWidgets('product dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.productDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('room dossier is grounded at the bottom-right', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.roomDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+    expect(content.bottom, closeTo(viewport.height - 8, 2));
+  });
+
+  testWidgets('seat dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.seatDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('service dossier uses a centered focused presentation', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.serviceDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.center.dx, closeTo(viewport.width / 2, 12));
+  });
+
   testWidgets('morph presentation is centered rather than bottom grounded', (tester) async {
     await tester.pumpWidget(_harness(MarketplaceDetailPresentation.morph));
     await tester.pump();
