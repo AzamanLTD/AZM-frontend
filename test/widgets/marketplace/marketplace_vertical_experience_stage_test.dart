@@ -6,7 +6,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage.dart';
-import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
+import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey_clean.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 
@@ -136,7 +136,7 @@ void main() {
     expect(route, '/business-market/BIZ-1/hotel-booking');
   });
 
-  testWidgets('restaurant businesses keep the flip-book experience', (tester) async {
+  testWidgets('restaurant businesses use the native menu journey', (tester) async {
     await _pump(
       tester,
       business: _business('FOOD_BEVERAGE'),
@@ -146,7 +146,9 @@ void main() {
       onOrder: () {},
     );
 
-    expect(find.byType(RestaurantMenuFlipBook), findsOneWidget);
+    expect(find.byType(RestaurantNativeMenuJourneyClean), findsOneWidget);
+    expect(find.text('MENU'), findsOneWidget);
+    expect(find.text('Turn the page to browse'), findsOneWidget);
   });
 
   testWidgets('transit businesses expose schedule fallback when no trips exist', (tester) async {
