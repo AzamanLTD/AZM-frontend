@@ -6,6 +6,7 @@ import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 
 void main() {
   testWidgets('paper-rip starts from the customer commit touch point', (tester) async {
+    var committed = false;
     await tester.pumpWidget(
       MaterialApp(
         home: MediaQuery(
@@ -13,7 +14,7 @@ void main() {
           child: SizedBox.expand(
             child: RestaurantCommitSurface(
               style: MarketplaceCommitStyle.paperRip,
-              childBuilder: (onCommitted) => Align(
+              childBuilder: (onCommit) => Align(
                 alignment: Alignment.topLeft,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 24, top: 48),
@@ -22,7 +23,7 @@ void main() {
                     height: 64,
                     child: FilledButton(
                       key: const ValueKey('paper-rip-origin-add'),
-                      onPressed: onCommitted,
+                      onPressed: () => onCommit(() => committed = true),
                       child: const Text('Add'),
                     ),
                   ),
@@ -37,5 +38,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('paper-rip-origin-add')));
     await tester.pump(const Duration(milliseconds: 120));
     expect(find.byKey(const ValueKey('paper-rip-animation')), findsOneWidget);
+    expect(committed, isFalse);
+    await tester.pump(const Duration(milliseconds: 240));
+    expect(committed, isTrue);
   });
 }

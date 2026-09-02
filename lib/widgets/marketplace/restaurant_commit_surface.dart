@@ -6,9 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
+typedef RestaurantCommitAction = void Function();
+typedef RestaurantCommitRunner = Future<void> Function(RestaurantCommitAction action);
+
 /// Owns the physical commit ritual for dining actions.
 class RestaurantCommitSurface extends StatefulWidget {
-  final Widget Function(VoidCallback onCommitted) childBuilder;
+  final Widget Function(RestaurantCommitRunner onCommit) childBuilder;
   final MarketplaceCommitStyle style;
 
   const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style});
@@ -20,48 +23,83 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
+  Timer? _commitTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
+  bool _commitInFlight = false;
   Offset? _lastPointerPosition;
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
   }
 
-  void _commit() {
-    if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
+  Future<void> _commit(RestaurantCommitAction action) async {
+    if (!mounted || _commitInFlight) return;
+    _commitInFlight = true;
     _reducedMotionTimer?.cancel();
+    _commitTimer?.cancel();
+
+    if (widget.style != MarketplaceCommitStyle.paperRip) {
+      action();
+      _commitInFlight = false;
+      return;
+    }
+
     if (MediaQuery.of(context).disableAnimations) {
-      setState(() {
-        _showReducedMotion = true;
-        _showPaperRip = false;
-      });
+      action();
+      if (!mounted) return;
+      setState(() => _showReducedMotion = true);
       _reducedMotionTimer = Timer(MotionTokens.celebration, () {
-        if (mounted) setState(() => _showReducedMotion = false);
+        if (!mounted) return;
+        setState(() => _showReducedMotion = false);
+        _commitInFlight = false;
       });
       return;
     }
+
     setState(() {
       _showReducedMotion = false;
       _showPaperRip = true;
     });
-    _controller.forward(from: 0);
+
+    // The mutation boundary is time-based rather than dependent on a ticker
+    // reaching an exact frame. The paper visibly peels away first, then the
+    // authoritative cart mutation fires while the remaining flight continues
+    // purely as presentation.
+    _commitTimer = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted || !_commitInFlight) return;
+      action();
+    });
+
+    try {
+      await _controller.animateTo(
+        1,
+        duration: const Duration(milliseconds: 720),
+        curve: Curves.easeInOutCubic,
+      );
+    } finally {
+      _commitTimer?.cancel();
+      _commitTimer = null;
+      if (mounted) {
+        setState(() {
+          _showPaperRip = false;
+          _showReducedMotion = false;
+        });
+      }
+      _commitInFlight = false;
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720))
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() => _showPaperRip = false);
-        }
-      });
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
   }
 
   @override
   void dispose() {
     _reducedMotionTimer?.cancel();
+    _commitTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
