@@ -50,7 +50,7 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
       if (countChanged || subtotalChanged) {
         _pulse.forward(from: 0);
         if (countChanged && next.itemCount > previous.itemCount) {
-          AzamanHaptics.selection();
+          AzamanHaptics.toggle();
         }
       }
     });
