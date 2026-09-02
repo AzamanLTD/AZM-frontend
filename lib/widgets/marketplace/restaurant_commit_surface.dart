@@ -22,6 +22,11 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   Timer? _reducedMotionTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
+  Offset? _lastPointerPosition;
+
+  void _onPointerDown(PointerDownEvent event) {
+    _lastPointerPosition = event.localPosition;
+  }
 
   void _commit() {
     if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
@@ -67,7 +72,11 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     return Stack(
       fit: StackFit.expand,
       children: [
-        widget.childBuilder(_commit),
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          child: widget.childBuilder(_commit),
+        ),
         if (widget.style == MarketplaceCommitStyle.paperRip)
           IgnorePointer(
             child: _showReducedMotion
@@ -83,6 +92,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
                             painter: _PaperRipPainter(
                               progress: Curves.easeInOutCubic.transform(progress),
                               textColor: Theme.of(context).colorScheme.onSurface,
+                              origin: _lastPointerPosition,
                             ),
                           );
                         },
@@ -125,24 +135,26 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
 class _PaperRipPainter extends CustomPainter {
   final double progress;
   final Color textColor;
+  final Offset? origin;
 
-  const _PaperRipPainter({required this.progress, required this.textColor});
+  const _PaperRipPainter({required this.progress, required this.textColor, required this.origin});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
+    final originPoint = origin ?? Offset(size.width / 2, size.height * 0.60);
     final targetY = size.height - 92;
+    final target = Offset(originPoint.dx.clamp(24.0, size.width - 24.0).toDouble(), targetY);
     final sheetWidth = math.min(250.0, size.width - 44).toDouble();
     const sheetHeight = 82.0;
     final reveal = Curves.easeOutCubic.transform((progress / 0.42).clamp(0.0, 1.0).toDouble());
     final travel = Curves.easeInOutCubic.transform(((progress - 0.34) / 0.66).clamp(0.0, 1.0).toDouble());
     final fade = (1 - (progress - 0.55) / 0.45).clamp(0.0, 1.0).toDouble();
-    final startRect = Rect.fromCenter(center: Offset(centerX, size.height * 0.60), width: sheetWidth * reveal, height: sheetHeight);
+    final startCenter = Offset(originPoint.dx.clamp(sheetWidth / 2 + 10, size.width - sheetWidth / 2 - 10).toDouble(), originPoint.dy.clamp(sheetHeight / 2 + 10, size.height - sheetHeight / 2 - 30).toDouble());
+    final startRect = Rect.fromCenter(center: startCenter, width: sheetWidth * reveal, height: sheetHeight);
     if (reveal > 0) _paintSheet(canvas, startRect, Colors.white, 1.0);
     if (travel <= 0) return;
-    final from = Offset(centerX, size.height * 0.60 + sheetHeight / 2);
-    final to = Offset(centerX + math.min(130.0, size.width * 0.18), targetY);
-    final current = Offset.lerp(from, to, travel)!;
+    final from = Offset(startCenter.dx, startCenter.dy + sheetHeight / 2);
+    final current = Offset.lerp(from, target, travel)!;
     final movingRect = Rect.fromCenter(center: current, width: sheetWidth * (1 - travel * 0.56), height: sheetHeight * (1 - travel * 0.38));
     final top = _jaggedHalf(movingRect, upper: true);
     final bottom = _jaggedHalf(movingRect, upper: false);
@@ -162,7 +174,7 @@ class _PaperRipPainter extends CustomPainter {
         text: TextSpan(text: String.fromCharCode(icon.codePoint), style: TextStyle(fontSize: 22, color: textColor.withValues(alpha: cartOpacity), fontFamily: icon.fontFamily, package: icon.fontPackage)),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(to.dx - 11, to.dy - 11));
+      textPainter.paint(canvas, Offset(target.dx - 11, target.dy - 11));
     }
   }
 
@@ -192,5 +204,5 @@ class _PaperRipPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PaperRipPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.textColor != textColor;
+  bool shouldRepaint(covariant _PaperRipPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.textColor != textColor || oldDelegate.origin != origin;
 }
