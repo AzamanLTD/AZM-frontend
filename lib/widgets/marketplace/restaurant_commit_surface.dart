@@ -21,25 +21,37 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
   bool _showReducedMotion = false;
+  bool _showPaperRip = false;
 
   void _commit() {
     if (!mounted || widget.style != MarketplaceCommitStyle.paperRip) return;
     _reducedMotionTimer?.cancel();
     if (MediaQuery.of(context).disableAnimations) {
-      setState(() => _showReducedMotion = true);
+      setState(() {
+        _showReducedMotion = true;
+        _showPaperRip = false;
+      });
       _reducedMotionTimer = Timer(MotionTokens.celebration, () {
         if (mounted) setState(() => _showReducedMotion = false);
       });
       return;
     }
-    setState(() => _showReducedMotion = false);
+    setState(() {
+      _showReducedMotion = false;
+      _showPaperRip = true;
+    });
     _controller.forward(from: 0);
   }
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720))
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() => _showPaperRip = false);
+        }
+      });
   }
 
   @override
@@ -60,20 +72,21 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
           IgnorePointer(
             child: _showReducedMotion
                 ? _reducedMotionConfirmation(duration)
-                : AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      final progress = _controller.value;
-                      if (progress <= 0) return const SizedBox.shrink();
-                      return CustomPaint(
-                        key: const ValueKey('paper-rip-animation'),
-                        painter: _PaperRipPainter(
-                          progress: Curves.easeInOutCubic.transform(progress),
-                          textColor: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      );
-                    },
-                  ),
+                : !_showPaperRip
+                    ? const SizedBox.shrink()
+                    : AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, child) {
+                          final progress = _controller.value;
+                          return CustomPaint(
+                            key: const ValueKey('paper-rip-animation'),
+                            painter: _PaperRipPainter(
+                              progress: Curves.easeInOutCubic.transform(progress),
+                              textColor: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          );
+                        },
+                      ),
           ),
       ],
     );
