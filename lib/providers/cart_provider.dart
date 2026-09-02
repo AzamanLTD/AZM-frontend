@@ -132,7 +132,7 @@ class CartState {
   Map<String, dynamic> toPersistJson() => {
         'businessProfileId': businessProfileId,
         'businessName': businessName,
-        if (experiencePreset != null) 'experiencePreset': experiencePreset,
+        if (items.isNotEmpty && experiencePreset != null) 'experiencePreset': experiencePreset,
         'items': items.map((i) => i.toJson()).toList(),
       };
 
@@ -270,7 +270,8 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   void clearCart() {
-    state = CartState.empty;
+    final presentationPreset = state.experiencePreset;
+    state = CartState(experiencePreset: presentationPreset);
     _persist();
   }
 
