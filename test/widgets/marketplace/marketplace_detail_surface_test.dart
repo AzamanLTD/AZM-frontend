@@ -34,8 +34,7 @@ void main() {
     final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
     final viewport = tester.binding.renderViews.first.size;
 
-    expect(content.bottom, lessThanOrEqualTo(viewport.height));
-    expect(content.top, greaterThan(viewport.height * 0.45));
+    expect(content.bottom, closeTo(viewport.height - 8, 1));
   });
 
   testWidgets('morph presentation is centered rather than bottom grounded', (tester) async {
