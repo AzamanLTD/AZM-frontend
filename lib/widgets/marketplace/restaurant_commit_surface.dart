@@ -36,24 +36,26 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
+
+    if (widget.style != MarketplaceCommitStyle.paperRip) {
+      action();
+      _commitInFlight = false;
+      return;
+    }
+
+    if (MediaQuery.of(context).disableAnimations) {
+      action();
+      if (!mounted) return;
+      setState(() => _showReducedMotion = true);
+      _reducedMotionTimer = Timer(MotionTokens.celebration, () {
+        if (!mounted) return;
+        setState(() => _showReducedMotion = false);
+        _commitInFlight = false;
+      });
+      return;
+    }
+
     try {
-      if (widget.style != MarketplaceCommitStyle.paperRip) {
-        action();
-        return;
-      }
-
-      if (MediaQuery.of(context).disableAnimations) {
-        action();
-        setState(() {
-          _showReducedMotion = true;
-          _showPaperRip = false;
-        });
-        _reducedMotionTimer = Timer(MotionTokens.celebration, () {
-          if (mounted) setState(() => _showReducedMotion = false);
-        });
-        return;
-      }
-
       setState(() {
         _showReducedMotion = false;
         _showPaperRip = true;
