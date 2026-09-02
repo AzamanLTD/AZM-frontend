@@ -175,7 +175,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('service-offering-strategy-session')));
     await tester.pump(const Duration(milliseconds: 250));
-    expect(find.text('Strategy session description'), findsOneWidget);
+    expect(find.text('Continue with this'), findsOneWidget);
 
     await tester.tap(find.text('Continue with this'));
     expect(opened, isTrue);
