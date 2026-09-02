@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
@@ -46,7 +46,7 @@ Future<void> _pump(WidgetTester tester, {required List<BusinessProduct> offering
             category: 'TECHNOLOGY',
             products: offerings,
           ),
-          colors: AzamanColors.dark(),
+          colors: ThemeProvider.getColors(AzamanTheme.dark),
           offerings: offerings,
           blueprint: _blueprint(),
           onContinue: () {},
