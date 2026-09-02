@@ -202,4 +202,34 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(relaxedCommitted, isTrue);
   });
+
+  testWidgets('updates controller duration when blueprint tempo changes after mount', (tester) async {
+    var committed = false;
+
+    Widget build(MarketplaceMotionTempo tempo) {
+      return MaterialApp(
+        home: SizedBox.expand(
+          child: RestaurantCommitSurface(
+            style: MarketplaceCommitStyle.paperRip,
+            motionTempo: tempo,
+            childBuilder: (onCommit) => Center(
+              child: FilledButton(
+                onPressed: () => onCommit(() => committed = true),
+                child: const Text('Add'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build(MarketplaceMotionTempo.relaxed));
+    await tester.pump();
+    await tester.pumpWidget(build(MarketplaceMotionTempo.quick));
+    await tester.pump();
+
+    await tester.tap(find.text('Add'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(committed, isTrue);
+  });
 }
