@@ -91,6 +91,12 @@ Future<void> _turnFirstMenuPage(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openDish(WidgetTester tester) async {
+  await tester.tap(find.text('Jollof Rice'));
+  await tester.pumpAndSettle();
+  expect(find.text('Jollof Rice'), findsOneWidget);
+}
+
 void main() {
   testWidgets('persistent dining tray routes dish additions into canonical cart', (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -102,9 +108,7 @@ void main() {
       ProviderScope(
         overrides: [
           cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith(
-            (ref) async => _experience(),
-          ),
+          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience()),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -124,16 +128,15 @@ void main() {
     expect(cart.state.itemCount, 0);
 
     await _openFirstMenuPage(tester);
-    expect(find.text('Jollof Rice'), findsOneWidget);
-    await tester.tap(find.text('Jollof Rice'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Add to order'));
+    await _openDish(tester);
+    expect(find.textContaining('Add to tray'), findsOneWidget);
+    await tester.tap(find.textContaining('Add to tray'));
     await tester.pump();
 
     expect(cart.state.itemCount, 1);
     expect(cart.state.businessProfileId, business.id);
     expect(find.text('Open order tray'), findsOneWidget);
-    expect(find.text('Jollof Rice added to your order tray.'), findsOneWidget);
+    expect(find.text('Dish added from the menu'), findsOneWidget);
   });
 
   testWidgets('disabled dining products do not enter the tray', (tester) async {
@@ -146,9 +149,7 @@ void main() {
       ProviderScope(
         overrides: [
           cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith(
-            (ref) async => _experience(),
-          ),
+          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience()),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -165,13 +166,12 @@ void main() {
 
     await tester.pump();
     await _openFirstMenuPage(tester);
-    await tester.tap(find.text('Jollof Rice'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Add to order'));
+    await _openDish(tester);
+    expect(find.text('Unavailable'), findsOneWidget);
+    await tester.tap(find.text('Unavailable'));
     await tester.pump();
 
     expect(cart.state.itemCount, 0);
-    expect(find.text('This dish is currently unavailable.'), findsOneWidget);
     expect(find.text('Open order tray'), findsNothing);
   });
 
@@ -186,9 +186,7 @@ void main() {
       ProviderScope(
         overrides: [
           cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith(
-            (ref) async => _experience(persistentTray: false),
-          ),
+          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience(persistentTray: false)),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -205,9 +203,9 @@ void main() {
 
     await tester.pump();
     await _turnFirstMenuPage(tester);
-    await tester.tap(find.text('Jollof Rice'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Add to order'));
+    await _openDish(tester);
+    expect(find.textContaining('Add to tray'), findsOneWidget);
+    await tester.tap(find.textContaining('Add to tray'));
     await tester.pump();
 
     expect(legacyCallbackCount, 1);
