@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
-import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey_clean.dart';
+import 'package:azaman/widgets/marketplace/restaurant_menu_journey_adapter.dart';
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
@@ -112,7 +112,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return RestaurantCommitSurface(
       style: blueprint.commitStyle,
       motionTempo: blueprint.motionTempo,
-      childBuilder: (onCommit) => RestaurantNativeMenuJourneyClean(
+      childBuilder: (onCommit) => RestaurantMenuJourneyAdapter(
         businessName: business.businessName,
         sections: menuSections,
         uncategorisedProducts: uncategorisedProducts,
