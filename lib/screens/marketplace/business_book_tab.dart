@@ -6,6 +6,7 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
+import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience_policy.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/screens/marketplace/cart_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -65,7 +66,11 @@ class BusinessBookTab extends StatelessWidget {
   }
 
   Widget _stage(Map<String, dynamic>? experience, WidgetRef ref, BuildContext context, Map<String, RestaurantDish> dishesById) {
-    final blueprint = MarketplaceExperienceBlueprint.fromJson(experience, business.category);
+    final effectiveExperience = effectiveRestaurantExperience(
+      experience: experience,
+      dishes: dishesById.values,
+    );
+    final blueprint = MarketplaceExperienceBlueprint.fromJson(effectiveExperience, business.category);
     final useRestaurantTray = blueprint.preset == 'DINING_JOURNEY' && blueprint.persistentTray && onOrderProduct != null;
 
     void handleRestaurantOrder(BusinessProduct product, Map<String, String> selections, int quantity) {
@@ -89,7 +94,7 @@ class BusinessBookTab extends StatelessWidget {
       onOrderProduct: onOrderProduct,
       onAddToTray: handleRestaurantOrder,
       restaurantDishesById: dishesById,
-      experience: experience,
+      experience: effectiveExperience,
     );
 
     if (!useRestaurantTray) return stage;
