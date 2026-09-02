@@ -1,11 +1,5 @@
 // =============================================================================
 // CART PROVIDER — Phase 12 (Marketplace Cart)
-//
-// Persistent per-business cart (Bolt Food / Uber Eats pattern).
-// - One active cart per business — switching businesses prompts to clear.
-// - Items persist across navigation via Riverpod + SharedPreferences.
-// - A cart line is identified by product + structured selections, so choosing
-//   two different variants/modifier sets creates two independent lines.
 // =============================================================================
 
 import 'dart:async';
@@ -39,18 +33,13 @@ class CartItem {
 
   double get lineTotal => unitPrice * quantity;
 
-  /// Stable identity for one purchasable configuration of a product.
   String get lineKey {
     final entries = variants.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
     if (entries.isEmpty) return productId;
     return '$productId:${entries.map((entry) => '${entry.key}=${entry.value}').join('|')}';
   }
 
-  CartItem copyWith({
-    int? quantity,
-    String? notes,
-  }) =>
-      CartItem(
+  CartItem copyWith({int? quantity, String? notes}) => CartItem(
         productId: productId,
         name: name,
         unitPrice: unitPrice,
@@ -75,11 +64,7 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     final rawVariants = json['variants'];
     final variants = rawVariants is Map
-        ? Map<String, String>.fromEntries(
-            rawVariants.entries.map(
-              (entry) => MapEntry(entry.key.toString(), entry.value.toString()),
-            ),
-          )
+        ? Map<String, String>.fromEntries(rawVariants.entries.map((entry) => MapEntry(entry.key.toString(), entry.value.toString())))
         : const <String, String>{};
     return CartItem(
       productId: json['productId'] as String,
@@ -89,7 +74,7 @@ class CartItem {
       image_url: json['imageUrl'] as String?,
       notes: json['notes'] as String?,
       category: json['category'] as String?,
-      variants: Map.unmodifiable(variants),
+      variants: Map<String, String>.unmodifiable(variants),
     );
   }
 
@@ -107,25 +92,13 @@ class CartState {
   final List<CartItem> items;
   final bool isCheckingOut;
 
-  const CartState({
-    this.businessProfileId,
-    this.businessName,
-    this.items = const [],
-    this.isCheckingOut = false,
-  });
+  const CartState({this.businessProfileId, this.businessName, this.items = const [], this.isCheckingOut = false});
 
   bool get isEmpty => items.isEmpty;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
   double get subtotal => items.fold(0.0, (sum, item) => sum + item.lineTotal);
 
-  CartState copyWith({
-    String? businessProfileId,
-    String? businessName,
-    List<CartItem>? items,
-    bool? isCheckingOut,
-    bool clearBusiness = false,
-  }) =>
-      CartState(
+  CartState copyWith({String? businessProfileId, String? businessName, List<CartItem>? items, bool? isCheckingOut, bool clearBusiness = false}) => CartState(
         businessProfileId: clearBusiness ? null : (businessProfileId ?? this.businessProfileId),
         businessName: clearBusiness ? null : (businessName ?? this.businessName),
         items: items ?? this.items,
@@ -141,10 +114,7 @@ class CartState {
   factory CartState.fromPersistJson(Map<String, dynamic> json) => CartState(
         businessProfileId: json['businessProfileId'] as String?,
         businessName: json['businessName'] as String?,
-        items: (json['items'] as List? ?? [])
-            .whereType<Map>()
-            .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e)))
-            .toList(),
+        items: (json['items'] as List? ?? []).whereType<Map>().map((e) => CartItem.fromJson(Map<String, dynamic>.from(e))).toList(),
       );
 
   static const empty = CartState();
@@ -189,13 +159,9 @@ class CartNotifier extends StateNotifier<CartState> {
     String? notes,
     Map<String, String> variants = const {},
   }) {
-    if (state.businessProfileId != null &&
-        state.businessProfileId != businessProfileId &&
-        state.items.isNotEmpty) {
-      return false;
-    }
+    if (state.businessProfileId != null && state.businessProfileId != businessProfileId && state.items.isNotEmpty) return false;
 
-    final normalizedVariants = Map.unmodifiable(Map<String, String>.from(variants));
+    final normalizedVariants = Map<String, String>.unmodifiable(Map<String, String>.from(variants));
     final incoming = CartItem(
       productId: productId,
       name: name,
@@ -208,30 +174,18 @@ class CartNotifier extends StateNotifier<CartState> {
     );
     final existingIdx = state.items.indexWhere((i) => i.lineKey == incoming.lineKey);
     final newItems = List<CartItem>.from(state.items);
-
     if (existingIdx >= 0) {
       final existing = newItems[existingIdx];
-      newItems[existingIdx] = existing.copyWith(
-        quantity: existing.quantity + quantity,
-        notes: notes ?? existing.notes,
-      );
+      newItems[existingIdx] = existing.copyWith(quantity: existing.quantity + quantity, notes: notes ?? existing.notes);
     } else {
       newItems.add(incoming);
     }
-
-    state = state.copyWith(
-      businessProfileId: businessProfileId,
-      businessName: businessName,
-      items: newItems,
-    );
+    state = state.copyWith(businessProfileId: businessProfileId, businessName: businessName, items: newItems);
     _persist();
     return true;
   }
 
-  void startNewCart({
-    required String businessProfileId,
-    required String businessName,
-  }) {
+  void startNewCart({required String businessProfileId, required String businessName}) {
     state = CartState(businessProfileId: businessProfileId, businessName: businessName);
     _persist();
   }
@@ -241,40 +195,20 @@ class CartNotifier extends StateNotifier<CartState> {
       removeLine(lineKey);
       return;
     }
-    state = state.copyWith(
-      items: state.items.map((i) => i.lineKey == lineKey ? i.copyWith(quantity: quantity) : i).toList(),
-    );
+    state = state.copyWith(items: state.items.map((i) => i.lineKey == lineKey ? i.copyWith(quantity: quantity) : i).toList());
     _persist();
   }
 
-  /// Legacy product-level action. For unconfigured products this remains
-  /// equivalent to line-level quantity control; for configured products the
-  /// first matching line is intentionally retained for backwards compatibility.
   void updateQuantity(String productId, int quantity) {
     final item = state.items.cast<CartItem?>().firstWhere((i) => i?.productId == productId, orElse: () => null);
     if (item == null) return;
     updateLineQuantity(item.lineKey, quantity);
   }
 
-  void incrementLine(String lineKey) {
-    final item = state.items.firstWhere((i) => i.lineKey == lineKey);
-    updateLineQuantity(lineKey, item.quantity + 1);
-  }
-
-  void decrementLine(String lineKey) {
-    final item = state.items.firstWhere((i) => i.lineKey == lineKey);
-    updateLineQuantity(lineKey, item.quantity - 1);
-  }
-
-  void incrementItem(String productId) {
-    final item = state.items.firstWhere((i) => i.productId == productId);
-    incrementLine(item.lineKey);
-  }
-
-  void decrementItem(String productId) {
-    final item = state.items.firstWhere((i) => i.productId == productId);
-    decrementLine(item.lineKey);
-  }
+  void incrementLine(String lineKey) => updateLineQuantity(lineKey, state.items.firstWhere((i) => i.lineKey == lineKey).quantity + 1);
+  void decrementLine(String lineKey) => updateLineQuantity(lineKey, state.items.firstWhere((i) => i.lineKey == lineKey).quantity - 1);
+  void incrementItem(String productId) => incrementLine(state.items.firstWhere((i) => i.productId == productId).lineKey);
+  void decrementItem(String productId) => decrementLine(state.items.firstWhere((i) => i.productId == productId).lineKey);
 
   void removeLine(String lineKey) {
     final newItems = state.items.where((i) => i.lineKey != lineKey).toList();
@@ -289,9 +223,7 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   void updateNotesForLine(String lineKey, String notes) {
-    state = state.copyWith(
-      items: state.items.map((i) => i.lineKey == lineKey ? i.copyWith(notes: notes) : i).toList(),
-    );
+    state = state.copyWith(items: state.items.map((i) => i.lineKey == lineKey ? i.copyWith(notes: notes) : i).toList());
     _persist();
   }
 
@@ -306,9 +238,7 @@ class CartNotifier extends StateNotifier<CartState> {
     _persist();
   }
 
-  void setCheckingOut(bool value) {
-    state = state.copyWith(isCheckingOut: value);
-  }
+  void setCheckingOut(bool value) => state = state.copyWith(isCheckingOut: value);
 
   @override
   void dispose() {
