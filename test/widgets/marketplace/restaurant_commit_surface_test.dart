@@ -161,6 +161,7 @@ void main() {
       MaterialApp(
         home: SizedBox.expand(
           child: RestaurantCommitSurface(
+            key: const ValueKey('quick-tempo'),
             style: MarketplaceCommitStyle.paperRip,
             motionTempo: MarketplaceMotionTempo.quick,
             childBuilder: (onCommit) => Center(
@@ -177,17 +178,14 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pump(const Duration(milliseconds: 320));
     expect(quickCommitted, isTrue);
-
-    // Let the quick ritual settle before replacing the widget. The stateful
-    // surface intentionally ignores a second commit while a ritual is active;
-    // this keeps the test focused on tempo rather than cross-widget cancellation.
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
     var relaxedCommitted = false;
     await tester.pumpWidget(
       MaterialApp(
         home: SizedBox.expand(
           child: RestaurantCommitSurface(
+            key: const ValueKey('relaxed-tempo'),
             style: MarketplaceCommitStyle.paperRip,
             motionTempo: MarketplaceMotionTempo.relaxed,
             childBuilder: (onCommit) => Center(
