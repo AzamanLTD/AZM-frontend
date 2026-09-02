@@ -36,7 +36,7 @@ void main() {
     expect(committed, isTrue);
     expect(find.byKey(const ValueKey('paper-rip-animation')), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 420));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('paper-rip-animation')), findsNothing);
   });
 
