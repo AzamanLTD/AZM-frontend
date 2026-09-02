@@ -22,6 +22,7 @@ class BusinessBookTab extends StatelessWidget {
   final List<CatalogSection> menuSections;
   final List<BusinessProduct> uncategorisedProducts;
   final void Function(BusinessProduct product)? onOrderProduct;
+  final String? dineInContext;
 
   const BusinessBookTab({
     super.key,
@@ -33,6 +34,7 @@ class BusinessBookTab extends StatelessWidget {
     this.menuSections = const [],
     this.uncategorisedProducts = const [],
     this.onOrderProduct,
+    this.dineInContext,
   });
 
   Map<String, RestaurantDish> _dishMap(Map<String, dynamic>? rawData) {
@@ -94,6 +96,7 @@ class BusinessBookTab extends StatelessWidget {
       onOrderProduct: onOrderProduct,
       onAddToTray: handleRestaurantOrder,
       restaurantDishesById: dishesById,
+      dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
       experience: effectiveExperience,
     );
 
