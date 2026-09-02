@@ -72,11 +72,10 @@ Future<void> _openFirstMenuPage(WidgetTester tester) async {
     (widget) => widget.runtimeType.toString() == 'FlipBook',
   );
   final book = tester.getRect(bookFinder);
-  final gesture = await tester.startGesture(
-    book.bottomRight - const Offset(6, 12),
-  );
+  final start = book.bottomRight - const Offset(6, 12);
   final target = book.bottomLeft + const Offset(-40, -12);
-  final delta = (target - (book.bottomRight - const Offset(6, 12))) / 12;
+  final gesture = await tester.startGesture(start);
+  final delta = (target - start) / 12;
   for (var i = 0; i < 12; i++) {
     await gesture.moveBy(delta);
     await tester.pump(const Duration(milliseconds: 16));
