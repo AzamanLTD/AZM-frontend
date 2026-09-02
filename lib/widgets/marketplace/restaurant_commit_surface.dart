@@ -67,7 +67,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface>
               builder: (context, child) {
                 final progress = _controller.value;
                 if (progress <= 0) return const SizedBox.shrink();
-                if (MotionTokens.reduceMotion(context)) {
+                if (MediaQuery.of(context).disableAnimations) {
                   return _reducedMotionConfirmation(duration);
                 }
                 return CustomPaint(
@@ -132,11 +132,13 @@ class _PaperRipPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final centerX = size.width / 2;
     final targetY = size.height - 92;
-    final sheetWidth = math.min(250.0, size.width - 44);
-    final sheetHeight = 82.0;
-    final reveal = Curves.easeOutCubic.transform((progress / 0.42).clamp(0, 1));
-    final travel = Curves.easeInOutCubic.transform(((progress - 0.34) / 0.66).clamp(0, 1));
-    final fade = ((1 - (progress - 0.55) / 0.45).clamp(0, 1));
+    final sheetWidth = math.min(250.0, size.width - 44).toDouble();
+    const sheetHeight = 82.0;
+    final reveal = Curves.easeOutCubic
+        .transform((progress / 0.42).clamp(0.0, 1.0).toDouble());
+    final travel = Curves.easeInOutCubic
+        .transform(((progress - 0.34) / 0.66).clamp(0.0, 1.0).toDouble());
+    final fade = (1 - (progress - 0.55) / 0.45).clamp(0.0, 1.0).toDouble();
 
     final startRect = Rect.fromCenter(
       center: Offset(centerX, size.height * 0.60),
@@ -150,7 +152,7 @@ class _PaperRipPainter extends CustomPainter {
     if (travel <= 0) return;
 
     final from = Offset(centerX, size.height * 0.60 + sheetHeight / 2);
-    final to = Offset(centerX + math.min(130, size.width * 0.18), targetY);
+    final to = Offset(centerX + math.min(130.0, size.width * 0.18), targetY);
     final current = Offset.lerp(from, to, travel)!;
     final movingRect = Rect.fromCenter(
       center: current,
@@ -174,7 +176,7 @@ class _PaperRipPainter extends CustomPainter {
     }
 
     if (travel > 0.48) {
-      final cartOpacity = ((travel - 0.48) / 0.52).clamp(0, 1);
+      final cartOpacity = ((travel - 0.48) / 0.52).clamp(0.0, 1.0).toDouble();
       final icon = Icons.shopping_bag_rounded;
       final textPainter = TextPainter(
         text: TextSpan(
@@ -197,7 +199,7 @@ class _PaperRipPainter extends CustomPainter {
     final midY = rect.center.dy;
     path.moveTo(rect.left, upper ? rect.top : midY);
     path.lineTo(rect.right, upper ? rect.top : midY);
-    final points = 10;
+    const points = 10;
     for (var i = points; i >= 0; i--) {
       final x = rect.left + rect.width * i / points;
       final y = midY + (math.sin(i * 2.4) * 2.4 * (upper ? -1 : 1));
