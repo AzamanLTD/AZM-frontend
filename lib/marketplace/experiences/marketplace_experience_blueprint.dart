@@ -91,7 +91,9 @@ class MarketplaceExperienceBlueprint {
             : false,
       ),
       commitStyle: _commitStyle(commit['style'], defaults.commitStyle, policy.commitStyles),
-      persistentTray: _bool(commit['persistentTray'], defaults.persistentTray),
+      persistentTray: policy.persistentTray
+          ? _bool(commit['persistentTray'], defaults.persistentTray)
+          : false,
       motionTempo: _motionTempo(motion['tempo'], defaults.motionTempo),
       reducedMotionSafe: true,
     );
@@ -131,6 +133,7 @@ class MarketplaceExperienceBlueprint {
           detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.dishDossier],
           commitStyles: [MarketplaceCommitStyle.material, MarketplaceCommitStyle.paperRip],
           customerContext: MarketplaceCustomerContextPolicy(tableNumber: true, serviceMode: true),
+          persistentTray: true,
         );
       case 'RETAIL':
         return const _MarketplaceCategoryPolicy(
@@ -138,6 +141,7 @@ class MarketplaceExperienceBlueprint {
           detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.productDossier],
           commitStyles: [MarketplaceCommitStyle.material, MarketplaceCommitStyle.liftIntoTray],
           customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: true,
         );
       case 'HOSPITALITY':
       case 'HOTEL':
@@ -146,6 +150,7 @@ class MarketplaceExperienceBlueprint {
           detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.roomDossier],
           commitStyles: [MarketplaceCommitStyle.material],
           customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: false,
         );
       case 'LOGISTICS':
       case 'TRANSIT':
@@ -154,6 +159,7 @@ class MarketplaceExperienceBlueprint {
           detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.seatDossier],
           commitStyles: [MarketplaceCommitStyle.material],
           customerContext: MarketplaceCustomerContextPolicy(passenger: true),
+          persistentTray: false,
         );
       default:
         return const _MarketplaceCategoryPolicy(
@@ -161,6 +167,7 @@ class MarketplaceExperienceBlueprint {
           detailPresentations: [MarketplaceDetailPresentation.morph, MarketplaceDetailPresentation.serviceDossier],
           commitStyles: [MarketplaceCommitStyle.material],
           customerContext: MarketplaceCustomerContextPolicy(),
+          persistentTray: false,
         );
     }
   }
@@ -214,7 +221,7 @@ class MarketplaceExperienceBlueprint {
       showQuantity: true,
       customerContext: policy.customerContext,
       commitStyle: commitStyle,
-      persistentTray: category == 'FOOD_BEVERAGE' || category == 'RESTAURANT' || category == 'RETAIL',
+      persistentTray: policy.persistentTray,
       motionTempo: MarketplaceMotionTempo.balanced,
       reducedMotionSafe: true,
     );
@@ -287,11 +294,13 @@ class _MarketplaceCategoryPolicy {
   final List<MarketplaceDetailPresentation> detailPresentations;
   final List<MarketplaceCommitStyle> commitStyles;
   final MarketplaceCustomerContextPolicy customerContext;
+  final bool persistentTray;
 
   const _MarketplaceCategoryPolicy({
     required this.navigationModes,
     required this.detailPresentations,
     required this.commitStyles,
     required this.customerContext,
+    required this.persistentTray,
   });
 }
