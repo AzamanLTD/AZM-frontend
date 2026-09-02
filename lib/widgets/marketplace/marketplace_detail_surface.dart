@@ -51,38 +51,107 @@ class MarketplaceDetailSurface extends StatelessWidget {
           ),
         );
       case MarketplaceDetailPresentation.dishDossier:
-        return Align(
-          alignment: Alignment.bottomCenter,
+        return _slideFromBottom(context, child: _dossierCard(context), distanceFactor: 1);
+      case MarketplaceDetailPresentation.productDossier:
+        return _slideFromRight(context, child: _dossierCard(context), scale: 0.98);
+      case MarketplaceDetailPresentation.roomDossier:
+        return _slideFromBottomRight(context, child: _dossierCard(context), scale: 0.985);
+      case MarketplaceDetailPresentation.seatDossier:
+        return _slideFromRight(context, child: _dossierCard(context), scale: 0.975);
+      case MarketplaceDetailPresentation.serviceDossier:
+        return Center(
           child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.08, end: 1),
+            tween: Tween(begin: 0.92, end: 1),
             duration: duration,
             curve: MotionTokens.enter,
-            builder: (_, value, child) => Transform.translate(
-              offset: Offset(0, MediaQuery.sizeOf(context).height * (1 - value)),
-              child: child,
+            builder: (_, value, child) => Opacity(
+              opacity: value,
+              child: Transform.scale(scale: value, child: child),
             ),
-            child: _dossierCard(),
-          ),
-        );
-      default:
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.96, end: 1),
-            duration: duration,
-            curve: MotionTokens.enter,
-            builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 28 * (1 - value)), child: child)),
-            child: _dossierCard(),
+            child: _card(maxHeight: 680),
           ),
         );
     }
   }
 
-  Widget _dossierCard() {
+  Widget _slideFromBottom(
+    BuildContext context, {
+    required Widget child,
+    required double distanceFactor,
+  }) {
     return Align(
       alignment: Alignment.bottomCenter,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.06, end: 1),
+        duration: duration,
+        curve: MotionTokens.enter,
+        builder: (_, value, child) => Transform.translate(
+          offset: Offset(0, MediaQuery.sizeOf(context).height * distanceFactor * (1 - value)),
+          child: child,
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _slideFromRight(
+    BuildContext context, {
+    required Widget child,
+    required double scale,
+  }) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: duration,
+        curve: MotionTokens.enter,
+        builder: (_, value, child) => Transform.translate(
+          offset: Offset(MediaQuery.sizeOf(context).width * (1 - value), 0),
+          child: Transform.scale(
+            scale: scale + ((1 - scale) * value),
+            child: child,
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _slideFromBottomRight(
+    BuildContext context, {
+    required Widget child,
+    required double scale,
+  }) {
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: duration,
+        curve: MotionTokens.enter,
+        builder: (_, value, child) {
+          final size = MediaQuery.sizeOf(context);
+          return Transform.translate(
+            offset: Offset(
+              size.width * 0.18 * (1 - value),
+              size.height * 0.18 * (1 - value),
+            ),
+            child: Transform.scale(
+              scale: scale + ((1 - scale) * value),
+              child: child,
+            ),
+          );
+        },
+        child: child,
+      ),
+    );
+  }
+
+  Widget _dossierCard(BuildContext context) {
+    final width = (MediaQuery.sizeOf(context).width - 16).clamp(280.0, 430.0).toDouble();
+    return SizedBox(
+      width: width,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 28, 8, 8),
+        padding: const EdgeInsets.only(top: 28, right: 8, bottom: 8),
         child: _card(maxHeight: 720),
       ),
     );

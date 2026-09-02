@@ -18,7 +18,12 @@ Widget _harness(MarketplaceDetailPresentation presentation) {
             colors: _colors,
             duration: Duration.zero,
             onDismiss: () {},
-            child: const ColoredBox(key: ValueKey('detail-content'), color: Colors.red),
+            child: const SizedBox(
+              key: ValueKey('detail-content'),
+              width: 430,
+              height: 200,
+              child: ColoredBox(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -35,6 +40,47 @@ void main() {
     final viewport = tester.binding.renderViews.first.size;
 
     expect(content.bottom, closeTo(viewport.height - 8, 1));
+  });
+
+  testWidgets('product dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.productDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('room dossier is grounded at the bottom-right', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.roomDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+    expect(content.bottom, closeTo(viewport.height - 8, 2));
+  });
+
+  testWidgets('seat dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.seatDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('service dossier uses a centered focused presentation', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.serviceDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.center.dx, closeTo(viewport.width / 2, 12));
   });
 
   testWidgets('morph presentation is centered rather than bottom grounded', (tester) async {
