@@ -35,6 +35,7 @@ class FloatingCartBar extends ConsumerStatefulWidget {
 class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
+  bool _hasPresented = false;
 
   @override
   void initState() {
@@ -48,6 +49,9 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
       final countChanged = previous.itemCount != next.itemCount;
       final subtotalChanged = previous.subtotal != next.subtotal;
       if (countChanged || subtotalChanged) {
+        if (next.itemCount > 0 && !_hasPresented && mounted) {
+          setState(() => _hasPresented = true);
+        }
         _pulse.forward(from: 0);
         if (countChanged && next.itemCount > previous.itemCount) {
           AzamanHaptics.toggle();
@@ -78,6 +82,14 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
     final cart = ref.watch(cartProvider);
     final colors = ref.watch(themeProvider.select((t) => t.colors));
     final visible = !cart.isEmpty;
+
+    if (visible && !_hasPresented) {
+      _hasPresented = true;
+    }
+    if (!visible && !_hasPresented) {
+      return const SizedBox.shrink();
+    }
+
     final leadItem = cart.items.isEmpty ? null : cart.items.last;
     final fallbackIcon = _trayIcon(cart.experiencePreset);
 
