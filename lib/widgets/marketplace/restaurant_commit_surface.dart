@@ -61,16 +61,18 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         _showPaperRip = true;
       });
 
+      // Commit once the paper has visibly separated from the menu. The
+      // remaining flight continues independently toward the persistent tray.
       await _controller.animateTo(
         0.46,
-        duration: const Duration(milliseconds: 340),
+        duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
       );
       if (!mounted) return;
       action();
       await _controller.animateTo(
         1,
-        duration: const Duration(milliseconds: 380),
+        duration: const Duration(milliseconds: 440),
         curve: Curves.easeInOutCubic,
       );
     } finally {
