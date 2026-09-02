@@ -219,15 +219,19 @@ class _OfferingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = '${product.name}, ${product.priceUsdc.toStringAsFixed(2)} USDC';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       child: AnimatedScale(
         duration: MotionTokens.accessibleDuration(context, MotionTokens.microInteraction),
         scale: active ? 1 : 0.965,
         child: Semantics(
+          container: true,
           button: true,
-          label: '${product.name}, ${product.priceUsdc.toStringAsFixed(2)} USDC',
+          label: label,
+          onTap: onTap,
           child: Material(
+            key: ValueKey('service-offering-${product.id}'),
             color: colors.card,
             borderRadius: BorderRadius.circular(22),
             clipBehavior: Clip.antiAlias,
