@@ -52,6 +52,9 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     }
   }
 
+  Duration get _commitMutationDelay =>
+      Duration(milliseconds: (_commitDuration.inMilliseconds * 0.39).round());
+
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
   }
@@ -91,11 +94,10 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
       _showPaperRip = true;
     });
 
-    // The mutation boundary is time-based rather than dependent on a ticker
-    // reaching an exact frame. The paper visibly peels away first, then the
-    // authoritative cart mutation fires while the remaining flight continues
-    // purely as presentation.
-    _commitTimer = Timer(const Duration(milliseconds: 280), () {
+    // The mutation boundary scales with the selected motion tempo: the paper
+    // has time to visibly peel before the authoritative cart mutation fires,
+    // and the remaining flight is purely presentation.
+    _commitTimer = Timer(_commitMutationDelay, () {
       if (!mounted || !_commitInFlight) return;
       action();
     });
