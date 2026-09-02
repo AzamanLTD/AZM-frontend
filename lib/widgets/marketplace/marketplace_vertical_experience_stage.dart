@@ -110,6 +110,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         showOptions: blueprint.showOptions,
         showQuantity: blueprint.showQuantity,
         dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
+        detailPresentation: blueprint.detailPresentation,
       ),
     );
 
