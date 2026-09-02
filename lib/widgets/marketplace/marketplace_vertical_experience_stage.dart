@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:azaman/models/business_models.dart';
@@ -92,18 +94,22 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   }
 
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
-    final native = RestaurantCommitSurface(
+    return RestaurantCommitSurface(
       style: blueprint.commitStyle,
-      childBuilder: (onCommitted) => RestaurantNativeMenuJourneyClean(
+      childBuilder: (onCommit) => RestaurantNativeMenuJourneyClean(
         businessName: business.businessName,
         sections: menuSections,
         uncategorisedProducts: uncategorisedProducts,
         dishesById: restaurantDishesById,
         colors: colors,
         onAddToTray: (product, selections, quantity) {
-          onAddToTray?.call(product, selections, quantity);
-          if (onAddToTray == null) onOrderProduct?.call(product);
-          onCommitted();
+          unawaited(onCommit(() {
+            if (onAddToTray != null) {
+              onAddToTray!.call(product, selections, quantity);
+            } else {
+              onOrderProduct?.call(product);
+            }
+          }));
         },
         showGallery: blueprint.showGallery,
         showSpecifications: blueprint.showSpecifications,
@@ -112,12 +118,6 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
       ),
     );
-
-    final reserveAction = blueprint.persistentTray
-        ? Positioned(top: 10, right: 20, child: OutlinedButton.icon(style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: BorderSide(color: Colors.white.withValues(alpha: 0.35)), backgroundColor: Colors.black.withValues(alpha: 0.28), shape: const StadiumBorder(), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9)), onPressed: onOpenOrderSheet, icon: const Icon(Icons.table_restaurant_outlined, size: 16), label: const Text('Reserve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))))
-        : Positioned(left: 20, right: 20, bottom: 18, child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: colors.accent, foregroundColor: Colors.white, elevation: 0, shape: const StadiumBorder(), padding: const EdgeInsets.symmetric(vertical: 15)), onPressed: onOpenOrderSheet, icon: const Icon(Icons.table_restaurant_outlined, size: 19), label: const Text('Reserve a Table', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14))));
-
-    return Stack(fit: StackFit.expand, children: [native, Positioned(left: 0, right: 0, bottom: 0, child: IgnorePointer(child: Container(height: blueprint.persistentTray ? 54 : 96, decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00000000), Color(0xCC060402)]))))), reserveAction]);
   }
 
   Widget _retailStage(MarketplaceExperienceBlueprint blueprint) {
@@ -134,7 +134,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (blueprint.showNavigationContext) Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 10), child: Text(blueprint.navigationLabel, style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600))),
       HotelFloorPlanPreview(products: business.products, selectedRoomId: null, onRoomSelected: (_) => onNavigate?.call('/business-market/${business.bizId}/hotel-booking'), colors: colors),
-      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 0), child: SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: onNavigate == null ? null : () => onNavigate!.call('/business-market/${business.bizId}/hotel-booking'), icon: Icon(blueprint.commitStyle == MarketplaceCommitStyle.liftIntoTray ? Icons.shopping_bag_outlined : Icons.hotel_outlined), label: Text(blueprint.persistentTray ? 'Open rooms & availability' : 'Continue to rooms')))),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 0), child: SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: onNavigate == null ? null : () => onNavigate!.call('/business-market/${business.bizId}/hotel-booking'), icon: const Icon(Icons.hotel_outlined), label: const Text('Continue to rooms')))),
     ]);
   }
 
