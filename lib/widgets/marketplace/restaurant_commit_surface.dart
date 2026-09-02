@@ -146,6 +146,14 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   }
 
   @override
+  void didUpdateWidget(covariant RestaurantCommitSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.motionTempo != widget.motionTempo) {
+      _controller.duration = _commitDuration;
+    }
+  }
+
+  @override
   void dispose() {
     _reducedMotionTimer?.cancel();
     _controller.removeListener(_handleAnimationProgress);
