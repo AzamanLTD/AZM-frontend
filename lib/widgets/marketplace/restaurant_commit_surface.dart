@@ -7,7 +7,11 @@ import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.
 import 'package:azaman/theme/motion_tokens.dart';
 
 typedef RestaurantCommitAction = void Function();
-typedef RestaurantCommitRunner = Future<void> Function(RestaurantCommitAction action);
+typedef RestaurantCommitRunner = Future<void> Function(
+  RestaurantCommitAction action, {
+  String? label,
+  String? subtitle,
+});
 
 /// Owns the physical commit ritual for dining actions.
 class RestaurantCommitSurface extends StatefulWidget {
@@ -28,16 +32,24 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   bool _showPaperRip = false;
   bool _commitInFlight = false;
   Offset? _lastPointerPosition;
+  String? _commitLabel;
+  String? _commitSubtitle;
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
   }
 
-  Future<void> _commit(RestaurantCommitAction action) async {
+  Future<void> _commit(
+    RestaurantCommitAction action, {
+    String? label,
+    String? subtitle,
+  }) async {
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
     _commitTimer?.cancel();
+    _commitLabel = label;
+    _commitSubtitle = subtitle;
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
       action();
@@ -87,6 +99,8 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         });
       }
       _commitInFlight = false;
+      _commitLabel = null;
+      _commitSubtitle = null;
     }
   }
 
@@ -121,19 +135,27 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
                 ? _reducedMotionConfirmation(duration)
                 : !_showPaperRip
                     ? const SizedBox.shrink()
-                    : AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, child) {
-                          final progress = _controller.value;
-                          return CustomPaint(
-                            key: const ValueKey('paper-rip-animation'),
-                            painter: _PaperRipPainter(
-                              progress: Curves.easeInOutCubic.transform(progress),
-                              textColor: Theme.of(context).colorScheme.onSurface,
-                              origin: _lastPointerPosition,
-                            ),
-                          );
-                        },
+                    : Semantics(
+                        key: const ValueKey('paper-rip-item-semantics'),
+                        label: _commitLabel == null
+                            ? 'Item added to tray'
+                            : '${_commitLabel!}${_commitSubtitle == null ? '' : ', $_commitSubtitle'}',
+                        child: AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, child) {
+                            final progress = _controller.value;
+                            return CustomPaint(
+                              key: const ValueKey('paper-rip-animation'),
+                              painter: _PaperRipPainter(
+                                progress: Curves.easeInOutCubic.transform(progress),
+                                textColor: Theme.of(context).colorScheme.onSurface,
+                                origin: _lastPointerPosition,
+                                label: _commitLabel,
+                                subtitle: _commitSubtitle,
+                              ),
+                            );
+                          },
+                        ),
                       ),
           ),
       ],
@@ -156,12 +178,15 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 18, offset: Offset(0, 7))],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle_rounded, size: 18),
-              SizedBox(width: 8),
-              Text('Added to your order tray', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+              const Icon(Icons.check_circle_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                _commitLabel == null ? 'Added to your order tray' : '${_commitLabel} added to your tray',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+              ),
             ],
           ),
         ),
@@ -174,8 +199,16 @@ class _PaperRipPainter extends CustomPainter {
   final double progress;
   final Color textColor;
   final Offset? origin;
+  final String? label;
+  final String? subtitle;
 
-  const _PaperRipPainter({required this.progress, required this.textColor, required this.origin});
+  const _PaperRipPainter({
+    required this.progress,
+    required this.textColor,
+    required this.origin,
+    this.label,
+    this.subtitle,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -187,18 +220,26 @@ class _PaperRipPainter extends CustomPainter {
     final reveal = Curves.easeOutCubic.transform((progress / 0.42).clamp(0.0, 1.0).toDouble());
     final travel = Curves.easeInOutCubic.transform(((progress - 0.34) / 0.66).clamp(0.0, 1.0).toDouble());
     final fade = (1 - (progress - 0.55) / 0.45).clamp(0.0, 1.0).toDouble();
-    final startCenter = Offset(originPoint.dx.clamp(sheetWidth / 2 + 10, size.width - sheetWidth / 2 - 10).toDouble(), originPoint.dy.clamp(sheetHeight / 2 + 10, size.height - sheetHeight / 2 - 30).toDouble());
+    final startCenter = Offset(
+      originPoint.dx.clamp(sheetWidth / 2 + 10, size.width - sheetWidth / 2 - 10).toDouble(),
+      originPoint.dy.clamp(sheetHeight / 2 + 10, size.height - sheetHeight / 2 - 30).toDouble(),
+    );
     final startRect = Rect.fromCenter(center: startCenter, width: sheetWidth * reveal, height: sheetHeight);
     if (reveal > 0) _paintSheet(canvas, startRect, Colors.white, 1.0);
     if (travel <= 0) return;
     final from = Offset(startCenter.dx, startCenter.dy + sheetHeight / 2);
     final current = Offset.lerp(from, target, travel)!;
-    final movingRect = Rect.fromCenter(center: current, width: sheetWidth * (1 - travel * 0.56), height: sheetHeight * (1 - travel * 0.38));
+    final movingRect = Rect.fromCenter(
+      center: current,
+      width: sheetWidth * (1 - travel * 0.56),
+      height: sheetHeight * (1 - travel * 0.38),
+    );
     final top = _jaggedHalf(movingRect, upper: true);
     final bottom = _jaggedHalf(movingRect, upper: false);
     final paper = Paint()..color = Colors.white.withValues(alpha: fade);
     canvas.drawPath(top, paper);
     canvas.drawPath(bottom, paper);
+    _paintItemText(canvas, movingRect, fade);
     final seam = Paint()..color = const Color(0xFFD9C7A5).withValues(alpha: fade)..strokeWidth = 1.2;
     for (var i = 0; i < 8; i++) {
       final x = movingRect.left + movingRect.width * (i + 0.5) / 8;
@@ -209,11 +250,45 @@ class _PaperRipPainter extends CustomPainter {
       final cartOpacity = ((travel - 0.48) / 0.52).clamp(0.0, 1.0).toDouble();
       final icon = Icons.shopping_bag_rounded;
       final textPainter = TextPainter(
-        text: TextSpan(text: String.fromCharCode(icon.codePoint), style: TextStyle(fontSize: 22, color: textColor.withValues(alpha: cartOpacity), fontFamily: icon.fontFamily, package: icon.fontPackage)),
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            fontSize: 22,
+            color: textColor.withValues(alpha: cartOpacity),
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+          ),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
       textPainter.paint(canvas, Offset(target.dx - 11, target.dy - 11));
     }
+  }
+
+  void _paintItemText(Canvas canvas, Rect rect, double opacity) {
+    if (label == null || rect.width < 70) return;
+    final maxWidth = math.max(40.0, rect.width - 26);
+    final title = TextPainter(
+      text: TextSpan(
+        text: label!,
+        style: TextStyle(color: const Color(0xFF2D2416).withValues(alpha: opacity), fontSize: 10.5, fontWeight: FontWeight.w800),
+      ),
+      maxLines: 1,
+      ellipsis: '…',
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    title.paint(canvas, Offset(rect.left + 13, rect.top + 13));
+    if (subtitle == null || rect.height < 42) return;
+    final detail = TextPainter(
+      text: TextSpan(
+        text: subtitle!,
+        style: TextStyle(color: const Color(0xFF8B7A5A).withValues(alpha: opacity), fontSize: 8.5, fontWeight: FontWeight.w600),
+      ),
+      maxLines: 1,
+      ellipsis: '…',
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    detail.paint(canvas, Offset(rect.left + 13, rect.top + 31));
   }
 
   Path _jaggedHalf(Rect rect, {required bool upper}) {
@@ -239,8 +314,14 @@ class _PaperRipPainter extends CustomPainter {
     canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(12)), paper);
     final fold = Paint()..color = const Color(0xFFE5D4B5).withValues(alpha: opacity);
     canvas.drawRect(Rect.fromLTWH(rect.left, rect.top, 5, rect.height), fold);
+    _paintItemText(canvas, rect, opacity);
   }
 
   @override
-  bool shouldRepaint(covariant _PaperRipPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.textColor != textColor || oldDelegate.origin != origin;
+  bool shouldRepaint(covariant _PaperRipPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.textColor != textColor ||
+      oldDelegate.origin != origin ||
+      oldDelegate.label != label ||
+      oldDelegate.subtitle != subtitle;
 }
