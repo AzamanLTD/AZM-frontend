@@ -56,9 +56,7 @@ class _TransitSeatSelectionScreenState
 
       final result = state.result!;
       final trip = ref.read(tripDetailProvider(widget.tripId)).valueOrNull;
-      final availability = ref.read(seatAvailabilityProvider(widget.tripId)).valueOrNull;
-      final selected = ref.read(selectedSeatsProvider);
-      final total = _totalFare(availability, selected);
+      final total = result.totalFare;
 
       ref.invalidate(seatAvailabilityProvider(widget.tripId));
       ref.read(selectedSeatsProvider.notifier).state = <String>{};
