@@ -74,7 +74,12 @@ class DineInTab {
   final double grandTotal;
   final String? invoiceRef;
   final String businessName;
+  final String? businessProfileId;
+  final String? businessBizId;
   final String? businessLogoUrl;
+  final String? tableId;
+  final String? tableLabel;
+  final String? locationId;
   final List<DineInTabItem> items;
 
   DineInTab({
@@ -87,23 +92,41 @@ class DineInTab {
     required this.grandTotal,
     this.invoiceRef,
     required this.businessName,
+    this.businessProfileId,
+    this.businessBizId,
     this.businessLogoUrl,
+    this.tableId,
+    this.tableLabel,
+    this.locationId,
     required this.items,
   });
 
-  factory DineInTab.fromJson(Map<String, dynamic> json) => DineInTab(
-    id: json['id'],
-    status: json['status'] ?? 'OPEN',
-    openedAt: DateTime.parse(json['openedAt']),
-    subtotal: (json['subtotalUsdc'] as num?)?.toDouble() ?? 0,
-    taxTotal: (json['taxTotalUsdc'] as num?)?.toDouble() ?? 0,
-    tip: (json['tipUsdc'] as num?)?.toDouble() ?? 0,
-    grandTotal: (json['grandTotalUsdc'] as num?)?.toDouble() ?? 0,
-    invoiceRef: json['invoice']?['invoiceRef'],
-    businessName: json['businessProfile']?['businessName'] ?? '',
-    businessLogoUrl: json['businessProfile']?['logoUrl'],
-    items: (json['items'] as List?)?.map((e) => DineInTabItem.fromJson(e)).toList() ?? [],
-  );
+  factory DineInTab.fromJson(Map<String, dynamic> json) {
+    final business = json['businessProfile'] is Map
+        ? Map<String, dynamic>.from(json['businessProfile'] as Map)
+        : const <String, dynamic>{};
+    final table = json['table'] is Map
+        ? Map<String, dynamic>.from(json['table'] as Map)
+        : const <String, dynamic>{};
+    return DineInTab(
+      id: json['id'],
+      status: json['status'] ?? 'OPEN',
+      openedAt: DateTime.parse(json['openedAt']),
+      subtotal: (json['subtotalUsdc'] as num?)?.toDouble() ?? 0,
+      taxTotal: (json['taxTotalUsdc'] as num?)?.toDouble() ?? 0,
+      tip: (json['tipUsdc'] as num?)?.toDouble() ?? 0,
+      grandTotal: (json['grandTotalUsdc'] as num?)?.toDouble() ?? 0,
+      invoiceRef: json['invoice']?['invoiceRef'],
+      businessName: business['businessName'] ?? '',
+      businessProfileId: business['id']?.toString(),
+      businessBizId: business['bizId']?.toString(),
+      businessLogoUrl: business['logoUrl'],
+      tableId: (json['tableId'] ?? table['id'])?.toString(),
+      tableLabel: table['label']?.toString(),
+      locationId: (json['locationId'] ?? table['locationId'])?.toString(),
+      items: (json['items'] as List?)?.map((e) => DineInTabItem.fromJson(e)).toList() ?? [],
+    );
+  }
 }
 
 class DineInTabItem {
