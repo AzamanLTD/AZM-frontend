@@ -154,4 +154,85 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(commits, 1);
   });
+
+  testWidgets('quick tempo commits before relaxed tempo', (tester) async {
+    var quickCommitted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox.expand(
+          child: RestaurantCommitSurface(
+            key: const ValueKey('quick-tempo'),
+            style: MarketplaceCommitStyle.paperRip,
+            motionTempo: MarketplaceMotionTempo.quick,
+            childBuilder: (onCommit) => Center(
+              child: FilledButton(
+                onPressed: () => onCommit(() => quickCommitted = true),
+                child: const Text('Add'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Add'));
+    await tester.pump(const Duration(milliseconds: 320));
+    expect(quickCommitted, isTrue);
+    await tester.pumpAndSettle();
+
+    var relaxedCommitted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox.expand(
+          child: RestaurantCommitSurface(
+            key: const ValueKey('relaxed-tempo'),
+            style: MarketplaceCommitStyle.paperRip,
+            motionTempo: MarketplaceMotionTempo.relaxed,
+            childBuilder: (onCommit) => Center(
+              child: FilledButton(
+                onPressed: () => onCommit(() => relaxedCommitted = true),
+                child: const Text('Add'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Add'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(relaxedCommitted, isFalse);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(relaxedCommitted, isTrue);
+  });
+
+  testWidgets('updates controller duration when blueprint tempo changes after mount', (tester) async {
+    var committed = false;
+
+    Widget build(MarketplaceMotionTempo tempo) {
+      return MaterialApp(
+        home: SizedBox.expand(
+          child: RestaurantCommitSurface(
+            style: MarketplaceCommitStyle.paperRip,
+            motionTempo: tempo,
+            childBuilder: (onCommit) => Center(
+              child: FilledButton(
+                onPressed: () => onCommit(() => committed = true),
+                child: const Text('Add'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build(MarketplaceMotionTempo.relaxed));
+    await tester.pump();
+    await tester.pumpWidget(build(MarketplaceMotionTempo.quick));
+    await tester.pump();
+
+    await tester.tap(find.text('Add'));
+    await tester.pump(const Duration(milliseconds: 320));
+    expect(committed, isTrue);
+  });
 }

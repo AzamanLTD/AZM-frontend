@@ -111,6 +111,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
     return RestaurantCommitSurface(
       style: blueprint.commitStyle,
+      motionTempo: blueprint.motionTempo,
       childBuilder: (onCommit) => RestaurantNativeMenuJourneyClean(
         businessName: business.businessName,
         sections: menuSections,

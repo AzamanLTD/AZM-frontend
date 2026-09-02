@@ -17,8 +17,14 @@ typedef RestaurantCommitRunner = Future<void> Function(
 class RestaurantCommitSurface extends StatefulWidget {
   final Widget Function(RestaurantCommitRunner onCommit) childBuilder;
   final MarketplaceCommitStyle style;
+  final MarketplaceMotionTempo motionTempo;
 
-  const RestaurantCommitSurface({super.key, required this.childBuilder, required this.style});
+  const RestaurantCommitSurface({
+    super.key,
+    required this.childBuilder,
+    required this.style,
+    this.motionTempo = MarketplaceMotionTempo.balanced,
+  });
 
   @override
   State<RestaurantCommitSurface> createState() => _RestaurantCommitSurfaceState();
@@ -34,6 +40,23 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   Offset? _lastPointerPosition;
   String? _commitLabel;
   String? _commitSubtitle;
+
+  Duration get _commitDuration {
+    switch (widget.motionTempo) {
+      case MarketplaceMotionTempo.relaxed:
+        return const Duration(milliseconds: 820);
+      case MarketplaceMotionTempo.balanced:
+        return const Duration(milliseconds: 720);
+      case MarketplaceMotionTempo.quick:
+        return const Duration(milliseconds: 560);
+    }
+  }
+
+  Duration get _commitDelay {
+    return Duration(
+      microseconds: (_commitDuration.inMicroseconds * 0.39).round(),
+    );
+  }
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
@@ -74,11 +97,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
       _showPaperRip = true;
     });
 
-    // The mutation boundary is time-based rather than dependent on a ticker
-    // reaching an exact frame. The paper visibly peels away first, then the
-    // authoritative cart mutation fires while the remaining flight continues
-    // purely as presentation.
-    _commitTimer = Timer(const Duration(milliseconds: 280), () {
+    _commitTimer = Timer(_commitDelay, () {
       if (!mounted || !_commitInFlight) return;
       action();
     });
@@ -86,7 +105,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     try {
       await _controller.animateTo(
         1,
-        duration: const Duration(milliseconds: 720),
+        duration: _commitDuration,
         curve: Curves.easeInOutCubic,
       );
     } finally {
@@ -107,7 +126,15 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
+    _controller = AnimationController(vsync: this, duration: _commitDuration);
+  }
+
+  @override
+  void didUpdateWidget(covariant RestaurantCommitSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.motionTempo != widget.motionTempo) {
+      _controller.duration = _commitDuration;
+    }
   }
 
   @override
