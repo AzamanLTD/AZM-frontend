@@ -12,6 +12,7 @@ import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
+import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
 import 'package:azaman/widgets/marketplace/transit_seat_preview.dart';
 
 class MarketplaceVerticalExperienceStage extends StatelessWidget {
@@ -68,7 +69,14 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         stage = _transitStage(blueprint);
         break;
       case 'SERVICE_JOURNEY':
-        stage = _bookCtaCard(icon: BusinessCategories.fromWire(profile.categoryWire).icon, title: 'Browse Offerings', subtitle: 'See what this business offers and continue through its primary customer flow.', buttonLabel: profile.primaryActionLabel, onTap: onOpenOrderSheet ?? onOpenCatalogView, blueprint: blueprint);
+        stage = ServiceExperienceStage(
+          business: business,
+          colors: colors,
+          offerings: business.products,
+          blueprint: blueprint,
+          onContinue: onOpenOrderSheet ?? onOpenCatalogView,
+          onOpenCatalog: onOpenCatalogView,
+        );
         break;
       default:
         stage = _legacyStage(profile);
@@ -85,7 +93,14 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     if (profile.supports(MarketplaceExperienceCapability.retailCollection)) return _retailStage(_blueprint);
     if (profile.supports(MarketplaceExperienceCapability.hotelFloorMap)) return _hotelStage(_blueprint);
     if (profile.supports(MarketplaceExperienceCapability.transitSeatMap)) return _transitStage(_blueprint);
-    return _bookCtaCard(icon: BusinessCategories.fromWire(profile.categoryWire).icon, title: 'Browse Offerings', subtitle: 'See what this business offers and continue through its primary customer flow.', buttonLabel: profile.primaryActionLabel, onTap: onOpenOrderSheet ?? onOpenCatalogView, blueprint: _blueprint);
+    return ServiceExperienceStage(
+      business: business,
+      colors: colors,
+      offerings: business.products,
+      blueprint: _blueprint,
+      onContinue: onOpenOrderSheet ?? onOpenCatalogView,
+      onOpenCatalog: onOpenCatalogView,
+    );
   }
 
   Widget _stageHeader(MarketplaceExperienceBlueprint blueprint, {required String title}) {
