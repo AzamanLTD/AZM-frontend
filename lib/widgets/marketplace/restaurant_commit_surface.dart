@@ -23,6 +23,7 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
+  Timer? _commitTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
   bool _commitInFlight = false;
@@ -36,6 +37,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
+    _commitTimer?.cancel();
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
       action();
@@ -55,27 +57,29 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
       return;
     }
 
-    try {
-      setState(() {
-        _showReducedMotion = false;
-        _showPaperRip = true;
-      });
+    setState(() {
+      _showReducedMotion = false;
+      _showPaperRip = true;
+    });
 
-      // Commit once the paper has visibly separated from the menu. The
-      // remaining flight continues independently toward the persistent tray.
-      await _controller.animateTo(
-        0.46,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-      );
-      if (!mounted) return;
+    // The mutation boundary is time-based rather than dependent on a ticker
+    // reaching an exact frame. The paper visibly peels away first, then the
+    // authoritative cart mutation fires while the remaining flight continues
+    // purely as presentation.
+    _commitTimer = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted || !_commitInFlight) return;
       action();
+    });
+
+    try {
       await _controller.animateTo(
         1,
-        duration: const Duration(milliseconds: 440),
+        duration: const Duration(milliseconds: 720),
         curve: Curves.easeInOutCubic,
       );
     } finally {
+      _commitTimer?.cancel();
+      _commitTimer = null;
       if (mounted) {
         setState(() {
           _showPaperRip = false;
@@ -95,6 +99,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void dispose() {
     _reducedMotionTimer?.cancel();
+    _commitTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
