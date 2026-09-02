@@ -1,18 +1,6 @@
 // lib/providers/marketplace_extensions_provider.dart
 // =============================================================================
 // AZAMAN — MARKETPLACE EXTENSIONS PROVIDER (v2, 2026-07-03)
-//
-// FIX (2026-07-06): this whole file failed to compile (41 analyzer errors)
-// and was never actually used anywhere real in the app (only by the dead
-// BusinessAdFeedWidget stub, itself unreferenced anywhere):
-//   1. `adFeedProvider` had a typo -- `.autoDispose\n    .AdFeedNotifier, ...`
-//      instead of `.autoDispose<AdFeedNotifier, ...>` -- a single wrong
-//      character (`.` instead of `<`) that made the parser lose its place
-//      for the rest of the file, cascading into 40+ spurious errors.
-//   2. Every `res.data[...]` read is a Dio-ism. This app's ApiClient wraps
-//      `package:http` and returns `http.Response`, which has no `.data`
-//      getter -- fixed to `jsonDecode(res.body)` to match every other
-//      working provider/service in this codebase.
 // =============================================================================
 
 import 'dart:convert';
@@ -20,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/services/api_client.dart';
 
-// ── Follow State ────────────────────────────────────────────────────────────
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   final ApiClient _api;
   FollowNotifier(this._api) : super(const AsyncValue.data(false));
@@ -52,7 +39,6 @@ final followProvider = StateNotifierProvider.autoDispose
   (ref, bizId) => FollowNotifier(ref.watch(apiClientProvider)),
 );
 
-// ── Ad Feed ─────────────────────────────────────────────────────────────────
 class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
   final ApiClient _api;
   AdFeedNotifier(this._api) : super(const AsyncValue.loading());
@@ -75,7 +61,6 @@ final adFeedProvider = StateNotifierProvider.autoDispose<AdFeedNotifier, AsyncVa
   (ref) => AdFeedNotifier(ref.watch(apiClientProvider))..load(),
 );
 
-// ── Following list (drives the marketplace status rail / empty state) ──────
 class FollowingListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ApiClient _api;
   FollowingListNotifier(this._api) : super(const AsyncValue.loading());
@@ -113,6 +98,29 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
     }
   }
 
+  Future<DineInTabItem?> addItem(
+    String tabId, {
+    required String productId,
+    Map<String, String> selection = const {},
+    int quantity = 1,
+  }) async {
+    try {
+      final res = await _api.post('/dine-in/tabs/$tabId/customer-items', {
+        'productId': productId,
+        'selection': selection,
+        'quantity': quantity,
+      });
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final itemJson = body['item'];
+      if (itemJson is! Map) throw const FormatException('Dine-in item response is invalid.');
+      await loadTab(tabId);
+      return DineInTabItem.fromJson(Map<String, dynamic>.from(itemJson));
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+
   Future<void> payTab(String tabId, {double? tip}) async {
     state = const AsyncValue.loading();
     try {
@@ -131,7 +139,6 @@ final dineInTabProvider = StateNotifierProvider.autoDispose
   (ref, tabId) => DineInTabNotifier(ref.watch(apiClientProvider))..loadTab(tabId),
 );
 
-// ── Showcase ────────────────────────────────────────────────────────────────
 class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>> {
   final ApiClient _api;
   ShowcaseNotifier(this._api) : super(const AsyncValue.loading());
