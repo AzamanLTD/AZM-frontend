@@ -8,13 +8,16 @@ void main() {
   testWidgets('paper-rip mode exposes the commit callback and starts its ritual', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: SizedBox.expand(
-          child: RestaurantCommitSurface(
-            style: MarketplaceCommitStyle.paperRip,
-            childBuilder: (onCommitted) => Center(
-              child: FilledButton(
-                onPressed: onCommitted,
-                child: const Text('Add'),
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: false),
+          child: SizedBox.expand(
+            child: RestaurantCommitSurface(
+              style: MarketplaceCommitStyle.paperRip,
+              childBuilder: (onCommitted) => Center(
+                child: FilledButton(
+                  onPressed: onCommitted,
+                  child: const Text('Add'),
+                ),
               ),
             ),
           ),
