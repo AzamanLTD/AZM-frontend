@@ -33,11 +33,10 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
+  Timer? _commitTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
   bool _commitInFlight = false;
-  bool _actionCommitted = false;
-  RestaurantCommitAction? _pendingAction;
   Offset? _lastPointerPosition;
   String? _commitLabel;
   String? _commitSubtitle;
@@ -53,19 +52,14 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     }
   }
 
-  static const double _commitMutationProgress = 0.39;
+  Duration get _commitDelay {
+    return Duration(
+      microseconds: (_commitDuration.inMicroseconds * 0.39).round(),
+    );
+  }
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
-  }
-
-  void _onControllerTick() {
-    final action = _pendingAction;
-    if (!mounted || action == null || !_commitInFlight || _actionCommitted) return;
-    if (_controller.value >= _commitMutationProgress) {
-      _actionCommitted = true;
-      action();
-    }
   }
 
   Future<void> _commit(
@@ -76,59 +70,54 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
-    _pendingAction = action;
-    _actionCommitted = false;
+    _commitTimer?.cancel();
     _commitLabel = label;
     _commitSubtitle = subtitle;
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
-      _actionCommitted = true;
       action();
       _commitInFlight = false;
-      _pendingAction = null;
       return;
     }
 
     if (MediaQuery.of(context).disableAnimations) {
-      _actionCommitted = true;
       action();
-      _pendingAction = null;
       if (!mounted) return;
       setState(() => _showReducedMotion = true);
       _reducedMotionTimer = Timer(MotionTokens.celebration, () {
         if (!mounted) return;
         setState(() => _showReducedMotion = false);
         _commitInFlight = false;
-        _actionCommitted = false;
-        _commitLabel = null;
-        _commitSubtitle = null;
       });
       return;
     }
 
-    _controller.value = 0;
     setState(() {
       _showReducedMotion = false;
       _showPaperRip = true;
+    });
+
+    _commitTimer = Timer(_commitDelay, () {
+      if (!mounted || !_commitInFlight) return;
+      action();
     });
 
     try {
       await _controller.animateTo(
         1,
         duration: _commitDuration,
-        curve: Curves.linear,
+        curve: Curves.easeInOutCubic,
       );
     } finally {
+      _commitTimer?.cancel();
+      _commitTimer = null;
       if (mounted) {
         setState(() {
           _showPaperRip = false;
           _showReducedMotion = false;
         });
-        _controller.value = 0;
       }
-      _pendingAction = null;
       _commitInFlight = false;
-      _actionCommitted = false;
       _commitLabel = null;
       _commitSubtitle = null;
     }
@@ -137,8 +126,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: _commitDuration)
-      ..addListener(_onControllerTick);
+    _controller = AnimationController(vsync: this, duration: _commitDuration);
   }
 
   @override
@@ -152,7 +140,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void dispose() {
     _reducedMotionTimer?.cancel();
-    _controller.removeListener(_onControllerTick);
+    _commitTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
