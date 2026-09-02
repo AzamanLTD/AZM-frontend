@@ -157,6 +157,41 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   }
 
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
+    final reserveAction = blueprint.persistentTray
+        ? Positioned(
+            top: 10,
+            right: 20,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                backgroundColor: Colors.black.withValues(alpha: 0.28),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              ),
+              onPressed: onOpenOrderSheet,
+              icon: const Icon(Icons.table_restaurant_outlined, size: 16),
+              label: const Text('Reserve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          )
+        : Positioned(
+            left: 20,
+            right: 20,
+            bottom: 18,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+              onPressed: onOpenOrderSheet,
+              icon: const Icon(Icons.table_restaurant_outlined, size: 19),
+              label: const Text('Reserve a Table', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          );
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -175,7 +210,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           child: IgnorePointer(
             ignoring: true,
             child: Container(
-              height: 96,
+              height: blueprint.persistentTray ? 54 : 96,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -186,28 +221,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          left: 20,
-          right: 20,
-          bottom: 18,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.accent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-            onPressed: onOpenOrderSheet,
-            icon: Icon(
-              blueprint.commitStyle == MarketplaceCommitStyle.paperRip
-                  ? Icons.receipt_long_outlined
-                  : Icons.table_restaurant_outlined,
-              size: 19,
-            ),
-            label: const Text('Reserve a Table', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          ),
-        ),
+        reserveAction,
       ],
     );
   }
@@ -269,9 +283,6 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // HotelFloorPlanPreview already owns the canonical "Explore the property"
-        // heading; this adapter adds only the blueprint-specific navigation/detail
-        // context to avoid duplicating customer-facing copy.
         if (blueprint.showNavigationContext)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),

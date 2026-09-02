@@ -18,10 +18,16 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 class FloatingCartBar extends ConsumerWidget {
-  /// Called when the user taps the cart bar. Typically navigates to the cart screen.
+  /// Called when the cart bar is tapped.
   final VoidCallback onTap;
+  /// Customer-facing label for the cart's category-native role.
+  final String label;
 
-  const FloatingCartBar({super.key, required this.onTap});
+  const FloatingCartBar({
+    super.key,
+    required this.onTap,
+    this.label = 'View Cart',
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -78,14 +84,14 @@ class FloatingCartBar extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // ── Cart label ────────────────────────────────────────────
+                    // ── Category-native label ───────────────────────────────
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'View Cart',
+                            label,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.95),
                               fontSize: 14,
