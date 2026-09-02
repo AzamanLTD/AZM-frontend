@@ -86,7 +86,7 @@ void main() {
 
     expect(find.byType(BusSeatSelector), findsOneWidget);
     expect(find.text('Accra → Kumasi'), findsNWidgets(2));
-    expect(find.text('Choose your seats'), findsOneWidget);
+    expect(find.text('Select your seats'), findsOneWidget);
     expect(find.text('\$18/seat'), findsOneWidget);
 
     final selectable = find.bySemanticsLabel(RegExp(r'A1'));
