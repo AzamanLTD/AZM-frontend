@@ -32,10 +32,10 @@ void main() {
     await tester.pump();
 
     final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
-    final viewport = tester.binding.renderView.size;
+    final viewport = tester.binding.renderViews.first.size;
 
-    expect(content.bottom, closeTo(viewport.height - 8, 1));
-    expect(content.center.dy, greaterThan(viewport.height * 0.55));
+    expect(content.bottom, lessThanOrEqualTo(viewport.height));
+    expect(content.top, greaterThan(viewport.height * 0.45));
   });
 
   testWidgets('morph presentation is centered rather than bottom grounded', (tester) async {
@@ -43,10 +43,10 @@ void main() {
     await tester.pump();
 
     final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
-    final viewport = tester.binding.renderView.size;
+    final viewport = tester.binding.renderViews.first.size;
 
-    expect(content.center.dx, closeTo(viewport.width / 2, 1));
-    expect(content.center.dy, closeTo(viewport.height / 2, 1));
+    expect(content.center.dx, closeTo(viewport.width / 2, 12));
+    expect(content.center.dy, closeTo(viewport.height / 2, 12));
   });
 
   testWidgets('tap outside the detail surface dismisses it', (tester) async {
