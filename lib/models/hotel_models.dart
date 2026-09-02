@@ -1,5 +1,3 @@
-'use strict';
-
 import 'package:azaman/models/business_models.dart';
 
 /// Customer-facing representation of a HotelRoom.
