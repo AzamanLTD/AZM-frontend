@@ -4,6 +4,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey_clean.dart';
+import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
@@ -91,21 +92,25 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   }
 
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
-    final native = RestaurantNativeMenuJourneyClean(
-      businessName: business.businessName,
-      sections: menuSections,
-      uncategorisedProducts: uncategorisedProducts,
-      dishesById: restaurantDishesById,
-      colors: colors,
-      onAddToTray: (product, selections, quantity) {
-        onAddToTray?.call(product, selections, quantity);
-        if (onAddToTray == null) onOrderProduct?.call(product);
-      },
-      showGallery: blueprint.showGallery,
-      showSpecifications: blueprint.showSpecifications,
-      showOptions: blueprint.showOptions,
-      showQuantity: blueprint.showQuantity,
-      dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
+    final native = RestaurantCommitSurface(
+      style: blueprint.commitStyle,
+      childBuilder: (onCommitted) => RestaurantNativeMenuJourneyClean(
+        businessName: business.businessName,
+        sections: menuSections,
+        uncategorisedProducts: uncategorisedProducts,
+        dishesById: restaurantDishesById,
+        colors: colors,
+        onAddToTray: (product, selections, quantity) {
+          onAddToTray?.call(product, selections, quantity);
+          if (onAddToTray == null) onOrderProduct?.call(product);
+          onCommitted();
+        },
+        showGallery: blueprint.showGallery,
+        showSpecifications: blueprint.showSpecifications,
+        showOptions: blueprint.showOptions,
+        showQuantity: blueprint.showQuantity,
+        dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
+      ),
     );
 
     final reserveAction = blueprint.persistentTray
