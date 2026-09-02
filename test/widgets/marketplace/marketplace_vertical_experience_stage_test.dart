@@ -7,6 +7,7 @@ import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage.dart';
 import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey_clean.dart';
+import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 
@@ -160,18 +161,34 @@ void main() {
     expect(find.text('No upcoming trips yet'), findsOneWidget);
   });
 
-  testWidgets('unknown categories use the safe generic customer flow', (tester) async {
+  testWidgets('unknown categories use the native service journey', (tester) async {
     var opened = false;
     await _pump(
       tester,
-      business: _business('UNKNOWN_CATEGORY'),
+      business: _business('TECHNOLOGY', products: [_product('Strategy session', price: 65)]),
       onOrder: () => opened = true,
     );
 
-    expect(find.text('Browse Offerings'), findsOneWidget);
-    expect(find.text('View business'), findsOneWidget);
+    expect(find.byType(ServiceExperienceStage), findsOneWidget);
+    expect(find.text('Explore Test Business'), findsOneWidget);
+    expect(find.text('Strategy session'), findsOneWidget);
 
-    await tester.tap(find.text('View business'));
+    await tester.tap(find.byKey(const ValueKey('service-offering-strategy-session')));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('Continue with this'), findsOneWidget);
+
+    await tester.tap(find.text('Continue with this'));
     expect(opened, isTrue);
+  });
+
+  testWidgets('unknown categories with no offerings show an intentional empty state', (tester) async {
+    await _pump(
+      tester,
+      business: _business('TECHNOLOGY'),
+    );
+
+    expect(find.byType(ServiceExperienceStage), findsOneWidget);
+    expect(find.text('Explore this business'), findsOneWidget);
+    expect(find.text('The business has not published offerings for this experience yet.'), findsOneWidget);
   });
 }
