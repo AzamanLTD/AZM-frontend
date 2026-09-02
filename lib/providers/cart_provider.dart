@@ -75,7 +75,11 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     final rawVariants = json['variants'];
     final variants = rawVariants is Map
-        ? rawVariants.map((key, value) => MapEntry(key.toString(), value.toString()))
+        ? Map<String, String>.fromEntries(
+            rawVariants.entries.map(
+              (entry) => MapEntry(entry.key.toString(), entry.value.toString()),
+            ),
+          )
         : const <String, String>{};
     return CartItem(
       productId: json['productId'] as String,
