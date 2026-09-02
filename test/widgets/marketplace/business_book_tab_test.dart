@@ -137,7 +137,7 @@ void main() {
     expect(cart.state.itemCount, 1);
     expect(cart.state.businessProfileId, business.id);
     expect(find.text('Open order tray'), findsOneWidget);
-    expect(find.text('Dish added from the menu'), findsOneWidget);
+    expect(find.text('Jollof Rice added to your order tray.'), findsOneWidget);
   });
 
   testWidgets('disabled dining products do not enter the tray', (tester) async {
