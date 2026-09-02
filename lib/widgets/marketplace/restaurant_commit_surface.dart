@@ -33,10 +33,11 @@ class RestaurantCommitSurface extends StatefulWidget {
 class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _reducedMotionTimer;
-  Timer? _commitTimer;
   bool _showReducedMotion = false;
   bool _showPaperRip = false;
   bool _commitInFlight = false;
+  bool _actionCommitted = false;
+  RestaurantCommitAction? _pendingAction;
   Offset? _lastPointerPosition;
   String? _commitLabel;
   String? _commitSubtitle;
@@ -52,8 +53,19 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     }
   }
 
-  Duration get _commitMutationDelay =>
-      Duration(milliseconds: (_commitDuration.inMilliseconds * 0.39).round());
+  /// The authoritative cart mutation happens once the paper has visibly
+  /// peeled away. Keeping this as animation progress (rather than a parallel
+  /// timer) makes the commit point move with the selected motion tempo.
+  static const double _commitMutationProgress = 0.39;
+
+  void _handleAnimationProgress() {
+    if (!_commitInFlight || _actionCommitted || _pendingAction == null) return;
+    if (_controller.value < _commitMutationProgress) return;
+
+    _actionCommitted = true;
+    final action = _pendingAction!;
+    action();
+  }
 
   void _onPointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
@@ -67,39 +79,40 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     if (!mounted || _commitInFlight) return;
     _commitInFlight = true;
     _reducedMotionTimer?.cancel();
-    _commitTimer?.cancel();
+    _pendingAction = action;
+    _actionCommitted = false;
     _commitLabel = label;
     _commitSubtitle = subtitle;
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
       action();
       _commitInFlight = false;
+      _pendingAction = null;
       return;
     }
 
     if (MediaQuery.of(context).disableAnimations) {
       action();
+      _pendingAction = null;
+      _actionCommitted = true;
       if (!mounted) return;
       setState(() => _showReducedMotion = true);
       _reducedMotionTimer = Timer(MotionTokens.celebration, () {
         if (!mounted) return;
         setState(() => _showReducedMotion = false);
         _commitInFlight = false;
+        _pendingAction = null;
+        _actionCommitted = false;
       });
       return;
     }
 
+    // A surface can be reused for several orders. Always restart the paper
+    // from rest so the next ritual has the same physical starting point.
+    _controller.value = 0;
     setState(() {
       _showReducedMotion = false;
       _showPaperRip = true;
-    });
-
-    // The mutation boundary scales with the selected motion tempo: the paper
-    // has time to visibly peel before the authoritative cart mutation fires,
-    // and the remaining flight is purely presentation.
-    _commitTimer = Timer(_commitMutationDelay, () {
-      if (!mounted || !_commitInFlight) return;
-      action();
     });
 
     try {
@@ -109,15 +122,16 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
         curve: Curves.easeInOutCubic,
       );
     } finally {
-      _commitTimer?.cancel();
-      _commitTimer = null;
       if (mounted) {
         setState(() {
           _showPaperRip = false;
           _showReducedMotion = false;
         });
+        _controller.value = 0;
       }
       _commitInFlight = false;
+      _pendingAction = null;
+      _actionCommitted = false;
       _commitLabel = null;
       _commitSubtitle = null;
     }
@@ -126,13 +140,14 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: _commitDuration);
+    _controller = AnimationController(vsync: this, duration: _commitDuration)
+      ..addListener(_handleAnimationProgress);
   }
 
   @override
   void dispose() {
     _reducedMotionTimer?.cancel();
-    _commitTimer?.cancel();
+    _controller.removeListener(_handleAnimationProgress);
     _controller.dispose();
     super.dispose();
   }
