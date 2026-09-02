@@ -96,10 +96,17 @@ class CartItem {
 class CartState {
   final String? businessProfileId;
   final String? businessName;
+  final String? experiencePreset;
   final List<CartItem> items;
   final bool isCheckingOut;
 
-  const CartState({this.businessProfileId, this.businessName, this.items = const [], this.isCheckingOut = false});
+  const CartState({
+    this.businessProfileId,
+    this.businessName,
+    this.experiencePreset,
+    this.items = const [],
+    this.isCheckingOut = false,
+  });
 
   bool get isEmpty => items.isEmpty;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
@@ -107,9 +114,17 @@ class CartState {
 
   List<Map<String, dynamic>> toCheckoutItems() => items.map((item) => item.toCheckoutJson()).toList(growable: false);
 
-  CartState copyWith({String? businessProfileId, String? businessName, List<CartItem>? items, bool? isCheckingOut, bool clearBusiness = false}) => CartState(
+  CartState copyWith({
+    String? businessProfileId,
+    String? businessName,
+    String? experiencePreset,
+    List<CartItem>? items,
+    bool? isCheckingOut,
+    bool clearBusiness = false,
+  }) => CartState(
         businessProfileId: clearBusiness ? null : (businessProfileId ?? this.businessProfileId),
         businessName: clearBusiness ? null : (businessName ?? this.businessName),
+        experiencePreset: clearBusiness ? null : (experiencePreset ?? this.experiencePreset),
         items: items ?? this.items,
         isCheckingOut: isCheckingOut ?? this.isCheckingOut,
       );
@@ -117,12 +132,14 @@ class CartState {
   Map<String, dynamic> toPersistJson() => {
         'businessProfileId': businessProfileId,
         'businessName': businessName,
+        if (experiencePreset != null) 'experiencePreset': experiencePreset,
         'items': items.map((i) => i.toJson()).toList(),
       };
 
   factory CartState.fromPersistJson(Map<String, dynamic> json) => CartState(
         businessProfileId: json['businessProfileId'] as String?,
         businessName: json['businessName'] as String?,
+        experiencePreset: json['experiencePreset'] as String?,
         items: (json['items'] as List? ?? []).whereType<Map>().map((e) => CartItem.fromJson(Map<String, dynamic>.from(e))).toList(),
       );
 
@@ -150,7 +167,7 @@ class CartNotifier extends StateNotifier<CartState> {
   Future<void> _persist() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      prefs.setString(_storageKey, jsonEncode(state.toPersistJson()));
+      await prefs.setString(_storageKey, jsonEncode(state.toPersistJson()));
     } catch (e) {
       debugPrint('[Cart] Failed to persist: $e');
     }
@@ -164,6 +181,7 @@ class CartNotifier extends StateNotifier<CartState> {
     required double unitPrice,
     String? imageUrl,
     String? category,
+    String? experiencePreset,
     int quantity = 1,
     String? notes,
     Map<String, String> variants = const {},
@@ -189,13 +207,22 @@ class CartNotifier extends StateNotifier<CartState> {
     } else {
       newItems.add(incoming);
     }
-    state = state.copyWith(businessProfileId: businessProfileId, businessName: businessName, items: newItems);
+    state = state.copyWith(
+      businessProfileId: businessProfileId,
+      businessName: businessName,
+      experiencePreset: experiencePreset ?? state.experiencePreset,
+      items: newItems,
+    );
     _persist();
     return true;
   }
 
-  void startNewCart({required String businessProfileId, required String businessName}) {
-    state = CartState(businessProfileId: businessProfileId, businessName: businessName);
+  void startNewCart({required String businessProfileId, required String businessName, String? experiencePreset}) {
+    state = CartState(
+      businessProfileId: businessProfileId,
+      businessName: businessName,
+      experiencePreset: experiencePreset,
+    );
     _persist();
   }
 
