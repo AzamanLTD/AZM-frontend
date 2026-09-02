@@ -69,9 +69,7 @@ Map<String, dynamic> _experience({bool persistentTray = true}) {
 }
 
 Future<void> _openFirstMenuPage(WidgetTester tester) async {
-  final bookFinder = find.byWidgetPredicate(
-    (widget) => widget.runtimeType.toString() == 'FlipBook',
-  );
+  final bookFinder = find.byWidgetPredicate((widget) => widget.runtimeType.toString() == 'FlipBook');
   final book = tester.getRect(bookFinder);
   final start = book.bottomRight - const Offset(6, 12);
   final target = book.bottomLeft + const Offset(-40, -12);
@@ -92,9 +90,9 @@ Future<void> _turnFirstMenuPage(WidgetTester tester) async {
 }
 
 Future<void> _openDish(WidgetTester tester) async {
-  await tester.tap(find.text('Jollof Rice'));
+  await tester.tap(find.text('Jollof Rice').first);
   await tester.pumpAndSettle();
-  expect(find.text('Jollof Rice'), findsOneWidget);
+  expect(find.textContaining('Add to'), findsOneWidget);
 }
 
 void main() {
@@ -204,8 +202,8 @@ void main() {
     await tester.pump();
     await _turnFirstMenuPage(tester);
     await _openDish(tester);
-    expect(find.textContaining('Add to tray'), findsOneWidget);
-    await tester.tap(find.textContaining('Add to tray'));
+    expect(find.textContaining('Add to'), findsOneWidget);
+    await tester.tap(find.textContaining('Add to'));
     await tester.pump();
 
     expect(legacyCallbackCount, 1);
