@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
+import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -71,6 +72,29 @@ class _DineInRestaurantOrderingScreenState
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
+  }
+
+  Future<void> _addToTab(
+    BusinessProduct product,
+    Map<String, String> selections,
+    int quantity,
+  ) async {
+    final item = await ref.read(dineInTabProvider(widget.tab.id).notifier).addItem(
+          widget.tab.id,
+          productId: product.id,
+          selection: selections,
+          quantity: quantity,
+        );
+    if (!mounted) return;
+    if (item == null) {
+      throw StateError('The restaurant could not add this dish to the open tab.');
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${product.name} added to your table tab.'),
+        duration: const Duration(milliseconds: 1500),
+      ),
+    );
   }
 
   @override
@@ -154,7 +178,7 @@ class _DineInRestaurantOrderingScreenState
                   ),
                 ),
                 Text(
-                  'Existing tab',
+                  'Open tab',
                   style: TextStyle(color: colors.textTertiary, fontSize: 10.5),
                 ),
               ],
@@ -167,13 +191,7 @@ class _DineInRestaurantOrderingScreenState
               menuSections: _sections,
               uncategorisedProducts: _uncategorisedProducts,
               dineInContext: tableContext,
-              onOrderProduct: (_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Your restaurant order tray is ready for checkout.'),
-                  ),
-                );
-              },
+              onDineInAddToTab: _addToTab,
             ),
           ),
         ],
