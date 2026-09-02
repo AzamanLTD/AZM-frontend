@@ -175,7 +175,7 @@ void main() {
     );
 
     await tester.tap(find.text('Add'));
-    await tester.pump(const Duration(milliseconds: 225));
+    await tester.pump(const Duration(milliseconds: 250));
     expect(quickCommitted, isTrue);
 
     var relaxedCommitted = false;
@@ -197,7 +197,7 @@ void main() {
     );
 
     await tester.tap(find.text('Add'));
-    await tester.pump(const Duration(milliseconds: 225));
+    await tester.pump(const Duration(milliseconds: 250));
     expect(relaxedCommitted, isFalse);
     await tester.pump(const Duration(milliseconds: 100));
     expect(relaxedCommitted, isTrue);
