@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/widgets/floating_cart_bar.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late CartNotifier notifier;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     notifier = CartNotifier();
   });
-
-  tearDown(() => notifier.dispose());
 
   Widget buildSubject() {
     return ProviderScope(
