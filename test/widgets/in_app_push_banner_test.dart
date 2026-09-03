@@ -28,6 +28,7 @@ void main() {
 
     await tester.tap(find.text('View'));
     expect(tapped, isTrue);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('remains directly visible when animations are disabled', (tester) async {
@@ -51,5 +52,6 @@ void main() {
 
     await tester.pump();
     expect(find.text('Notice'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }
