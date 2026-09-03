@@ -130,6 +130,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       await loadTab(tabId);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 }
