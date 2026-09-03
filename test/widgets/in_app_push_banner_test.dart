@@ -7,17 +7,20 @@ void main() {
     var tapped = false;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Stack(
-          children: [
-            const SizedBox.expand(),
-            InAppPushBanner(
-              title: 'Order ready',
-              body: 'Your meal can be collected.',
-              onTap: () => tapped = true,
-              onDismiss: () {},
-            ),
-          ],
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: MaterialApp(
+          home: Stack(
+            children: [
+              const SizedBox.expand(),
+              InAppPushBanner(
+                title: 'Order ready',
+                body: 'Your meal can be collected.',
+                onTap: () => tapped = true,
+                onDismiss: () {},
+              ),
+            ],
+          ),
         ),
       ),
     );
