@@ -351,6 +351,31 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     );
   }
 
+  void _showSocketNotificationBanner({
+    required Map<String, dynamic> data,
+    required String title,
+    required String body,
+  }) {
+    if (!mounted) return;
+    final ctx = rootNavigatorKey.currentContext ?? context;
+    if (!ctx.mounted) return;
+
+    final action = data['action']?.toString() ?? '';
+    final actionPayload = <String, dynamic>{};
+    data.forEach((key, value) {
+      if (key != 'action') actionPayload[key] = value;
+    });
+
+    InAppPushBanner.show(
+      ctx,
+      title: title,
+      body: body,
+      onTap: action.isEmpty
+          ? null
+          : () => handleNotificationTap(action: action, actionPayload: actionPayload),
+    );
+  }
+
   void _initUnifiedSocket() {
     final socketService = ref.read(socketServiceProvider);
     socketService.init(ref);
@@ -368,29 +393,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       if (!mounted) return;
       HapticFeedback.lightImpact();
       ref.read(trade_pkg.tradeProvider).incrementNotificationCount();
-      final colors = ref.read(theme_pkg.themeProvider).colors;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(data['title'] ?? 'New Message', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
-        backgroundColor: colors.danger,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.only(top: 50, left: 20, right: 20),
-        dismissDirection: DismissDirection.up,
-      ));
+      _showSocketNotificationBanner(
+        data: Map<String, dynamic>.from(data),
+        title: data['title']?.toString() ?? 'New Message',
+        body: data['body']?.toString() ?? '',
+      );
     });
     socketService.onNewTradeRequest((data) {
       if (!mounted) return;
       HapticFeedback.heavyImpact();
       ref.read(trade_pkg.tradeProvider).incrementNotificationCount();
-      final colors = ref.read(theme_pkg.themeProvider).colors;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('\u{1F514} New Trade: ${data['buyerName'] ?? 'Buyer'} wants to trade \$${data['amount'] ?? ''} USD', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
-        backgroundColor: colors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.only(top: 50, left: 20, right: 20),
-        dismissDirection: DismissDirection.up,
-      ));
+      final buyer = data['buyerName']?.toString() ?? 'Buyer';
+      final amount = data['amount']?.toString() ?? '';
+      _showSocketNotificationBanner(
+        data: Map<String, dynamic>.from(data),
+        title: 'New Trade Request',
+        body: '\u{1F514} $buyer wants to trade \$$amount USD',
+      );
     });
     socketService.onBizNotification((data) {
       if (!mounted) return;
