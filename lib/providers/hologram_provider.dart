@@ -131,6 +131,22 @@ class OracleRateMetadata {
 final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
     OracleRateMetadata(fetchedAt: DateTime.now(), stale: true));
 
+Map<String, dynamic> _unwrapOraclePayload(Map<String, dynamic> decoded) {
+  final data = decoded['data'];
+  return data is Map<String, dynamic> ? data : decoded;
+}
+
+double parseOracleGhsRate(Map<String, dynamic> decoded) {
+  final payload = _unwrapOraclePayload(decoded);
+  final rawRate = payload['liveRetailRate'] ??
+      payload['liveUsdToGhs'] ??
+      payload['rate'];
+  final rate = rawRate is num
+      ? rawRate.toDouble()
+      : double.tryParse(rawRate?.toString() ?? '') ?? 0;
+  return rate > 0 ? rate : 0;
+}
+
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   const fallbackRate = 12.50;
   const refreshSeconds = 60;
@@ -144,22 +160,8 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) return;
 
-      // /api/oracle/rates is wrapped as { success, data }. Keep a small
-      // compatibility fallback for older deployments that returned the rate
-      // object at the top level.
-      final payload = decoded['data'] is Map<String, dynamic>
-          ? decoded['data'] as Map<String, dynamic>
-          : decoded;
-
-      // USDC is authoritative for settlement; liveRetailRate is the server
-      // rate intended for the end-user GHS presentation layer. Fall back to
-      // liveUsdToGhs only for compatibility with older server data.
-      final rawRate = payload['liveRetailRate'] ??
-          payload['liveUsdToGhs'] ??
-          payload['rate'];
-      final rate = rawRate is num
-          ? rawRate.toDouble()
-          : double.tryParse(rawRate?.toString() ?? '') ?? 0;
+      final payload = _unwrapOraclePayload(decoded);
+      final rate = parseOracleGhsRate(decoded);
       if (rate <= 0) return;
 
       final configuredSecondsRaw =
