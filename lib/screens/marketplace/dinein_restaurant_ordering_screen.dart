@@ -52,10 +52,15 @@ class _DineInRestaurantOrderingScreenState
         return;
       }
 
-      final response = await apiClient.get('/business/$bizId/menu', requireAuth: false);
+      final locationId = widget.tab.locationId;
+      final menuUri = locationId == null || locationId.isEmpty
+          ? '/business/$bizId/menu'
+          : '/business/$bizId/menu?locationId=${Uri.encodeQueryComponent(locationId)}';
+      final response = await apiClient.get(menuUri, requireAuth: false);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final rawSections = body['sections'] as List<dynamic>? ?? const [];
-      final rawUncategorised = body['uncategorisedProducts'] as List<dynamic>? ?? const [];
+      final rawUncategorised =
+          (body['uncategorised'] ?? body['uncategorisedProducts']) as List<dynamic>? ?? const [];
 
       if (!mounted) return;
       setState(() {
