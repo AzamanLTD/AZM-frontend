@@ -38,4 +38,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/providers/susu_provider.dart test/providers/susu_provider_rate_test.dart .github/workflows/patch-canonical-susu-rate.yml
           git commit -m 'fix: require canonical USDC/GHS rate for Susu display'
-          git push
+          git push origin HEAD:${{ github.head_ref }}
