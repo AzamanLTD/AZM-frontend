@@ -469,11 +469,35 @@ final proofOfResidencyProvider = AsyncNotifierProvider.autoDispose<
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SusuSuppliedRate {
-  final double usdcToGhs; // liveRetailRate — the rate we supply to users
+  final double usdcToGhs; // canonical liveRetailRate for USDC/GHS display
   final String source; // e.g. KOTANI_PAY
   const SusuSuppliedRate({required this.usdcToGhs, required this.source});
 
   static const empty = SusuSuppliedRate(usdcToGhs: 0, source: 'UNAVAILABLE');
+}
+
+/// Parse only the canonical public USDC/GHS retail snapshot. A legacy
+/// USD/GHS headline must never become a user-facing Susu GHS equivalent.
+SusuSuppliedRate parseSusuSuppliedRate(Map<String, dynamic> data) {
+  final pair = data['pair']?.toString();
+  final settlement = data['settlementCurrency']?.toString();
+  final display = data['displayCurrency']?.toString();
+  final rawRetail = data['liveRetailRate'];
+  final retail = rawRetail is num
+      ? rawRetail.toDouble()
+      : double.tryParse('${rawRetail ?? ''}') ?? 0.0;
+
+  if (pair != 'USDC/GHS' ||
+      settlement != 'USDC' ||
+      display != 'GHS' ||
+      retail <= 0) {
+    return SusuSuppliedRate.empty;
+  }
+
+  return SusuSuppliedRate(
+    usdcToGhs: retail,
+    source: (data['rateSource'] ?? 'UNKNOWN').toString(),
+  );
 }
 
 final susuSuppliedRateProvider =
@@ -485,16 +509,7 @@ final susuSuppliedRateProvider =
       return SusuSuppliedRate.empty;
     }
     final data = raw['data'] as Map<String, dynamic>? ?? const {};
-    double asDouble(dynamic v) =>
-        v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0.0;
-    // Prefer the retail (user-facing) rate. Fall back to the headline
-    // USD→GHS rate only if retail is missing.
-    final retail = asDouble(data['liveRetailRate']);
-    final headline = asDouble(data['liveUsdToGhs']);
-    return SusuSuppliedRate(
-      usdcToGhs: retail > 0 ? retail : headline,
-      source: (data['rateSource'] ?? 'UNKNOWN').toString(),
-    );
+    return parseSusuSuppliedRate(data);
   } catch (_) {
     return SusuSuppliedRate.empty;
   }
