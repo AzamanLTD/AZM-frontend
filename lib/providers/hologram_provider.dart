@@ -143,14 +143,27 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       if (response.statusCode < 200 || response.statusCode >= 300) return;
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) return;
-      final rawRate = decoded['liveUsdToGhs'] ?? decoded['rate'];
+
+      // /api/oracle/rates is wrapped as { success, data }. Keep a small
+      // compatibility fallback for older deployments that returned the rate
+      // object at the top level.
+      final payload = decoded['data'] is Map<String, dynamic>
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
+
+      // USDC is authoritative for settlement; liveRetailRate is the server
+      // rate intended for the end-user GHS presentation layer. Fall back to
+      // liveUsdToGhs only for compatibility with older server data.
+      final rawRate = payload['liveRetailRate'] ??
+          payload['liveUsdToGhs'] ??
+          payload['rate'];
       final rate = rawRate is num
           ? rawRate.toDouble()
           : double.tryParse(rawRate?.toString() ?? '') ?? 0;
       if (rate <= 0) return;
 
       final configuredSecondsRaw =
-          decoded['refreshIntervalSeconds'] ?? decoded['quoteValiditySeconds'];
+          payload['refreshIntervalSeconds'] ?? payload['quoteValiditySeconds'];
       final configuredSeconds = configuredSecondsRaw is num
           ? configuredSecondsRaw.toDouble()
           : double.tryParse(configuredSecondsRaw?.toString() ?? '') ?? 0;
@@ -161,7 +174,7 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       ref.read(oracleRateProvider.notifier).state = rate;
       ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
         fetchedAt: DateTime.now(),
-        sourceLastSync: DateTime.tryParse(decoded['lastSync']?.toString() ?? ''),
+        sourceLastSync: DateTime.tryParse(payload['lastSync']?.toString() ?? ''),
         refreshInterval: interval,
         stale: false,
       );
