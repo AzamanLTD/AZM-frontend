@@ -5,6 +5,8 @@
 // restaurant journey with the active table context.
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +23,34 @@ class DineInTabScreen extends ConsumerStatefulWidget {
   ConsumerState<DineInTabScreen> createState() => _DineInTabScreenState();
 }
 
-class _DineInTabScreenState extends ConsumerState<DineInTabScreen> {
+class _DineInTabScreenState extends ConsumerState<DineInTabScreen>
+    with WidgetsBindingObserver {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      ref.invalidate(dineInTabProvider(widget.tabId));
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.invalidate(dineInTabProvider(widget.tabId));
+    }
+  }
+
   Future<void> _confirmAndPay() async {
     try {
       await ref.read(dineInTabProvider(widget.tabId).notifier).payTab(widget.tabId);
