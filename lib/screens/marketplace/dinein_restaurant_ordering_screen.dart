@@ -59,7 +59,8 @@ class _DineInRestaurantOrderingScreenState
       final response = await apiClient.get(menuUri, requireAuth: false);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final rawSections = body['sections'] as List<dynamic>? ?? const [];
-      final rawUncategorised = body['uncategorisedProducts'] as List<dynamic>? ?? const [];
+      final rawUncategorised =
+          (body['uncategorised'] ?? body['uncategorisedProducts']) as List<dynamic>? ?? const [];
 
       if (!mounted) return;
       setState(() {
