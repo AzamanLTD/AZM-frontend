@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/socket_service.dart';
 
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   final ApiClient _api;
@@ -85,7 +86,25 @@ final followingListProvider = StateNotifierProvider.autoDispose<FollowingListNot
 // ── Dine-In Tab ─────────────────────────────────────────────────────────────
 class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   final ApiClient _api;
-  DineInTabNotifier(this._api) : super(const AsyncValue.data(null));
+  final SocketService _socket;
+  late final void Function(Map<String, dynamic>) _dineInSocketListener;
+
+  DineInTabNotifier(this._api, this._socket) : super(const AsyncValue.data(null)) {
+    _dineInSocketListener = (payload) {
+      final tabId = payload['tabId']?.toString();
+      if (tabId == null) return;
+      // Socket payloads are convergence signals only. The canonical API fetch
+      // remains the source of truth for the current tab state and payment data.
+      if (tabId.isNotEmpty) loadTab(tabId);
+    };
+    _socket.onDineInTabEvent(_dineInSocketListener);
+  }
+
+  @override
+  void dispose() {
+    _socket.removeDineInTabEventListener(_dineInSocketListener);
+    super.dispose();
+  }
 
   Future<void> loadTab(String tabId) async {
     state = const AsyncValue.loading();
@@ -137,7 +156,10 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
 
 final dineInTabProvider = StateNotifierProvider.autoDispose
     .family<DineInTabNotifier, AsyncValue<DineInTab?>, String>(
-  (ref, tabId) => DineInTabNotifier(ref.watch(apiClientProvider))..loadTab(tabId),
+  (ref, tabId) => DineInTabNotifier(
+    ref.watch(apiClientProvider),
+    ref.watch(socketServiceProvider),
+  )..loadTab(tabId),
 );
 
 class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>> {
