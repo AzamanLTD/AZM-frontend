@@ -89,6 +89,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   final SocketService _socket;
   final String _tabId;
   late final void Function(Map<String, dynamic>) _dineInSocketListener;
+  int _loadGeneration = 0;
 
   DineInTabNotifier(this._api, this._socket, this._tabId) : super(const AsyncValue.data(null)) {
     _dineInSocketListener = (payload) {
@@ -109,15 +110,16 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   }
 
   Future<void> loadTab(String tabId) async {
-    if (!mounted) return;
+    if (!mounted || tabId != _tabId) return;
+    final generation = ++_loadGeneration;
     state = const AsyncValue.loading();
     try {
       final res = await _api.get('/dine-in/tabs/$tabId');
       final body = jsonDecode(res.body);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = AsyncValue.data(DineInTab.fromJson(body['tab']));
     } catch (e, st) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -140,12 +142,13 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       await loadTab(tabId);
       return DineInTabItem.fromJson(Map<String, dynamic>.from(itemJson));
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
       return null;
     }
   }
 
   Future<void> payTab(String tabId, {double? tip}) async {
+    if (!mounted || tabId != _tabId) return;
     state = const AsyncValue.loading();
     try {
       await _api.post('/dine-in/tabs/$tabId/pay', {
@@ -153,7 +156,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       });
       await loadTab(tabId);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
       rethrow;
     }
   }
