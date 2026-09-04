@@ -11,6 +11,8 @@ import 'package:azaman/services/api_client.dart';
 //   DELETE /api/oracle/alerts/:id  — delete alert
 // =============================================================================
 
+const canonicalRatePair = 'USDC_GHS';
+
 class RateAlert {
   final String id;
   final double targetRate;
@@ -42,7 +44,7 @@ class RateAlert {
       id: json['id']?.toString() ?? '',
       targetRate: (json['targetRate'] as num?)?.toDouble() ?? 0.0,
       direction: json['direction'] as String? ?? 'ABOVE',
-      ratePair: json['ratePair'] as String? ?? 'USD_GHS',
+      ratePair: json['ratePair'] as String? ?? canonicalRatePair,
       note: json['note'] as String?,
       status: json['status'] as String? ?? 'ACTIVE',
       triggeredAt: json['triggeredAt'] != null
@@ -68,7 +70,6 @@ class RateAlertListResponse {
 }
 
 class RateAlertService {
-  /// Create a new rate alert.
   Future<RateAlert> createAlert({
     required double targetRate,
     required String direction,
@@ -91,7 +92,6 @@ class RateAlertService {
     throw Exception(body['message'] ?? 'Failed to create alert');
   }
 
-  /// List all alerts for the authenticated user.
   Future<RateAlertListResponse> listAlerts() async {
     final response = await apiClient.get(
       '/oracle/alerts',
@@ -108,13 +108,12 @@ class RateAlertService {
       return RateAlertListResponse(
         alerts: alertsList,
         currentRate: (data['currentRate'] as num?)?.toDouble(),
-        ratePair: data['ratePair'] as String? ?? 'USD_GHS',
+        ratePair: data['ratePair'] as String? ?? canonicalRatePair,
       );
     }
     throw Exception(body['message'] ?? 'Failed to fetch alerts');
   }
 
-  /// Delete a rate alert by ID.
   Future<void> deleteAlert(String alertId) async {
     try {
       await apiClient.delete(
@@ -128,5 +127,4 @@ class RateAlertService {
   }
 }
 
-/// Singleton instance
 final RateAlertService rateAlertService = RateAlertService();

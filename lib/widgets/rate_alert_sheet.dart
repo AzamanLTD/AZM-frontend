@@ -5,12 +5,11 @@ import 'package:azaman/providers/rate_alert_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/rate_alert_service.dart';
 
-
 // =============================================================================
 // AZAMAN — RATE ALERT SHEET (Phase Q12-FE)
 //
 // Bottom sheet for creating rate alerts and viewing active/triggered alerts.
-// Launched from the LiveMarketSection's "Set Alert" button.
+// The target is the canonical user-facing USDC/GHS rate.
 // =============================================================================
 
 class RateAlertSheet extends ConsumerStatefulWidget {
@@ -60,7 +59,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
     final rate = double.tryParse(rateText);
     if (rate == null || rate <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid target rate')),
+        const SnackBar(content: Text('Enter a valid USDC/GHS target rate')),
       );
       return;
     }
@@ -84,7 +83,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
       _noteController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Alert set: notify when rate goes $_direction $rateText'),
+          content: Text('USDC/GHS alert set: notify when rate goes $_direction $rateText'),
           backgroundColor: Colors.green,
         ),
       );
@@ -116,7 +115,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle
                 Center(
                   child: Container(
                     width: 40,
@@ -128,8 +126,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Title
                 Row(
                   children: [
                     Icon(Icons.notifications_outlined,
@@ -153,7 +149,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Now: ${widget.currentRate!.toStringAsFixed(2)}',
+                          'USDC/GHS ${widget.currentRate!.toStringAsFixed(2)}',
                           style: TextStyle(
                             color: colors.accent,
                             fontSize: 12,
@@ -165,12 +161,10 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Get notified when the USD→GHS rate hits your target.',
+                  'Get notified when the USDC→GHS rate hits your target.',
                   style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
-
-                // ── Create Alert Form ─────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -182,7 +176,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'NEW ALERT',
+                        'NEW USDC/GHS ALERT',
                         style: TextStyle(
                           color: colors.textTertiary,
                           fontSize: 10,
@@ -191,8 +185,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Target rate input
                       TextField(
                         controller: _rateController,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -203,7 +195,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                           fontWeight: FontWeight.bold,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Target rate (e.g. 15.50)',
+                          hintText: 'Target USDC/GHS rate (e.g. 15.50)',
                           hintStyle: TextStyle(color: colors.textTertiary),
                           prefixIcon: Icon(Icons.swap_horiz,
                               color: colors.accent, size: 20),
@@ -218,8 +210,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Direction toggle
                       Row(
                         children: [
                           _DirectionChip(
@@ -242,8 +232,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         ],
                       ),
                       const SizedBox(height: 12),
-
-                      // Optional note
                       TextField(
                         controller: _noteController,
                         style: TextStyle(
@@ -264,8 +252,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Create button
                       SizedBox(
                         width: double.infinity,
                         height: 46,
@@ -305,10 +291,7 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // ── Active Alerts ─────────────────────────────────────────
                 if (alertState.isLoading && !alertState.hasFetched)
                   Center(
                     child: Padding(
@@ -371,8 +354,6 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
   }
 }
 
-// ── Direction Chip ──────────────────────────────────────────────────────────
-
 class _DirectionChip extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -429,8 +410,6 @@ class _DirectionChip extends StatelessWidget {
   }
 }
 
-// ── Alert Tile ──────────────────────────────────────────────────────────────
-
 class _AlertTile extends StatelessWidget {
   final RateAlert alert;
   final AzamanColors colors;
@@ -462,7 +441,6 @@ class _AlertTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Direction icon
           Container(
             width: 32,
             height: 32,
@@ -474,9 +452,7 @@ class _AlertTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              alert.direction == 'ABOVE'
-                  ? Icons.analytics_outlined
-                  : Icons.analytics_outlined,
+              Icons.analytics_outlined,
               size: 16,
               color: isTriggered
                   ? colors.textTertiary
@@ -486,7 +462,6 @@ class _AlertTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +469,7 @@ class _AlertTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${alert.direction} ${alert.targetRate.toStringAsFixed(2)}',
+                      '${alert.ratePair.replaceAll('_', '/')} · ${alert.direction} ${alert.targetRate.toStringAsFixed(2)}',
                       style: TextStyle(
                         color: isTriggered
                             ? colors.textTertiary
@@ -541,7 +516,6 @@ class _AlertTile extends StatelessWidget {
               ],
             ),
           ),
-          // Delete button (only for active)
           if (!isTriggered)
             IconButton(
               icon: Icon(Icons.cancel_outlined,
