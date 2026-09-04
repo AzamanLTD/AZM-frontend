@@ -143,13 +143,16 @@ double _positiveDouble(dynamic value) {
   return number > 0 && number.isFinite ? number : 0;
 }
 
+bool _isCanonicalUsdcGhs(Map<String, dynamic> payload) {
+  return payload['pair']?.toString().toUpperCase() == 'USDC/GHS' &&
+      payload['settlementCurrency']?.toString().toUpperCase() == 'USDC' &&
+      payload['displayCurrency']?.toString().toUpperCase() == 'GHS';
+}
+
 double parseOracleGhsRate(Map<String, dynamic> decoded) {
   final payload = _unwrapOraclePayload(decoded);
-  final retail = _positiveDouble(payload['liveRetailRate']);
-  if (retail > 0) return retail;
-  final headline = _positiveDouble(payload['liveUsdToGhs']);
-  if (headline > 0) return headline;
-  return _positiveDouble(payload['rate']);
+  if (!_isCanonicalUsdcGhs(payload)) return 0;
+  return _positiveDouble(payload['liveRetailRate']);
 }
 
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
@@ -198,8 +201,9 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   final timer = Timer.periodic(const Duration(seconds: refreshSeconds), (_) => refresh());
   ref.onDispose(timer.cancel);
   Future.microtask(refresh);
-  // Never inject a fabricated FX rate. Until the server returns a valid rate,
-  // the GHS presentation remains unavailable while USDC stays authoritative.
+  // Never inject a fabricated or legacy FX rate. Until the server returns a
+  // valid canonical USDC/GHS retail rate, GHS presentation remains
+  // unavailable while USDC stays authoritative.
   return 0.0;
 });
 
