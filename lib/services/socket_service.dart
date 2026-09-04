@@ -47,6 +47,7 @@ class SocketService {
   void Function(Map<String, dynamic>)? _onNewTradeRequest;
   void Function(Map<String, dynamic>)? _onBizNotification;
   void Function(int)? _onBizNotificationsUpdated;
+  final Set<void Function(Map<String, dynamic>)> _dineInTabEventListeners = <void Function(Map<String, dynamic>)>{};
   void Function(Map<String, dynamic>)? _onBusinessOrderDelivered;
   void Function(Map<String, dynamic>)? _onOrderLocation;
   void Function(Map<String, dynamic>)? _onOrderStatus;
@@ -73,6 +74,8 @@ class SocketService {
   void removeBizNotificationListener() => _onBizNotification = null;
   void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
   void removeBizNotificationsUpdatedListener() => _onBizNotificationsUpdated = null;
+  void onDineInTabEvent(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.add(cb);
+  void removeDineInTabEventListener(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.remove(cb);
   void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
   void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
   void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
@@ -115,6 +118,9 @@ class SocketService {
   bool get hasBizNotificationsUpdatedListener => _onBizNotificationsUpdated != null;
 
   @visibleForTesting
+  int get dineInTabListenerCount => _dineInTabEventListeners.length;
+
+  @visibleForTesting
   void dispatchTestEvent(String event, dynamic data) {
     switch (event) {
       case 'new_trade_request':
@@ -129,6 +135,12 @@ class SocketService {
         } catch (e) {
           debugPrint('[SocketService] $event parse error: $e');
         }
+        break;
+      case 'dine_in_tab_opened':
+      case 'dine_in_item_added':
+      case 'dine_in_tab_finalized':
+      case 'dine_in_tab_paid':
+        _dispatchMapListeners(_dineInTabEventListeners, data, event);
         break;
       default:
         throw ArgumentError.value(event, 'event', 'Unsupported test event');
@@ -216,8 +228,6 @@ class SocketService {
       }
     });
 
-    // Financial socket payloads are convergence signals only. The backend API
-    // remains the canonical ledger projection.
     socket.on('balance_update', (_) {
       if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
     });
@@ -269,6 +279,10 @@ class SocketService {
         debugPrint('[SocketService] biz_notifications_updated parse error: $e');
       }
     });
+    socket.on('dine_in_tab_opened', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_opened'));
+    socket.on('dine_in_item_added', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_item_added'));
+    socket.on('dine_in_tab_finalized', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_finalized'));
+    socket.on('dine_in_tab_paid', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_paid'));
     socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
 
     socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
@@ -422,6 +436,7 @@ class SocketService {
     _onNewTradeRequest = null;
     _onBizNotification = null;
     _onBizNotificationsUpdated = null;
+    _dineInTabEventListeners.clear();
     _onBusinessOrderDelivered = null;
     _onOrderLocation = null;
     _onOrderStatus = null;

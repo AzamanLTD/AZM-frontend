@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/socket_service.dart';
 
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   final ApiClient _api;
@@ -85,15 +86,40 @@ final followingListProvider = StateNotifierProvider.autoDispose<FollowingListNot
 // ── Dine-In Tab ─────────────────────────────────────────────────────────────
 class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   final ApiClient _api;
-  DineInTabNotifier(this._api) : super(const AsyncValue.data(null));
+  final SocketService _socket;
+  final String _tabId;
+  late final void Function(Map<String, dynamic>) _dineInSocketListener;
+  int _loadGeneration = 0;
+
+  DineInTabNotifier(this._api, this._socket, this._tabId) : super(const AsyncValue.data(null)) {
+    _dineInSocketListener = (payload) {
+      if (!mounted) return;
+      final eventTabId = payload['tabId']?.toString();
+      if (eventTabId == null || eventTabId != _tabId) return;
+      // Socket payloads are convergence signals only. The canonical API fetch
+      // remains the source of truth for the current tab state and payment data.
+      loadTab(_tabId);
+    };
+    _socket.onDineInTabEvent(_dineInSocketListener);
+  }
+
+  @override
+  void dispose() {
+    _socket.removeDineInTabEventListener(_dineInSocketListener);
+    super.dispose();
+  }
 
   Future<void> loadTab(String tabId) async {
+    if (!mounted || tabId != _tabId) return;
+    final generation = ++_loadGeneration;
     state = const AsyncValue.loading();
     try {
       final res = await _api.get('/dine-in/tabs/$tabId');
       final body = jsonDecode(res.body);
+      if (!mounted || generation != _loadGeneration) return;
       state = AsyncValue.data(DineInTab.fromJson(body['tab']));
     } catch (e, st) {
+      if (!mounted || generation != _loadGeneration) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -116,12 +142,13 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       await loadTab(tabId);
       return DineInTabItem.fromJson(Map<String, dynamic>.from(itemJson));
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
       return null;
     }
   }
 
   Future<void> payTab(String tabId, {double? tip}) async {
+    if (!mounted || tabId != _tabId) return;
     state = const AsyncValue.loading();
     try {
       await _api.post('/dine-in/tabs/$tabId/pay', {
@@ -129,7 +156,7 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       });
       await loadTab(tabId);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
       rethrow;
     }
   }
@@ -137,7 +164,11 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
 
 final dineInTabProvider = StateNotifierProvider.autoDispose
     .family<DineInTabNotifier, AsyncValue<DineInTab?>, String>(
-  (ref, tabId) => DineInTabNotifier(ref.watch(apiClientProvider))..loadTab(tabId),
+  (ref, tabId) => DineInTabNotifier(
+    ref.watch(apiClientProvider),
+    ref.watch(socketServiceProvider),
+    tabId,
+  )..loadTab(tabId),
 );
 
 class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>> {
