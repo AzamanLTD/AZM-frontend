@@ -10,7 +10,7 @@ void main() {
     SocketService.instance.disconnect();
   });
 
-  test('dispatches customer dine-in lifecycle events only to registered listeners', () {
+  test('dispatches customer dine-in lifecycle events to registered listeners', () {
     final socket = SocketService.instance;
     final received = <Map<String, dynamic>>[];
     void listener(Map<String, dynamic> payload) => received.add(payload);
@@ -30,7 +30,7 @@ void main() {
     expect(received, hasLength(1));
   });
 
-  test('malformed customer dine-in payloads do not escape the socket boundary', () {
+  test('malformed customer dine-in payloads stay inside the safe socket boundary', () {
     final socket = SocketService.instance;
     final received = <Map<String, dynamic>>[];
     socket.onDineInTabEvent(received.add);
@@ -38,5 +38,22 @@ void main() {
     socket.dispatchTestEvent('dine_in_item_added', 'not-a-map');
 
     expect(received, isEmpty);
+  });
+
+  test('all customer lifecycle event names are accepted by the test dispatcher', () {
+    final socket = SocketService.instance;
+    final received = <Map<String, dynamic>>[];
+    socket.onDineInTabEvent(received.add);
+
+    for (final event in const [
+      'dine_in_tab_opened',
+      'dine_in_item_added',
+      'dine_in_tab_finalized',
+      'dine_in_tab_paid',
+    ]) {
+      socket.dispatchTestEvent(event, {'tabId': 'tab-456'});
+    }
+
+    expect(received, hasLength(4));
   });
 }
