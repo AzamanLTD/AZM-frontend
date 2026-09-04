@@ -27,7 +27,12 @@ import 'package:azaman/services/api_client.dart';
 // ── Sub-models ──────────────────────────────────────────────────────────────
 
 class OracleRates {
-  final double usdToGhs;
+  /// Canonical USDC→GHS retail rate.
+  final double usdToGhs; // legacy field name kept for compatibility
+  final String pair;
+  final String settlementCurrency;
+  final String displayCurrency;
+  final bool isCanonical;
   final double retailRate;
   final double corporateRate;
   final String source;
@@ -35,6 +40,10 @@ class OracleRates {
 
   const OracleRates({
     required this.usdToGhs,
+    required this.pair,
+    required this.settlementCurrency,
+    required this.displayCurrency,
+    required this.isCanonical,
     required this.retailRate,
     required this.corporateRate,
     required this.source,
@@ -43,13 +52,17 @@ class OracleRates {
 
   static const empty = OracleRates(
     usdToGhs: 0,
+    pair: 'USDC/GHS',
+    settlementCurrency: 'USDC',
+    displayCurrency: 'GHS',
+    isCanonical: false,
     retailRate: 0,
     corporateRate: 0,
     source: 'UNAVAILABLE',
     lastSync: null,
   );
 
-  bool get isAvailable => usdToGhs > 0;
+  bool get isAvailable => isCanonical && usdToGhs > 0;
 }
 
 class TradeSummary {
@@ -271,10 +284,25 @@ class HomeSummaryService {
       if (data is! Map<String, dynamic>) {
         return const _Section(error: 'Rates payload malformed.');
       }
+      final pair = data['pair']?.toString() ?? '';
+      final settlement = data['settlementCurrency']?.toString() ?? '';
+      final display = data['displayCurrency']?.toString() ?? '';
+      final retail = _asDouble(data['liveRetailRate']);
+      final canonical = pair.toUpperCase() == 'USDC/GHS' &&
+          settlement.toUpperCase() == 'USDC' &&
+          display.toUpperCase() == 'GHS' &&
+          retail > 0;
       return _Section(
         rates: OracleRates(
-          usdToGhs: _asDouble(data['liveUsdToGhs']),
-          retailRate: _asDouble(data['liveRetailRate']),
+          // Keep the legacy property populated for existing consumers, but
+          // source it from the canonical retail rate so it cannot silently
+          // display the headline USD/GHS rate.
+          usdToGhs: canonical ? retail : 0,
+          pair: pair,
+          settlementCurrency: settlement,
+          displayCurrency: display,
+          isCanonical: canonical,
+          retailRate: retail,
           corporateRate: _asDouble(data['liveCorporateRate']),
           source: data['rateSource']?.toString() ?? 'UNKNOWN',
           lastSync: _asDate(data['lastSync']),

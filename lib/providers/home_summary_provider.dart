@@ -57,7 +57,7 @@ class HomeSummaryNotifier extends StateNotifier<HomeSummary> {
       // trips Riverpod debug asserts and produces a frame of flicker.
       // Idempotent: skip identical rates and skip when oracle is dark (0).
       if (fresh.rates.isAvailable) {
-        final rate = fresh.rates.usdToGhs;
+        final rate = fresh.rates.retailRate;
         final list = _ref.read(rateHistoryProvider);
         final isDuplicate = list.isNotEmpty &&
             (list.last.rate - rate).abs() < 0.0001;

@@ -11,7 +11,7 @@
 //
 //   1. The peg row — USDC-pegged assets the user holds (USDC, USDT, AZM).
 //      These are stable by definition; we don't fake price movement.
-//   2. The cedi row — live USD->GHS rate from the oracle, with a small
+//   2. The cedi row — live USDC->GHS rate from the oracle, with a small
 //      in-memory sparkline of the last few rate observations so the user
 //      can see the rate "breathing" without committing the backend to a
 //      historical-rate endpoint we don't have yet.
@@ -101,7 +101,7 @@ class LiveMarketSection extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
 
-          // ── USD->GHS hero row with sparkline ────────────────────────────
+          // ── USDC->GHS hero row with sparkline ────────────────────────────
           _GhsHeroCard(
             colors: colors,
             rates: rates,
@@ -112,7 +112,7 @@ class LiveMarketSection extends ConsumerWidget {
           // ── Phase Q12: Set Alert button + active alert chips ────────────
           if (rates.isAvailable) ...[
             const SizedBox(height: 8),
-            _RateAlertRow(colors: colors, currentRate: rates.usdToGhs),
+            _RateAlertRow(colors: colors, currentRate: rates.retailRate),
           ],
         ],
       ),
@@ -138,7 +138,7 @@ class LiveMarketSection extends ConsumerWidget {
   }
 }
 
-// ── USD->GHS hero card (with sparkline + error fallback) ───────────────────
+// ── USDC->GHS hero card (with sparkline + error fallback) ───────────────────
 
 class _GhsHeroCard extends StatelessWidget {
   final AzamanColors colors;
@@ -176,7 +176,7 @@ class _GhsHeroCard extends StatelessWidget {
               children: [
                 _CurrencyBadge(
                   flag: '\u{1F1FA}\u{1F1F8}',
-                  label: 'USD',
+                  label: 'USDC',
                   colors: colors,
                 ),
                 const Spacer(),
@@ -230,7 +230,7 @@ class _GhsHeroCard extends StatelessWidget {
                   Text(
                     unavailable
                         ? 'Rate unavailable'
-                        : '1 USD = ${rates.usdToGhs.toStringAsFixed(2)} GHS',
+                        : '1 USDC = ${rates.usdToGhs.toStringAsFixed(2)} GHS',
                     style: TextStyle(
                       color: colors.textTertiary,
                       fontSize: 13,
