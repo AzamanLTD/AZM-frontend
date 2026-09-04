@@ -13,15 +13,27 @@ class FxRateSnapshot {
   final String source;
   final DateTime? lastSync;
   final DateTime fetchedAt;
+  final String pair;
+  final String settlementCurrency;
+  final String displayCurrency;
+  final bool isCanonical;
 
   const FxRateSnapshot({
     required this.ghsPerUsdc,
     required this.source,
     required this.lastSync,
     required this.fetchedAt,
+    this.pair = 'USDC/GHS',
+    this.settlementCurrency = 'USDC',
+    this.displayCurrency = 'GHS',
+    this.isCanonical = true,
   });
 
-  bool get isUsable => ghsPerUsdc > 0;
+  bool get isUsable =>
+      ghsPerUsdc > 0 &&
+      pair == 'USDC/GHS' &&
+      settlementCurrency == 'USDC' &&
+      displayCurrency == 'GHS';
 
   double usdcToGhs(double usdc) => usdc * ghsPerUsdc;
 
@@ -35,10 +47,10 @@ double _positiveRate(dynamic value) {
   return number > 0 && number.isFinite ? number : 0;
 }
 
-/// Reads the public backend oracle endpoint. This provider deliberately does
-/// not invent a fallback FX rate: if the server cannot provide one, callers
-/// can keep the primary USDC balance visible without showing a false GHS
-/// conversion.
+/// Reads the public backend oracle endpoint. The explicit retail field is the
+/// canonical USDC/GHS display rate. Legacy headline fields may still be read
+/// for compatibility, but the snapshot marks them as non-canonical so callers
+/// never mistake a legacy USD/GHS value for a fresh Kotani retail quote.
 final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
   try {
     final response = await apiClient.get('/oracle/rates', requireAuth: false);
@@ -51,7 +63,17 @@ final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
     final retail = _positiveRate(data['liveRetailRate']);
     final headline = _positiveRate(data['liveUsdToGhs']);
     final legacy = _positiveRate(data['rate']);
-    final rate = retail > 0 ? retail : headline > 0 ? headline : legacy;
+
+    final pair = data['pair']?.toString() ?? 'USDC/GHS';
+    final settlementCurrency = data['settlementCurrency']?.toString() ?? 'USDC';
+    final displayCurrency = data['displayCurrency']?.toString() ?? 'GHS';
+    final canonicalMetadata =
+        pair == 'USDC/GHS' &&
+        settlementCurrency == 'USDC' &&
+        displayCurrency == 'GHS';
+
+    final hasCanonicalRetail = retail > 0;
+    final rate = hasCanonicalRetail ? retail : headline > 0 ? headline : legacy;
     if (rate <= 0) return null;
 
     return FxRateSnapshot(
@@ -59,6 +81,10 @@ final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
       source: data['rateSource']?.toString() ?? 'UNKNOWN',
       lastSync: DateTime.tryParse(data['lastSync']?.toString() ?? ''),
       fetchedAt: DateTime.now().toUtc(),
+      pair: pair,
+      settlementCurrency: settlementCurrency,
+      displayCurrency: displayCurrency,
+      isCanonical: hasCanonicalRetail && canonicalMetadata,
     );
   } catch (_) {
     return null;
