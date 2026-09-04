@@ -38,11 +38,14 @@ void main() {
   });
 
   group('parseOracleGhsRate', () {
-    test('reads the current wrapped oracle response and prefers liveRetailRate', () {
+    test('reads wrapped canonical oracle response and uses liveRetailRate', () {
       expect(
         parseOracleGhsRate({
           'success': true,
           'data': {
+            'pair': 'USDC/GHS',
+            'settlementCurrency': 'USDC',
+            'displayCurrency': 'GHS',
             'liveRetailRate': 13.42,
             'liveUsdToGhs': 13.10,
             'rateSource': 'KOTANI_PAY',
@@ -52,35 +55,65 @@ void main() {
       );
     });
 
-    test('falls back to the legacy top-level rate shape for compatibility', () {
+    test('rejects legacy or metadata-free oracle shapes', () {
       expect(
         parseOracleGhsRate({
           'liveUsdToGhs': 12.88,
           'rate': 12.77,
         }),
-        12.88,
+        0,
       );
-    });
-
-    test('skips an invalid retail rate and uses a valid headline rate', () {
       expect(
         parseOracleGhsRate({
           'success': true,
           'data': {
+            'pair': 'USD/GHS',
+            'settlementCurrency': 'USD',
+            'displayCurrency': 'GHS',
+            'liveRetailRate': 13.42,
+          },
+        }),
+        0,
+      );
+    });
+
+    test('rejects invalid canonical retail rates without falling back to headline rate', () {
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {
+            'pair': 'USDC/GHS',
+            'settlementCurrency': 'USDC',
+            'displayCurrency': 'GHS',
             'liveRetailRate': 'not-a-number',
             'liveUsdToGhs': '13.21',
           },
         }),
-        13.21,
+        0,
       );
     });
 
-    test('rejects missing or non-positive oracle rates', () {
-      expect(parseOracleGhsRate({'success': true, 'data': {}}), 0);
+    test('rejects missing or non-positive canonical retail rate', () {
       expect(
         parseOracleGhsRate({
           'success': true,
-          'data': {'liveRetailRate': -1},
+          'data': {
+            'pair': 'USDC/GHS',
+            'settlementCurrency': 'USDC',
+            'displayCurrency': 'GHS',
+          },
+        }),
+        0,
+      );
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {
+            'pair': 'USDC/GHS',
+            'settlementCurrency': 'USDC',
+            'displayCurrency': 'GHS',
+            'liveRetailRate': -1,
+          },
         }),
         0,
       );
