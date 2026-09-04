@@ -33,7 +33,8 @@ class FxRateSnapshot {
       ghsPerUsdc > 0 &&
       pair == 'USDC/GHS' &&
       settlementCurrency == 'USDC' &&
-      displayCurrency == 'GHS';
+      displayCurrency == 'GHS' &&
+      isCanonical;
 
   double usdcToGhs(double usdc) => usdc * ghsPerUsdc;
 
@@ -45,6 +46,52 @@ double _positiveRate(dynamic value) {
       ? value.toDouble()
       : double.tryParse(value?.toString() ?? '') ?? 0;
   return number > 0 && number.isFinite ? number : 0;
+}
+
+/// Converts a backend oracle payload into the typed client snapshot.
+///
+/// The canonical path requires an explicit positive `liveRetailRate` plus
+/// explicit USDC/GHS rail metadata. Older `liveUsdToGhs` / `rate` values remain
+/// readable for compatibility, but are marked non-canonical and therefore are
+/// not safe for current conversion UI (`isUsable == false`).
+FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data) {
+  final retail = _positiveRate(data['liveRetailRate']);
+  final headline = _positiveRate(data['liveUsdToGhs']);
+  final legacy = _positiveRate(data['rate']);
+
+  final pair = data['pair']?.toString() ?? 'USDC/GHS';
+  final settlementCurrency = data['settlementCurrency']?.toString() ?? 'USDC';
+  final displayCurrency = data['displayCurrency']?.toString() ?? 'GHS';
+  final canonicalMetadata =
+      pair == 'USDC/GHS' &&
+      settlementCurrency == 'USDC' &&
+      displayCurrency == 'GHS';
+
+  final hasCanonicalRetail = retail > 0;
+  final rate = hasCanonicalRetail ? retail : headline > 0 ? headline : legacy;
+  if (rate <= 0) {
+    return FxRateSnapshot(
+      ghsPerUsdc: 0,
+      source: 'UNAVAILABLE',
+      lastSync: null,
+      fetchedAt: DateTime.now().toUtc(),
+      pair: pair,
+      settlementCurrency: settlementCurrency,
+      displayCurrency: displayCurrency,
+      isCanonical: false,
+    );
+  }
+
+  return FxRateSnapshot(
+    ghsPerUsdc: rate,
+    source: data['rateSource']?.toString() ?? 'UNKNOWN',
+    lastSync: DateTime.tryParse(data['lastSync']?.toString() ?? ''),
+    fetchedAt: DateTime.now().toUtc(),
+    pair: pair,
+    settlementCurrency: settlementCurrency,
+    displayCurrency: displayCurrency,
+    isCanonical: hasCanonicalRetail && canonicalMetadata,
+  );
 }
 
 /// Reads the public backend oracle endpoint. The explicit retail field is the
@@ -60,32 +107,9 @@ final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
     final data = body['data'];
     if (data is! Map<String, dynamic>) return null;
 
-    final retail = _positiveRate(data['liveRetailRate']);
-    final headline = _positiveRate(data['liveUsdToGhs']);
-    final legacy = _positiveRate(data['rate']);
-
-    final pair = data['pair']?.toString() ?? 'USDC/GHS';
-    final settlementCurrency = data['settlementCurrency']?.toString() ?? 'USDC';
-    final displayCurrency = data['displayCurrency']?.toString() ?? 'GHS';
-    final canonicalMetadata =
-        pair == 'USDC/GHS' &&
-        settlementCurrency == 'USDC' &&
-        displayCurrency == 'GHS';
-
-    final hasCanonicalRetail = retail > 0;
-    final rate = hasCanonicalRetail ? retail : headline > 0 ? headline : legacy;
-    if (rate <= 0) return null;
-
-    return FxRateSnapshot(
-      ghsPerUsdc: rate,
-      source: data['rateSource']?.toString() ?? 'UNKNOWN',
-      lastSync: DateTime.tryParse(data['lastSync']?.toString() ?? ''),
-      fetchedAt: DateTime.now().toUtc(),
-      pair: pair,
-      settlementCurrency: settlementCurrency,
-      displayCurrency: displayCurrency,
-      isCanonical: hasCanonicalRetail && canonicalMetadata,
-    );
+    final snapshot = parseFxRateSnapshot(data);
+    if (!snapshot.isUsable) return null;
+    return snapshot;
   } catch (_) {
     return null;
   }
