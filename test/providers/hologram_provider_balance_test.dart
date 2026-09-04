@@ -62,6 +62,19 @@ void main() {
       );
     });
 
+    test('skips an invalid retail rate and uses a valid headline rate', () {
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {
+            'liveRetailRate': 'not-a-number',
+            'liveUsdToGhs': '13.21',
+          },
+        }),
+        13.21,
+      );
+    });
+
     test('rejects missing or non-positive oracle rates', () {
       expect(parseOracleGhsRate({'success': true, 'data': {}}), 0);
       expect(
