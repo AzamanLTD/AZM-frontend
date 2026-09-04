@@ -148,7 +148,6 @@ double parseOracleGhsRate(Map<String, dynamic> decoded) {
 }
 
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
-  const fallbackRate = 12.50;
   const refreshSeconds = 60;
 
   Future<void> refresh() async {
@@ -194,7 +193,9 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   final timer = Timer.periodic(const Duration(seconds: refreshSeconds), (_) => refresh());
   ref.onDispose(timer.cancel);
   Future.microtask(refresh);
-  return fallbackRate;
+  // Never inject a fabricated FX rate. Until the server returns a valid rate,
+  // the GHS presentation remains unavailable while USDC stays authoritative.
+  return 0.0;
 });
 
 final hologramBalanceProvider = Provider<double>((ref) {
