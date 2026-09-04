@@ -136,15 +136,20 @@ Map<String, dynamic> _unwrapOraclePayload(Map<String, dynamic> decoded) {
   return data is Map<String, dynamic> ? data : decoded;
 }
 
+double _positiveDouble(dynamic value) {
+  final number = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return number > 0 && number.isFinite ? number : 0;
+}
+
 double parseOracleGhsRate(Map<String, dynamic> decoded) {
   final payload = _unwrapOraclePayload(decoded);
-  final rawRate = payload['liveRetailRate'] ??
-      payload['liveUsdToGhs'] ??
-      payload['rate'];
-  final rate = rawRate is num
-      ? rawRate.toDouble()
-      : double.tryParse(rawRate?.toString() ?? '') ?? 0;
-  return rate > 0 ? rate : 0;
+  final retail = _positiveDouble(payload['liveRetailRate']);
+  if (retail > 0) return retail;
+  final headline = _positiveDouble(payload['liveUsdToGhs']);
+  if (headline > 0) return headline;
+  return _positiveDouble(payload['rate']);
 }
 
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
