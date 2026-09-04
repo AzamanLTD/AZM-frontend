@@ -1,0 +1,89 @@
+name: Canonical Susu rate fix
+on:
+  push:
+    branches:
+      - fix/canonical-susu-ghs-rate
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch provider and add regression tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('lib/providers/susu_provider.dart')
+          s=p.read_text()
+          old='''class SusuSuppliedRate {\n  final double usdcToGhs; // liveRetailRate — the rate we supply to users\n  final String source; // e.g. KOTANI_PAY\n  const SusuSuppliedRate({required this.usdcToGhs, required this.source});\n\n  static const empty = SusuSuppliedRate(usdcToGhs: 0, source: 'UNAVAILABLE');\n}\n\nfinal susuSuppliedRateProvider =\n    FutureProvider.autoDispose<SusuSuppliedRate>((ref) async {\n  try {\n    final res = await apiClient.get('/oracle/rates', requireAuth: false);\n    final raw = jsonDecode(res.body);\n    if (raw is! Map<String, dynamic> || raw['success'] != true) {\n      return SusuSuppliedRate.empty;\n    }\n    final data = raw['data'] as Map<String, dynamic>? ?? const {};\n    double asDouble(dynamic v) =>\n        v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0.0;\n    // Prefer the retail (user-facing) rate. Fall back to the headline\n    // USD→GHS rate only if retail is missing.\n    final retail = asDouble(data['liveRetailRate']);\n    final headline = asDouble(data['liveUsdToGhs']);\n    return SusuSuppliedRate(\n      usdcToGhs: retail > 0 ? retail : headline,\n      source: (data['rateSource'] ?? 'UNKNOWN').toString(),\n    );\n  } catch (_) {\n    return SusuSuppliedRate.empty;\n  }\n});'''
+          new='''class SusuSuppliedRate {\n  final double usdcToGhs; // canonical liveRetailRate for USDC/GHS display\n  final String source; // e.g. KOTANI_PAY\n  const SusuSuppliedRate({required this.usdcToGhs, required this.source});\n\n  static const empty = SusuSuppliedRate(usdcToGhs: 0, source: 'UNAVAILABLE');\n}\n\n/// Parses the canonical public oracle snapshot for Susu GHS presentation.\n/// Legacy USD/GHS headline rates are deliberately rejected: Susu displays a\n/// GHS equivalent only when the backend explicitly identifies USDC/GHS as the\n/// settlement/display pair and supplies a positive retail rate.\nSusuSuppliedRate parseSusuSuppliedRate(Map<String, dynamic> data) {\n  final pair = data['pair']?.toString();\n  final settlement = data['settlementCurrency']?.toString();\n  final display = data['displayCurrency']?.toString();\n  final retailValue = data['liveRetailRate'];\n  final retail = retailValue is num\n      ? retailValue.toDouble()\n      : double.tryParse('${retailValue ?? ''}') ?? 0.0;\n\n  if (pair != 'USDC/GHS' ||\n      settlement != 'USDC' ||\n      display != 'GHS' ||\n      retail <= 0) {\n    return SusuSuppliedRate.empty;\n  }\n\n  return SusuSuppliedRate(\n    usdcToGhs: retail,\n    source: (data['rateSource'] ?? 'UNKNOWN').toString(),\n  );\n}\n\nfinal susuSuppliedRateProvider =\n    FutureProvider.autoDispose<SusuSuppliedRate>((ref) async {\n  try {\n    final res = await apiClient.get('/oracle/rates', requireAuth: false);\n    final raw = jsonDecode(res.body);\n    if (raw is! Map<String, dynamic> || raw['success'] != true) {\n      return SusuSuppliedRate.empty;\n    }\n    final data = raw['data'] as Map<String, dynamic>? ?? const {};\n    return parseSusuSuppliedRate(data);\n  } catch (_) {\n    return SusuSuppliedRate.empty;\n  }\n});'''
+          if old not in s:
+              raise SystemExit('expected Susu supplied-rate block not found')
+          p.write_text(s.replace(old,new,1))
+          test=Path('test/providers/susu_provider_rate_test.dart')
+          test.parent.mkdir(parents=True, exist_ok=True)
+          test.write_text(r'''import 'package:flutter_test/flutter_test.dart';
+import 'package:azaman/providers/susu_provider.dart';
+
+void main() {
+  group('parseSusuSuppliedRate', () {
+    test('accepts canonical USDC/GHS retail snapshot', () {
+      final rate = parseSusuSuppliedRate({
+        'pair': 'USDC/GHS',
+        'settlementCurrency': 'USDC',
+        'displayCurrency': 'GHS',
+        'liveRetailRate': 12.45,
+        'rateSource': 'KOTANI_PAY',
+      });
+
+      expect(rate.usdcToGhs, 12.45);
+      expect(rate.source, 'KOTANI_PAY');
+    });
+
+    test('rejects legacy headline rate without canonical metadata', () {
+      final rate = parseSusuSuppliedRate({
+        'liveUsdToGhs': 12.50,
+        'rateSource': 'ER_API',
+      });
+
+      expect(rate.usdcToGhs, 0);
+      expect(rate.source, 'UNAVAILABLE');
+    });
+
+    test('rejects invalid canonical rate without falling back', () {
+      final rate = parseSusuSuppliedRate({
+        'pair': 'USDC/GHS',
+        'settlementCurrency': 'USDC',
+        'displayCurrency': 'GHS',
+        'liveRetailRate': 0,
+        'liveUsdToGhs': 12.50,
+      });
+
+      expect(rate.usdcToGhs, 0);
+    });
+
+    test('rejects the wrong pair even with a positive retail field', () {
+      final rate = parseSusuSuppliedRate({
+        'pair': 'USD/GHS',
+        'settlementCurrency': 'USD',
+        'displayCurrency': 'GHS',
+        'liveRetailRate': 12.45,
+      });
+
+      expect(rate.usdcToGhs, 0);
+    });
+  });
+}
+''')
+          PY
+      - name: Commit changes and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/canonical-susu-rate.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/providers/susu_provider.dart test/providers/susu_provider_rate_test.dart .github/workflows/canonical-susu-rate.yml
+          git commit -m 'fix: require canonical USDC/GHS rate for Susu display'
+          git push
