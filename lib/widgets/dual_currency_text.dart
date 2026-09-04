@@ -5,6 +5,13 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/currency_model.dart';
 
+String formatGhsEquivalent(double usdc, double rate) {
+  if (!rate.isFinite || rate <= 0) return 'GHS unavailable';
+  final ghs = usdc * rate;
+  if (!ghs.isFinite) return 'GHS unavailable';
+  return 'GH₵ ${ghs.toStringAsFixed(2)}';
+}
+
 class DualCurrencyText extends ConsumerWidget {
   final double usdc;
   final double? ghsRate;
@@ -23,7 +30,6 @@ class DualCurrencyText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preferred = ref.watch(currencyProvider);
     final double rate = ghsRate ?? ref.watch(oracleRateProvider);
-    final ghs = usdc * rate;
     final colors = ref.watch(themeProvider).colors;
     final primary = style ?? TextStyle(
       color: colors.textPrimary,
@@ -36,12 +42,14 @@ class DualCurrencyText extends ConsumerWidget {
       fontWeight: FontWeight.normal,
     );
 
+    final ghsText = formatGhsEquivalent(usdc, rate);
+
     if (preferred == DisplayCurrency.ghs) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('GH₵ ${ghs.toStringAsFixed(2)}', style: primary),
+          Text(ghsText, style: primary),
           Text('${usdc.toStringAsFixed(2)} USDC', style: secondary),
         ],
       );
@@ -52,7 +60,7 @@ class DualCurrencyText extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${usdc.toStringAsFixed(2)} USDC', style: primary),
-        Text('GH₵ ${ghs.toStringAsFixed(2)}', style: secondary),
+        Text(ghsText, style: secondary),
       ],
     );
   }

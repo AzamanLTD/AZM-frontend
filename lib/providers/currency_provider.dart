@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/services/api_client.dart';
 
-/// Server-authoritative FX snapshot. USDC is treated as USD-parity for the
-/// current KotaniPay/mock rail, so the backend's USD/GHS rate is the source
-/// for USDC/GHS display conversion.
+/// Server-authoritative FX snapshot. USDC is the financial/settlement unit of
+/// account; GHS is a derived local presentation value from the backend's
+/// current user-facing retail rate.
 class FxRateSnapshot {
   final double ghsPerUsdc;
   final String source;
@@ -28,6 +28,13 @@ class FxRateSnapshot {
   double ghsToUsdc(double ghs) => ghs / ghsPerUsdc;
 }
 
+double _positiveRate(dynamic value) {
+  final number = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return number > 0 && number.isFinite ? number : 0;
+}
+
 /// Reads the public backend oracle endpoint. This provider deliberately does
 /// not invent a fallback FX rate: if the server cannot provide one, callers
 /// can keep the primary USDC balance visible without showing a false GHS
@@ -41,7 +48,10 @@ final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
     final data = body['data'];
     if (data is! Map<String, dynamic>) return null;
 
-    final rate = (data['liveUsdToGhs'] as num?)?.toDouble() ?? 0;
+    final retail = _positiveRate(data['liveRetailRate']);
+    final headline = _positiveRate(data['liveUsdToGhs']);
+    final legacy = _positiveRate(data['rate']);
+    final rate = retail > 0 ? retail : headline > 0 ? headline : legacy;
     if (rate <= 0) return null;
 
     return FxRateSnapshot(

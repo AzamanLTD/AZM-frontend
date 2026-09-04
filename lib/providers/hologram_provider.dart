@@ -131,8 +131,28 @@ class OracleRateMetadata {
 final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
     OracleRateMetadata(fetchedAt: DateTime.now(), stale: true));
 
+Map<String, dynamic> _unwrapOraclePayload(Map<String, dynamic> decoded) {
+  final data = decoded['data'];
+  return data is Map<String, dynamic> ? data : decoded;
+}
+
+double _positiveDouble(dynamic value) {
+  final number = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return number > 0 && number.isFinite ? number : 0;
+}
+
+double parseOracleGhsRate(Map<String, dynamic> decoded) {
+  final payload = _unwrapOraclePayload(decoded);
+  final retail = _positiveDouble(payload['liveRetailRate']);
+  if (retail > 0) return retail;
+  final headline = _positiveDouble(payload['liveUsdToGhs']);
+  if (headline > 0) return headline;
+  return _positiveDouble(payload['rate']);
+}
+
 final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
-  const fallbackRate = 12.50;
   const refreshSeconds = 60;
 
   Future<void> refresh() async {
@@ -143,14 +163,13 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       if (response.statusCode < 200 || response.statusCode >= 300) return;
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) return;
-      final rawRate = decoded['liveUsdToGhs'] ?? decoded['rate'];
-      final rate = rawRate is num
-          ? rawRate.toDouble()
-          : double.tryParse(rawRate?.toString() ?? '') ?? 0;
+
+      final payload = _unwrapOraclePayload(decoded);
+      final rate = parseOracleGhsRate(decoded);
       if (rate <= 0) return;
 
       final configuredSecondsRaw =
-          decoded['refreshIntervalSeconds'] ?? decoded['quoteValiditySeconds'];
+          payload['refreshIntervalSeconds'] ?? payload['quoteValiditySeconds'];
       final configuredSeconds = configuredSecondsRaw is num
           ? configuredSecondsRaw.toDouble()
           : double.tryParse(configuredSecondsRaw?.toString() ?? '') ?? 0;
@@ -161,7 +180,7 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       ref.read(oracleRateProvider.notifier).state = rate;
       ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
         fetchedAt: DateTime.now(),
-        sourceLastSync: DateTime.tryParse(decoded['lastSync']?.toString() ?? ''),
+        sourceLastSync: DateTime.tryParse(payload['lastSync']?.toString() ?? ''),
         refreshInterval: interval,
         stale: false,
       );
@@ -179,7 +198,9 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   final timer = Timer.periodic(const Duration(seconds: refreshSeconds), (_) => refresh());
   ref.onDispose(timer.cancel);
   Future.microtask(refresh);
-  return fallbackRate;
+  // Never inject a fabricated FX rate. Until the server returns a valid rate,
+  // the GHS presentation remains unavailable while USDC stays authoritative.
+  return 0.0;
 });
 
 final hologramBalanceProvider = Provider<double>((ref) {

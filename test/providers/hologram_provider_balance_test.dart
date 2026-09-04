@@ -36,4 +36,54 @@ void main() {
       expect(balance.azmBalance, 0);
     });
   });
+
+  group('parseOracleGhsRate', () {
+    test('reads the current wrapped oracle response and prefers liveRetailRate', () {
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {
+            'liveRetailRate': 13.42,
+            'liveUsdToGhs': 13.10,
+            'rateSource': 'KOTANI_PAY',
+          },
+        }),
+        13.42,
+      );
+    });
+
+    test('falls back to the legacy top-level rate shape for compatibility', () {
+      expect(
+        parseOracleGhsRate({
+          'liveUsdToGhs': 12.88,
+          'rate': 12.77,
+        }),
+        12.88,
+      );
+    });
+
+    test('skips an invalid retail rate and uses a valid headline rate', () {
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {
+            'liveRetailRate': 'not-a-number',
+            'liveUsdToGhs': '13.21',
+          },
+        }),
+        13.21,
+      );
+    });
+
+    test('rejects missing or non-positive oracle rates', () {
+      expect(parseOracleGhsRate({'success': true, 'data': {}}), 0);
+      expect(
+        parseOracleGhsRate({
+          'success': true,
+          'data': {'liveRetailRate': -1},
+        }),
+        0,
+      );
+    });
+  });
 }
