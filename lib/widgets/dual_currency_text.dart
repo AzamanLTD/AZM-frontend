@@ -23,6 +23,7 @@ class DualCurrencyText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preferred = ref.watch(currencyProvider);
     final double rate = ghsRate ?? ref.watch(oracleRateProvider);
+    final hasGhsRate = rate > 0;
     final ghs = usdc * rate;
     final colors = ref.watch(themeProvider).colors;
     final primary = style ?? TextStyle(
@@ -36,12 +37,14 @@ class DualCurrencyText extends ConsumerWidget {
       fontWeight: FontWeight.normal,
     );
 
+    final ghsText = hasGhsRate ? 'GH₵ ${ghs.toStringAsFixed(2)}' : 'GHS unavailable';
+
     if (preferred == DisplayCurrency.ghs) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('GH₵ ${ghs.toStringAsFixed(2)}', style: primary),
+          Text(ghsText, style: primary),
           Text('${usdc.toStringAsFixed(2)} USDC', style: secondary),
         ],
       );
@@ -52,7 +55,7 @@ class DualCurrencyText extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${usdc.toStringAsFixed(2)} USDC', style: primary),
-        Text('GH₵ ${ghs.toStringAsFixed(2)}', style: secondary),
+        Text(ghsText, style: secondary),
       ],
     );
   }
