@@ -79,6 +79,20 @@ final followingListProvider = StateNotifierProvider.autoDispose<FollowingListNot
 );
 
 // ── Dine-In Tab ─────────────────────────────────────────────────────────────
+/// Converts an authoritative payment recovery response into the canonical tab
+/// model only when the durable server state proves this tab is CLOSED.
+///
+/// A socket event or failed POST is never treated as proof of payment. The
+/// server's reread is authoritative, which keeps timeout/reconnect recovery
+/// safe from false-positive payment UI.
+DineInTab? parseRecoveredClosedTab(Map<String, dynamic> body, String tabId) {
+  final rawTab = body['tab'];
+  if (rawTab is! Map) return null;
+  final tab = DineInTab.fromJson(Map<String, dynamic>.from(rawTab));
+  if (tab.id != tabId || tab.status != 'CLOSED') return null;
+  return tab;
+}
+
 class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   final ApiClient _api;
   final SocketService _socket;
@@ -156,9 +170,9 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       // presented to the customer as an unsuccessful payment.
       try {
         final res = await _api.get('/dine-in/tabs/$tabId');
-        final body = jsonDecode(res.body);
-        final latest = DineInTab.fromJson(body['tab']);
-        if (latest.id == _tabId && latest.status == 'CLOSED') {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final latest = parseRecoveredClosedTab(body, _tabId);
+        if (latest != null) {
           if (mounted) state = AsyncValue.data(latest);
           return;
         }
