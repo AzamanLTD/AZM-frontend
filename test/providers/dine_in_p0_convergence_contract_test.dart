@@ -6,8 +6,8 @@ void main() {
   test('customer payment recovery keeps server state authoritative', () {
     final source = File('lib/providers/marketplace_extensions_provider.dart').readAsStringSync();
 
-    expect(source, contains("await _api.post('/dine-in/tabs/$tabId/pay'"));
-    expect(source, contains("await _api.get('/dine-in/tabs/$tabId'"));
+    expect(source, contains(r"await _api.post('/dine-in/tabs/$tabId/pay'"));
+    expect(source, contains(r"await _api.get('/dine-in/tabs/$tabId'"));
     expect(source, contains('parseRecoveredClosedTab(body, _tabId)'));
     expect(source, contains('rethrow;'));
     expect(source, contains('// Socket payloads are convergence signals only.'));
