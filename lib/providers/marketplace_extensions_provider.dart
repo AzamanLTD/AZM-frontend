@@ -1,8 +1,3 @@
-// lib/providers/marketplace_extensions_provider.dart
-// =============================================================================
-// AZAMAN — MARKETPLACE EXTENSIONS PROVIDER (v2, 2026-07-03)
-// =============================================================================
-
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
@@ -155,8 +150,24 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
         if (tip != null) 'tipUsdc': tip,
       });
       await loadTab(tabId);
-    } catch (e, st) {
-      if (mounted) state = AsyncValue.error(e, st);
+    } catch (error, stackTrace) {
+      // A payment response can be lost after the server commits. Re-read the
+      // durable tab once before reporting failure so a CLOSED/paid tab is not
+      // presented to the customer as an unsuccessful payment.
+      try {
+        final res = await _api.get('/dine-in/tabs/$tabId');
+        final body = jsonDecode(res.body);
+        final latest = DineInTab.fromJson(body['tab']);
+        if (latest.id == _tabId && latest.status == 'CLOSED') {
+          if (mounted) state = AsyncValue.data(latest);
+          return;
+        }
+      } catch (_) {
+        // Preserve the original failure when the authoritative recovery read
+        // is also unavailable; the existing timer/socket refresh can converge
+        // the screen later.
+      }
+      if (mounted) state = AsyncValue.error(error, stackTrace);
       rethrow;
     }
   }
