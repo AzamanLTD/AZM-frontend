@@ -26,6 +26,7 @@ import 'package:azaman/providers/escrow_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/chat_media_service.dart';
+import 'package:azaman/services/escrow_subscription_registry.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
@@ -59,14 +60,12 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   // in flight so a fast second hold can't kick off a parallel upload.
   bool _isUploadingAudio = false;
 
-  late final void Function(Map<String, dynamic>, String) _escrowHandler;
-  bool _escrowListening = false;
+  EscrowSubscription? _unsubscribeEscrow;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _registerEscrowHandler();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await ref
@@ -75,14 +74,16 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
       _joinRoom();
       _scrollToBottom();
       // Once the ticket is loaded we know whether it's an escrow; if so, load
-      // the escrow state and start listening for realtime escrow_* events.
+      // the escrow state and subscribe to the ticket-scoped realtime stream.
       if (!mounted) return;
       final loaded =
           ref.read(ticketWorkspaceProvider(widget.ticketId)).ticket;
       if (loaded?.type == TicketType.escrow) {
         ref.read(escrowProvider(widget.ticketId).notifier).load();
-        ref.read(socketServiceProvider).onEscrowEvent(_escrowHandler);
-        _escrowListening = true;
+        _unsubscribeEscrow = EscrowSubscriptionRegistry.instance.subscribe(
+          ticketId: widget.ticketId,
+          onEvent: _onEscrowEvent,
+        );
       }
     });
   }
@@ -91,23 +92,19 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _leaveRoom();
-    if (_escrowListening) {
-      ref.read(socketServiceProvider).removeEscrowEventListener(_escrowHandler);
-    }
+    _unsubscribeEscrow?.call();
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _registerEscrowHandler() {
-    _escrowHandler = (raw, evt) {
-      if (!mounted || raw['ticketId']?.toString() != widget.ticketId) return;
-      ref
-          .read(escrowProvider(widget.ticketId).notifier)
-          .onRealtimeUpdate(raw, evt);
-      if (evt == 'escrow_settled') AzamanHaptics.confirm();
-      if (evt == 'escrow_disputed') AzamanHaptics.warn();
-    };
+  void _onEscrowEvent(Map<String, dynamic> raw, String evt) {
+    if (!mounted) return;
+    ref
+        .read(escrowProvider(widget.ticketId).notifier)
+        .onRealtimeUpdate(raw, evt);
+    if (evt == 'escrow_settled') AzamanHaptics.confirm();
+    if (evt == 'escrow_disputed') AzamanHaptics.warn();
   }
 
   @override
