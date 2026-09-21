@@ -4,6 +4,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 class WorkerEwaScreen extends ConsumerStatefulWidget {
   const WorkerEwaScreen({super.key});
@@ -16,17 +17,32 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
   final _amountController = TextEditingController();
   bool _submitting = false;
 
+  // Phase H12 idempotency (PR #292 follow-up): one stable clientRequestId per
+  // withdrawal ACTION. The key survives network failures and lost responses -
+  // re-tapping the same amount after an error is the SAME logical request, so
+  // the backend replays the committed outcome (or executes it once if the
+  // first attempt never committed) instead of minting a second payout. A new
+  // key is minted when the amount changes or after a confirmed success.
+  String? _idempotencyKey;
+  double? _keyAmount;
+
   Future<void> _requestEwa() async {
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) return;
+    if (_idempotencyKey == null || _keyAmount != amount) {
+      _idempotencyKey = IdempotencyKey.generate();
+      _keyAmount = amount;
+    }
     setState(() => _submitting = true);
     try {
       final client = ref.read(apiClientProvider);
-      final res = await client.post('/api/business-os/employees/my-ewa-request', {'amount': amount});
+      final res = await client.post('/api/business-os/employees/my-ewa-request', {'amount': amount, 'clientRequestId': _idempotencyKey});
       if (res.statusCode == 200) {
         ref.refresh(myEwaProvider);
         ref.refresh(workerDashboardProvider);
         _amountController.clear();
+        _idempotencyKey = null;
+        _keyAmount = null;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('EWA withdrawal successful!'), backgroundColor: Colors.green));
