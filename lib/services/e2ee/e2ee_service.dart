@@ -67,11 +67,18 @@ Future<Uint8List> hkdfSha256(List<int> ikm, List<int> salt, String info, int len
 }
 
 /// Raw X25519 scalarmult; all-zero output (small-subgroup) is rejected.
+///
+/// The private scalar is imported through the documented
+/// [X25519.newKeyPairFromSeed] API, which clamps it (RFC 7748 decodeScalar)
+/// and derives + embeds the public key corresponding to it — a fully valid
+/// keypair representation. The remote party is passed separately as required.
+/// Because X25519.sharedSecretKey consumes only the private bytes and the
+/// remote public bytes, this construction is byte-identical to the Node
+/// reference's crypto_scalarmult (which clamps internally the same way).
 Future<Uint8List> dh(List<int> privateKey32, List<int> publicKey32) async {
+  final keyPair = await X25519().newKeyPairFromSeed(_u8(privateKey32));
   final shared = await X25519().sharedSecretKey(
-    keyPair: SimpleKeyPairData(_u8(privateKey32),
-        publicKey: SimplePublicKey(_u8(publicKey32), type: KeyPairType.x25519),
-        type: KeyPairType.x25519),
+    keyPair: keyPair,
     remotePublicKey: SimplePublicKey(_u8(publicKey32), type: KeyPairType.x25519),
   );
   final out = _u8(await shared.extractBytes());
