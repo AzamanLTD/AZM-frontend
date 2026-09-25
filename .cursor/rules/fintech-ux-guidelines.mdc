@@ -1,0 +1,88 @@
+---
+description: Exhaustive Fintech UX flows, interaction design, copywriting, and error handling guidelines
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Azaman — Fintech UX & Interaction Guidelines
+
+Build all interfaces like a modern consumer fintech product tailored for Gen-Z. Keep the UI simple, safe, fast, trustworthy, and native to mobile.
+
+---
+
+## Visual Style & Typography
+- **Clean Layout:** Use a clean paper-cream background, large readable numbers, rounded cards, clear actions, and one strong brand accent color (Sage Lime `#b7c29d`).
+- **Hierarchy:** Main money values must be immediately visible. Do not bury balance or transaction figures behind small text or extra clicks.
+- **Button Shaping:** Use rounded pill-shaped buttons for primary actions. The primary action button must be visually dominant. Secondary actions should be less visually loud.
+
+---
+
+## Core Fintech Flows
+
+### 1. Balance Display
+- Display available balances instantly upon login. Do not require account selection if there is only one active account.
+- Make it visually clear what portion of the balance is spendable, pending, invested, or locked.
+
+### 2. Transfers & Payments Flow
+Keep money movement effortless. Never show an overwhelming list of options upfront.
+- **Step 1: Choose Recipient** (auto-detect recipient type from phone, bank account, wallet address).
+- **Step 2: Enter Amount** (use native decimal numeric keyboard, show conversions instantly).
+- **Step 3: Review Details** (clearly show recipient, amount, fees, and delivery time before confirmation).
+- **Step 4: Confirm** (secure and deliberate trigger).
+- **Step 5: Show Result** (immediate success/failure feedback).
+
+### 3. Payment Feedback (Results)
+- **Success Screen:** Include Success Status, Amount, Recipient or Asset, Date/Time, Transaction Reference, and clear CTAs ("Done", "Make another payment", "Share receipt").
+- **Failure Screen:** Provide a clear reason for the failure in plain language and actionable next steps.
+  - *Example:* "Payment failed because your balance is too low. Add money or choose a smaller amount."
+  - ❌ *Avoid:* Vague messages like "Something went wrong" or raw status codes.
+
+### 4. Buy and Sell Crypto Flow
+- Let users enter fiat amount first, then display the crypto equivalent instantly.
+- Use preset amount chips for quick selection.
+- Clearly present fees, exchange rates, and risks prior to final confirmation.
+
+### 5. Verification & Trust (KYC)
+- Explain exactly why verification is required.
+- Show expected completion time (e.g., "It should only take a few minutes").
+- Do not block the entire app unless legally required; make verification cards visible but non-aggressive.
+
+### 6. Transactions List
+- Group transactions by date.
+- Use subtle colors (such as black/dark-smoke) or small indicators to separate incoming vs. outgoing items.
+- Provide clean search and filter controls (Date, Amount, Currency, Asset, Status, Recipient).
+
+### 7. Support Integration
+- Make support easy to find from accounts, payments, and failed transactions.
+- Categories should include: Payment issue, Card issue, Account access, Verification, Fraud/suspicious activity, Crypto transaction, Refund.
+
+### 8. Card Blocking (Emergency Flow)
+- Provide instant, one-tap "Freeze/Block Card" directly within the app without requiring phone calls.
+- Ask for feedback/reason *after* the card has been successfully frozen.
+
+### 9. Scheduled & Recurring Payments
+- Show Recipient, Amount, Frequency, Status, and Next Payment Date. Allow easy editing or early payout.
+
+### 10. Savings (Susu / Rotating Savings)
+- Display savings goals with progress indicators.
+- Make adding money and withdrawing actions prominent and clear.
+
+---
+
+## Mobile Native Interactions
+- **Bottom Sheets:** Use for highly focused actions or contextual selections.
+- **Keyboards:** Always request the correct native keyboard (e.g., numeric with decimals for currency).
+- **Safe Areas:** Ensure interactive components and bottom CTA bars respect notch and home indicator bounds.
+- **Haptics:** Deliver haptic feedback for confirmations.
+
+---
+
+## Screen Review Checklist
+
+Before finishing any user interface or page, run through this checklist:
+- What is the main user goal on this screen? Is it visually obvious in under 3 seconds?
+- Is the main action clear, and are secondary actions less dominant?
+- Is the money value clear? Are fees, risks, and exchange rates fully visible where needed?
+- Can the user easily recover from mistakes or navigate backward?
+- Does the screen feel secure and trustworthy?
+- Are there any developer comments in the code? (❌ NO code comments allowed).

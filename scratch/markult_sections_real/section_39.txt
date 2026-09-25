@@ -1,0 +1,64 @@
+Section 39: Flutter — marketplace_booking_service.dart Extensions
+File: lib/services/marketplace_booking_service.dart
+Add API calls for hotel booking, dine-in tab, and business stories.
+ADD these methods to the existing service class:
+  // Fetch business detail with products and showcase
+  Future<({BusinessProfile business, List<BusinessProduct> products})>
+      fetchBusinessDetail(String bizId) async {
+    final res = await _api.get('/business-market/$bizId');
+    return (
+      business: BusinessProfile.fromJson(res['data']['business']),
+      products: (res['data']['products'] as List)
+          .map((p) => BusinessProduct.fromJson(p)).toList(),
+    );
+  }
+
+  // Create hotel reservation
+  Future<ReservationModel> createReservation({
+    required String bizId,
+    required DateTime checkIn,
+    required DateTime checkOut,
+    required String productId,
+  }) async {
+    final res = await _api.post('/business-market/$bizId/reservations', body: {
+      'checkInDate': checkIn.toIso8601String(),
+      'checkOutDate': checkOut.toIso8601String(),
+      'productId': productId,
+    });
+    return ReservationModel.fromJson(res['data']);
+  }
+
+  // Fetch dine-in tab
+  Future<DineInTabModel> fetchDineInTab(String tabId) async {
+    final res = await _api.get('/business-market/dine-in/$tabId');
+    return DineInTabModel.fromJson(res['data']);
+  }
+
+  // Confirm and pay dine-in tab
+  Future<void> confirmDineInTab(String tabId) async {
+    await _api.post('/business-market/dine-in/$tabId/confirm');
+  }
+
+  // Follow/unfollow a business
+  Future<void> toggleFollow(String bizId, bool follow) async {
+    if (follow) {
+      await _api.post('/business-market/$bizId/follow');
+    } else {
+      await _api.delete('/business-market/$bizId/follow');
+    }
+  }
+
+  // Post a business ad/status post
+  Future<void> createAdPost(String bizId, {
+    required String template,
+    String? caption,
+    String? imageUrl,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _api.post('/business-market/$bizId/ads', body: {
+      'template': template,
+      'caption': caption,
+      'imageUrl': imageUrl,
+      'metadata': metadata,
+    });
+  }

@@ -1,0 +1,112 @@
+Section 51: GAP FIX 1 — Story Feed Read Path ✅ RESOLVED (4 tests verify)
+✅ RESOLVED. The getFeed() method in storyService.js now includes an OR clause that queries BusinessFollower to find the viewer's followed businesses, then includes stories where businessProfileId is in that list. The response is enriched with isBusiness and business profile info (name, logo) for Flutter rendering.
+
+Tests verifying this fix:
+  3.1 — Follower sees business stories in their feed ✓
+  3.2 — Non-follower does NOT see business stories ✓ (privacy boundary)
+  3.3 — Business stories include business profile info ✓
+  3.4 — Expired business stories are excluded ✓
+
+See Section 9 for the actual implemented code.
+CRITICAL FIX: The existing getFeed() method only queries stories from friends. Business stories (created by reviewStoryService and the ad system) set businessProfileId but use the business owner userId — which may not be in the viewer friends list. This means business stories get CREATED but never RENDER in any follower feed.
+The fix: ALSO include stories from businesses the viewer follows.
+FIND the existing getFeed method:
+// EXISTING (line ~45):
+async getFeed(viewerId) {
+    const friendIds = await this._getFriendIds(viewerId);
+    const stories = await this.prisma.story.findMany({
+        where: {
+            expiresAt: { gt: new Date() },
+            userId: { in: friendIds },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, username: true, profilePictureUrl: true } } },
+    });
+    // ... grouping logic
+}
+REPLACE with:
+async getFeed(viewerId) {
+    const friendIds = await this._getFriendIds(viewerId);
+
+    // NEW: Also get IDs of businesses the viewer follows
+    const followedBusinesses = await this.prisma.businessFollower.findMany({
+        where: { followerId: viewerId },
+        select: { businessProfileId: true },
+    });
+    const followedBizIds = followedBusinesses.map(f => f.businessProfileId);
+
+    // Get the owner userIds of followed businesses (to include their stories)
+    const followedBizOwners = followedBizIds.length > 0
+        ? await this.prisma.businessProfile.findMany({
+            where: { id: { in: followedBizIds } },
+            select: { userId: true, id: true, businessName: true, logoUrl: true },
+        })
+        : [];
+    const followedOwnerIds = followedBizOwners.map(b => b.userId);
+
+    // Combine friend IDs and followed business owner IDs
+    const allAuthorIds = [...new Set([...friendIds, ...followedOwnerIds])];
+
+    const stories = await this.prisma.story.findMany({
+        where: {
+            expiresAt: { gt: new Date() },
+            userId: { in: allAuthorIds },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+            user: { select: { id: true, username: true, profilePictureUrl: true } },
+            businessProfile: {
+                select: { id: true, businessName: true, logoUrl: true, businessType: true }
+            },
+        },
+    });
+
+    // Build a lookup map for business owners
+    const bizOwnerMap = new Map();
+    for (const b of followedBizOwners) {
+        bizOwnerMap.set(b.userId, b);
+    }
+
+    // Group stories by author — separate friend stories from business stories
+    const groups = [];
+    const seenAuthors = new Set();
+
+    for (const story of stories) {
+        const authorId = story.userId;
+        if (seenAuthors.has(authorId)) {
+            const existing = groups.find(g => g.authorId === authorId);
+            if (existing) existing.stories.push(story);
+        } else {
+            seenAuthors.add(authorId);
+            const biz = story.businessProfile || bizOwnerMap.get(authorId);
+            groups.push({
+                authorId,
+                authorName: biz ? biz.businessName : story.user.username,
+                authorAvatar: biz ? biz.logoUrl : story.user.profilePictureUrl,
+                isBusiness: !!biz,
+                businessId: biz ? biz.id : null,
+                businessType: biz ? biz.businessType : null,
+                stories: [story],
+            });
+        }
+    }
+
+    return groups;
+}
+Also ADD this helper method to the class:
+// NEW: Get stories for a specific business (used in business profile screen)
+async getBusinessStories(businessProfileId) {
+    const stories = await this.prisma.story.findMany({
+        where: {
+            businessProfileId,
+            expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+            user: { select: { id: true, username: true, profilePictureUrl: true } },
+        },
+    });
+    return stories;
+}
+Flutter side: The story rail widget must also be updated to display business stories alongside friend stories. The API returns groups with isBusiness and businessId fields — the Flutter widget should render these with a small business badge.
+

@@ -1,0 +1,113 @@
+Section 46: React Portal — NEW PAGE: Showcase.jsx
+File: src/pages/Showcase.jsx (NEW)
+Hotel media showcase manager. Drag to reorder, upload photos via Cloudinary, set captions. These appear as the full-bleed slideshow on the customer-facing business profile.
+// src/pages/Showcase.jsx
+import { useState, useEffect } from 'react';
+import { Image as ImageIcon, Upload, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { marketplaceApi } from '../lib/marketplaceApi';
+import { uploadToCloudinary } from '../lib/cloudinary';
+
+export default function Showcase({ businessId }) {
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await marketplaceApi.getShowcase(businessId);
+      setSlides(res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const upload = async (file) => {
+    setUploading(true);
+    try {
+      const url = await uploadToCloudinary(file, 'showcase');
+      await marketplaceApi.addShowcaseSlide(businessId, { mediaUrl: url });
+      load();
+    } catch (e) { alert('Upload failed'); }
+    setUploading(false);
+  };
+
+  const remove = async (slideId) => {
+    try {
+      await marketplaceApi.removeShowcaseSlide(businessId, slideId);
+      setSlides(prev => prev.filter(s => s.id !== slideId));
+    } catch (e) { alert('Failed to remove'); }
+  };
+
+  const move = async (idx, dir) => {
+    const newSlides = [...slides];
+    const target = idx + dir;
+    if (target < 0 || target >= newSlides.length) return;
+    [newSlides[idx], newSlides[target]] = [newSlides[target], newSlides[idx]];
+    setSlides(newSlides);
+    // Persist order
+    try {
+      await marketplaceApi.reorderShowcase(businessId,
+        newSlides.map((s, i) => ({ id: s.id, sortOrder: i })));
+    } catch (e) { console.error(e); }
+  };
+
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Showcase</h1>
+        <p className="text-sm text-muted-foreground mt-1">Photos shown as a full-bleed slideshow on your profile</p>
+      </div>
+
+      {/* Upload */}
+      <div className="rounded-lg border-2 border-dashed border-input p-8 text-center">
+        <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+        <label className="cursor-pointer">
+          <span className="text-sm text-primary font-medium">
+            {uploading ? 'Uploading...' : 'Click to upload photo'}
+          </span>
+          <input type="file" accept="image/*" className="hidden"
+            onChange={(e) => e.target.files[0] && upload(e.target.files[0])} />
+        </label>
+      </div>
+
+      {/* Slides */}
+      <div className="space-y-3">
+        {slides.map((slide, idx) => (
+          <div key={slide.id} className="rounded-lg border bg-card overflow-hidden flex">
+            <img src={slide.mediaUrl} alt="" className="w-32 h-24 object-cover" />
+            <div className="flex-1 px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Slide {idx + 1}</p>
+                <p className="text-xs text-muted-foreground">{slide.caption || 'No caption'}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => move(idx, -1)} disabled={idx === 0}
+                  className="h-8 w-8 rounded-md hover:bg-accent/10 disabled:opacity-30 flex items-center justify-center">
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button onClick={() => move(idx, 1)} disabled={idx === slides.length - 1}
+                  className="h-8 w-8 rounded-md hover:bg-accent/10 disabled:opacity-30 flex items-center justify-center">
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+                <button onClick={() => remove(slide.id)}
+                  className="h-8 w-8 rounded-md hover:bg-destructive/10 flex items-center justify-center">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {slides.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No showcase photos yet. Upload your first photo above.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+

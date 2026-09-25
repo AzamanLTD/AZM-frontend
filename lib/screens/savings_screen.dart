@@ -1,0 +1,914 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/vault/vault_list_screen.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/savings_goal_sheet.dart';
+import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+
+class SavingsScreen extends ConsumerStatefulWidget {
+  const SavingsScreen({super.key});
+
+  @override
+  ConsumerState<SavingsScreen> createState() => _SavingsScreenState();
+}
+
+class _SavingsScreenState extends ConsumerState<SavingsScreen> {
+  Map<String, dynamic>? _overview;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOverview();
+  }
+
+  Future<void> _fetchOverview() async {
+    try {
+      final response = await apiClient.get('/savings/overview');
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _overview = body['data'];
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('[Savings] Fetch error: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+
+    if (_isLoading) {
+      return const SkeletonList(itemHeight: 100, count: 4);
+    }
+
+    return AzPullToRefresh(
+      color: colors.accent,
+      onRefresh: _fetchOverview,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(colors),
+            const SizedBox(height: 16),
+            _buildBalance(colors),
+            const SizedBox(height: 12),
+            _buildCurrencyPill(colors),
+            const SizedBox(height: 32),
+            _buildSectionLabel(colors, 'Here are some things you can do'),
+            const SizedBox(height: 16),
+            _buildActionGrid(colors),
+            const SizedBox(height: 32),
+            _buildSectionLabel(colors, 'Your savings goals'),
+            const SizedBox(height: 16),
+            _buildGoalsRow(colors),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(AzamanColors colors) {
+    final username = ref.watch(authProvider).user?.username ?? '';
+    final greeting = username.isEmpty ? 'Hi there,' : 'Hi $username,';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            greeting,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBalance(AzamanColors colors) {
+    final total = (_overview?['totalSavedGhs'] as num?)?.toDouble() ?? 0;
+    return Text(
+      _formatAmount(total),
+      style: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 40,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1.0,
+        height: 1.0,
+      ),
+    );
+  }
+
+  Widget _buildCurrencyPill(AzamanColors colors) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('\u{1F1EC}\u{1F1ED}', style: TextStyle(fontSize: 18)),
+        const SizedBox(width: 6),
+        Text(
+          'GHS',
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Icon(Icons.arrow_downward, color: colors.textTertiary, size: 16),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabel(AzamanColors colors, String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: colors.textTertiary,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.2,
+      ),
+    );
+  }
+
+  Widget _buildActionGrid(AzamanColors colors) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                colors: colors,
+                icon: Icons.flag_outlined,
+                tint: colors.textPrimary,
+                background: colors.accent.withValues(alpha: 0.07),
+                title: 'New goal',
+                subtitle: 'Save toward a target amount',
+                onTap: () => _showCreateGoalSheet(colors),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _ActionCard(
+                colors: colors,
+                icon: Icons.lock_outline,
+                tint: colors.textPrimary,
+                background: colors.success.withValues(alpha: 0.08),
+                title: 'Open a vault',
+                subtitle: 'Lock funds, earn rewards',
+                onTap: () {
+                  pushWithVerticalTransition(context, const VaultListScreen());
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                colors: colors,
+                icon: Icons.group_outlined,
+                tint: colors.textPrimary,
+                background: colors.warning.withValues(alpha: 0.10),
+                title: 'Join a Susu',
+                subtitle: 'Group rotational savings',
+                onTap: () => context.push('/susu'),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _ActionCard(
+                colors: colors,
+                icon: Icons.account_balance_wallet_outlined,
+                tint: colors.textPrimary,
+                background: colors.softSurface,
+                title: 'Quick deposit',
+                subtitle: 'Add money to your savings',
+                onTap: () => context.push('/deposit'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoalsRow(AzamanColors colors) {
+    final goals = (_overview?['goals'] as List?) ?? [];
+
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: goals.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _GoalCircle(
+              colors: colors,
+              isAdd: true,
+              label: 'Add',
+              onTap: () => _showCreateGoalSheet(colors),
+            );
+          }
+          final goal = Map<String, dynamic>.from(goals[index - 1] as Map);
+          final name = goal['name']?.toString() ?? 'Goal';
+          final current = (goal["currentAmountGhs"] as num?)?.toDouble() ?? 0.0;
+          final target  = (goal["targetAmountGhs"] as num?)?.toDouble() ?? 1.0;
+          final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
+          return _GoalCircle(
+            colors: colors,
+            label: name.split(' ').first,
+            initials: _initials(name),
+            progress: progress,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              SavingsGoalSheet.show(
+                context,
+                goal: goal,
+                onChanged: _fetchOverview,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '?';
+    final buffer = StringBuffer();
+    for (final part in parts.take(2)) {
+      buffer.write(part[0].toUpperCase());
+    }
+    return buffer.toString();
+  }
+
+  String _formatAmount(double value) {
+    final fixed = value.toStringAsFixed(2);
+    final parts = fixed.split('.');
+    final intPart = parts[0];
+    final buffer = StringBuffer();
+    for (var i = 0; i < intPart.length; i++) {
+      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(intPart[i]);
+    }
+    return '${buffer.toString()}.${parts[1]}';
+  }
+
+  void _showCreateGoalSheet(AzamanColors colors) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CreateGoalSheet(onCreated: _fetchOverview),
+    );
+  }
+}
+
+// =============================================================================
+// CREATE GOAL BOTTOM SHEET
+// =============================================================================
+class _CreateGoalSheet extends ConsumerStatefulWidget {
+  final VoidCallback onCreated;
+  const _CreateGoalSheet({required this.onCreated});
+
+  @override
+  ConsumerState<_CreateGoalSheet> createState() => _CreateGoalSheetState();
+}
+
+class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
+  final _nameController = TextEditingController(text: 'My Savings');
+  final _targetController = TextEditingController();
+  final _amountController = TextEditingController();
+  String _frequency = 'WEEKLY';
+  bool _isLocked = true;
+  bool _isSubmitting = false;
+
+  static const List<String> _frequencies = [
+    'DAILY',
+    'WEEKLY',
+    'BIWEEKLY',
+    'MONTHLY',
+  ];
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    final target = double.tryParse(_targetController.text.trim());
+    final amount = double.tryParse(_amountController.text.trim());
+
+    if (name.isEmpty || target == null || amount == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a goal name, target, and deposit amount.'),
+        ),
+      );
+      return;
+    }
+
+    if (target <= 0 || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Target and deposit amount must be greater than zero.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final response = await apiClient.post('/savings/goals', {
+        'name': name,
+        'targetAmountGhs': target,
+        'frequencyAmount': amount,
+        'frequency': _frequency,
+        'isLocked': _isLocked,
+      });
+
+      if (response.statusCode == 201) {
+        widget.onCreated();
+        if (mounted) Navigator.pop(context);
+        HapticFeedback.heavyImpact();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+    final primaryTextOnAccent = colors.isDark ? Colors.black : Colors.white;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            10,
+            16,
+            MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Create savings goal',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _GoalTextField(
+                  colors: colors,
+                  controller: _nameController,
+                  label: 'Goal name',
+                  hint: 'Emergency fund',
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _GoalTextField(
+                        colors: colors,
+                        controller: _targetController,
+                        label: 'Target',
+                        hint: '1,500',
+                        prefixText: 'GHS ',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _GoalTextField(
+                        colors: colors,
+                        controller: _amountController,
+                        label: 'Deposit',
+                        hint: '100',
+                        prefixText: 'GHS ',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Frequency',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _frequencies
+                      .map(
+                        (frequency) => _FrequencyChip(
+                          colors: colors,
+                          label: frequency,
+                          selected: _frequency == frequency,
+                          onTap: () => setState(() => _frequency = frequency),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+                _LockGoalCard(
+                  colors: colors,
+                  isLocked: _isLocked,
+                  onChanged: (value) => setState(() => _isLocked = value),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor: primaryTextOnAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: primaryTextOnAccent,
+                            ),
+                          )
+                        : const Text(
+                            'Create goal',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _targetController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+}
+
+class _GoalTextField extends StatelessWidget {
+  final AzamanColors colors;
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final String? prefixText;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
+
+  const _GoalTextField({
+    required this.colors,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.prefixText,
+    this.keyboardType,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixText: prefixText,
+            prefixStyle: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+            filled: true,
+            fillColor: colors.card,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: colors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: colors.accent.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FrequencyChip extends StatelessWidget {
+  final AzamanColors colors;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FrequencyChip({
+    required this.colors,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent.withValues(alpha: 0.12) : colors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? colors.accent.withValues(alpha: 0.28)
+                : colors.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? colors.accent : colors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LockGoalCard extends StatelessWidget {
+  final AzamanColors colors;
+  final bool isLocked;
+  final ValueChanged<bool> onChanged;
+
+  const _LockGoalCard({
+    required this.colors,
+    required this.isLocked,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final highlight = isLocked ? colors.accent : colors.textSecondary;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLocked
+              ? colors.accent.withValues(alpha: 0.16)
+              : colors.divider,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? colors.accent.withValues(alpha: 0.10)
+                  : colors.softSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.lock_outline, color: highlight, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lock funds until target reached',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  isLocked
+                      ? '2% penalty on early withdrawal'
+                      : 'Withdraw before target if needed',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isLocked,
+            onChanged: onChanged,
+            activeThumbColor: colors.surface,
+            activeTrackColor: colors.accent,
+            inactiveThumbColor: colors.surface,
+            inactiveTrackColor: colors.divider,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  final AzamanColors colors;
+  final IconData icon;
+  final Color tint;
+  final Color background;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.colors,
+    required this.icon,
+    required this.tint,
+    required this.background,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTap(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AspectRatio(
+        aspectRatio: 1.12,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: tint, size: 26),
+              const Spacer(),
+              Text(
+                title,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12.5,
+                  height: 1.3,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoalCircle extends StatelessWidget {
+  final AzamanColors colors;
+  final String label;
+  final String? initials;
+  final bool isAdd;
+  final double progress;
+  final VoidCallback onTap;
+
+  const _GoalCircle({
+    required this.colors,
+    required this.label,
+    required this.onTap,
+    this.initials,
+    this.isAdd = false,
+    this.progress = 0.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTap(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 68, height: 68,
+              child: Stack(alignment: Alignment.center, children: [
+                if (!isAdd)
+                  SizedBox(
+                    width: 68, height: 68,
+                    child: CircularProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      strokeWidth: 3.5,
+                      color: colors.accent,
+                      backgroundColor: colors.softSurface,
+                    ),
+                  ),
+                Container(
+                  width: 56, height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isAdd
+                      ? colors.softSurface
+                      : colors.accent.withValues(alpha: 0.14),
+                  ),
+                  child: isAdd
+                    ? Icon(Icons.add,
+                        color: colors.textSecondary, size: 24)
+                    : Text(initials ?? "?",
+                        style: TextStyle(color: colors.accent,
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                ),
+                if (!isAdd)
+                  Positioned(
+                    bottom: 2, right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "${(progress * 100).toInt()}%",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: 68,
+              child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary,
+                  fontSize: 11, fontWeight: FontWeight.w500)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

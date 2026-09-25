@@ -1,0 +1,253 @@
+// =============================================================================
+// BUSINESS NOTIFICATIONS SCREEN — Flutter V3 Marketplace Sprint (2026-06-21)
+//
+// Owner-facing notification feed with pull-to-refresh, infinite scroll and a
+// mark-all-read action. The canonical business unread-count provider drives
+// realtime refreshes so this screen does not replace the app-level socket
+// listener when it is mounted.
+// =============================================================================
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:azaman/models/business_models.dart';
+import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/business_service.dart';
+import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/biz_notification_card.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:azaman/widgets/az_pull_to_refresh.dart';
+
+class BusinessNotificationsScreen extends ConsumerStatefulWidget {
+  const BusinessNotificationsScreen({super.key});
+
+  @override
+  ConsumerState<BusinessNotificationsScreen> createState() =>
+      _BusinessNotificationsScreenState();
+}
+
+class _BusinessNotificationsScreenState
+    extends ConsumerState<BusinessNotificationsScreen> {
+  final _service = BusinessService();
+  final _scrollCtrl = ScrollController();
+
+  final List<BizNotification> _items = [];
+  bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  bool _listenForUnreadChanges = false;
+  String? _cursor;
+  int _refreshGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _refreshGeneration++;
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 300) {
+      _loadMore();
+    }
+  }
+
+  void _replaceFeed(BizNotificationFeed feed) {
+    final seen = <String>{};
+    _items
+      ..clear()
+      ..addAll(feed.notifications.where((notification) => seen.add(notification.id)));
+    _hasMore = feed.hasMore;
+    _cursor = feed.nextCursor;
+  }
+
+  void _appendUnique(List<BizNotification> notifications) {
+    final seen = _items.map((notification) => notification.id).toSet();
+    _items.addAll(
+      notifications.where((notification) => seen.add(notification.id)),
+    );
+  }
+
+  Future<void> _load() async {
+    final generation = ++_refreshGeneration;
+    try {
+      final feed = await _service.getNotifications();
+      if (!mounted || generation != _refreshGeneration) return;
+      setState(() {
+        _replaceFeed(feed);
+        _loading = false;
+      });
+      _listenForUnreadChanges = true;
+      ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
+    } catch (_) {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _refresh() async {
+    final generation = ++_refreshGeneration;
+    try {
+      final feed = await _service.getNotifications();
+      if (!mounted || generation != _refreshGeneration) return;
+      setState(() {
+        _replaceFeed(feed);
+        _loading = false;
+      });
+      ref.read(bizUnreadCountProvider.notifier).state = feed.unreadCount;
+    } catch (_) {
+      // Realtime refresh is best-effort; the existing feed remains usable.
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _cursor == null) return;
+    final generation = _refreshGeneration;
+    setState(() => _loadingMore = true);
+    try {
+      final feed = await _service.getNotifications(cursor: _cursor);
+      if (!mounted) return;
+      if (generation != _refreshGeneration) {
+        setState(() => _loadingMore = false);
+        return;
+      }
+      setState(() {
+        _appendUnique(feed.notifications);
+        _hasMore = feed.hasMore;
+        _cursor = feed.nextCursor;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await _service.markAllNotificationsRead();
+      if (!mounted) return;
+      setState(() {
+        for (var i = 0; i < _items.length; i++) {
+          final n = _items[i];
+          _items[i] = BizNotification(
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            body: n.body,
+            metadata: n.metadata,
+            isRead: true,
+            createdAt: n.createdAt,
+          );
+        }
+      });
+      ref.read(bizUnreadCountProvider.notifier).state = 0;
+    } catch (_) {}
+  }
+
+  Future<void> _onTap(BizNotification n) async {
+    if (!n.isRead) {
+      try {
+        await _service.markNotificationRead(n.id);
+        final idx = _items.indexWhere((x) => x.id == n.id);
+        if (idx != -1 && mounted) {
+          setState(() {
+            _items[idx] = BizNotification(
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              metadata: n.metadata,
+              isRead: true,
+              createdAt: n.createdAt,
+            );
+          });
+          final count = ref.read(bizUnreadCountProvider);
+          ref.read(bizUnreadCountProvider.notifier).state =
+              count > 0 ? count - 1 : 0;
+        }
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<int>(bizUnreadCountProvider, (previous, next) {
+      if (!_listenForUnreadChanges || !mounted) return;
+      final previousCount = previous ?? 0;
+      if (next > previousCount) {
+        _refresh();
+      }
+    });
+
+    final colors = ref.watch(themeProvider).colors;
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: colors.surface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: colors.textPrimary),
+        title: Text('Business Alerts',
+            style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            tooltip: 'Mark all read',
+            icon: Icon(Icons.done_all, color: colors.accent),
+            onPressed: _markAllRead,
+          ),
+        ],
+      ),
+      body: _loading
+          ? const SkeletonList(itemHeight: 64, count: 6)
+          : _items.isEmpty
+              ? const AzamanEmptyState(
+                  icon: Icons.notifications_outlined,
+                  title: 'No notifications yet',
+                  subtitle: 'Order and payment alerts will appear here.',
+                )
+              : AzPullToRefresh(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _items.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      if (i >= _items.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+                      return BizNotificationCard(
+                        notification: _items[i],
+                        onTap: () => _onTap(_items[i]),
+                      );
+                    },
+                  ),
+                ),
+    );
+  }
+}

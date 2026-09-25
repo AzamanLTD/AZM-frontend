@@ -1,0 +1,190 @@
+Section 41: React Portal — NEW PAGE: DineIn.jsx
+File: src/pages/DineIn.jsx (NEW)
+Waiter/management tool for the dine-in flow: search by AZM-ID to open a tab, add items from the menu, build the bill, finalize and send to customer phone for confirmation.
+// src/pages/DineIn.jsx
+// =============================================================================
+// DINE-IN MANAGEMENT — Waiter takes AZM-ID, opens tab, adds items, finalizes
+// =============================================================================
+
+import { useState, useEffect } from 'react';
+import { Search, Plus, Minus, Receipt, User } from 'lucide-react';
+import { marketplaceApi } from '../lib/marketplaceApi';
+
+export default function DineIn({ businessId, products }) {
+  const [azmId, setAzmId] = useState('');
+  const [tab, setTab] = useState(null);
+  const [tabItems, setTabItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Open tab via AZM-ID search
+  const openTab = async () => {
+    if (!azmId.trim()) return;
+    setLoading(true);
+    try {
+      const res = await marketplaceApi.openDineInTab(businessId, azmId.trim());
+      setTab(res.data);
+      setTabItems([]);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Customer not found');
+    }
+    setLoading(false);
+  };
+
+  // Add item to tab
+  const addItem = (product) => {
+    setTabItems(prev => {
+      const existing = prev.find(i => i.productId === product.id);
+      if (existing) {
+        return prev.map(i => i.productId === product.id
+          ? { ...i, quantity: i.quantity + 1, totalUsdc: (i.quantity + 1) * i.unitPriceUsdc }
+          : i);
+      }
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        quantity: 1,
+        unitPriceUsdc: parseFloat(product.priceUsdc),
+        totalUsdc: parseFloat(product.priceUsdc),
+      }];
+    });
+  };
+
+  // Remove item
+  const removeItem = (productId) => {
+    setTabItems(prev => prev
+      .map(i => i.productId === productId
+        ? { ...i, quantity: i.quantity - 1, totalUsdc: (i.quantity - 1) * i.unitPriceUsdc }
+        : i)
+      .filter(i => i.quantity > 0));
+  };
+
+  const total = tabItems.reduce((sum, i) => sum + i.totalUsdc, 0);
+
+  // Finalize and send to customer
+  const finalizeTab = async () => {
+    if (tabItems.length === 0) return;
+    setLoading(true);
+    try {
+      await marketplaceApi.finalizeDineInTab(tab.id, tabItems);
+      alert('Tab sent to customer for confirmation');
+      setTab(null); setTabItems([]); setAzmId('');
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to finalize tab');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Dine-In Tabs</h1>
+        <p className="text-sm text-muted-foreground mt-1">Open a tab by scanning or entering the customer AZM-ID</p>
+      </div>
+
+      {!tab ? (
+        // Step 1: Search for customer
+        <div className="rounded-lg border bg-card p-6">
+          <label className="text-sm font-medium text-muted-foreground">Customer AZM-ID</label>
+          <div className="mt-2 flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={azmId}
+                onChange={(e) => setAzmId(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && openTab()}
+                placeholder="e.g. AZM-2024-00123"
+                className="w-full pl-10 pr-4 py-2.5 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
+            <button
+              onClick={openTab}
+              disabled={loading || !azmId.trim()}
+              className="px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {loading ? 'Searching...' : 'Open Tab'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Step 2: Build the bill
+        <>
+          {/* Customer info */}
+          <div className="rounded-lg border bg-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">{tab.customerName}</p>
+              <p className="text-xs text-muted-foreground">{azmId}</p>
+            </div>
+            <span className="ml-auto px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+              Tab Open
+            </span>
+          </div>
+
+          {/* Menu items to add */}
+          <div className="rounded-lg border bg-card">
+            <div className="px-4 py-3 border-b">
+              <h3 className="font-medium text-foreground">Add Items</h3>
+            </div>
+            <div className="divide-y">
+              {products.map(p => (
+                <div key={p.id} className="px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{parseFloat(p.priceUsdc).toFixed(2)} USDC</p>
+                  </div>
+                  <button onClick={() => addItem(p)}
+                    className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center hover:bg-primary/20">
+                    <Plus className="h-4 w-4 text-primary" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Current bill */}
+          {tabItems.length > 0 && (
+            <div className="rounded-lg border bg-card">
+              <div className="px-4 py-3 border-b flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-medium text-foreground">Current Bill</h3>
+              </div>
+              <div className="divide-y">
+                {tabItems.map(item => (
+                  <div key={item.productId} className="px-4 py-3 flex items-center">
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity}x {item.unitPriceUsdc.toFixed(2)} USDC
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-foreground mr-3">
+                      {item.totalUsdc.toFixed(2)} USDC
+                    </span>
+                    <button onClick={() => removeItem(item.productId)}
+                      className="h-7 w-7 rounded-md bg-destructive/10 flex items-center justify-center hover:bg-destructive/20">
+                      <Minus className="h-3.5 w-3.5 text-destructive" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-t flex justify-between items-center">
+                <span className="font-medium text-foreground">Total</span>
+                <span className="text-lg font-bold text-foreground">{total.toFixed(2)} USDC</span>
+              </div>
+              <div className="px-4 pb-4">
+                <button onClick={finalizeTab} disabled={loading}
+                  className="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {loading ? 'Sending...' : 'Finalize & Send to Customer'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+

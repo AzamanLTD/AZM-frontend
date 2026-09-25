@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
+
+AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
+
+Widget _harness(MarketplaceDetailPresentation presentation) {
+  return MaterialApp(
+    home: Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          MarketplaceDetailSurface(
+            presentation: presentation,
+            colors: _colors,
+            duration: Duration.zero,
+            onDismiss: () {},
+            child: const SizedBox(
+              key: ValueKey('detail-content'),
+              width: 430,
+              height: 200,
+              child: ColoredBox(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void main() {
+  testWidgets('dish dossier is grounded at the lower edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.dishDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.bottom, closeTo(viewport.height - 8, 1));
+  });
+
+  testWidgets('product dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.productDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('room dossier is grounded at the bottom-right', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.roomDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+    expect(content.bottom, closeTo(viewport.height - 8, 2));
+  });
+
+  testWidgets('seat dossier enters from the right edge', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.seatDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.right, closeTo(viewport.width - 8, 2));
+  });
+
+  testWidgets('service dossier uses a centered focused presentation', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.serviceDossier));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.center.dx, closeTo(viewport.width / 2, 12));
+  });
+
+  testWidgets('morph presentation is centered rather than bottom grounded', (tester) async {
+    await tester.pumpWidget(_harness(MarketplaceDetailPresentation.morph));
+    await tester.pump();
+
+    final content = tester.getRect(find.byKey(const ValueKey('detail-content')));
+    final viewport = tester.binding.renderViews.first.size;
+
+    expect(content.center.dx, closeTo(viewport.width / 2, 12));
+    expect(content.center.dy, closeTo(viewport.height / 2, 12));
+  });
+
+  testWidgets('tap outside the detail surface dismisses it', (tester) async {
+    var dismissed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              MarketplaceDetailSurface(
+                presentation: MarketplaceDetailPresentation.dishDossier,
+                colors: _colors,
+                duration: Duration.zero,
+                onDismiss: () => dismissed = true,
+                child: const SizedBox(width: 200, height: 200),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tapAt(const Offset(4, 4));
+    expect(dismissed, isTrue);
+  });
+}

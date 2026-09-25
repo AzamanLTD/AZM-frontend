@@ -1,0 +1,79 @@
+Section 48: React Portal — marketplaceApi.js New API Functions
+File: src/lib/marketplaceApi.js
+ADD these methods to the existing marketplaceApi object. These cover all new pages and features.
+// === DINE-IN ===
+openDineInTab: (bizId, azmId) =>
+  api.post(`/business-market/${bizId}/dine-in/open`, { azmId }),
+
+finalizeDineInTab: (tabId, items) =>
+  api.post(`/business-market/dine-in/${tabId}/finalize`, { items }),
+
+// === GUESTS ===
+getGuests: (bizId) =>
+  api.get(`/business-market/${bizId}/guests`),
+
+searchGuest: (bizId, query) =>
+  api.get(`/business-market/${bizId}/guests/search`, { params: { q: query } }),
+
+// === MARKETING / ADS ===
+getFollowerStats: (bizId) =>
+  api.get(`/business-market/${bizId}/followers/stats`),
+
+getAdPosts: (bizId) =>
+  api.get(`/business-market/${bizId}/ads`),
+
+createAdPost: (bizId, { template, caption, imageUrl, metadata }) =>
+  api.post(`/business-market/${bizId}/ads`, { template, caption, imageUrl, metadata }),
+
+// === FINANCE ===
+getFinanceStats: (bizId) =>
+  api.get(`/business-market/${bizId}/finance/stats`),
+
+getFinanceTransactions: (bizId) =>
+  api.get(`/business-market/${bizId}/finance/transactions`),
+
+// === SHOWCASE ===
+getShowcase: (bizId) =>
+  api.get(`/business-market/${bizId}/showcase`),
+
+addShowcaseSlide: (bizId, { mediaUrl, caption }) =>
+  api.post(`/business-market/${bizId}/showcase`, { mediaUrl, caption }),
+
+removeShowcaseSlide: (bizId, slideId) =>
+  api.delete(`/business-market/${bizId}/showcase/${slideId}`),
+
+reorderShowcase: (bizId, slides) =>
+  api.patch(`/business-market/${bizId}/showcase/reorder`, { slides }),
+
+// === SEAT MAP EDITOR ===
+getSeatMap: (bizId, tripId) =>
+  api.get(`/business-market/${bizId}/transit/trips/${tripId}/seatmap`),
+
+saveSeatMap: (bizId, tripId, layout) =>
+  api.put(`/business-market/${bizId}/transit/trips/${tripId}/seatmap`, { layout }),
+
+// === PENALTY POLICY ===
+getPenaltyPolicy: (bizId) =>
+  api.get(`/business-market/${bizId}/penalty-policy`),
+
+updatePenaltyPolicy: (bizId, { penaltyPct, gracePeriodMins, businessSideNoShowEnabled }) =>
+  api.put(`/business-market/${bizId}/penalty-policy`, {
+    penaltyPct, gracePeriodMins, businessSideNoShowEnabled,
+  }),
+
+// === COUNTER-PROPOSE (Reservations) ===
+counterProposeReservation: (bizId, reservationId, { newDateTime, message }) =>
+  api.post(`/business-market/${bizId}/reservations/${reservationId}/counter-propose`, {
+    newDateTime, message,
+  }),
+
+acceptCounterProposal: (bizId, reservationId) =>
+  api.post(`/business-market/${bizId}/reservations/${reservationId}/accept-counter`),
+
+// === KYB STATUS ===
+getKybStatus: (bizId) =>
+  api.get(`/business-market/${bizId}/kyb`),
+
+submitKyb: (bizId, documents) =>
+  api.post(`/business-market/${bizId}/kyb/submit`, { documents }),
+

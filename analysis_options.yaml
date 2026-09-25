@@ -1,0 +1,15 @@
+# This file configures the Dart analyzer for the native mobile application.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  # Native Android/iOS build directories contain generated/plugin sources that
+  # are not part of the Dart application being linted. The web, desktop and
+  # Windows targets have been removed from this mobile-only repository.
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+
+linter:
+  rules:
+    # Keep the project's lint policy aligned with flutter_lints defaults.

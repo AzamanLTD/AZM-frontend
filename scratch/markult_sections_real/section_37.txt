@@ -1,0 +1,35 @@
+Section 37: Flutter — Router Updates
+File: lib/router/app_router.dart
+Add routes for the new hotel booking screen, dine-in tab screen, and business stories.
+FIND the existing marketplace route group and ADD these routes:
+// Hotel booking screen
+GoRoute(
+  path: '/business-market/:bizId/hotel-booking',
+  name: 'hotel-booking',
+  builder: (context, state) => HotelBookingScreen(
+    bizId: state.pathParameters['bizId']!,
+  ),
+),
+
+// Dine-in tab screen (customer confirmation)
+GoRoute(
+  path: '/business-market/dine-in/:tabId',
+  name: 'dine-in-tab',
+  builder: (context, state) => DineInTabScreen(
+    tabId: state.pathParameters['tabId']!,
+  ),
+),
+
+// Business stories (story rail for a specific business)
+GoRoute(
+  path: '/business-market/:bizId/stories',
+  name: 'business-stories',
+  builder: (context, state) => BusinessStoriesScreen(
+    bizId: state.pathParameters['bizId']!,
+  ),
+),
+ADD the imports at the top of the file:
+import 'package:azaman/screens/marketplace/hotel_booking_screen.dart';
+import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
+import 'package:azaman/screens/marketplace/business_stories_screen.dart';
+

@@ -1,0 +1,535 @@
+// =============================================================================
+// AZAMAN UNIFIED SOCKET SERVICE — V6
+//
+// One singleton owns one Socket.IO connection, one listener registry, and one
+// reconnectable room registry. Providers/screens register callbacks here;
+// they never create or destroy their own global socket.
+// =============================================================================
+
+import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
+
+import 'package:azaman/config.dart';
+import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/services/realtime_event_deduper.dart';
+
+final socketServiceProvider = Provider<SocketService>((ref) {
+  return SocketService.instance;
+});
+
+class SocketService {
+  SocketService._internal();
+  static final SocketService instance = SocketService._internal();
+
+  io.Socket? _socket;
+  dynamic _ref;
+  bool _connecting = false;
+  bool _authBlocked = false;
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final RealtimeEventDeduper _bizNotificationDeduper = RealtimeEventDeduper();
+
+  String? _currentUserId;
+  final Set<String> _joinedTradeRooms = <String>{};
+  final Set<String> _joinedFriendRooms = <String>{};
+  final Set<String> _joinedGroupRooms = <String>{};
+  final Set<String> _joinedOrderRooms = <String>{};
+
+  void Function(double, double, String, String)? _onAzmReward;
+  void Function(double, double, String, String)? _onAzmSpend;
+  final Set<void Function(Map<String, dynamic>)> _tradeUpdateListeners = <void Function(Map<String, dynamic>)>{};
+  void Function()? _onMarketUpdate;
+  final Set<void Function(Map<String, dynamic>)> _newNotificationListeners = <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)> _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};
+  void Function(Map<String, dynamic>)? _onNewTradeRequest;
+  void Function(Map<String, dynamic>)? _onBizNotification;
+  void Function(int)? _onBizNotificationsUpdated;
+  final Set<void Function(Map<String, dynamic>)> _dineInTabEventListeners = <void Function(Map<String, dynamic>)>{};
+  void Function(Map<String, dynamic>)? _onBusinessOrderDelivered;
+  void Function(Map<String, dynamic>)? _onOrderLocation;
+  void Function(Map<String, dynamic>)? _onOrderStatus;
+  void Function(Map<String, dynamic>)? _onOrderEta;
+  final Set<void Function(Map<String, dynamic>, String)> _escrowListeners = <void Function(Map<String, dynamic>, String)>{};
+  void Function(Map<String, dynamic>)? _onInvoicePaid;
+  void Function(Map<String, dynamic>)? _onInvoiceReceived;
+  void Function(double, double, String, String)? _onDepositSuccess;
+  void Function(Map<String, dynamic>)? _onWithdrawalProgress;
+  void Function(Map<String, dynamic>)? _onWithdrawalSettled;
+
+  void onAzmReward(void Function(double, double, String, String) cb) => _onAzmReward = cb;
+  void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
+  void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.add(cb);
+  void removeTradeUpdateListener(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.remove(cb);
+  void onMarketUpdate(void Function() cb) => _onMarketUpdate = cb;
+  void onNewNotification(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.add(cb);
+  void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.remove(cb);
+  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.add(cb);
+  void removeNotificationsUpdatedListener(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.remove(cb);
+  void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
+  void removeNewTradeRequestListener() => _onNewTradeRequest = null;
+  void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
+  void removeBizNotificationListener() => _onBizNotification = null;
+  void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
+  void removeBizNotificationsUpdatedListener() => _onBizNotificationsUpdated = null;
+  void onDineInTabEvent(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.add(cb);
+  void removeDineInTabEventListener(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.remove(cb);
+  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
+  void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
+  void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
+  void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
+  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.add(cb);
+  void removeEscrowEventListener(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.remove(cb);
+  void onInvoicePaid(void Function(Map<String, dynamic>) cb) => _onInvoicePaid = cb;
+  void onInvoiceReceived(void Function(Map<String, dynamic>) cb) => _onInvoiceReceived = cb;
+  void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
+  void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
+  void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
+
+  void removeOrderLocationListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderLocation == cb) _onOrderLocation = null;
+  }
+
+  void removeOrderStatusListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderStatus == cb) _onOrderStatus = null;
+  }
+
+  void removeOrderEtaListener(void Function(Map<String, dynamic>) cb) {
+    if (_onOrderEta == cb) _onOrderEta = null;
+  }
+
+  void removeInvoicePaidListener(void Function(Map<String, dynamic>) cb) {
+    if (_onInvoicePaid == cb) _onInvoicePaid = null;
+  }
+
+  void removeInvoiceReceivedListener(void Function(Map<String, dynamic>) cb) {
+    if (_onInvoiceReceived == cb) _onInvoiceReceived = null;
+  }
+
+  @visibleForTesting
+  bool get hasNewTradeRequestListener => _onNewTradeRequest != null;
+
+  @visibleForTesting
+  bool get hasBizNotificationListener => _onBizNotification != null;
+
+  @visibleForTesting
+  bool get hasBizNotificationsUpdatedListener => _onBizNotificationsUpdated != null;
+
+  @visibleForTesting
+  int get dineInTabListenerCount => _dineInTabEventListeners.length;
+
+  @visibleForTesting
+  void dispatchTestEvent(String event, dynamic data) {
+    switch (event) {
+      case 'new_trade_request':
+        _safeMapCallback(_onNewTradeRequest, data, event);
+        break;
+      case 'biz_notification':
+        _handleBizNotification(data);
+        break;
+      case 'biz_notifications_updated':
+        try {
+          _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
+        } catch (e) {
+          debugPrint('[SocketService] $event parse error: $e');
+        }
+        break;
+      case 'dine_in_tab_opened':
+      case 'dine_in_item_added':
+      case 'dine_in_tab_finalized':
+      case 'dine_in_tab_paid':
+        _dispatchMapListeners(_dineInTabEventListeners, data, event);
+        break;
+      default:
+        throw ArgumentError.value(event, 'event', 'Unsupported test event');
+    }
+  }
+
+  static String get _resolvedHost {
+    var host = AppConfig.socketUrl;
+    try {
+      if (!kIsWeb && Platform.isAndroid) {
+        host = host.replaceFirst('localhost', '10.0.2.2');
+      }
+    } catch (_) {}
+    return host;
+  }
+
+  void init(WidgetRef ref) {
+    _ref = ref;
+    _connect();
+  }
+
+  void initWithRef(Ref ref) {
+    _ref = ref;
+    _connect();
+  }
+
+  Future<void> _connect() async {
+    if (AppConfig.demoMode || _socket != null || _connecting || _authBlocked) return;
+    _connecting = true;
+
+    try {
+      final token = await _storage.read(key: 'auth_token');
+      if (token == null || token.isEmpty) {
+        _connecting = false;
+        return;
+      }
+
+      final socket = io.io(
+        _resolvedHost,
+        io.OptionBuilder()
+            .setTransports(['polling', 'websocket'])
+            .enableAutoConnect()
+            .enableReconnection()
+            .enableForceNew()
+            .enableForceNewConnection()
+            .setReconnectionAttempts(double.infinity)
+            .setReconnectionDelay(AppConfig.socketReconnectDelayMs)
+            .setAuth({'token': token})
+            .build(),
+      );
+
+      _socket = socket;
+      _attachListeners(socket);
+      _connecting = false;
+    } catch (e) {
+      _connecting = false;
+      _socket = null;
+      debugPrint('[SocketService] connection setup failed: $e');
+    }
+  }
+
+  void _attachListeners(io.Socket socket) {
+    socket.onConnect((_) {
+      _authBlocked = false;
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] connected id=${socket.id}');
+      }
+      _restoreRooms(socket);
+    });
+
+    socket.onDisconnect((reason) {
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] disconnected: $reason');
+      }
+    });
+
+    socket.onConnectError((err) {
+      final message = err.toString();
+      if (AppConfig.enableNetworkLogs) {
+        debugPrint('[SocketService] connect error: $message');
+      }
+      if (_isAuthError(message)) {
+        _authBlocked = true;
+        socket.io.disconnect();
+      }
+    });
+
+    socket.on('balance_update', (_) {
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+    });
+
+    socket.on('rate_update', (data) {
+      try {
+        final rate = _toDouble(_toMap(data)['rate']);
+        if (rate > 0) _read(oracleRateProvider.notifier).state = rate;
+      } catch (e) {
+        debugPrint('[SocketService] rate_update parse error: $e');
+      }
+    });
+
+    socket.on('deposit_success', (data) {
+      try {
+        final raw = _toMap(data);
+        _onDepositSuccess?.call(
+          _toDouble(raw['amountGhs']),
+          _toDouble(raw['amountUsdc']),
+          raw['provider']?.toString() ?? 'MOBILE_MONEY',
+          raw['reference']?.toString() ?? '',
+        );
+        if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+      } catch (e) {
+        debugPrint('[SocketService] deposit_success parse error: $e');
+      }
+    });
+
+    socket.on('withdrawal_progress', (data) =>
+        _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
+    socket.on('withdrawal_settled', (data) {
+      _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled');
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+    });
+
+    socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
+    socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
+
+    socket.on('trade_update', (data) => _dispatchMapListeners(_tradeUpdateListeners, data, 'trade_update'));
+    socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
+    socket.on('new_notification', (data) => _dispatchMapListeners(_newNotificationListeners, data, 'new_notification'));
+    socket.on('notifications_updated', (data) => _dispatchMapListeners(_notificationsUpdatedListeners, data, 'notifications_updated'));
+    socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
+    socket.on('biz_notification', (data) => _handleBizNotification(data));
+    socket.on('biz_notifications_updated', (data) {
+      try {
+        _onBizNotificationsUpdated?.call(_toInt(_toMap(data)['unreadCount']));
+      } catch (e) {
+        debugPrint('[SocketService] biz_notifications_updated parse error: $e');
+      }
+    });
+    socket.on('dine_in_tab_opened', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_opened'));
+    socket.on('dine_in_item_added', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_item_added'));
+    socket.on('dine_in_tab_finalized', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_finalized'));
+    socket.on('dine_in_tab_paid', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_paid'));
+    socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
+
+    socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
+    socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
+    socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
+
+    for (final event in const [
+      'escrow_funded',
+      'escrow_settled',
+      'escrow_pending_settlement',
+      'escrow_disputed',
+      'escrow_resolved',
+      'escrow_terms_updated',
+      'escrow_refunded',
+    ]) {
+      socket.on(event, (data) => _dispatchEscrow(data, event));
+    }
+    socket.on('invoice_paid', (data) => _safeMapCallback(_onInvoicePaid, data, 'invoice_paid'));
+    socket.on('invoice_received', (data) => _safeMapCallback(_onInvoiceReceived, data, 'invoice_received'));
+  }
+
+  void _handleBizNotification(dynamic data) {
+    try {
+      final raw = _toMap(data);
+      final notificationId = raw['notificationId']?.toString();
+      if (!_bizNotificationDeduper.accept(notificationId)) return;
+      _onBizNotification?.call(raw);
+    } catch (e) {
+      debugPrint('[SocketService] biz_notification error: $e');
+    }
+  }
+
+  void _handleAzmEvent(dynamic data, bool reward) {
+    try {
+      final raw = _toMap(data);
+      final amount = _toDouble(raw[reward ? 'awarded' : 'spent']);
+      final source = raw['source']?.toString() ?? '';
+      final reason = raw['reason']?.toString() ?? '';
+      if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
+      final canonicalBalance = _ref != null
+          ? _read(balanceDataProvider).azmBalance
+          : 0.0;
+      if (reward) {
+        _onAzmReward?.call(canonicalBalance, amount, source, reason);
+      } else {
+        _onAzmSpend?.call(canonicalBalance, amount, source, reason);
+      }
+    } catch (e) {
+      debugPrint('[SocketService] AZM event parse error: $e');
+    }
+  }
+
+  void _restoreRooms(io.Socket socket) {
+    if (_currentUserId != null) {
+      socket.emit('join_user_room', {'userId': _currentUserId});
+      socket.emit('join_balance_room', _currentUserId);
+    }
+    for (final id in _joinedTradeRooms) socket.emit('join_trade', id);
+    for (final id in _joinedFriendRooms) {
+      socket.emit('join_friend_chat', {'friendshipId': id, 'userId': _currentUserId});
+    }
+    for (final id in _joinedGroupRooms) {
+      socket.emit('join_group', {'groupId': id, 'userId': _currentUserId});
+    }
+    for (final id in _joinedOrderRooms) socket.emit('join_order', {'orderId': id});
+  }
+
+  void joinTradeRoom(String tradeId) {
+    final id = tradeId.replaceAll('#', '');
+    if (!_joinedTradeRooms.add(id)) return;
+    _socket?.emit('join_trade', id);
+  }
+
+  void leaveTradeRoom(String tradeId) => _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
+  void joinFriendRoom(String friendshipId, String userId) {
+    if (!_joinedFriendRooms.add(friendshipId)) return;
+    _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+  }
+  void leaveFriendRoom(String friendshipId, String userId) {
+    _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _joinedFriendRooms.remove(friendshipId);
+  }
+  void joinGroupRoom(String groupId, String userId) {
+    if (!_joinedGroupRooms.add(groupId)) return;
+    _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
+  }
+  void leaveGroupRoom(String groupId, String userId) {
+    _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
+    _joinedGroupRooms.remove(groupId);
+  }
+  void joinOrderRoom(String orderId) {
+    if (!_joinedOrderRooms.add(orderId)) return;
+    _socket?.emit('join_order', {'orderId': orderId});
+  }
+  void leaveOrderRoom(String orderId) {
+    _socket?.emit('leave_order', {'orderId': orderId});
+    _joinedOrderRooms.remove(orderId);
+  }
+  void joinUserRoom(String userId) {
+    _currentUserId = userId;
+    _socket?.emit('join_user_room', {'userId': userId});
+    _socket?.emit('join_balance_room', userId);
+  }
+  void leaveRoom(String roomId) => _socket?.emit('leave_room', {'roomId': roomId});
+
+  void emit(String event, dynamic data) {
+    final socket = _socket;
+    if (socket == null || !socket.connected) {
+      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] emit skipped: $event');
+      return;
+    }
+    socket.emit(event, data);
+  }
+
+  Future<void> forceReconnect() async {
+    final socket = _socket;
+    if (socket != null) {
+      socket.offAny();
+      socket.disconnect();
+      socket.dispose();
+    }
+    _socket = null;
+    _connecting = false;
+    _authBlocked = false;
+    await _connect();
+  }
+
+  void disconnect() {
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
+    _ref = null;
+    _connecting = false;
+    _authBlocked = false;
+    _currentUserId = null;
+    _joinedTradeRooms.clear();
+    _joinedFriendRooms.clear();
+    _joinedGroupRooms.clear();
+    _joinedOrderRooms.clear();
+    _bizNotificationDeduper.clear();
+    _clearCallbacks();
+  }
+
+  void _clearCallbacks() {
+    _onAzmReward = null;
+    _onAzmSpend = null;
+    _tradeUpdateListeners.clear();
+    _onMarketUpdate = null;
+    _newNotificationListeners.clear();
+    _notificationsUpdatedListeners.clear();
+    _onNewTradeRequest = null;
+    _onBizNotification = null;
+    _onBizNotificationsUpdated = null;
+    _dineInTabEventListeners.clear();
+    _onBusinessOrderDelivered = null;
+    _onOrderLocation = null;
+    _onOrderStatus = null;
+    _onOrderEta = null;
+    _escrowListeners.clear();
+    _onInvoicePaid = null;
+    _onInvoiceReceived = null;
+    _onDepositSuccess = null;
+    _onWithdrawalProgress = null;
+    _onWithdrawalSettled = null;
+  }
+
+  bool get isConnected => _socket?.connected ?? false;
+  io.Socket? get rawSocket => _socket;
+  io.Socket? get socket => _socket;
+  String? get userId => _currentUserId;
+  int get userIdInt => int.tryParse(_currentUserId ?? '0') ?? 0;
+
+  bool _isAuthError(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('authentication failed') ||
+        lower.contains('token expired') ||
+        lower.contains('token superseded') ||
+        lower.contains('banned') ||
+        lower.contains('no longer exists');
+  }
+
+  Map<String, dynamic> _toMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const FormatException('Expected map payload');
+  }
+
+  dynamic _read(dynamic provider) => _ref.read(provider);
+
+  void _dispatchEscrow(dynamic data, String event) {
+    try {
+      final payload = _toMap(data);
+      for (final cb in List<void Function(Map<String, dynamic>, String)>.from(_escrowListeners)) {
+        try {
+          cb(payload, event);
+        } catch (callbackError) {
+          debugPrint('[SocketService] $event listener error: $callbackError');
+        }
+      }
+    } catch (e) {
+      debugPrint('[SocketService] $event error: $e');
+    }
+  }
+
+  void _dispatchMapListeners(
+      Set<void Function(Map<String, dynamic>)> listeners,
+      dynamic data,
+      String event,
+  ) {
+    try {
+      final payload = _toMap(data);
+      for (final cb in List<void Function(Map<String, dynamic>)>.from(listeners)) {
+        try {
+          cb(payload);
+        } catch (callbackError) {
+          debugPrint('[SocketService] $event listener error: $callbackError');
+        }
+      }
+    } catch (e) {
+      debugPrint('[SocketService] $event parse error: $e');
+    }
+  }
+
+  void _safeMapCallback(void Function(Map<String, dynamic>)? cb, dynamic data, String event) {
+    try {
+      cb?.call(_toMap(data));
+    } catch (e) {
+      debugPrint('[SocketService] $event error: $e');
+    }
+  }
+
+  void _safeVoidCallback(void Function()? cb) {
+    try {
+      cb?.call();
+    } catch (e) {
+      debugPrint('[SocketService] callback error: $e');
+    }
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+}

@@ -1,0 +1,1 @@
+Section 47: React Portal — NEW: SeatMapEditor.jsx (Transit Visual Editor)

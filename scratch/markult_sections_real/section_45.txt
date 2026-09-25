@@ -1,0 +1,175 @@
+Section 45: React Portal — NEW PAGE: SeatMapEditor.jsx
+File: src/pages/SeatMapEditor.jsx (NEW)
+Visual grid-based seat map editor for transit businesses. Click cells to toggle seats/aisles/driver. Simple enough for non-technical operators. Replaces raw JSON editing.
+// src/pages/SeatMapEditor.jsx
+// =============================================================================
+// Visual seat map editor — click grid cells to toggle: SEAT, AISLE, DRIVER, EMPTY
+// Saves to backend as a structured layout object.
+// =============================================================================
+
+import { useState, useEffect } from 'react';
+import { Grid3x3, Save, RotateCcw } from 'lucide-react';
+import { marketplaceApi } from '../lib/marketplaceApi';
+
+const CELL_TYPES = {
+  EMPTY: { label: 'Empty', color: 'bg-muted', symbol: '' },
+  SEAT: { label: 'Seat', color: 'bg-primary/20 hover:bg-primary/30', symbol: 'S' },
+  AISLE: { label: 'Aisle', color: 'bg-background', symbol: '' },
+  DRIVER: { label: 'Driver', color: 'bg-amber-100', symbol: 'D' },
+};
+
+const MAX_ROWS = 15;
+const MAX_COLS = 8;
+
+export default function SeatMapEditor({ businessId, tripId }) {
+  const [rows, setRows] = useState(5);
+  const [cols, setCols] = useState(4);
+  const [grid, setGrid] = useState([]);
+  const [activeType, setActiveType] = useState('SEAT');
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => { loadLayout(); }, [tripId]);
+
+  const loadLayout = async () => {
+    try {
+      const res = await marketplaceApi.getSeatMap(businessId, tripId);
+      if (res.data?.layout) {
+        setGrid(res.data.layout.grid || []);
+        setRows(res.data.layout.rows || 5);
+        setCols(res.data.layout.cols || 4);
+      } else {
+        initGrid(5, 4);
+      }
+    } catch (e) { initGrid(5, 4); }
+    setLoaded(true);
+  };
+
+  const initGrid = (r, c) => {
+    const g = Array(r).fill(null).map(() => Array(c).fill('EMPTY'));
+    // Default: driver in front-left
+    if (r > 0 && c > 0) g[0][0] = 'DRIVER';
+    setGrid(g);
+  };
+
+  const resize = (newRows, newCols) => {
+    setRows(newRows); setCols(newCols);
+    const g = Array(newRows).fill(null).map((_, r) =>
+      Array(newCols).fill(null).map((_, c) =>
+        (grid[r] && grid[r][c]) ? grid[r][c] : 'EMPTY'
+      )
+    );
+    if (newRows > 0 && newCols > 0 && g[0][0] === 'EMPTY') g[0][0] = 'DRIVER';
+    setGrid(g);
+  };
+
+  const toggleCell = (r, c) => {
+    if (grid[r][c] === 'DRIVER' && activeType !== 'DRIVER') return; // lock driver
+    const newGrid = [...grid];
+    newGrid[r][c] = newGrid[r][c] === activeType ? 'EMPTY' : activeType;
+    setGrid(newGrid);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await marketplaceApi.saveSeatMap(businessId, tripId, {
+        rows, cols, grid,
+        seatCount: grid.flat().filter(c => c === 'SEAT').length,
+      });
+      alert('Seat map saved');
+    } catch (e) { alert('Failed to save'); }
+    setSaving(false);
+  };
+
+  if (!loaded) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Seat Map Editor</h1>
+          <p className="text-sm text-muted-foreground mt-1">Click cells to assign seat types</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => initGrid(rows, cols)}
+            className="px-3 py-2 rounded-md border border-input text-sm hover:bg-accent/5 flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" /> Reset
+          </button>
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2">
+            <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Layout'}
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="rounded-lg border bg-card p-3 flex items-center gap-4">
+        <span className="text-sm font-medium text-muted-foreground">Paint:</span>
+        {Object.entries(CELL_TYPES).map(([key, val]) => (
+          <button key={key} onClick={() => setActiveType(key)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeType === key ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/10'
+            }`}>
+            {val.label}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Rows:</label>
+          <input type="number" min="1" max={MAX_ROWS} value={rows}
+            onChange={(e) => resize(parseInt(e.target.value) || 1, cols)}
+            className="w-16 px-2 py-1 rounded border border-input text-sm" />
+          <label className="text-sm text-muted-foreground">Cols:</label>
+          <input type="number" min="1" max={MAX_COLS} value={cols}
+            onChange={(e) => resize(rows, parseInt(e.target.value) || 1)}
+            className="w-16 px-2 py-1 rounded border border-input text-sm" />
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="rounded-lg border bg-card p-6 overflow-x-auto">
+        <div className="inline-block">
+          {/* Front label */}
+          <p className="text-center text-xs text-muted-foreground mb-2">↑ Front of Vehicle</p>
+          <div className="gap-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 48px)` }}>
+            {grid.map((row, r) =>
+              row.map((cellType, c) => (
+                <button key={`${r}-${c}`} onClick={() => toggleCell(r, c)}
+                  className={`h-12 rounded-md border text-xs font-medium transition-colors ${
+                    CELL_TYPES[cellType]?.color || 'bg-muted'
+                  } ${cellType === 'SEAT' ? 'border-primary/30' : 'border-input'}
+                  ${cellType === 'DRIVER' ? 'cursor-default' : 'cursor-pointer'}`}>
+                  {CELL_TYPES[cellType]?.symbol || ''}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-lg border bg-card p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">
+            {grid.flat().filter(c => c === 'SEAT').length}
+          </p>
+          <p className="text-xs text-muted-foreground">Total Seats</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">
+            {grid.flat().filter(c => c === 'AISLE').length}
+          </p>
+          <p className="text-xs text-muted-foreground">Aisles</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">
+            {grid.flat().filter(c => c === 'EMPTY').length}
+          </p>
+          <p className="text-xs text-muted-foreground">Empty</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
