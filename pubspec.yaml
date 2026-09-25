@@ -21,6 +21,10 @@ dependencies:
   
   # API Requests & Success Animations
   http: ^1.6.0
+
+  # r40 E2EE v2 client protocol (pure Dart: X25519, Ed25519, ChaCha20-Poly1305,
+  # BLAKE2b, HKDF) — byte-compatible with backend services/e2eeService.js.
+  cryptography: ^2.9.0
   lottie: ^3.3.2
 
   # Secure storage for JWT
