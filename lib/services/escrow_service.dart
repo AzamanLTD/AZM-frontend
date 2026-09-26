@@ -15,6 +15,7 @@ import 'dart:convert';
 
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 class EscrowService {
   final ApiClient _client;
@@ -37,14 +38,20 @@ class EscrowService {
   }
 
   /// POST /escrow/fund {escrowId}
+  ///
+  /// r42: funding is a money-moving mutation — one Idempotency-Key per
+  /// logical fund action, reused across deliberate retries.
   Future<SmartEscrow> fundEscrow(String escrowId) =>
-      _mutate('/escrow/fund', {'escrowId': escrowId});
+      _mutate('/escrow/fund', {'escrowId': escrowId},
+          idempotencyKey: IdempotencyKey.generate());
 
   /// POST /escrow/satisfy {escrowId} — returns whether the escrow is now fully
   /// settled (both parties satisfied) plus the latest escrow snapshot.
   Future<({bool settled, SmartEscrow escrow})> markSatisfied(
       String escrowId) async {
-    final res = await _client.post('/escrow/satisfy', {'escrowId': escrowId});
+    // r42: satisfaction commits the release — same one-key-per-action rule.
+    final res = await _client.postFinancial('/escrow/satisfy', {'escrowId': escrowId},
+        idempotencyKey: IdempotencyKey.generate());
     final body = jsonDecode(res.body);
     final escrow = _unwrap(body, res.statusCode);
     return (settled: body['settled'] == true, escrow: escrow);
@@ -60,7 +67,7 @@ class EscrowService {
       'escrowId': escrowId,
       'reason': reason,
       if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
   }
 
   /// POST /escrow/update-terms {escrowId, deliveryTerms}
@@ -72,7 +79,9 @@ class EscrowService {
 
   /// POST /escrow/cancel {escrowId}
   Future<void> cancelEscrow(String escrowId) async {
-    final res = await _client.post('/escrow/cancel', {'escrowId': escrowId});
+    // r42: cancellation releases funds — same one-key-per-action rule.
+    final res = await _client.postFinancial('/escrow/cancel', {'escrowId': escrowId},
+        idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _throwFrom(res.body, res.statusCode, 'Cancel failed');
     }
@@ -80,8 +89,14 @@ class EscrowService {
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
-  Future<SmartEscrow> _mutate(String path, Map<String, dynamic> body) async {
-    final res = await _client.post(path, body);
+  Future<SmartEscrow> _mutate(String path, Map<String, dynamic> body,
+      {String? idempotencyKey}) async {
+    // r42: [idempotencyKey] is set for money-moving mutations on routes
+    // the backend protects with the shared idempotency authority; purely
+    // editorial routes (update-terms) stay keyless.
+    final res = await (idempotencyKey == null
+        ? _client.post(path, body)
+        : _client.postFinancial(path, body, idempotencyKey: idempotencyKey));
     final decoded = jsonDecode(res.body);
     return _unwrap(decoded, res.statusCode);
   }

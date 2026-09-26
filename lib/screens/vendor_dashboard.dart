@@ -16,6 +16,7 @@ import 'vendor_analytics_screen.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 
 class VendorDashboard extends ConsumerStatefulWidget {
@@ -890,10 +891,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
   Future<void> _executeTransfer(String direction, double amount) async {
     try {
-      final response = await apiClient.post('/wallet/internal-transfer', {
+      // r42: internal transfers move funds between wallet tiers — one
+      // key per logical transfer.
+      final response = await apiClient.postFinancial('/wallet/internal-transfer', {
         'direction': direction,
         'amount': amount,
-      });
+      }, idempotencyKey: IdempotencyKey.generate());
 
       if (response.statusCode == 200) {
         HapticFeedback.heavyImpact();

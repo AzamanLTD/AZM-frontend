@@ -23,6 +23,7 @@ import 'package:azaman/config.dart';
 import 'package:azaman/screens/trade_summary_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 
 class VendorTradeExecution extends ConsumerStatefulWidget {
@@ -453,7 +454,10 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     final colors = ref.read(themeProvider).colors;
 
     try {
-      final response = await apiClient.post('/p2p/complete', {"tradeId": _cleanTradeId});
+      // r42: completing a P2P trade releases the escrow — one key per
+      // logical release action.
+      final response = await apiClient.postFinancial('/p2p/complete', {"tradeId": _cleanTradeId},
+          idempotencyKey: IdempotencyKey.generate());
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -615,7 +619,9 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   Future<void> _acceptTrade() async {
     HapticFeedback.heavyImpact();
     try {
-      final response = await apiClient.post('/trades/accept', {'tradeId': _cleanTradeId});
+      // r42: trade acceptance is a protected financial mutation.
+      final response = await apiClient.postFinancial('/trades/accept', {'tradeId': _cleanTradeId},
+          idempotencyKey: IdempotencyKey.generate());
       if (response.statusCode == 200) {
         setState(() => _isAccepted = true);
         // Refetch the trade to get the new expiresAt set by the backend

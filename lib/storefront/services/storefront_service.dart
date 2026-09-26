@@ -12,6 +12,7 @@ import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
 import 'storefront_conflict_exception.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 class StorefrontApiException implements Exception {
   final int statusCode;
@@ -203,11 +204,13 @@ class StorefrontService {
   /// from checkout creation so an order can safely exist in AWAITING_PAYMENT
   /// until the authenticated funding transaction commits.
   Future<void> fundEscrow({required String escrowId, String? totpToken, String? password}) async {
-    final response = await _apiClient.post('/escrow/fund', {
+    // r42: escrow funding moves USDC — one Idempotency-Key per logical
+    // funding action, reused across deliberate retries.
+    final response = await _apiClient.postFinancial('/escrow/fund', {
       'escrowId': escrowId,
       if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
       if (password != null && password.isNotEmpty) 'password': password,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     _parseResponse(response);
   }
 

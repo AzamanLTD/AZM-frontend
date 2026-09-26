@@ -40,6 +40,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 
 // ── Mode / network enums ─────────────────────────────────────────────────────
@@ -322,11 +323,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final response = await apiClient.post('/wallet/withdraw', {
+      // r42: wallet withdrawals are financial mutations — the backend
+      // requires an HTTP Idempotency-Key for the whole logical withdrawal.
+      final response = await apiClient.postFinancial('/wallet/withdraw', {
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      });
+      }, idempotencyKey: IdempotencyKey.generate());
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
