@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. AI Smart Filter toggle
@@ -266,7 +267,11 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
       if (buyerPaymentDetails != null) 'buyerPaymentDetails': buyerPaymentDetails,
     };
 
-    final response = await apiClient.post('/trades/initiate', body);
+    // r42: the backend requires an HTTP Idempotency-Key before the trade
+    // handler runs. One key per logical initiation; deliberate retries of
+    // this same action must reuse it.
+    final response = await apiClient.postFinancial('/trades/initiate', body,
+        idempotencyKey: IdempotencyKey.generate());
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final respBody = jsonDecode(response.body);

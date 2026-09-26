@@ -13,6 +13,7 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/susu_service.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 double _num(dynamic v) {
   if (v == null) return 0.0;
@@ -207,12 +208,14 @@ class SusuActions {
     required String frequency,
     required DateTime startDate,
   }) async {
-    final res = await apiClient.post('/susu/groups', {
+    // r42: creating a susu group opens a recurring financial commitment —
+    // one key per logical creation.
+    final res = await apiClient.postFinancial('/susu/groups', {
       'groupChatId': groupChatId,
       'contributionUsdc': contributionUsdc,
       'frequency': frequency,
       'startDate': startDate.toIso8601String(),
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode != 201) {
       throw Exception(_msg(res.body));
     }
@@ -225,19 +228,22 @@ class SusuActions {
   }
 
   Future<void> acceptContract(String susuId) async {
-    final res = await apiClient.post('/susu/groups/$susuId/contract', {
+    // r42: contract acceptance binds the member to the contribution
+    // schedule — one key per logical acceptance.
+    final res = await apiClient.postFinancial('/susu/groups/$susuId/contract', {
       'acceptedSeverityWarning': true,
       'acceptedSeizureClause': true,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(susuDetailProvider(susuId));
   }
 
   Future<void> submitVouch(String vouchRecordId, Map<String, dynamic> payload) async {
-    final res = await apiClient.post('/susu/vouches', {
+    // r42: vouching commits the voucher's stake — one key per vouch.
+    final res = await apiClient.postFinancial('/susu/vouches', {
       'vouchRecordId': vouchRecordId,
       'payload': payload,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(pendingVouchesProvider);
   }

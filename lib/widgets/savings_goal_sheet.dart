@@ -119,7 +119,12 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   Future<void> _deposit(double amountGhs) async {
     setState(() => _busy = true);
     try {
-      final res = await apiClient.post(
+      // r42: one logical operation, one identity — the Phase H12
+      // clientRequestId IS the HTTP Idempotency-Key. The header is the
+      // r42 wire contract; the body value keeps the legacy txHash
+      // derivation. Never generate two identities for one deposit.
+      final requestId = IdempotencyKey.generate();
+      final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/deposit',
         {
           'amountGhs': amountGhs,
@@ -129,8 +134,9 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           // @unique on TransactionHistory — concurrent duplicates trip
           // P2002 and the whole transaction (including the user
           // availableBalance debit) rolls back.
-          'clientRequestId': IdempotencyKey.generate(),
+          'clientRequestId': requestId,
         },
+        idempotencyKey: requestId,
       );
 
       final body = jsonDecode(res.body);
@@ -154,9 +160,12 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   Future<void> _withdraw(double? amountGhs) async {
     setState(() => _busy = true);
     try {
-      final res = await apiClient.post(
+      // r42: same one-identity rule as deposits — the header carries the
+      // logical operation key the backend now requires.
+      final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
+        idempotencyKey: IdempotencyKey.generate(),
       );
 
       final body = jsonDecode(res.body);

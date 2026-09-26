@@ -39,6 +39,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -584,8 +585,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         // reminder that prompted it.
         if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
       };
+      // r42: initiating a fiat deposit is a protected mutation — one key
+      // per logical initiation (the OTP confirmation is a separate route).
       final response =
-          await apiClient.post('/deposit/fiat/initiate/moolre', body);
+          await apiClient.postFinancial('/deposit/fiat/initiate/moolre', body,
+              idempotencyKey: IdempotencyKey.generate());
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
