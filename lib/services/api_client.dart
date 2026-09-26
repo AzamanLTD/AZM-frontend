@@ -12,7 +12,11 @@ import 'package:azaman/services/socket_service.dart';
 /// and base URL management.
 class ApiClient {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  final http.Client _client = http.Client();
+  final http.Client _client;
+
+  /// [client] is injectable so tests can pass a MockClient and assert the
+  /// exact wire headers financial mutations produce.
+  ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   bool _isRefreshing = false;
   Future<bool>? _refreshFuture;
@@ -46,9 +50,25 @@ class ApiClient {
     });
   }
 
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {
+  /// POST with the HTTP `Idempotency-Key` header — the single wire contract
+  /// for every backend route protected by the r42 shared financial
+  /// idempotency authority. Prefer [postFinancial] for money-moving calls.
+  ///
+  /// The key identifies the LOGICAL operation, not one HTTP attempt:
+  /// token-refresh retries inside [_executeWithRefresh] reuse the same
+  /// captured header. Callers must generate one key per logical action
+  /// (e.g. one button press) and reuse it for deliberate retries of that
+  /// same action; a new logical action gets a fresh key.
+  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
+      {Map<String, String>? headers, bool requireAuth = true, String? idempotencyKey}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPost(endpoint, body); if (m != null) return m; }
     final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+    if (idempotencyKey != null) {
+      if (idempotencyKey.trim().isEmpty) {
+        throw ArgumentError('idempotencyKey must be a non-empty string when provided');
+      }
+      requestHeaders['Idempotency-Key'] = idempotencyKey.trim();
+    }
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
@@ -57,6 +77,22 @@ class ApiClient {
       final response = await _client.post(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body)).timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
+  }
+
+  /// Financial mutation POST: the backend r42 authority REQUIRES an
+  /// Idempotency-Key on these routes and rejects keyless requests before
+  /// the handler runs. This helper makes the requirement impossible to
+  /// forget — it refuses to send a money-moving request without the key.
+  ///
+  /// Where the body carries a legacy in-body identity (clientRequestId),
+  /// pass the SAME value as [idempotencyKey] so one logical operation has
+  /// exactly one identity, in the header and in the body.
+  Future<http.Response> postFinancial(String endpoint, Map<String, dynamic> body,
+      {required String idempotencyKey, bool requireAuth = true, Map<String, String>? headers}) {
+    if (idempotencyKey.trim().isEmpty) {
+      throw ArgumentError('Financial mutations require a non-empty Idempotency-Key');
+    }
+    return post(endpoint, body, headers: headers, requireAuth: requireAuth, idempotencyKey: idempotencyKey);
   }
 
   Future<http.Response> put(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {

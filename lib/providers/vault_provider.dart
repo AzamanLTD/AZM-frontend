@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 // ── Models ─────────────────────────────────────────────────────────────────
 
@@ -204,9 +205,10 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   }
 
   Future<void> deposit(String vaultId, double amountUsdc) async {
-    final res = await apiClient.post('/vaults/$vaultId/deposit', {
+    // r42: vault deposits lock USDC — one key per logical deposit.
+    final res = await apiClient.postFinancial('/vaults/$vaultId/deposit', {
       'amountUsdc': amountUsdc,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
@@ -227,9 +229,11 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   }
 
   Future<void> breakEarly(String vaultId) async {
-    final res = await apiClient.post('/vaults/$vaultId/break', {
+    // r42: breaking early moves the locked funds back — one key per
+    // logical break action.
+    final res = await apiClient.postFinancial('/vaults/$vaultId/break', {
       'confirmedBreak': true,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }

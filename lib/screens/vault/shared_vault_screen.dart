@@ -23,6 +23,7 @@ import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -494,13 +495,15 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
           .where((t) => t.isNotEmpty)
           .toList();
 
-      final res = await apiClient.post('/shared-vaults', {
+      // r42: creating a shared vault opens the shared financial commitment
+      // — one key per logical creation.
+      final res = await apiClient.postFinancial('/shared-vaults', {
         'name': _name.text.trim(),
         'emoji': _emoji,
         'targetAmountUsdc': double.parse(_target.text.trim()),
         'maturityDate': _maturity?.toIso8601String(),
         'inviteAzamanIds': invites,
-      });
+      }, idempotencyKey: IdempotencyKey.generate());
 
       if (!mounted) return;
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -745,9 +748,10 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
     if (amount == null || amount <= 0) return;
 
     try {
-      final res = await apiClient.post('/shared-vaults/${vault.id}/deposit', {
+      // r42: shared vault deposits move USDC — one key per logical deposit.
+      final res = await apiClient.postFinancial('/shared-vaults/${vault.id}/deposit', {
         'amountUsdc': amount,
-      });
+      }, idempotencyKey: IdempotencyKey.generate());
       if (!mounted) return;
       if (res.statusCode == 200) {
         Navigator.pop(context); // close deposit sheet
