@@ -462,6 +462,11 @@ class _CreateSharedVaultSheet extends ConsumerStatefulWidget {
 class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet> {
   final _name = TextEditingController();
   final _target = TextEditingController();
+
+  // r42: one key per LOGICAL vault creation, reused across retries (a lost
+  // response may mean the vault already exists server-side); retired on
+  // any answered non-409 outcome.
+  final _createKey = LogicalActionKey();
   String _emoji = '🎯';
   DateTime? _maturity;
   final _inviteControllers = <TextEditingController>[TextEditingController()];
@@ -496,14 +501,15 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
           .toList();
 
       // r42: creating a shared vault opens the shared financial commitment
-      // — one key per logical creation.
+      // — one key per logical creation, reused across retries of it.
       final res = await apiClient.postFinancial('/shared-vaults', {
         'name': _name.text.trim(),
         'emoji': _emoji,
         'targetAmountUsdc': double.parse(_target.text.trim()),
         'maturityDate': _maturity?.toIso8601String(),
         'inviteAzamanIds': invites,
-      }, idempotencyKey: IdempotencyKey.generate());
+      }, idempotencyKey: _createKey.arm());
+      if (res.statusCode != 409) _createKey.retire();
 
       if (!mounted) return;
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -737,6 +743,11 @@ class SharedVaultDetailScreen extends ConsumerStatefulWidget {
 class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScreen> {
   final _depositAmount = TextEditingController();
 
+  // r42: one key per LOGICAL deposit into the open vault, reused across
+  // retries (a lost response may mean the debit already committed);
+  // retired on any answered non-409 outcome.
+  final _depositKey = LogicalActionKey();
+
   @override
   void dispose() {
     _depositAmount.dispose();
@@ -748,11 +759,13 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
     if (amount == null || amount <= 0) return;
 
     try {
-      // r42: shared vault deposits move USDC — one key per logical deposit.
+      // r42: shared vault deposits move USDC — one key per LOGICAL
+      // deposit, reused across retries of that deposit.
       final res = await apiClient.postFinancial('/shared-vaults/${vault.id}/deposit', {
         'amountUsdc': amount,
-      }, idempotencyKey: IdempotencyKey.generate());
+      }, idempotencyKey: _depositKey.arm());
       if (!mounted) return;
+      if (res.statusCode != 409) _depositKey.retire();
       if (res.statusCode == 200) {
         Navigator.pop(context); // close deposit sheet
         ref.refresh(sharedVaultDetailProvider(widget.vaultId));

@@ -72,3 +72,17 @@ class LogicalActionKey {
   /// Ends the logical action — the next [arm] mints a fresh key.
   void retire() => _key = null;
 }
+
+/// Per-target variant of [LogicalActionKey]: one key per (action, target)
+/// pair. For logical actions that take an argument — accept a contract for
+/// susuId X, submit a vouch for vouchRecordId Y — retries of the SAME
+/// target must reuse the SAME key (a lost response may mean the server
+/// committed the stake), while a different target is a different action
+/// and gets its own key. Registry entries are tiny; the holder's lifetime
+/// (a Riverpod Provider or a screen State) defines the retry horizon.
+class KeyedActionKeys {
+  final Map<String, LogicalActionKey> _keys = {};
+
+  LogicalActionKey of(String target) =>
+      _keys.putIfAbsent(target, LogicalActionKey.new);
+}

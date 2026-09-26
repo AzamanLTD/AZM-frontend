@@ -21,6 +21,39 @@ class EscrowService {
   final ApiClient _client;
   EscrowService() : _client = ApiClient();
 
+  // r42 key lifecycle: one Idempotency-Key per LOGICAL action, not per call.
+  // Armed on the first attempt and REUSED across retries of the same action
+  // (a lost response may mean the server committed — a fresh key would
+  // execute the money move twice). The service instance is held by its
+  // notifier, so the armed key survives across user taps.
+  final _fundKey = LogicalActionKey();
+  final _satisfyKey = LogicalActionKey();
+  final _disputeKey = LogicalActionKey();
+  final _cancelKey = LogicalActionKey();
+
+  /// Drives a mutating call with the correct key lifecycle:
+  ///   - answered success → retire (this action is complete; a new action
+  ///     mints a fresh key);
+  ///   - answered failure ≠ 409 → retire (a corrected retry is a new
+  ///     action);
+  ///   - 409 (same action in flight / replay conflict) → KEEP, the retry
+  ///     converges on the server-side operation;
+  ///   - no server answer (network error / auth failure) → KEEP, the retry
+  ///     MUST reuse the same key.
+  Future<T> _withActionKey<T>(
+      LogicalActionKey key, Future<T> Function(String key) call) async {
+    try {
+      final result = await call(key.arm());
+      key.retire();
+      return result;
+    } on EscrowServiceException catch (e) {
+      if (e.statusCode != 409) key.retire();
+      rethrow;
+    }
+    // Anything else (network error, timeout, auth-level ApiException) never
+    // carries a server answer about the action — keep the key armed.
+  }
+
   /// GET /escrow/ticket/:ticketId — returns null when the ticket has no escrow.
   Future<SmartEscrow?> getEscrowForTicket(String ticketId) async {
     try {
@@ -41,21 +74,24 @@ class EscrowService {
   ///
   /// r42: funding is a money-moving mutation — one Idempotency-Key per
   /// logical fund action, reused across deliberate retries.
-  Future<SmartEscrow> fundEscrow(String escrowId) =>
-      _mutate('/escrow/fund', {'escrowId': escrowId},
-          idempotencyKey: IdempotencyKey.generate());
+  Future<SmartEscrow> fundEscrow(String escrowId) => _withActionKey(
+      _fundKey,
+      (key) => _mutate('/escrow/fund', {'escrowId': escrowId},
+          idempotencyKey: key));
 
   /// POST /escrow/satisfy {escrowId} — returns whether the escrow is now fully
   /// settled (both parties satisfied) plus the latest escrow snapshot.
   Future<({bool settled, SmartEscrow escrow})> markSatisfied(
-      String escrowId) async {
-    // r42: satisfaction commits the release — same one-key-per-action rule.
-    final res = await _client.postFinancial('/escrow/satisfy', {'escrowId': escrowId},
-        idempotencyKey: IdempotencyKey.generate());
-    final body = jsonDecode(res.body);
-    final escrow = _unwrap(body, res.statusCode);
-    return (settled: body['settled'] == true, escrow: escrow);
-  }
+          String escrowId) =>
+      _withActionKey(_satisfyKey, (key) async {
+        // r42: satisfaction commits the release — same key-lifecycle rule.
+        final res = await _client.postFinancial('/escrow/satisfy',
+            {'escrowId': escrowId},
+            idempotencyKey: key);
+        final body = jsonDecode(res.body);
+        final escrow = _unwrap(body, res.statusCode);
+        return (settled: body['settled'] == true, escrow: escrow);
+      });
 
   /// POST /escrow/dispute {escrowId, reason, evidenceUrls?}
   Future<SmartEscrow> raiseDispute({
@@ -63,11 +99,13 @@ class EscrowService {
     required String reason,
     List<String> evidenceUrls = const [],
   }) {
-    return _mutate('/escrow/dispute', {
-      'escrowId': escrowId,
-      'reason': reason,
-      if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
-    }, idempotencyKey: IdempotencyKey.generate());
+    return _withActionKey(_disputeKey, (key) {
+      return _mutate('/escrow/dispute', {
+        'escrowId': escrowId,
+        'reason': reason,
+        if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
+      }, idempotencyKey: key);
+    });
   }
 
   /// POST /escrow/update-terms {escrowId, deliveryTerms}
@@ -78,14 +116,16 @@ class EscrowService {
       });
 
   /// POST /escrow/cancel {escrowId}
-  Future<void> cancelEscrow(String escrowId) async {
-    // r42: cancellation releases funds — same one-key-per-action rule.
-    final res = await _client.postFinancial('/escrow/cancel', {'escrowId': escrowId},
-        idempotencyKey: IdempotencyKey.generate());
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      _throwFrom(res.body, res.statusCode, 'Cancel failed');
-    }
-  }
+  Future<void> cancelEscrow(String escrowId) =>
+      _withActionKey(_cancelKey, (key) async {
+        // r42: cancellation releases funds — same key-lifecycle rule.
+        final res = await _client.postFinancial(
+            '/escrow/cancel', {'escrowId': escrowId},
+            idempotencyKey: key);
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          _throwFrom(res.body, res.statusCode, 'Cancel failed');
+        }
+      });
 
   // ── Internal ───────────────────────────────────────────────────────────────
 

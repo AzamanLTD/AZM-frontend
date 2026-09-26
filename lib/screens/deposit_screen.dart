@@ -419,6 +419,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   String? _selectedAccountId;
   SavedMomoAccount? _selectedAccount;
   bool _isSubmitting = false;
+
+  // r42: one key per LOGICAL deposit initiation, reused across retries
+  // (a lost response may mean the initiation already committed); retired
+  // on any answered non-409 outcome.
+  final _initiateKey = LogicalActionKey();
   Map<String, dynamic>? _depositResult;
 
   // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
@@ -586,11 +591,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
       };
       // r42: initiating a fiat deposit is a protected mutation — one key
-      // per logical initiation (the OTP confirmation is a separate route).
+      // per LOGICAL initiation (the OTP confirmation is a separate route),
+      // reused across retries of the same initiation.
       final response =
           await apiClient.postFinancial('/deposit/fiat/initiate/moolre', body,
-              idempotencyKey: IdempotencyKey.generate());
+              idempotencyKey: _initiateKey.arm());
       final data = jsonDecode(response.body);
+      if (response.statusCode != 409) _initiateKey.retire();
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         HapticFeedback.heavyImpact();

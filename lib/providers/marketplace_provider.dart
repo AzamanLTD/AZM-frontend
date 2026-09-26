@@ -207,6 +207,10 @@ class AdListing {
 // 3. Ads AsyncNotifier — fetches from /api/p2p/ads
 // ─────────────────────────────────────────────────────────────────────────────
 class AdsNotifier extends AsyncNotifier<List<AdListing>> {
+
+  // r42: one Idempotency-Key per LOGICAL trade initiation (see initiateTrade)
+  // — armed across retries of the same action, never re-minted per press.
+  final _initiateKey = LogicalActionKey();
   @override
   Future<List<AdListing>> build() async {
     // Re-run whenever the AI filter toggle changes
@@ -268,20 +272,26 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     };
 
     // r42: the backend requires an HTTP Idempotency-Key before the trade
-    // handler runs. One key per logical initiation; deliberate retries of
-    // this same action must reuse it.
+    // handler runs. One key per LOGICAL initiation — armed here and reused
+    // across retries of this action (token refresh, lost response), so a
+    // retry converges on the same server-side operation instead of
+    // opening a second trade.
     final response = await apiClient.postFinancial('/trades/initiate', body,
-        idempotencyKey: IdempotencyKey.generate());
+        idempotencyKey: _initiateKey.arm());
 
     if (response.statusCode == 200 || response.statusCode == 201) {
+      _initiateKey.retire();
       final respBody = jsonDecode(response.body);
       final tradeId = respBody['trade']?['id']?.toString() ?? '';
       debugPrint('✅ [MarketplaceProvider] Trade initiated: $tradeId');
       return TradeInitiationResult(queued: false, tradeId: tradeId);
     }
 
-    // Phase N: HTTP 202 = queued (vendor at max concurrent trades)
+    // Phase N: HTTP 202 = queued (vendor at max concurrent trades).
+    // The logical action completed (accepted into the queue) — retire so a
+    // later initiation is a new action with a fresh key.
     if (response.statusCode == 202) {
+      _initiateKey.retire();
       final respBody = jsonDecode(response.body);
       final data = respBody['data'] as Map<String, dynamic>? ?? {};
       final queueId = data['queueId']?.toString() ?? '';
@@ -296,7 +306,10 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
       );
     }
 
-    // Error handling
+    // The server ANSWERED — a definitive, correctable failure: retire so
+    // the corrected retry is a genuinely new trade. (A 409 means the same
+    // action is in flight — keep the key so the retry converges on it.)
+    if (response.statusCode != 409) _initiateKey.retire();
     final respBody = jsonDecode(response.body);
     final errorMsg = respBody['message'] ?? 'Failed to initiate trade';
     final errorCode = respBody['code']?.toString();

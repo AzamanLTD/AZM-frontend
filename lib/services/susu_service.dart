@@ -28,6 +28,18 @@ class SusuService {
   SusuService._();
   static final SusuService instance = SusuService._();
 
+  // r42 key lifecycle: this is a singleton, so armed keys persist across
+  // the user's retries of the same logical action. One key per action;
+  // per-target where the action takes an argument (cancel per susu,
+  // contract acceptance per susu, invite redemption per token). A lost
+  // response may mean the server already committed — the retry MUST
+  // reuse the same key. Retired on any answered (non-409) outcome; 409
+  // keeps the key so the retry converges on the in-flight operation.
+  final _createKey = LogicalActionKey();
+  final _cancelKeys = KeyedActionKeys();
+  final _contractKeys = KeyedActionKeys();
+  final _redeemKeys = KeyedActionKeys();
+
   // Helper — extract the `data` field from the canonical envelope, or the
   // top-level body if it isn't enveloped (the older `/api/susu/groups/:id`
   // endpoints predate the envelope and return `{ susu: {...} }` directly).
@@ -82,13 +94,14 @@ class SusuService {
     required List<SusuInviteRequest> invites,
   }) async {
     // r42: creating a susu opens the recurring contribution commitment —
-    // one key per logical creation.
+    // one key per logical creation, reused across retries of that action.
     final res = await apiClient.postFinancial('/susu', {
       'name': name,
       'contributionUsdc': contributionUsdc.toStringAsFixed(2),
       'frequency': frequency.wire,
       'invites': invites.map((i) => i.toJson()).toList(),
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _createKey.arm());
+    if (res.statusCode != 409) _createKey.retire();
     final data = _envelope(res);
     final susuJson = (data['susu'] ?? data) as Map<String, dynamic>;
     final inviteJson = (data['invites'] as List?) ?? const [];
@@ -110,9 +123,12 @@ class SusuService {
   /// POST /api/susu/:id/cancel — Req 8.5 / 8.6
   /// (Overlay route is `/susu/:id/cancel`, NOT `/susu/groups/:id/cancel`.)
   Future<void> cancelSusu(String susuId) async {
-    // r42: cancelling releases/forfeits cycle funds — one key per cancel.
-    await apiClient.postFinancial('/susu/$susuId/cancel', const {},
-        idempotencyKey: IdempotencyKey.generate());
+    // r42: cancelling releases/forfeits cycle funds — one key per logical
+    // cancel, reused across retries of that cancel.
+    final res = await apiClient.postFinancial('/susu/$susuId/cancel',
+        const {},
+        idempotencyKey: _cancelKeys.of(susuId).arm());
+    if (res.statusCode != 409) _cancelKeys.of(susuId).retire();
   }
 
   /// GET /api/susu/:id — privacy-gated detail (Req 5.2)
@@ -178,12 +194,15 @@ class SusuService {
     required String contractHash,
   }) async {
     // r42: overlay contract acceptance binds the member — one key per
-    // logical acceptance.
-    await apiClient.postFinancial('/susu/$susuId/contract/accept', {
-      'contractVersion': contractVersion,
-      'contractHash': contractHash,
-      'agreed': true,
-    }, idempotencyKey: IdempotencyKey.generate());
+    // logical acceptance, reused across retries.
+    final res = await apiClient.postFinancial('/susu/$susuId/contract/accept',
+        {
+          'contractVersion': contractVersion,
+          'contractHash': contractHash,
+          'agreed': true,
+        },
+        idempotencyKey: _contractKeys.of(susuId).arm());
+    if (res.statusCode != 409) _contractKeys.of(susuId).retire();
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -204,9 +223,12 @@ class SusuService {
   /// Backend returns `{ member: {...} }`.
   Future<String> redeemLink(String token) async {
     // r42: redeeming an invite creates the membership + financial
-    // obligations — one key per logical redemption.
-    final res = await apiClient.postFinancial('/susu/invites/$token/redeem', const {},
-        idempotencyKey: IdempotencyKey.generate());
+    // obligations — one key per logical redemption, reused across retries
+    // (a lost response may mean the membership already committed).
+    final res = await apiClient.postFinancial('/susu/invites/$token/redeem',
+        const {},
+        idempotencyKey: _redeemKeys.of(token).arm());
+    if (res.statusCode != 409) _redeemKeys.of(token).retire();
     final data = _envelope(res);
     final member = (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
     return (member?['susuGroupId'] ?? member?['susuId'] ?? data['susuId'])
