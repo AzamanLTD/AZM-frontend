@@ -5,6 +5,7 @@ import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
 import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
 import '../models/storefront_models.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 class RetailCollectionBoxWidget extends StatefulWidget {
   final Map<String, dynamic> props;
@@ -25,6 +26,12 @@ class RetailCollectionBoxWidget extends StatefulWidget {
 
 class _RetailCollectionBoxWidgetState
     extends State<RetailCollectionBoxWidget> {
+  // r42: one key per LOGICAL checkout of this collection box. The key is
+  // armed once and passed into the one-shot submit path; a re-tap after a
+  // lost response reuses the SAME key instead of placing a second order.
+  // Retired on any answered outcome (success, failure or unavailable).
+  final _checkoutKey = LogicalActionKey();
+
   RetailCart _cart = const RetailCart();
 
   @override
@@ -112,7 +119,9 @@ class _RetailCollectionBoxWidgetState
     final result = await RetailCheckoutController(gateway).submit(
       _cart,
       options: options,
+      idempotencyKey: _checkoutKey.arm(),
     );
+    _checkoutKey.retire(); // answered — never reuse this identity again
     if (!mounted) return;
 
     switch (result) {

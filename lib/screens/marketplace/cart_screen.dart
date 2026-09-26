@@ -17,6 +17,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,13 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  // r42: one key per LOGICAL cart checkout. A timestamp minted per attempt
+  // would let a retry after a lost response place the order TWICE — the
+  // key is armed once per logical checkout, reused across retries, and
+  // retired on any answered non-409 outcome (a fresh checkout after a
+  // definitive failure mints a new key).
+  final _checkoutKey = LogicalActionKey();
+
   final _deliveryAddressCtrl = TextEditingController();
   final _orderNotesCtrl = TextEditingController();
   bool _isPlacingOrder = false;
@@ -70,8 +78,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         items: itemsJson,
         customerNotes: combinedNotes.isNotEmpty ? combinedNotes : null,
         deliveryNotes: combinedDelivery.isNotEmpty ? combinedDelivery : null,
-        idempotencyKey: 'cart_${DateTime.now().millisecondsSinceEpoch}',
+        idempotencyKey: _checkoutKey.arm(),
       );
+      _checkoutKey.retire(); // answered — success or definitive failure
 
       ref.read(cartProvider.notifier).clearCart();
 

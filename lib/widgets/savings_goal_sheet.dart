@@ -70,6 +70,14 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   late Map<String, dynamic> _goal;
   bool _busy = false;
 
+  // r42 key lifecycle: one key per LOGICAL savings action (deposit /
+  // withdraw), held on the sheet state so a re-tap after a lost response
+  // reuses the SAME key — the server may already have committed the
+  // debit. Retired on any answered (non-409) outcome; a corrected retry
+  // is then a genuinely new action.
+  final _depositKey = LogicalActionKey();
+  final _withdrawKey = LogicalActionKey();
+
   @override
   void initState() {
     super.initState();
@@ -123,7 +131,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       // clientRequestId IS the HTTP Idempotency-Key. The header is the
       // r42 wire contract; the body value keeps the legacy txHash
       // derivation. Never generate two identities for one deposit.
-      final requestId = IdempotencyKey.generate();
+      final requestId = _depositKey.arm();
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/deposit',
         {
@@ -140,6 +148,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       );
 
       final body = jsonDecode(res.body);
+      if (res.statusCode != 409) _depositKey.retire();
       if (res.statusCode == 200 && body['success'] == true) {
         HapticFeedback.heavyImpact();
         widget.onChanged();
@@ -161,14 +170,16 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
     setState(() => _busy = true);
     try {
       // r42: same one-identity rule as deposits — the header carries the
-      // logical operation key the backend now requires.
+      // logical operation key the backend now requires, reused across
+      // retries of the same withdrawal.
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
-        idempotencyKey: IdempotencyKey.generate(),
+        idempotencyKey: _withdrawKey.arm(),
       );
 
       final body = jsonDecode(res.body);
+      if (res.statusCode != 409) _withdrawKey.retire();
       if (res.statusCode == 200 && body['success'] == true) {
         HapticFeedback.heavyImpact();
         widget.onChanged();

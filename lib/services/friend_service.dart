@@ -12,6 +12,13 @@ import 'package:azaman/utils/idempotency_key.dart';
 class FriendService {
   static final FriendService _instance = FriendService._internal();
   factory FriendService() => _instance;
+
+  // r42 key lifecycle: per-friend transfer keys, held on this singleton so
+  // a re-tap after a lost response reuses the SAME key (the server may
+  // already have committed the debit). Retired on any answered non-409
+  // outcome; a genuinely new transfer then mints a fresh key.
+  final _sendKeys = KeyedActionKeys();
+  final _requestKeys = KeyedActionKeys();
   FriendService._internal();
 
   // ===========================================================================
@@ -200,13 +207,15 @@ class FriendService {
     // r42: one logical transfer, one identity — the Phase H12
     // clientRequestId doubles as the HTTP Idempotency-Key the backend
     // now requires (legacy txHash derivation keeps the body value).
-    final requestId = IdempotencyKey.generate();
+    // Armed once per LOGICAL transfer and reused across retries of it.
+    final requestId = _sendKeys.of(friendshipId).arm();
     final response = await apiClient.postFinancial('/friends/transfer/send', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
       'clientRequestId': requestId,
     }, idempotencyKey: requestId);
+    if (response.statusCode != 409) _sendKeys.of(friendshipId).retire();
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
@@ -219,16 +228,19 @@ class FriendService {
   /// duplicate ask.
   Future<Map<String, dynamic>> requestFunds(
       String friendshipId, double amount, String? reference, String token) async {
+    final requestId = _requestKeys.of(friendshipId).arm();
     final response = await apiClient.post('/friends/transfer/request', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
-      'clientRequestId': IdempotencyKey.generate(),
+      'clientRequestId': requestId,
     });
-
     if (response.statusCode == 200 || response.statusCode == 201) {
+      _requestKeys.of(friendshipId).retire(); // the ask committed
       return jsonDecode(response.body);
     }
+    _requestKeys.of(friendshipId).retire(); // answered failure — new ask is new
+    
     throw Exception('Failed to request funds: ${response.body}');
   }
 

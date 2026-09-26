@@ -27,6 +27,11 @@ class VendorDashboard extends ConsumerStatefulWidget {
 }
 
 class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerProviderStateMixin {
+  // r42: one key per LOGICAL internal transfer, reused across retries (a
+  // lost response may mean the tier transfer already committed); retired
+  // on any answered non-409 outcome.
+  final _transferKey = LogicalActionKey();
+
   List<Map<String, dynamic>> pendingTrades = [];
   bool isOnline = true;
   bool _isBalanceVisible = true;
@@ -892,11 +897,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   Future<void> _executeTransfer(String direction, double amount) async {
     try {
       // r42: internal transfers move funds between wallet tiers — one
-      // key per logical transfer.
+      // key per LOGICAL transfer, reused across retries of it.
       final response = await apiClient.postFinancial('/wallet/internal-transfer', {
         'direction': direction,
         'amount': amount,
-      }, idempotencyKey: IdempotencyKey.generate());
+      }, idempotencyKey: _transferKey.arm());
+      if (response.statusCode != 409) _transferKey.retire();
 
       if (response.statusCode == 200) {
         HapticFeedback.heavyImpact();

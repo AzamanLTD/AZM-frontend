@@ -202,6 +202,15 @@ class SusuActions {
   final Ref ref;
   SusuActions(this.ref);
 
+  // r42 key lifecycle — the provider keeps this instance alive, so an
+  // armed key persists across the user's retries of the same action.
+  // One key per LOGICAL action: group creation is single-shot; contract
+  // acceptance and vouching are per-target. A lost response may mean the
+  // server already committed the stake — the retry MUST reuse the key.
+  final _createKey = LogicalActionKey();
+  final _contractKeys = KeyedActionKeys();
+  final _vouchKeys = KeyedActionKeys();
+
   Future<SusuGroup> createSusu({
     required String groupChatId,
     required double contributionUsdc,
@@ -209,13 +218,18 @@ class SusuActions {
     required DateTime startDate,
   }) async {
     // r42: creating a susu group opens a recurring financial commitment —
-    // one key per logical creation.
+    // one key per logical creation, reused across retries of that action.
     final res = await apiClient.postFinancial('/susu/groups', {
       'groupChatId': groupChatId,
       'contributionUsdc': contributionUsdc,
       'frequency': frequency,
       'startDate': startDate.toIso8601String(),
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _createKey.arm());
+    if (res.statusCode == 201) {
+      _createKey.retire(); // committed — a later creation is a new action
+    } else if (res.statusCode != 409) {
+      _createKey.retire(); // answered definitive failure — corrected retry is new
+    }
     if (res.statusCode != 201) {
       throw Exception(_msg(res.body));
     }
@@ -229,21 +243,32 @@ class SusuActions {
 
   Future<void> acceptContract(String susuId) async {
     // r42: contract acceptance binds the member to the contribution
-    // schedule — one key per logical acceptance.
+    // schedule — one key per logical acceptance, reused across retries.
     final res = await apiClient.postFinancial('/susu/groups/$susuId/contract', {
       'acceptedSeverityWarning': true,
       'acceptedSeizureClause': true,
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _contractKeys.of(susuId).arm());
+    if (res.statusCode == 200) {
+      _contractKeys.of(susuId).retire();
+    } else if (res.statusCode != 409) {
+      _contractKeys.of(susuId).retire();
+    }
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(susuDetailProvider(susuId));
   }
 
   Future<void> submitVouch(String vouchRecordId, Map<String, dynamic> payload) async {
-    // r42: vouching commits the voucher's stake — one key per vouch.
+    // r42: vouching commits the voucher's stake — one key per vouch,
+    // reused across retries of the same vouch record.
     final res = await apiClient.postFinancial('/susu/vouches', {
       'vouchRecordId': vouchRecordId,
       'payload': payload,
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _vouchKeys.of(vouchRecordId).arm());
+    if (res.statusCode == 200) {
+      _vouchKeys.of(vouchRecordId).retire();
+    } else if (res.statusCode != 409) {
+      _vouchKeys.of(vouchRecordId).retire();
+    }
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(pendingVouchesProvider);
   }

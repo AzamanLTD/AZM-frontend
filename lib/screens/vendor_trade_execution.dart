@@ -41,6 +41,13 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   bool _isChatOpen = false;
   final bool _userIsTyping = false;
   bool _isReleasing = false;
+
+  // r42: one key per LOGICAL trade action on THIS trade (accept, release),
+  // held on the screen state so a re-tap after a lost response reuses the
+  // SAME key — the server may already have committed the release. Retired
+  // on any answered non-409 outcome.
+  final _acceptKey = LogicalActionKey();
+  final _releaseKey = LogicalActionKey();
   bool _isDisputed = false;
 
   bool _hasViewedProof = false;
@@ -455,9 +462,10 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
 
     try {
       // r42: completing a P2P trade releases the escrow — one key per
-      // logical release action.
+      // logical release action, reused across retries of that release.
       final response = await apiClient.postFinancial('/p2p/complete', {"tradeId": _cleanTradeId},
-          idempotencyKey: IdempotencyKey.generate());
+          idempotencyKey: _releaseKey.arm());
+      if (response.statusCode != 409) _releaseKey.retire();
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -619,9 +627,11 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   Future<void> _acceptTrade() async {
     HapticFeedback.heavyImpact();
     try {
-      // r42: trade acceptance is a protected financial mutation.
+      // r42: trade acceptance is a protected financial mutation — one key
+      // per logical acceptance, reused across retries of it.
       final response = await apiClient.postFinancial('/trades/accept', {'tradeId': _cleanTradeId},
-          idempotencyKey: IdempotencyKey.generate());
+          idempotencyKey: _acceptKey.arm());
+      if (response.statusCode != 409) _acceptKey.retire();
       if (response.statusCode == 200) {
         setState(() => _isAccepted = true);
         // Refetch the trade to get the new expiresAt set by the backend

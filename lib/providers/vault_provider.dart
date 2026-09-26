@@ -164,6 +164,13 @@ double _num(dynamic v) {
 // ── Providers ──────────────────────────────────────────────────────────────
 
 class VaultsNotifier extends AsyncNotifier<List<Vault>> {
+
+  // r42 key lifecycle: per-target keys (deposit / break per vault), held on
+  // the notifier so they persist across the user's retries of the same
+  // logical action. A lost response may mean the server already committed
+  // the debit — the retry MUST reuse the same key.
+  final _depositKeys = KeyedActionKeys();
+  final _breakKeys = KeyedActionKeys();
   @override
   Future<List<Vault>> build() => _fetch();
 
@@ -205,10 +212,12 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   }
 
   Future<void> deposit(String vaultId, double amountUsdc) async {
-    // r42: vault deposits lock USDC — one key per logical deposit.
+    // r42: vault deposits lock USDC — one key per logical deposit,
+    // reused across retries of that deposit.
     final res = await apiClient.postFinancial('/vaults/$vaultId/deposit', {
       'amountUsdc': amountUsdc,
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _depositKeys.of(vaultId).arm());
+    if (res.statusCode != 409) _depositKeys.of(vaultId).retire();
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
@@ -230,10 +239,11 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
 
   Future<void> breakEarly(String vaultId) async {
     // r42: breaking early moves the locked funds back — one key per
-    // logical break action.
+    // logical break action, reused across retries of that break.
     final res = await apiClient.postFinancial('/vaults/$vaultId/break', {
       'confirmedBreak': true,
-    }, idempotencyKey: IdempotencyKey.generate());
+    }, idempotencyKey: _breakKeys.of(vaultId).arm());
+    if (res.statusCode != 409) _breakKeys.of(vaultId).retire();
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }

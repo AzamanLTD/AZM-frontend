@@ -28,6 +28,10 @@ class StorefrontApiException implements Exception {
 }
 
 class StorefrontService {
+  // r42 key lifecycle: per-escrow funding keys, held on the service
+  // instance (its provider / checkout gateway keeps it alive).
+  final _fundEscrowKeys = KeyedActionKeys();
+
   final ApiClient _apiClient = ApiClient();
 
   static String get _baseUrl => AppConfig.apiUrl;
@@ -204,14 +208,31 @@ class StorefrontService {
   /// from checkout creation so an order can safely exist in AWAITING_PAYMENT
   /// until the authenticated funding transaction commits.
   Future<void> fundEscrow({required String escrowId, String? totpToken, String? password}) async {
-    // r42: escrow funding moves USDC — one Idempotency-Key per logical
-    // funding action, reused across deliberate retries.
-    final response = await _apiClient.postFinancial('/escrow/fund', {
-      'escrowId': escrowId,
-      if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
-      if (password != null && password.isNotEmpty) 'password': password,
-    }, idempotencyKey: IdempotencyKey.generate());
-    _parseResponse(response);
+    // r42: escrow funding moves USDC — one Idempotency-Key per LOGICAL
+    // funding action. Armed once and REUSED across retries of the same
+    // funding (a lost response may mean the USDC already moved); retired
+    // on any answered definitive outcome so a corrected retry is a new
+    // action. An idempotency 409 keeps the key armed — the retry must
+    // converge on the same server-side operation.
+    final key = _fundEscrowKeys.of(escrowId);
+    try {
+      final response = await _apiClient.postFinancial('/escrow/fund', {
+        'escrowId': escrowId,
+        if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
+        if (password != null && password.isNotEmpty) 'password': password,
+      }, idempotencyKey: key.arm());
+      key.retire(); // answered success — this funding is complete
+      _parseResponse(response);
+    } on StorefrontApiException catch (e) {
+      if (e.statusCode != 409) key.retire();
+      rethrow;
+    } on StorefrontConflictException catch (e) {
+      // 409: an idempotency replay conflict keeps the key; a storefront
+      // draft conflict is unrelated to this action — retire.
+      if (!(e.code?.startsWith('IDEMPOTENCY') ?? false)) key.retire();
+      rethrow;
+    }
+    // Network error / timeout: no server answer — keep the key armed.
   }
 
   Future<Map<String, dynamic>> getMyOrders({String? status, int limit = 20, String? cursor}) async {
