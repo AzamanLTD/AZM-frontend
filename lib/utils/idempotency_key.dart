@@ -37,3 +37,38 @@ class IdempotencyKey {
     return '${s.substring(0, 8)}-${s.substring(8, 12)}-${s.substring(12, 16)}-${s.substring(16, 20)}-${s.substring(20)}';
   }
 }
+
+/// One Idempotency-Key per LOGICAL financial action — not per button press.
+///
+/// The backend r42 authority treats the key as the identity of a whole
+/// financial operation. The failure mode this class exists to close:
+///
+///   1. user taps submit → key K generated → request sent;
+///   2. server commits the reservation, the HTTP response is lost
+///      (timeout / connection drop);
+///   3. user taps submit AGAIN for the same action;
+///   4. a fresh generate() inside the submit method mints key K' —
+///      a brand-new operation → the money moves TWICE.
+///
+/// Correct lifecycle, enforced by construction:
+///   - [arm] mints once per logical action and returns the SAME key for
+///     every retry of that action (token-refresh retries, user-visible
+///     retries after a lost response);
+///   - [retire] ends the action: the next [arm] mints a fresh key. Retire
+///     on a definitive business outcome the user can correct (a 4xx the
+///     server actually answered — insufficient funds, validation, ...) and
+///     when a genuinely new action begins;
+///   - do NOT retire on network errors/timeouts or on 409 replay conflicts
+///     (in-flight/committed claims) — retrying those with the same key is
+///     exactly the protection the backend provides.
+class LogicalActionKey {
+  String? _key;
+
+  bool get isArmed => _key != null;
+
+  /// The key for the current logical action; arms on first use.
+  String arm() => _key ??= IdempotencyKey.generate();
+
+  /// Ends the logical action — the next [arm] mints a fresh key.
+  void retire() => _key = null;
+}

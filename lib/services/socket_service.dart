@@ -88,6 +88,14 @@ class SocketService {
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
+  /// r42 withdrawal progress sheet: release the singleton withdrawal
+  /// callbacks when the sheet closes, so a disposed sheet stops receiving
+  /// events and a later sheet can subscribe cleanly.
+  void removeWithdrawalListeners() {
+    _onWithdrawalProgress = null;
+    _onWithdrawalSettled = null;
+  }
+
   void removeOrderLocationListener(void Function(Map<String, dynamic>) cb) {
     if (_onOrderLocation == cb) _onOrderLocation = null;
   }

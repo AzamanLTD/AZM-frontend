@@ -6,12 +6,14 @@
 //
 // Two co-existing paths on the same screen:
 //
-//   1. Mobile Money  → POST /api/finance/withdraw/fiat
+//   1. Mobile Money  → POST /api/withdraw/fiat  (r42 canonical route,
+//      REQUIRED Idempotency-Key; legacy /finance alias deprecated)
 //      Body: { amount, recipientPhone, network, accountName? }
-//      Backend: Phase B Kotani Pay flow — debits availableBalance (USDC),
-//      applies the 2 % exit fee + 1 %/1 % influencer split, dispatches a
-//      MoMo payout. The "limited fiat" banner reads from
-//      GET /api/finance/fiat-pool-status (fiatPoolStatusProvider).
+//      Backend: debits availableBalance (USDC) inside the reservation,
+//      commits, answers 202 at the commit boundary, then dispatches the
+//      MoMo payout server-side. The client opens the WithdrawalProgressSheet
+//      from the reference the response carries. The "limited fiat" banner
+//      reads from GET /api/finance/fiat-pool-status (fiatPoolStatusProvider).
 //
 //   2. Crypto Wallet → POST /api/wallet/withdraw  (whitelist-only)
 //      Phase 15 stance preserved verbatim — saved-method picker only,
@@ -41,6 +43,7 @@ import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/widgets/withdrawal_progress_sheet.dart';
 
 
 // ── Mode / network enums ─────────────────────────────────────────────────────
@@ -82,6 +85,15 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   final GlobalKey<SlideToConfirmState> _slideKey =
       GlobalKey<SlideToConfirmState>();
   bool _isSubmitting = false;
+
+  // r42: one Idempotency-Key per LOGICAL withdrawal — never per button
+  // press. Armed on the first attempt, REUSED across retries of the same
+  // action (token-refresh retries inside the api client, user retries
+  // after a lost response), retired only when the next attempt is
+  // genuinely new: an answered definitive failure, or acceptance.
+  // This is the load-bearing protection against double withdrawals.
+  final _fiatKey = LogicalActionKey();
+  final _walletKey = LogicalActionKey();
   _WithdrawMode _mode = _WithdrawMode.mobileMoney;
 
   // ── Crypto-wallet path (Phase 15 whitelist) ─────────────────────────────
@@ -239,7 +251,12 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     // failure doesn't strand a user without their AZM).
 
     try {
-      final response = await apiClient.post('/finance/withdraw/fiat', {
+      // r42 canonical route: the fiat withdrawal lives under the shared
+      // financial idempotency authority at POST /api/withdraw/fiat with a
+      // REQUIRED Idempotency-Key header (the legacy /finance alias is
+      // deprecated). Acceptance is 202 at the commit boundary; provider
+      // dispatch continues server-side after the response.
+      final response = await apiClient.postFinancial('/withdraw/fiat', {
         'amount': amount,
         'recipientPhone': phone,
         'network': _selectedNetwork.apiValue,
@@ -253,13 +270,18 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
-      });
+      }, idempotencyKey: _fiatKey.arm());
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
       final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
+      final accepted =
+          (response.statusCode == 200 || response.statusCode == 202) &&
+              data['success'] == true;
+      if (accepted) {
+        // The logical withdrawal is complete — the next one is a new action.
+        _fiatKey.retire();
         HapticFeedback.heavyImpact();
         // Refresh the pool status — a successful payout debits SystemFiatPool
         // so the banner state may have changed.
@@ -272,16 +294,33 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // Clear the selection so a back-then-forward navigation doesn't
         // re-arm the same tier accidentally.
         setState(() => _selectedFeeDiscount = null);
-        _showSnack(
-          data['message']?.toString() ?? 'Mobile-money withdrawal accepted',
-          isError: false,
-        );
-        Navigator.pop(context);
+
+        // r42 WAVE-2: a 202/200 is an honest committed acceptance — open
+        // the REAL progress UI from the authoritative reference carried in
+        // this same response (tracked by reference server-side, socket
+        // + poll driven), never a generic "requested!" dead-end.
+        final reference = data['data']?['reference']?.toString();
+        if (reference != null && reference.isNotEmpty) {
+          await WithdrawalProgressSheet.show(context,
+              WithdrawalProgressSheet.fiat(reference: reference));
+        } else {
+          _showSnack(
+            data['message']?.toString() ?? 'Mobile-money withdrawal accepted',
+            isError: false,
+          );
+        }
+        if (mounted) Navigator.pop(context);
       } else {
         // Phase E2 surface: BE returns code=AZM_SPEND_FAILED when the tier
         // can't be debited (insufficient AZM, invalid tier, etc.). Show
         // a precise message so the user knows the AZM half failed and
         // their USDC is untouched.
+        // 409 = the SAME logical action is in flight on the server — keep
+        // the key so the user's retry converges on that operation (replay
+        // or in-progress). Any other ANSWERED status is a definitive,
+        // correctable failure — retire so the corrected retry is a
+        // genuinely new withdrawal with a fresh key.
+        if (response.statusCode != 409) _fiatKey.retire();
         final code = data['code']?.toString();
         final msg = code == 'AZM_SPEND_FAILED'
             ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
@@ -290,9 +329,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         _showSnack(msg, isError: true);
       }
     } catch (e) {
+      // No HTTP answer arrived (timeout / dropped connection). The
+      // reservation may ALREADY be committed — the same key must be
+      // reused on retry so the backend replays the committed result
+      // instead of executing a second withdrawal. Keep it armed.
       if (mounted) {
         setState(() => _isSubmitting = false);
-        _showSnack('Network error.', isError: true);
+        _showSnack(
+          'Network error — tap again to safely retry the same withdrawal.',
+          isError: true,
+        );
       }
     }
   }
@@ -325,33 +371,58 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     try {
       // r42: wallet withdrawals are financial mutations — the backend
       // requires an HTTP Idempotency-Key for the whole logical withdrawal.
+      // r42: the key identifies the WHOLE logical withdrawal (armed once,
+      // reused across retries of this action) — not one HTTP attempt.
       final response = await apiClient.postFinancial('/wallet/withdraw', {
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      }, idempotencyKey: IdempotencyKey.generate());
+      }, idempotencyKey: _walletKey.arm());
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
       final data = jsonDecode(response.body);
-      if (response.statusCode == 200) {
+      final accepted =
+          (response.statusCode == 200 || response.statusCode == 202) &&
+              data['success'] == true;
+      if (accepted) {
+        _walletKey.retire();
         HapticFeedback.heavyImpact();
-        _showSnack(
-          data['message']?.toString() ?? 'Withdrawal requested!',
-          isError: false,
-        );
-        Navigator.pop(context);
+        // Open the real progress UI from the queue-row identity carried
+        // in this same response — the saved-payout queue is worker-driven,
+        // so the sheet polls the owner-scoped status surface.
+        final withdrawal = data['withdrawal'] as Map<String, dynamic>?;
+        final rawId = withdrawal?['id'];
+        if (rawId is num) {
+          await WithdrawalProgressSheet.show(
+              context,
+              WithdrawalProgressSheet.wallet(
+                  withdrawalId: rawId.toInt()));
+        } else {
+          _showSnack(
+            data['message']?.toString() ?? 'Withdrawal requested!',
+            isError: false,
+          );
+        }
+        if (mounted) Navigator.pop(context);
       } else {
+        // Same lifecycle as fiat: 409 keeps the key (same action in
+        // flight), any other answered failure retires it.
+        if (response.statusCode != 409) _walletKey.retire();
         _showSnack(
           data['message']?.toString() ?? 'Withdrawal failed',
           isError: true,
         );
       }
     } catch (e) {
+      // Response lost — the same key must be reused on retry (see fiat).
       if (mounted) {
         setState(() => _isSubmitting = false);
-        _showSnack('Network error.', isError: true);
+        _showSnack(
+          'Network error — tap again to safely retry the same withdrawal.',
+          isError: true,
+        );
       }
     }
   }
