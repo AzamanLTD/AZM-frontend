@@ -22,6 +22,7 @@ import 'package:http/http.dart' as http;
 import 'package:azaman/models/proof_of_residency_model.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/idempotency_key.dart';
 
 class SusuService {
   SusuService._();
@@ -80,12 +81,14 @@ class SusuService {
     required SusuFrequency frequency,
     required List<SusuInviteRequest> invites,
   }) async {
-    final res = await apiClient.post('/susu', {
+    // r42: creating a susu opens the recurring contribution commitment —
+    // one key per logical creation.
+    final res = await apiClient.postFinancial('/susu', {
       'name': name,
       'contributionUsdc': contributionUsdc.toStringAsFixed(2),
       'frequency': frequency.wire,
       'invites': invites.map((i) => i.toJson()).toList(),
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
     final data = _envelope(res);
     final susuJson = (data['susu'] ?? data) as Map<String, dynamic>;
     final inviteJson = (data['invites'] as List?) ?? const [];
@@ -107,7 +110,9 @@ class SusuService {
   /// POST /api/susu/:id/cancel — Req 8.5 / 8.6
   /// (Overlay route is `/susu/:id/cancel`, NOT `/susu/groups/:id/cancel`.)
   Future<void> cancelSusu(String susuId) async {
-    await apiClient.post('/susu/$susuId/cancel', const {});
+    // r42: cancelling releases/forfeits cycle funds — one key per cancel.
+    await apiClient.postFinancial('/susu/$susuId/cancel', const {},
+        idempotencyKey: IdempotencyKey.generate());
   }
 
   /// GET /api/susu/:id — privacy-gated detail (Req 5.2)
@@ -172,11 +177,13 @@ class SusuService {
     required String contractVersion,
     required String contractHash,
   }) async {
-    await apiClient.post('/susu/$susuId/contract/accept', {
+    // r42: overlay contract acceptance binds the member — one key per
+    // logical acceptance.
+    await apiClient.postFinancial('/susu/$susuId/contract/accept', {
       'contractVersion': contractVersion,
       'contractHash': contractHash,
       'agreed': true,
-    });
+    }, idempotencyKey: IdempotencyKey.generate());
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -196,7 +203,10 @@ class SusuService {
   /// POST /api/susu/invites/:token/redeem — LINK channel (Req 6.6–6.10).
   /// Backend returns `{ member: {...} }`.
   Future<String> redeemLink(String token) async {
-    final res = await apiClient.post('/susu/invites/$token/redeem', const {});
+    // r42: redeeming an invite creates the membership + financial
+    // obligations — one key per logical redemption.
+    final res = await apiClient.postFinancial('/susu/invites/$token/redeem', const {},
+        idempotencyKey: IdempotencyKey.generate());
     final data = _envelope(res);
     final member = (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
     return (member?['susuGroupId'] ?? member?['susuId'] ?? data['susuId'])

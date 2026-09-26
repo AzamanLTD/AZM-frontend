@@ -197,12 +197,16 @@ class FriendService {
   /// the same generator.
   Future<Map<String, dynamic>> sendFunds(
       String friendshipId, double amount, String? reference, String token) async {
-    final response = await apiClient.post('/friends/transfer/send', {
+    // r42: one logical transfer, one identity — the Phase H12
+    // clientRequestId doubles as the HTTP Idempotency-Key the backend
+    // now requires (legacy txHash derivation keeps the body value).
+    final requestId = IdempotencyKey.generate();
+    final response = await apiClient.postFinancial('/friends/transfer/send', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
-      'clientRequestId': IdempotencyKey.generate(),
-    });
+      'clientRequestId': requestId,
+    }, idempotencyKey: requestId);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
