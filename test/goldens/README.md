@@ -10,7 +10,11 @@ Two independent, **measured** environmental causes. Neither is a product defect.
 | # | Cause | Status | Fix |
 |---|---|---|---|
 | 1 | CI ran Flutter 3.47.0 / Dart 3.13.0; the project baseline is 3.47.5 / Dart 3.13.4 | **proven** | pin CI to `3.47.5` |
-| 2 | The goldens were rasterised with **Roboto**, not the app's declared **Inter** | **proven** | load `Inter` explicitly in the harness |
+| 2 | The goldens were rasterised with **Ahem** (flutter_test's built-in no-font fallback), so no real glyph was ever drawn | **proven** | load `Inter` explicitly in the harness, then regenerate |
+
+Note: an earlier revision of this document attributed the old rasters to
+Roboto. Visual inspection of the PNGs disproved that — see
+"Regeneration — DONE" below.
 
 ## Measurements
 
@@ -93,43 +97,62 @@ regenerated rasters must be produced in the pinned CI environment (Linux,
 Flutter 3.47.5) and committed from there. This is why the CI version pin is a
 prerequisite and not an optional tidy-up.
 
-## Regeneration status — BLOCKED, needs a maintainer action
+## Regeneration — DONE, and CI is green
 
-The regeneration has **not** happened yet, and it cannot be completed from a
-feature branch.
+The four rasters were regenerated on Linux with Flutter 3.47.5 / Dart 3.13.4 via
+a temporary, push-scoped, `contents: read` CI job that only rasterised and
+uploaded an artifact. The four PNGs were then committed deliberately in
+`f7f8dba`, and that temporary workflow was removed in `5b776b0`.
 
-**Why.** `flutter test --update-goldens` must run in the pinned Linux /
-Flutter 3.47.5 environment. The options were:
+Linux CI on the final tree: **Analyze PASS, 599/599 tests PASS, zero golden
+failures.**
 
-| Option | Status |
+### The old rasters were Ahem, not Roboto — corrected finding
+
+Earlier revisions of this document reported that the committed rasters were
+rendered in **Roboto**. Visual inspection of the actual PNGs disproved that:
+the old rasters show **solid black boxes standing in for every glyph**, which is
+Flutter's built-in **Ahem** test font — the font `flutter_test` uses when no real
+face is loaded. Roboto was never involved.
+
+So the precise sequence was:
+
+1. The goldens were captured with **no real font loaded at all**, so `Ahem`
+   substituted for every character.
+2. The harness fix loads the real bundled **Inter** face, which is what made
+   the ~18% difference appear.
+3. The regenerated rasters are the first ones that actually show the product's
+   typography.
+
+This is a stronger version of the original finding, not a contradiction of it:
+the committed baseline was not merely host-specific, it was not rendering real
+text at all.
+
+## Cross-host residual: 1.57–1.66%, and it is entirely text antialiasing
+
+Windows (Flutter 3.47.5) against the Linux-generated committed rasters:
+
+| Golden | Diff |
 |---|---|
-| Local Linux container | **unavailable** — no Docker and no WSL on this machine |
-| A `workflow_dispatch` workflow | **blocked** — GitHub only registers a workflow once it exists on the **default branch** |
+| `premium_glass_container_dark.png` | 1.66% |
+| `premium_glass_container_v1_dark.png` | 1.64% |
+| `premium_glass_container_light.png` | 1.57% |
+| `premium_glass_container_v1_light.png` | 1.57% |
 
-A dedicated `regenerate-goldens.yml` was written and verified, but a
-`workflow_dispatch` workflow cannot be dispatched from a feature branch: GitHub's
-workflow API only lists workflows present on the default branch, so the manual
-"Regenerate Premium Goldens" entry does not appear until the file is merged to
-`main`. Committing it only to the PR would add a workflow that cannot run, so it
-was removed rather than left as a dead file.
+**What the diff artifacts show.** The `isolatedDiff` images for all four
+goldens contain *only the glyphs of “Azaman”* — no geometry at all. The
+`maskedDiff` images show the whole surface (rounded corners, rim, specular
+streak, thickness line, two-layer shadow, gradient fill) as matching, with only
+the text region lit up.
 
-**What a maintainer needs to do** (any one of these unblocks it):
+So the residual is **100% text antialiasing** on the glyph edges, from Skia's
+rasteriser differing between the Windows and Linux hosts. Glass geometry does
+not drift: no layout, rim, streak, corner or shadow difference is present.
 
-1. Land `.github/workflows/regenerate-goldens.yml` on `main` (it only uploads
-   artifacts, it never commits), then run "Regenerate Premium Goldens" against
-   this branch; or
-2. Provision any Linux runner with Flutter 3.47.5 and run
-   `flutter test --update-goldens test/widgets/premium_glass_container_golden_test.dart`
-   there; or
-3. Check out this branch on a Linux machine with Flutter 3.47.5 and run the
-   same command.
-
-Only the four `premium_glass_container_*.png` files are in scope; the
-regeneration must not touch any other golden.
-
-**Do not** regenerate on Windows. The current rasters are already a
-Windows-generated set; replacing them with another Windows set would re-bake the
-same host-specific drift and waste the typography correction.
+**No comparator has been added.** A tolerance would have to cover 1.6% of a
+small text-heavy raster while still failing on a real geometry regression, and
+that trade is not free. The decision should be made deliberately with the
+measurements above in hand, not inherited from a stale assumption.
 
 ## Gradient / dithering
 
