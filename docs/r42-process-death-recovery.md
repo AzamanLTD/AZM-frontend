@@ -163,6 +163,7 @@ store identity-field placeholders).
 | 22 | `services/escrow_service.dart` (per-operation ref) | escrow actions | escrow action types | Recovery surface |
 | 23 | `widgets/savings_goal_sheet.dart` `_depositRef` | savings deposit | savings goal deposit | Recovery surface |
 | 24 | `widgets/savings_goal_sheet.dart` `_withdrawRef` | savings withdraw | savings goal withdraw | Recovery surface |
+| 25 | `screens/storefront_order_sheet.dart` `_orderRef` | storefront single-item order | `storefront.order.single` | Recovery surface (service-owned lifecycle in `StorefrontService.placeStorefrontOrder`, mirroring `checkoutCart`; the backend `/storefront/<id>/order` route honors the body key with a `@unique`-backed dedup and converges concurrent same-key duplicates) |
 
 **Instance creation (all rows):** a call with an unarmed (or
 terminal/cleared) ref, or a ref whose recorded fingerprint does not match
@@ -229,6 +230,14 @@ writer, so the migration is contained.
   lifecycle over real HTTP headers with a fully simulated process death;
   identical bodies fail closed on the wire; `retryRecovered` replays a
   post-death instance under its ORIGINAL key.
+
+**Storefront order-endpoint alignment (r42):** `AZM-backend/__tests__/storefront-order-idempotency.test.js`
+— route-level contract for the two customer-facing storefront order
+endpoints: a keyed first request creates exactly one order; a same-key
+replay returns the SAME logical order (`idempotent:true`); a concurrent
+same-key duplicate (the `@unique` race loser) converges deterministically
+on the winner's order, never a 5xx; keyless legacy requests keep their
+one-order-per-call behavior.
 
 **Pass 2 proofs (exact test matrix C–J of close-out review 2):** stale
 recovery (record disappears before retry → fail closed, ZERO new keys on

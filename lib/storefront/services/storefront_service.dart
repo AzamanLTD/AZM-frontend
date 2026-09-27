@@ -75,8 +75,6 @@ class StorefrontService {
 
   final ApiClient _apiClient = ApiClient();
 
-  static String get _baseUrl => AppConfig.apiUrl;
-
   Future<List<StorefrontTheme>> listThemes({String? category}) async {
     final query = category != null ? '?category=$category' : '';
     final response = await _apiClient.get('/storefront/themes$query');
@@ -232,9 +230,44 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> placeStorefrontOrder({required String businessProfileId, required String productId, int quantity = 1, String? customerNotes, String? deliveryNotes}) async {
-    final response = await _apiClient.post('/storefront/$businessProfileId/order', {'productId': productId, 'quantity': quantity, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes});
-    return _parseResponse(response) as Map<String, dynamic>;
+  /// r42 alignment: single-item storefront orders carry the SAME durable
+  /// key lifecycle as [checkoutCart] (the backend /order route now honors the
+  /// body `idempotencyKey` with a @unique-backed dedup). With [operationType]
+  /// + [ref], a lost-response retry reuses the ref's unfinished instance (same
+  /// key → the SAME logical order); a materially different product/quantity/
+  /// notes body begins a genuinely new instance.
+  Future<Map<String, dynamic>> placeStorefrontOrder({required String businessProfileId, required String productId, int quantity = 1, String? customerNotes, String? deliveryNotes, String? operationType, FinancialOperationRef? ref}) async {
+    final body = {'productId': productId, 'quantity': quantity, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes};
+    if (operationType != null) {
+      body['idempotencyKey'] = ''; // placeholder → rewritten to op.key
+      final op = await _resolveOperation(
+          type: operationType,
+          endpoint: '/storefront/$businessProfileId/order',
+          request: body,
+          ref: ref);
+      body['idempotencyKey'] = op.key;
+    }
+    final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
+    if (operationType == null) {
+      return _parseResponse(response) as Map<String, dynamic>;
+    }
+    try {
+      final parsed = _parseResponse(response) as Map<String, dynamic>;
+      // Answered success — this order instance is complete.
+      await _releaseOperation(ref);
+      return parsed;
+    } on StorefrontApiException catch (e) {
+      // Disposition mirrors checkoutCart: definitive pre-economic 4xx
+      // (everything except 401/409/429) → terminal; retained otherwise so a
+      // same-key retry converges on the committed order.
+      final definitive = e.statusCode >= 400 &&
+          e.statusCode < 500 &&
+          e.statusCode != 401 &&
+          e.statusCode != 409 &&
+          e.statusCode != 429;
+      if (definitive) await _releaseOperation(ref);
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? operationType, FinancialOperationRef? ref, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
@@ -334,7 +367,7 @@ class StorefrontService {
     } on StorefrontConflictException catch (e) {
       // 409: an idempotency replay conflict keeps the durable instance; a
       // storefront draft conflict is unrelated to this action — release.
-      if (!(e.code?.startsWith('IDEMPOTENCY') ?? false)) {
+      if (!e.code.startsWith('IDEMPOTENCY')) {
         await _releaseOperation(ref);
       }
       rethrow;
