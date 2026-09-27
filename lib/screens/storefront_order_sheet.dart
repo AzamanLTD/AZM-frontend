@@ -12,8 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../storefront/providers/storefront_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/api_client.dart';
 import '../utils/azaman_haptics.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class StorefrontOrderSheet extends ConsumerStatefulWidget {
@@ -36,6 +36,8 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
   int _quantity = 1;
   final _notesCtrl = TextEditingController();
   bool _submitting = false;
+  static const _orderActionId = 'storefront.order.single';
+  final _orderRef = FinancialOperationRef();
 
   @override
   void dispose() {
@@ -58,11 +60,16 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
 
     try {
       final service = ref.read(storefrontServiceProvider);
+      // r42: the same logical order action (this sheet's submit, retried
+      // after a lost response) carries the SAME durable idempotency key —
+      // the backend replays the committed order instead of duplicating it.
       final result = await service.placeStorefrontOrder(
         businessProfileId: widget.businessProfileId,
         productId: widget.product['id'] as String,
         quantity: _quantity,
         customerNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        operationType: _orderActionId,
+        ref: _orderRef,
       );
 
       if (mounted) {
