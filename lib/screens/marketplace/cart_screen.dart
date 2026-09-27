@@ -16,6 +16,7 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -39,6 +40,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // widget/app recreation, so a checkout retry after a lost response
   // converges on the same server-side order instead of creating two.
   static const _checkoutActionId = 'storefront.cart.checkout';
+  // r42 OPERATION-INSTANCE MODEL: the ref is this cart flow's retry handle
+  // — a re-tap after a lost response retries the SAME durable instance
+  // (same key) when the cart is unchanged; a materially different cart
+  // begins a genuinely new instance, leaving the old one recoverable.
+  final _checkoutRef = FinancialOperationRef();
 
   final _deliveryAddressCtrl = TextEditingController();
   final _orderNotesCtrl = TextEditingController();
@@ -80,7 +86,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         items: itemsJson,
         customerNotes: combinedNotes.isNotEmpty ? combinedNotes : null,
         deliveryNotes: combinedDelivery.isNotEmpty ? combinedDelivery : null,
-        logicalActionId: _checkoutActionId,
+        operationType: _checkoutActionId,
+        ref: _checkoutRef,
       );
 
       ref.read(cartProvider.notifier).clearCart();

@@ -207,11 +207,15 @@ class AdListing {
 // ─────────────────────────────────────────────────────────────────────────────
 class AdsNotifier extends AsyncNotifier<List<AdListing>> {
 
-  // r42: one Idempotency-Key per LOGICAL trade initiation (see initiateTrade)
-  // — armed across retries of the same action, never re-minted per press.
-  // r42: stable logical-action id — postFinancial arms the DURABLE key
-  // (survives app restart), so a retry after a lost response converges.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE
+  // (a broad, repeated-operation class — exactly the case where type ≠
+  // instance matters). Each genuinely new initiation gets a fresh durable
+  // INSTANCE; the ref is this notifier's retry handle — a re-tap of the
+  // same trade details after a lost response retries the SAME instance
+  // (same key), and a materially different initiation begins a genuinely
+  // new instance without disturbing the pending one.
   static const _initiateActionId = 'marketplace.trade.initiate';
+  final _initiateRef = FinancialOperationRef();
   @override
   Future<List<AdListing>> build() async {
     // Re-run whenever the AI filter toggle changes
@@ -278,7 +282,7 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     // retry converges on the same server-side operation instead of
     // opening a second trade.
     final response = await apiClient.postFinancial('/trades/initiate', body,
-        logicalActionId: _initiateActionId);
+        operationType: _initiateActionId, ref: _initiateRef);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final respBody = jsonDecode(response.body);

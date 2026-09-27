@@ -27,11 +27,13 @@ class VendorDashboard extends ConsumerStatefulWidget {
 }
 
 class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerProviderStateMixin {
-  // r42: one key per LOGICAL internal transfer, reused across retries (a
-  // lost response may mean the tier transfer already committed); retired
-  // on any answered non-409 outcome.
-  // r42 durable identity: stable across screen/process recreation.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
+  // Each genuinely new transfer gets a fresh durable instance; the ref is
+  // this flow's retry handle — a re-tap after a lost response retries the
+  // SAME instance (same key), and a materially different body begins a
+  // genuinely new instance without disturbing the old one.
   static const _transferActionId = 'vendor.wallet.internal-transfer';
+  final _transferRef = FinancialOperationRef();
 
   List<Map<String, dynamic>> pendingTrades = [];
   bool isOnline = true;
@@ -902,7 +904,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       final response = await apiClient.postFinancial('/wallet/internal-transfer', {
         'direction': direction,
         'amount': amount,
-      }, logicalActionId: _transferActionId);
+      }, operationType: _transferActionId, ref: _transferRef);
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (response.statusCode == 200) {

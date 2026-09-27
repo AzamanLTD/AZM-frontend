@@ -15,49 +15,81 @@ import 'dart:convert';
 
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/durable_action_registry.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 
 class EscrowService {
   final ApiClient _client;
   EscrowService() : _client = ApiClient();
 
-  // r42 DURABLE key lifecycle: one Idempotency-Key per LOGICAL action, not
-  // per call — drawn from the durable registry, so it survives service /
-  // app recreation. A lost response followed by process death can no longer
-  // fork the identity of an unfinished action.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (per-escrow recovery namespaces). Each genuinely new action gets a
+  // fresh durable INSTANCE; the per-target refs are the retry handles — a
+  // re-call after a lost response RETRIES THE SAME INSTANCE (same key).
+  // A lost response followed by process death can no longer fork the
+  // identity of an unfinished action: the instance record persists and a
+  // matching re-call resumes IT instead of opening a duplicate.
   //
   // The lifecycle nuance (which this service keeps MANUALLY, because the
   // escrow routes are not releaseOn4xx mounts — the backend conservatively
   // RETAINS their claims on 4xx):
-  ///   - answered success → retire (this action is complete; a new action
-  ///     mints a fresh key);
+  ///   - answered success → retire (this instance is complete);
   ///   - answered failure ≠ 409 → retire (a corrected retry is a new
   ///     action);
   ///   - 409 (same action in flight / replay conflict) → KEEP, the retry
   ///     converges on the server-side operation;
   ///   - no server answer (network error / auth failure) → KEEP, the retry
   ///     MUST reuse the same key.
+  final Map<String, FinancialOperationRef> _flowRefs = {};
+
   Future<T> _withDurableKey<T>({
-    required String logicalActionId,
+    required String operationType,
     required String endpoint,
     required Map<String, dynamic> request,
     required Future<T> Function(String key) call,
   }) async {
-    final key = await DurableActionRegistry.arm(
-        logicalActionId: logicalActionId,
-        endpoint: endpoint,
-        request: request);
+    // Same instance-resolution policy as ApiClient.postFinancial: retry
+    // the flow ref's unfinished instance when the body matches its
+    // fingerprint; otherwise begin a GENUINELY NEW instance — the old
+    // record is never silently replaced, it stays recoverable.
+    final ref = _flowRefs.putIfAbsent(
+        operationType, () => FinancialOperationRef());
+    final account = await _client.operationAccount();
+    final retryId = ref.operationId;
+    DurableOperation op;
+    if (retryId != null) {
+      try {
+        op = await DurableOperationRegistry.retry(retryId,
+            account: account, request: request);
+      } on DurableOperationException {
+        op = await DurableOperationRegistry.begin(
+            account: account,
+            type: operationType,
+            endpoint: endpoint,
+            request: request);
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+          account: account,
+          type: operationType,
+          endpoint: endpoint,
+          request: request);
+    }
+    ref.operationId = op.operationId;
     try {
-      final result = await call(key);
-      await DurableActionRegistry.retire(logicalActionId);
+      final result = await call(op.key);
+      await DurableOperationRegistry.retire(op.operationId, account: account);
+      ref.operationId = null;
       return result;
     } on EscrowServiceException catch (e) {
-      if (e.statusCode != 409) await DurableActionRegistry.retire(logicalActionId);
+      if (e.statusCode != 409) {
+        await DurableOperationRegistry.retire(op.operationId, account: account);
+        ref.operationId = null;
+      }
       rethrow;
     }
     // Anything else (network error, timeout, auth-level ApiException) never
-    // carries a server answer about the action — the durable entry stays
-    // pending, so the retry re-arms with the SAME key.
+    // carries a server answer about the action — the durable instance
+    // stays pending, so the retry reuses the SAME key.
   }
 
   /// GET /escrow/ticket/:ticketId — returns null when the ticket has no escrow.
@@ -81,7 +113,7 @@ class EscrowService {
   /// r42: funding is a money-moving mutation — one Idempotency-Key per
   /// logical fund action, reused across deliberate retries.
   Future<SmartEscrow> fundEscrow(String escrowId) => _withDurableKey(
-      logicalActionId: 'escrow.fund.$escrowId',
+      operationType: 'escrow.fund.$escrowId',
       endpoint: '/escrow/fund',
       request: {'escrowId': escrowId},
       call: (key) => _mutate('/escrow/fund', {'escrowId': escrowId},
@@ -92,7 +124,7 @@ class EscrowService {
   Future<({bool settled, SmartEscrow escrow})> markSatisfied(
           String escrowId) =>
       _withDurableKey(
-          logicalActionId: 'escrow.satisfy.$escrowId',
+          operationType: 'escrow.satisfy.$escrowId',
           endpoint: '/escrow/satisfy',
           request: {'escrowId': escrowId},
           call: (key) async {
@@ -112,7 +144,7 @@ class EscrowService {
     List<String> evidenceUrls = const [],
   }) {
     return _withDurableKey(
-        logicalActionId: 'escrow.dispute.$escrowId',
+        operationType: 'escrow.dispute.$escrowId',
         endpoint: '/escrow/dispute',
         request: {
           'escrowId': escrowId,
@@ -136,7 +168,7 @@ class EscrowService {
   /// POST /escrow/cancel {escrowId}
   Future<void> cancelEscrow(String escrowId) =>
       _withDurableKey(
-          logicalActionId: 'escrow.cancel.$escrowId',
+          operationType: 'escrow.cancel.$escrowId',
           endpoint: '/escrow/cancel',
           request: {'escrowId': escrowId},
           call: (key) async {

@@ -209,9 +209,17 @@ class SusuActions {
   // r42: stable logical-action ids — postFinancial arms DURABLE keys from
   // the registry, surviving provider/app recreation. Keyed ids include
   // the target so per-susu / per-vouch actions stay independent.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (target-specific ones aid discoverability/recovery). Each genuinely
+  // new action gets a fresh durable INSTANCE; the refs are per-flow retry
+  // handles — a re-tap after a lost response retries the SAME instance
+  // (same key), and actions on different targets stay independent.
   static const _createActionId = 'susu.group.create';
   String _contractAction(String susuId) => 'susu.contract.$susuId';
   String _vouchAction(String vouchRecordId) => 'susu.vouch.$vouchRecordId';
+  final _createRef = FinancialOperationRef();
+  final Map<String, FinancialOperationRef> _contractRefs = {};
+  final Map<String, FinancialOperationRef> _vouchRefs = {};
 
   Future<SusuGroup> createSusu({
     required String groupChatId,
@@ -226,7 +234,7 @@ class SusuActions {
       'contributionUsdc': contributionUsdc,
       'frequency': frequency,
       'startDate': startDate.toIso8601String(),
-    }, logicalActionId: _createActionId);
+    }, operationType: _createActionId, ref: _createRef);
     if (res.statusCode != 201) {
       throw Exception(_msg(res.body));
     }
@@ -244,7 +252,8 @@ class SusuActions {
     final res = await apiClient.postFinancial('/susu/groups/$susuId/contract', {
       'acceptedSeverityWarning': true,
       'acceptedSeizureClause': true,
-    }, logicalActionId: _contractAction(susuId));
+    }, operationType: _contractAction(susuId),
+        ref: _contractRefs.putIfAbsent(susuId, () => FinancialOperationRef()));
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(susuDetailProvider(susuId));
   }
@@ -255,7 +264,9 @@ class SusuActions {
     final res = await apiClient.postFinancial('/susu/vouches', {
       'vouchRecordId': vouchRecordId,
       'payload': payload,
-    }, logicalActionId: _vouchAction(vouchRecordId));
+    }, operationType: _vouchAction(vouchRecordId),
+        ref: _vouchRefs.putIfAbsent(
+            vouchRecordId, () => FinancialOperationRef()));
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(pendingVouchesProvider);
   }

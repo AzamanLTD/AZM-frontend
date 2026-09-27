@@ -7,7 +7,7 @@
 
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/durable_action_registry.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 
 class FriendService {
   static final FriendService _instance = FriendService._internal();
@@ -21,8 +21,14 @@ class FriendService {
   // durable registry — the SAME key survives service/app recreation, so a
   // retry of an unfinished transfer converges on the server-side operation
   // instead of executing twice. postFinancial owns the sendFunds lifecycle.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (per-friendship recovery namespaces). Each genuinely new transfer gets
+  // a fresh durable INSTANCE; the per-flow refs are the retry handles — a
+  // re-call after a lost response RETRIES THE SAME INSTANCE (same key),
+  // and transfers to different friends stay independent.
   String _sendAction(String friendshipId) => 'friend.transfer.send.$friendshipId';
   String _requestAction(String friendshipId) => 'friend.transfer.request.$friendshipId';
+  final Map<String, FinancialOperationRef> _flowRefs = {};
   FriendService._internal();
 
   // ===========================================================================
@@ -219,7 +225,9 @@ class FriendService {
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
       'clientRequestId': '', // auto-filled from the durable registry
-    }, logicalActionId: _sendAction(friendshipId));
+    }, operationType: _sendAction(friendshipId),
+        ref: _flowRefs.putIfAbsent(
+            'send.$friendshipId', () => FinancialOperationRef()));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
@@ -235,22 +243,57 @@ class FriendService {
     // Not an r42-mounted route (plain POST), but the same duplicate-protection
     // rationale: one durable identity per logical ask, so a retry of an
     // unfinished ask is the same ask. Retired on any ANSWERED outcome.
-    final requestId = await DurableActionRegistry.arm(
-        logicalActionId: _requestAction(friendshipId),
-        endpoint: '/friends/transfer/request',
-        request: {
-          'friendshipId': friendshipId,
-          'amount': amount,
-          if (reference != null && reference.isNotEmpty) 'reference': reference,
-        });
+    // Same instance-resolution policy as postFinancial (the flow ref's
+    // unfinished instance is retried with the SAME key when the ask is
+    // unchanged; a materially different ask begins a genuinely new
+    // instance and the old record stays recoverable).
+    final requestRef = _flowRefs.putIfAbsent(
+        'request.$friendshipId', () => FinancialOperationRef());
+    final account = await apiClient.operationAccount();
+    DurableOperation op;
+    final retryId = requestRef.operationId;
+    if (retryId != null) {
+      try {
+        op = await DurableOperationRegistry.retry(retryId, account: account,
+            request: {
+              'friendshipId': friendshipId,
+              'amount': amount,
+              if (reference != null && reference.isNotEmpty) 'reference': reference,
+            });
+      } on DurableOperationException {
+        op = await DurableOperationRegistry.begin(
+            account: account,
+            type: _requestAction(friendshipId),
+            endpoint: '/friends/transfer/request',
+            request: {
+              'friendshipId': friendshipId,
+              'amount': amount,
+              if (reference != null && reference.isNotEmpty) 'reference': reference,
+            });
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+          account: account,
+          type: _requestAction(friendshipId),
+          endpoint: '/friends/transfer/request',
+          request: {
+            'friendshipId': friendshipId,
+            'amount': amount,
+            if (reference != null && reference.isNotEmpty) 'reference': reference,
+          });
+    }
+    requestRef.operationId = op.operationId;
+    final requestId = op.key;
     final response = await apiClient.post('/friends/transfer/request', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
       'clientRequestId': requestId,
     });
-    // Answered — committed or definitively failed: the next ask is new.
-    await DurableActionRegistry.retire(_requestAction(friendshipId));
+    // Answered — committed or definitively failed: this instance is
+    // terminal. Retire THAT instance only and clear the flow ref.
+    await DurableOperationRegistry.retire(op.operationId, account: account);
+    requestRef.operationId = null;
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
     }

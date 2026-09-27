@@ -70,13 +70,16 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   late Map<String, dynamic> _goal;
   bool _busy = false;
 
-  // r42 durable key lifecycle: one durable identity per LOGICAL savings
-  // action (deposit / withdraw). postFinancial draws it from the durable
-  // registry — the SAME key survives a re-tap after a lost response AND
-  // full sheet/app recreation; a corrected retry of an answered failure is
-  // a genuinely new action with a fresh key.
+  // r42 operation-instance model: one durable INSTANCE per genuinely new
+  // savings action. The ref is this sheet's retry handle — postFinancial
+  // arms it with the live instance id before the first request, and a
+  // re-tap after a lost response RETRIES THE SAME INSTANCE (same key).
+  // A materially different amount begins a genuinely new instance; the
+  // old one stays recoverable in the durable journal.
   static const _depositActionId = 'savings.goal.deposit';
   static const _withdrawActionId = 'savings.goal.withdraw';
+  final _depositRef = FinancialOperationRef();
+  final _withdrawRef = FinancialOperationRef();
 
   @override
   void initState() {
@@ -141,7 +144,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           // (auto-filled from the durable registry by postFinancial).
           'clientRequestId': '',
         },
-        logicalActionId: _depositActionId,
+        operationType: _depositActionId, ref: _depositRef,
       );
 
       final body = jsonDecode(res.body);
@@ -171,7 +174,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
-        logicalActionId: _withdrawActionId,
+        operationType: _withdrawActionId, ref: _withdrawRef,
       );
 
       final body = jsonDecode(res.body);

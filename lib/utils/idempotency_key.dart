@@ -48,11 +48,13 @@ class IdempotencyKey {
 /// action mint a FRESH key — and the money could move twice.
 ///
 /// That responsibility now lives in
-/// `lib/utils/durable_action_registry.dart` (DurableActionRegistry), which
-/// persists the pending action BEFORE the first request is sent and returns
-/// the SAME key across widget/screen/provider recreation and full app
-/// restart. `IdempotencyKey.generate()` remains the CSPRNG UUID mint used
-/// by the registry (and by any pre-armed key path).
+/// `lib/utils/durable_operation_registry.dart` (DurableOperationRegistry),
+/// which persists every OPERATION INSTANCE before the first request is
+/// sent and returns the SAME key for all retries of that instance across
+/// widget/screen/provider recreation and full app restart.
+/// `IdempotencyKey.generate()` remains the CSPRNG UUID mint used by the
+/// registry for both instance ids and keys (and by any pre-armed key
+/// path).
 ///
 /// The in-memory `LogicalActionKey` / `KeyedActionKeys` classes were
 /// removed — no call site uses them any more, and keeping them around

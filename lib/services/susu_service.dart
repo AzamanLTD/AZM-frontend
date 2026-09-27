@@ -36,10 +36,17 @@ class SusuService {
   // server already committed — the retry MUST reuse the same key. The
   // lifecycle (retire on answered outcomes, keep on 409 / network loss)
   // is owned by postFinancial.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (target-specific ones aid discoverability/recovery). Each genuinely
+  // new action gets a fresh durable INSTANCE; the per-flow refs are the
+  // retry handles — a re-call after a lost response RETRIES THE SAME
+  // INSTANCE (same key), and actions on different targets stay
+  // independent. postFinancial owns the lifecycle for these flows.
   static const _createActionId = 'susu.create';
   String _cancelAction(String susuId) => 'susu.cancel.$susuId';
   String _contractAction(String susuId) => 'susu.contract.$susuId';
   String _redeemAction(String token) => 'susu.invite.redeem.$token';
+  final Map<String, FinancialOperationRef> _flowRefs = {};
 
   // Helper — extract the `data` field from the canonical envelope, or the
   // top-level body if it isn't enveloped (the older `/api/susu/groups/:id`
@@ -101,7 +108,8 @@ class SusuService {
       'contributionUsdc': contributionUsdc.toStringAsFixed(2),
       'frequency': frequency.wire,
       'invites': invites.map((i) => i.toJson()).toList(),
-    }, logicalActionId: _createActionId);
+    }, operationType: _createActionId, ref: _flowRefs.putIfAbsent(
+        'create', () => FinancialOperationRef()));
     final data = _envelope(res);
     final susuJson = (data['susu'] ?? data) as Map<String, dynamic>;
     final inviteJson = (data['invites'] as List?) ?? const [];
@@ -127,7 +135,8 @@ class SusuService {
     // cancel, reused across retries of that cancel.
     final res = await apiClient.postFinancial('/susu/$susuId/cancel',
         const {},
-        logicalActionId: _cancelAction(susuId));
+        operationType: _cancelAction(susuId),
+        ref: _flowRefs.putIfAbsent('cancel.$susuId', () => FinancialOperationRef()));
   }
 
   /// GET /api/susu/:id — privacy-gated detail (Req 5.2)
@@ -200,7 +209,8 @@ class SusuService {
           'contractHash': contractHash,
           'agreed': true,
         },
-        logicalActionId: _contractAction(susuId));
+        operationType: _contractAction(susuId),
+        ref: _flowRefs.putIfAbsent('contract.$susuId', () => FinancialOperationRef()));
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -225,7 +235,8 @@ class SusuService {
     // (a lost response may mean the membership already committed).
     final res = await apiClient.postFinancial('/susu/invites/$token/redeem',
         const {},
-        logicalActionId: _redeemAction(token));
+        operationType: _redeemAction(token),
+        ref: _flowRefs.putIfAbsent('redeem.$token', () => FinancialOperationRef()));
     final data = _envelope(res);
     final member = (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
     return (member?['susuGroupId'] ?? member?['susuId'] ?? data['susuId'])
