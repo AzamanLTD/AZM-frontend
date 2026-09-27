@@ -84,14 +84,37 @@ class ApiClient {
   /// id from secure storage, or 'anon' when unavailable (demo mode, tests,
   /// pre-auth). Records are namespaced per account so one user's pending
   /// operation can never become another's.
-  Future<String> operationAccount() async {
+  ///
+  /// [failClosed] (close-out review 2, finding 4): when true, an
+  /// unavailable/empty stored identity does NOT fall back to 'anon' — it
+  /// throws [FinancialAccountUnavailableException]. Authenticated financial
+  /// paths use this: silently pivoting from the user's namespace to 'anon'
+  /// would make their pending operations invisible and mint fresh keys for
+  /// what the user believes is a retry — the exact lost-identity bug r42
+  /// exists to prevent. 'anon' remains only for explicitly unauthenticated
+  /// contexts (tests pass [requireAuth] false; demo mode short-circuits
+  /// before this is ever consulted).
+  /// Test seam (mirrors the registry's storageWriterOverride): forces
+  /// account-namespace resolution to a controlled behavior, e.g. a
+  /// secure-storage failure to prove fail-closed semantics.
+  static Future<String> Function()? operationAccountOverride;
+
+  Future<String> operationAccount({bool failClosed = false}) async {
+    final overridden = operationAccountOverride;
+    if (overridden != null) return overridden();
     try {
       final userId = await _storage.read(key: 'user_id');
       if (userId != null && userId.trim().isNotEmpty) return userId;
     } catch (_) {
+      if (failClosed) {
+        throw const FinancialAccountUnavailableException();
+      }
       // Secure storage unavailable (tests / not-yet-bound engine): the
       // anonymous namespace is a safe fallback — it is still a STABLE,
       // isolated namespace for the device.
+    }
+    if (failClosed) {
+      throw const FinancialAccountUnavailableException();
     }
     return 'anon';
   }
@@ -150,7 +173,10 @@ class ApiClient {
       final m = DemoInterceptor.tryPost(endpoint, body);
       if (m != null) return m;
     }
-    final account = await operationAccount();
+    // Fail closed when the account namespace cannot be established for an
+    // authenticated financial mutation (close-out review 2, finding 4):
+    // never silently pivot to the anon namespace.
+    final account = await operationAccount(failClosed: requireAuth);
     final body_ = Map<String, dynamic>.from(body);
 
     // Resolve the instance: retry the ref's instance when it is still
@@ -191,25 +217,140 @@ class ApiClient {
     // instance on the caller's next attempt.
     if (ref != null) ref.operationId = op.operationId;
 
+    // Shared transmit + disposition (identical contract to the exact-only
+    // recovery path): one key on the wire, retire on 2xx / definitive
+    // pre-economic 4xx, retain on 401/409/429, 5xx and network loss.
+    return _transmitResolved(op, account,
+        body: body_,
+        ref: ref,
+        requireAuth: requireAuth,
+        headers: headers);
+  }
+
+  /// Retry ONE recovered instance by replaying its STORED request snapshot.
+  ///
+  /// This is the authoritative post-death resume path for any operation a
+  /// user selects from an explicit recovery surface (e.g. the security
+  /// settings "unfinished financial operations" list): exact by
+  /// construction — the snapshot IS the body whose fingerprint the durable
+  /// record holds, and the ref binds the instance id — so
+  /// [postFinancial] retries THAT instance with its ORIGINAL key. Nothing
+  /// is guessed, nothing is replaced, and a materially different stored
+  /// body is impossible (the snapshot is immutable).
+  ///
+  /// Disposition is postFinancial's: a 2xx or definitive pre-economic 4xx
+  /// retires the instance; retain statuses/network loss keep it armed.
+  /// Retry ONE recovered instance by replaying its STORED request snapshot
+  /// through the EXACT-ONLY recovery path ([postFinancialRecovered]).
+  /// [freshSecrets] supplies freshly gathered step-up credentials for
+  /// operations whose secrets were scrubbed at persistence time
+  /// (op.secretFields) — the durable record deliberately cannot replay
+  /// them.
+  Future<http.Response> retryRecovered(DurableOperation op,
+      {Map<String, dynamic>? freshSecrets,
+      bool requireAuth = true,
+      Map<String, String>? headers}) {
+    return postFinancialRecovered(op,
+        freshSecrets: freshSecrets,
+        requireAuth: requireAuth,
+        headers: headers);
+  }
+
+  /// EXACT-ONLY recovery send (close-out review 2, finding 1).
+  ///
+  /// Resumes THIS durable instance — SAME key — or FAILS CLOSED. This path
+  /// has NONE of postFinancial's "missing ref means a genuinely new
+  /// operation" semantics:
+  ///
+  ///   - instance no longer pending (retired / stale)  → throw, zero wire
+  ///   - instance belongs to another account namespace → throw, zero wire
+  ///   - replay body mismatches the recorded fingerprint → throw, zero wire
+  ///   - missing fresh secrets for a scrubbed operation → throw, zero wire
+  ///   - NEVER begin(), NEVER mint a new Idempotency-Key, NEVER silently
+  ///     replace the selected instance with a new operation.
+  ///
+  /// An explicit user request to resume A must never silently become B.
+  Future<http.Response> postFinancialRecovered(DurableOperation op,
+      {Map<String, dynamic>? freshSecrets,
+      bool requireAuth = true,
+      Map<String, String>? headers}) async {
+    if (!op.replaySafe) {
+      // Synthetic-fingerprint instance (e.g. a storefront cart
+      // fingerprint): the snapshot is NOT the wire request. Generic replay
+      // would send a materially different body — FAIL CLOSED, zero wire.
+      throw DurableOperationNotReplayableException(op.operationId);
+    }
+    final account = await operationAccount(failClosed: requireAuth);
+
+    // Reconstruct the EXACT wire body: the scrubbed snapshot plus freshly
+    // gathered secrets (whose fields and values were never persisted).
+    final replay = Map<String, dynamic>.from(op.request);
+    if (op.secretFields.isNotEmpty) {
+      if (freshSecrets == null) {
+        throw ArgumentError(
+            'Operation "${op.type}" requires fresh step-up credentials '
+            '(${op.secretFields.join(', ')}) — the durable record never '
+            'persists them; gather them from the user and pass freshSecrets.');
+      }
+      for (final f in op.secretFields) {
+        if (!freshSecrets.containsKey(f)) {
+          throw ArgumentError(
+              'Fresh step-up credentials are missing "$f" for operation '
+              '"${op.type}".');
+        }
+        replay[f] = freshSecrets[f];
+      }
+    } else if (freshSecrets != null && freshSecrets.isNotEmpty) {
+      throw ArgumentError(
+          'Operation "${op.type}" carries no secret fields; freshSecrets '
+          'must be empty.');
+    }
+    // Identity-carrying placeholders (clientRequestId / idempotencyKey) in
+    // the stored snapshot are rewritten to the instance's OWN key — the
+    // same one-identity-everywhere rule as postFinancial.
+    if (replay.containsKey('clientRequestId')) {
+      replay['clientRequestId'] = op.key;
+    }
+    if (replay.containsKey('idempotencyKey')) {
+      replay['idempotencyKey'] = op.key;
+    }
+
+    // EXACT resolution: the instance must still be pending in THIS account
+    // namespace and the replay must match its recorded fingerprint.
+    // DurableOperationNotFoundException (stale/retired/other namespace) and
+    // DurableOperationFingerprintMismatchException propagate — this path
+    // NEVER catches them into a begin().
+    final resolved = await DurableOperationRegistry.retry(op.operationId,
+        account: account, request: replay);
+
+    return _transmitResolved(resolved, account,
+        body: replay,
+        ref: null,
+        requireAuth: requireAuth,
+        headers: headers);
+  }
+
+  /// The shared wire transmit + durable disposition of one RESOLVED
+  /// instance: send with the instance's key, then retire/retain per the
+  /// disposition contract (2xx and definitive pre-economic 4xx retire;
+  /// 401/409/429, 5xx and network loss retain).
+  Future<http.Response> _transmitResolved(DurableOperation op, String account,
+      {required Map<String, dynamic> body,
+      FinancialOperationRef? ref,
+      required bool requireAuth,
+      Map<String, String>? headers}) async {
     final key = op.key;
-    if (body_.containsKey('clientRequestId')) {
-      body_['clientRequestId'] = key; // one identity, everywhere
+    if (body.containsKey('clientRequestId')) {
+      body['clientRequestId'] = key; // one identity, everywhere
     }
     try {
-      final response = await post(endpoint, body_,
+      final response = await post(op.endpoint, body,
           headers: headers, requireAuth: requireAuth, idempotencyKey: key);
       // 2xx: the authoritative outcome is in hand — terminal.
       await DurableOperationRegistry.retire(op.operationId, account: account);
       if (ref != null) ref.operationId = null;
       return response;
     } on ApiException catch (e) {
-      // post() throws ApiException for every answered non-2xx status; the
-      // durable disposition rides the SAME contract as the wire statuses:
-      //   definitive pre-economic 4xx (everything except 401/409/429) →
-      //     the backend authority released the claim; a corrected retry
-      //     is a genuinely new action → retire.
-      //   401 / 409 / 429 → retained (auth incomplete / same action in
-      //     flight / throttled retry of the same action).
       final code = e.statusCode;
       final definitivePreEconomic4xx =
           code >= 400 && code < 500 && code != 401 && code != 409 && code != 429;
@@ -223,8 +364,8 @@ class ApiClient {
       rethrow;
     } catch (_) {
       // Timeout / connection loss: the operation may have committed
-      // server-side. The durable instance survives — the retry (through
-      // the same ref) reuses the same key.
+      // server-side. The durable instance survives — the retry reuses the
+      // same key.
       rethrow;
     }
   }
@@ -369,10 +510,30 @@ class ApiClient {
 /// body automatically begins a genuinely new instance and leaves the old
 /// one untouched and recoverable.
 ///
+/// The account namespace for an AUTHENTICATED financial operation could not
+/// be established (secure storage unavailable / empty). FAIL CLOSED: the
+/// caller must not send anything and must not mint keys in a substitute
+/// ('anon') namespace — the user's pending operations would become
+/// invisible and a retry would silently become a NEW operation.
+class FinancialAccountUnavailableException implements Exception {
+  const FinancialAccountUnavailableException();
+  @override
+  String toString() =>
+      'FinancialAccountUnavailableException: cannot establish the account '
+      'namespace for an authenticated financial operation — failing closed';
+}
+
 /// The ref is the in-session link; the durable record is the process-death
-/// horizon. After process death, recover unfinished instances with
-/// [DurableOperationRegistry.pending] and seed a ref with an instance id
-/// (see [adoptPending]) to resume them.
+/// horizon. After process death no ref survives — recovery is EXPLICIT and
+/// EXACT: the flow reconstructs the user's request and calls
+/// [DurableOperationRegistry.recoverExact] (see its fail-closed contract),
+/// binding the unique matching instance id into a fresh ref before
+/// submitting. There is deliberately NO "adopt the newest pending operation
+/// of the type" helper: that rule (v2's `adoptPending`) could bind the
+/// WRONG instance when several operations of one type are outstanding, and
+/// the user's reconstruction of an OLDER operation would then open a third
+/// identity while the original's key was orphaned — the exact bug this
+/// contract exists to prevent.
 class FinancialOperationRef {
   /// The live operation instance id, armed by postFinancial. Non-null while
   /// an instance of this flow is unresolved (may still have committed
@@ -380,19 +541,6 @@ class FinancialOperationRef {
   String? operationId;
 
   FinancialOperationRef({this.operationId});
-
-  /// Process-death recovery: adopt the NEWEST unfinished instance of
-  /// [type] in [account]'s namespace (if any) so the user's next attempt of
-  /// the same body resumes THAT instance (same key) instead of beginning a
-  /// duplicate. A materially different body begins a new instance; the
-  /// adopted record is never lost.
-  static Future<FinancialOperationRef> adoptPending(
-      {required String account, required String type}) async {
-    final pending = await DurableOperationRegistry.pending(
-        account: account, type: type);
-    return FinancialOperationRef(
-        operationId: pending.isEmpty ? null : pending.first.operationId);
-  }
 }
 
 class ApiException implements Exception {

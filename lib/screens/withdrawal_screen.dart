@@ -34,7 +34,9 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
 import 'package:azaman/services/receipt_service.dart';
@@ -166,22 +168,116 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   Future<void> _bootstrap() async {
     await Future.wait([_fetchSavedWallets(), _fetchUserBalance()]);
-    // r42 process-death recovery: adopt the newest unfinished withdrawal
-    // instance of each type (if any) so a resubmit of the same body
-    // resumes IT (same key) rather than opening a duplicate.
-    try {
-      final account = await apiClient.operationAccount();
-      _fiatRef.operationId = (await FinancialOperationRef.adoptPending(
-              account: account, type: _fiatActionId))
-          .operationId;
-      _walletRef.operationId = (await FinancialOperationRef.adoptPending(
-              account: account, type: _walletActionId))
-          .operationId;
-    } catch (_) {
-      // Recovery is best-effort: a fresh flow simply begins new instances.
-    }
+    // NOTE (r42 close-out review, 2026-09-27): this screen previously
+    // ADOPTED the newest unfinished withdrawal instance of each type at
+    // bootstrap. That rule was unsafe — with an older operation A and a
+    // newer operation B both outstanding, it bound B, so the user's
+    // reconstruction of A opened a THIRD instance and A's key was orphaned.
+    // Recovery is now EXACT and happens at SUBMIT time, when the user's
+    // actual request exists to match fingerprints against (see
+    // _recoverExactInstance below).
     // Phase E2 — prime AZM spend options for the fee-discount selector
     ref.read(azmSpendProvider.notifier).primeIfNeeded();
+  }
+
+  /// r42 exact-instance process-death recovery (close-out reviews,
+  /// 2026-09-27).
+  ///
+  /// Returns the EXACT recovered instance to resume (same key, through the
+  /// EXACT-ONLY [ApiClient.postFinancialRecovered] path), or null when this
+  /// submit is a GENUINELY NEW operation. Fails closed (proceed=false) when
+  /// the user cancels. Rules:
+  ///
+  ///   1. An ARMED ref that still matches this body is already exact — it
+  ///      is returned as the recovery target and the send is exact-only:
+  ///      a race that retires the instance before the send FAILS CLOSED
+  ///      (zero wire), never begins a third operation.
+  ///   2. An armed ref whose fingerprint does NOT match this body (the
+  ///      user deliberately changed the request) or whose instance is no
+  ///      longer pending is released and recovery re-runs — the changed
+  ///      request is a genuinely new operation unless another exact
+  ///      instance matches it.
+  ///   3. NO unfinished instance matches the body → genuinely new.
+  ///   4. EXACTLY ONE matches → resume IT.
+  ///   5. SEVERAL identical unfinished instances → FAIL CLOSED: the user
+  ///      picks from every candidate (never a heuristic).
+  ///
+  /// Returns (proceed: false, target: null) on cancel/race (send NOTHING),
+  /// (proceed: true, target: null) for a genuinely new operation, and
+  /// (proceed: true, target: op) to resume op through the exact-only path.
+  Future<({bool proceed, DurableOperation? target})>
+      _resolveRecoveryInstance(
+      FinancialOperationRef ref, String type, Map<String, dynamic> body) async {
+    final account = await apiClient.operationAccount(failClosed: true);
+    if (ref.operationId != null) {
+      // case 1 / 2: is the armed instance still pending and still THIS body?
+      final armed = await DurableOperationRegistry.byId(ref.operationId!,
+          account: account);
+      if (armed != null &&
+          armed.fingerprint == DurableOperationRegistry.fingerprintOf(body)) {
+        return (proceed: true, target: armed); // exact: fail-closed path
+      }
+      ref.operationId = null; // released; re-run recovery below
+    }
+    final match = await DurableOperationRegistry.recoverExact(
+        account: account, type: type, request: body);
+    if (match is DurableRecoveryNone) {
+      return (proceed: true, target: null); // case 3: genuinely new
+    }
+    if (match is DurableRecoveryUnique) {
+      return (proceed: true, target: match.operation); // case 4
+    }
+    // case 5: ambiguous — present every candidate, the USER chooses.
+    final candidates = (match as DurableRecoveryAmbiguous).candidates;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unfinished operations found'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(shrinkWrap: true, children: [
+            const Text(
+                'More than one unfinished operation with these exact '
+                'details exists. Choose which one to resume — resuming '
+                'reuses its original safety key and can never double-send. '
+                'The others stay untouched and recoverable.'),
+            const SizedBox(height: 8),
+            ...candidates.map((op) => ListTile(
+                  dense: true,
+                  title: Text(
+                      'Started ${op.createdAt.toLocal().toString().substring(0, 19)}'),
+                  subtitle: Text(
+                      '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'),
+                  trailing: const Text('Resume'),
+                  onTap: () => Navigator.pop(ctx, op.operationId),
+                )),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'new'),
+            child: const Text('Start a new operation'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) {
+      return (proceed: false, target: null); // cancelled: send nothing
+    }
+    if (picked == 'new') {
+      return (proceed: true, target: null); // explicit new operation
+    }
+    final chosen =
+        await DurableOperationRegistry.byId(picked, account: account);
+    if (chosen == null) {
+      return (proceed: false, target: null); // raced away: fail closed
+    }
+    ref.operationId = chosen.operationId;
+    return (proceed: true, target: chosen); // the user's EXPLICIT choice
   }
 
   Future<void> _fetchUserBalance() async {
@@ -282,7 +378,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // REQUIRED Idempotency-Key header (the legacy /finance alias is
       // deprecated). Acceptance is 202 at the commit boundary; provider
       // dispatch continues server-side after the response.
-      final response = await apiClient.postFinancial('/withdraw/fiat', {
+      //
+      // The request is reconstructed FIRST, then bound to an unfinished
+      // durable instance whose fingerprint EXACTLY matches it (r42
+      // exact-instance process-death recovery — never "newest pending").
+      final body = <String, dynamic>{
         'amount': amount,
         'recipientPhone': phone,
         'network': _selectedNetwork.apiValue,
@@ -296,7 +396,23 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
-      }, operationType: _fiatActionId, ref: _fiatRef);
+      };
+      final resolved =
+          await _resolveRecoveryInstance(_fiatRef, _fiatActionId, body);
+      if (!resolved.proceed) {
+        setState(() => _isSubmitting = false);
+        return;
+      }
+      final http.Response response;
+      if (resolved.target != null) {
+        // EXACT-ONLY resume of the recovered instance: same key; a stale /
+        // raced-away instance FAILS CLOSED (zero wire) — it can never
+        // silently become a new operation.
+        response = await apiClient.postFinancialRecovered(resolved.target!);
+      } else {
+        response = await apiClient.postFinancial('/withdraw/fiat', body,
+            operationType: _fiatActionId, ref: _fiatRef);
+      }
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -396,11 +512,29 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // requires an HTTP Idempotency-Key for the whole logical withdrawal.
       // r42: the key identifies the WHOLE logical withdrawal (armed once,
       // reused across retries of this action) — not one HTTP attempt.
-      final response = await apiClient.postFinancial('/wallet/withdraw', {
+      //
+      // The request is reconstructed FIRST, then bound to an unfinished
+      // durable instance whose fingerprint EXACTLY matches it (r42
+      // exact-instance process-death recovery — never "newest pending").
+      final body = <String, dynamic>{
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      }, operationType: _walletActionId, ref: _walletRef);
+      };
+      final resolved =
+          await _resolveRecoveryInstance(_walletRef, _walletActionId, body);
+      if (!resolved.proceed) {
+        setState(() => _isSubmitting = false);
+        return;
+      }
+      final http.Response response;
+      if (resolved.target != null) {
+        // EXACT-ONLY resume of the recovered instance (see the fiat path).
+        response = await apiClient.postFinancialRecovered(resolved.target!);
+      } else {
+        response = await apiClient.postFinancial('/wallet/withdraw', body,
+            operationType: _walletActionId, ref: _walletRef);
+      }
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

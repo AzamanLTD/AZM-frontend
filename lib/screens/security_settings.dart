@@ -7,6 +7,7 @@ import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -25,6 +26,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   final _pinController = TextEditingController();
   final _pinConfirmController = TextEditingController();
   bool _pinSet = false;
+  // r42 — unfinished durable financial operations (process-death recovery).
+  List<DurableOperation> _pendingOps = [];
+  bool _pendingOpsLoading = false;
+  bool _pendingOpsRetrying = false;
+  bool _pendingOpsAccountUnavailable = false;
   bool _obscurePin = true;
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
@@ -51,6 +57,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   @override
   void initState() {
     super.initState();
+    _loadPendingOperations();
     // Fetch current 2FA status from user profile
     // Note: If the User model adds isTwoFactorEnabled in the future,
     // uncomment the line below. For now we default to false.
@@ -781,6 +788,54 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           const SizedBox(height: 28),
 
           // ── PRIVACY & DATA (GDPR) ────────────────────────────────────────────
+          _sectionHeader('Unfinished Financial Operations', colors),
+          _buildCard(
+            colors,
+            children: [
+              _infoRow(
+                colors,
+                icon: Icons.sync_outlined,
+                text: 'Operations that were interrupted before confirming '
+                    '(app closed, connection lost). Resuming reuses the '
+                    'original safety key and can never double-send. '
+                    'Nothing here is ever deleted while unresolved.',
+              ),
+              if (_pendingOpsLoading)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_pendingOpsAccountUnavailable)
+                _infoRow(
+                  colors,
+                  icon: Icons.lock_outline,
+                  text: 'Account could not be verified right now. For your '
+                      'safety the resumable-operation list is hidden until '
+                      'sign-in is restored.',
+                )
+              else if (_pendingOps.isEmpty)
+                _infoRow(
+                  colors,
+                  icon: Icons.check_circle_outline,
+                  text: 'No unfinished financial operations.',
+                )
+              else
+                ..._pendingOps.map((op) => Column(children: [
+                      Divider(color: colors.divider, height: 1),
+                      _actionRow(
+                        colors,
+                        icon: Icons.history,
+                        title:
+                            '${op.type} · ${op.createdAt.toLocal().toString().substring(0, 16)}',
+                        subtitle:
+                            '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'
+                            '${op.secretFields.isEmpty ? '' : ' · needs fresh confirmation'}',
+                        onTap: _pendingOpsRetrying ? null : () => _retryPendingOp(op),
+                        isLoading: _pendingOpsRetrying,
+                      ),
+                    ])),
+            ],
+          ),
           _sectionHeader('Privacy & Data', colors),
           _buildCard(
             colors,
@@ -923,6 +978,143 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ),
       ],
     );
+  }
+
+  /// r42 process-death recovery: every unfinished durable financial
+  /// operation in the signed-in account's namespace, newest first. This is
+  /// the product surface through which ANY flow's interrupted operation is
+  /// reachable after process death — the durable record is useless if the
+  /// flow cannot recover and USE it.
+  Future<void> _loadPendingOperations() async {
+    setState(() => _pendingOpsLoading = true);
+    try {
+      // Fail closed when the account namespace cannot be established: the
+      // recovery list must never silently show ANOTHER namespace's (or an
+      // anonymous namespace's) operations.
+      final account = await apiClient.operationAccount(failClosed: true);
+      final ops = await DurableOperationRegistry.pending(account: account);
+      if (mounted) {
+        setState(() {
+          _pendingOps = ops;
+          _pendingOpsAccountUnavailable = false;
+        });
+      }
+    } on FinancialAccountUnavailableException {
+      if (mounted) {
+        setState(() => _pendingOpsAccountUnavailable = true);
+      }
+    } catch (_) {
+      // Registry read failure: the registry itself is the safety authority
+      // and unaffected; show nothing rather than partial state.
+      if (mounted) setState(() => _pendingOps = []);
+    } finally {
+      if (mounted) setState(() => _pendingOpsLoading = false);
+    }
+  }
+
+  /// Resume ONE user-selected unfinished operation by replaying its
+  /// stored request snapshot — exact by construction: same instance, same
+  /// key. The USER chose the instance from the list; nothing is guessed.
+  Future<void> _retryPendingOp(DurableOperation op) async {
+    setState(() => _pendingOpsRetrying = true);
+    try {
+      // Step-up operations (escrow funding with password/TOTP, ...) had
+      // their secrets SCRUBBED before persistence — the record cannot and
+      // must not replay them. Fresh credentials are gathered from the
+      // user here and carried in-memory only, straight into the retry.
+      final freshSecrets = <String, dynamic>{};
+      if (op.secretFields.isNotEmpty) {
+        final gathered = await _promptFreshSecrets(op);
+        if (gathered == null) return; // cancelled: nothing is sent
+        // Never replay with blank credentials: a doomed replay would get a
+        // definitive 400 and RETIRE the genuinely pending instance, taking
+        // away the user's ability to resume it. Nothing is sent instead.
+        if (gathered.values.any((v) => v.toString().trim().isEmpty)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Enter your credentials to resume ${op.type}.'),
+          ));
+          return;
+        }
+        freshSecrets.addAll(gathered);
+      }
+      await apiClient.retryRecovered(op, freshSecrets: freshSecrets);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${op.type}: resumed and finished.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      // Retained statuses (401/409/429/5xx) keep the instance armed — it
+      // stays listed here until it reaches a terminal outcome.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${op.type}: ${e.message}'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Network unavailable — operation stays resumable.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _pendingOpsRetrying = false);
+      await _loadPendingOperations();
+    }
+  }
+
+  /// Gather FRESH step-up credentials for a recovered operation whose
+  /// secrets were scrubbed at persistence time. In-memory only — never
+  /// persisted, never stored on the widget.
+  Future<Map<String, dynamic>?> _promptFreshSecrets(DurableOperation op) async {
+    final controllers = {
+      for (final f in op.secretFields) f: TextEditingController(),
+    };
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm to resume'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Resuming "${op.type}" requires fresh confirmation. '
+              'Your credentials are never stored and go only to this retry.'),
+          ...op.secretFields.map((f) => Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: TextField(
+                  controller: controllers[f],
+                  obscureText: true,
+                  autofocus: f == op.secretFields.first,
+                  decoration: InputDecoration(
+                    labelText: f.toLowerCase().contains('totp') ||
+                            f.toLowerCase().contains('otp')
+                        ? 'Authenticator code'
+                        : (f.toLowerCase().contains('pin') ? 'PIN' : 'Password'),
+                  ),
+                ),
+              )),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Resume')),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      for (final c in controllers.values) {
+        c.dispose();
+      }
+      return null;
+    }
+    final gathered = {
+      for (final e in controllers.entries)
+        e.key: e.value.text,
+    };
+    for (final c in controllers.values) {
+      c.dispose();
+    }
+    return gathered;
   }
 
   Widget _sectionHeader(String title, AzamanColors colors) {

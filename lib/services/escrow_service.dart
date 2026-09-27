@@ -19,7 +19,7 @@ import 'package:azaman/utils/durable_operation_registry.dart';
 
 class EscrowService {
   final ApiClient _client;
-  EscrowService() : _client = ApiClient();
+  EscrowService({ApiClient? client}) : _client = client ?? ApiClient();
 
   // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
   // (per-escrow recovery namespaces). Each genuinely new action gets a
@@ -53,7 +53,7 @@ class EscrowService {
     // record is never silently replaced, it stays recoverable.
     final ref = _flowRefs.putIfAbsent(
         operationType, () => FinancialOperationRef());
-    final account = await _client.operationAccount();
+    final account = await _client.operationAccount(failClosed: true);
     final retryId = ref.operationId;
     DurableOperation op;
     if (retryId != null) {
@@ -80,16 +80,45 @@ class EscrowService {
       await DurableOperationRegistry.retire(op.operationId, account: account);
       ref.operationId = null;
       return result;
+    } on ApiException catch (e) {
+      // HTTP-level answers arrive as ApiException (ApiClient maps every
+      // non-2xx). Disposition matches postFinancial's contract exactly:
+      // ONLY a definitive pre-economic 4xx retires the instance.
+      // 401/409/429 and every 5xx RETAIN it — the backend r42 authority's
+      // RETAIN policy means a 5xx may have been raised AFTER the economic
+      // commit; a retired instance would let the user's retry mint a NEW
+      // key and execute the fund/dispute/release a SECOND time.
+      final code = e.statusCode;
+      final definitivePreEconomic4xx = code >= 400 &&
+          code < 500 &&
+          code != 401 &&
+          code != 409 &&
+          code != 429;
+      if (definitivePreEconomic4xx) {
+        await DurableOperationRegistry.retire(op.operationId, account: account);
+        ref.operationId = null;
+      }
+      rethrow;
     } on EscrowServiceException catch (e) {
-      if (e.statusCode != 409) {
+      // Service-level unwrap failures (in practice: a 2xx whose body is
+      // not a valid escrow payload). The HTTP answer was SUCCESSFUL — the
+      // fund/dispute may have committed — so the instance is RETAINED
+      // unless the status is a definitive pre-economic 4xx.
+      final code = e.statusCode;
+      final definitivePreEconomic4xx = code >= 400 &&
+          code < 500 &&
+          code != 401 &&
+          code != 409 &&
+          code != 429;
+      if (definitivePreEconomic4xx) {
         await DurableOperationRegistry.retire(op.operationId, account: account);
         ref.operationId = null;
       }
       rethrow;
     }
-    // Anything else (network error, timeout, auth-level ApiException) never
-    // carries a server answer about the action — the durable instance
-    // stays pending, so the retry reuses the SAME key.
+    // Anything else (network error, timeout, transport loss) never carries
+    // a server answer about the action — the durable instance stays
+    // pending, so the retry reuses the SAME key.
   }
 
   /// GET /escrow/ticket/:ticketId — returns null when the ticket has no escrow.
@@ -143,18 +172,22 @@ class EscrowService {
     required String reason,
     List<String> evidenceUrls = const [],
   }) {
+    // close-out review 2, finding 3: the STORED snapshot must BE the exact
+    // non-secret wire request, so a recovered replay reproduces the
+    // original dispute (reason + evidence) under the original key. The
+    // stored body previously carried only escrowId, which would have made
+    // a recovered replay a materially different request.
+    final request = {
+      'escrowId': escrowId,
+      'reason': reason,
+      if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
+    };
     return _withDurableKey(
         operationType: 'escrow.dispute.$escrowId',
         endpoint: '/escrow/dispute',
-        request: {
-          'escrowId': escrowId,
-        },
+        request: request,
         call: (key) {
-      return _mutate('/escrow/dispute', {
-        'escrowId': escrowId,
-        'reason': reason,
-        if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
-      }, idempotencyKey: key);
+      return _mutate('/escrow/dispute', request, idempotencyKey: key);
     });
   }
 

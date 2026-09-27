@@ -133,7 +133,8 @@ class _RetailCollectionBoxWidgetState
     // ref's unfinished instance when the cart fingerprint matches, else
     // begin a genuinely new instance — the old record is never replaced.
     final api = ApiClient();
-    final account = await api.operationAccount();
+    // Fail closed when the account namespace cannot be established.
+    final account = await api.operationAccount(failClosed: true);
     DurableOperation op;
     final retryId = _checkoutRef.operationId;
     if (retryId != null) {
@@ -141,18 +142,22 @@ class _RetailCollectionBoxWidgetState
         op = await DurableOperationRegistry.retry(retryId,
             account: account, request: cartFingerprint);
       } on DurableOperationException {
-        op = await DurableOperationRegistry.begin(
-            account: account,
-            type: _checkoutActionId,
-            endpoint: '/storefront/checkout',
-            request: cartFingerprint);
+        op = await _beginNew(account, cartFingerprint);
       }
     } else {
-      op = await DurableOperationRegistry.begin(
-          account: account,
-          type: _checkoutActionId,
-          endpoint: '/storefront/checkout',
-          request: cartFingerprint);
+      // close-out review 2, finding 3 (in-flow recovery adapter): the
+      // snapshot is a synthetic cart fingerprint, NOT a wire request — so
+      // this instance is persisted replaySafe:false (generic replay fails
+      // closed) and recovery happens HERE: an exactly-matching unfinished
+      // cart (same lines, same protection) resumes ITS instance with ITS
+      // key instead of minting a duplicate checkout identity.
+      final match = await DurableOperationRegistry.recoverExact(
+          account: account, type: _checkoutActionId, request: cartFingerprint);
+      if (match is DurableRecoveryUnique) {
+        op = match.operation; // exact: same cart resumes the same key
+      } else {
+        op = await _beginNew(account, cartFingerprint);
+      }
     }
     _checkoutRef.operationId = op.operationId;
     final result = await RetailCheckoutController(gateway).submit(
@@ -160,11 +165,25 @@ class _RetailCollectionBoxWidgetState
       options: options,
       idempotencyKey: op.key,
     );
-    // Answered outcome (success, failure or unavailable): this instance is
-    // terminal — retire THAT instance only, clear the ref.
-    await DurableOperationRegistry.retire(op.operationId, account: account);
-    _checkoutRef.operationId = null;
     if (!mounted) return;
+    // Disposition (r42): only a DEFINITIVE outcome retires the instance.
+    // A retryable failure (network loss, 408/425/429, 5xx, or a 2xx whose
+    // body could not be parsed) means the server state is UNKNOWN — the
+    // order may already exist. The instance stays pending and the ref
+    // stays armed, so the user's re-tap reuses the SAME key and the
+    // backend converges on the committed order instead of executing a
+    // second checkout. Retiring here would silently arm a fresh key and
+    // duplicate the order.
+    final definitive = switch (result) {
+      RetailCheckoutSuccess() => true,
+      RetailCheckoutUnavailable() => true,
+      RetailCheckoutFailure(retryable: false) => true,
+      RetailCheckoutFailure() => false,
+    };
+    if (definitive) {
+      await DurableOperationRegistry.retire(op.operationId, account: account);
+      _checkoutRef.operationId = null;
+    }
 
     switch (result) {
       case RetailCheckoutSuccess(
@@ -212,6 +231,20 @@ class _RetailCollectionBoxWidgetState
         );
         return;
     }
+  }
+
+  /// Begin a genuinely new checkout instance. replaySafe:false — the
+  /// stored snapshot is the cart FINGERPRINT, not a wire request; generic
+  /// recovery replay must fail closed (this flow recovers via
+  /// recoverExact above).
+  Future<DurableOperation> _beginNew(
+      String account, Map<String, dynamic> cartFingerprint) {
+    return DurableOperationRegistry.begin(
+        account: account,
+        type: _checkoutActionId,
+        endpoint: '/storefront/checkout',
+        request: cartFingerprint,
+        replaySafe: false);
   }
 
   Future<bool> _fundEscrow(

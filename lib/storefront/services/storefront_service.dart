@@ -46,7 +46,7 @@ class StorefrontService {
     required Map<String, dynamic> request,
     FinancialOperationRef? ref,
   }) async {
-    final account = await _apiClient.operationAccount();
+    final account = await _apiClient.operationAccount(failClosed: true);
     final retryId = ref?.operationId;
     if (retryId != null) {
       try {
@@ -69,7 +69,7 @@ class StorefrontService {
     final id = ref?.operationId;
     if (id == null) return;
     await DurableOperationRegistry.retire(id,
-        account: await _apiClient.operationAccount());
+        account: await _apiClient.operationAccount(failClosed: true));
     if (ref != null) ref.operationId = null;
   }
 
@@ -251,6 +251,12 @@ class StorefrontService {
     if (idempotencyKey != null) {
       body['idempotencyKey'] = idempotencyKey;
     } else if (operationType != null) {
+      // close-out review 2, finding 3: the wire request carries the
+      // instance key as the legacy `idempotencyKey` BODY field. The stored
+      // snapshot carries the SAME FIELD as a placeholder so a recovered
+      // replay is byte-identical to the original wire request (the
+      // exact-only recovery path rewrites it to the instance's key).
+      body['idempotencyKey'] = ''; // placeholder → rewritten to op.key
       final op = await _resolveOperation(
           type: operationType,
           endpoint: '/storefront/$businessProfileId/checkout',

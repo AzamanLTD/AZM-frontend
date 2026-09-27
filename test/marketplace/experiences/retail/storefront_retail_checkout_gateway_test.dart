@@ -86,13 +86,15 @@ void main() {
       expect(success.confirmationMessage, contains('AZM-2024-001'));
     });
 
-    test('malformed success response produces a non-retryable failure', () async {
+    test('malformed success response produces a retryable failure — the 2xx may have committed', () async {
       final service = _CapturingStorefrontService();
       service.response = {'order': {'id': '', 'orderRef': null, 'status': null}};
       final gateway = buildGateway(service);
       final result = await gateway.checkout(buildCart(), idempotencyKey: 'checkout-5');
       expect(result, isA<RetailCheckoutFailure>());
-      expect((result as RetailCheckoutFailure).retryable, isFalse);
+      expect((result as RetailCheckoutFailure).retryable, isTrue,
+          reason: 'a 2xx with an unparseable body may have committed the '
+              'order — the retry must reuse the same retained key');
     });
 
     test('client HTTP failures are non-retryable while transient server failures are retryable', () async {

@@ -65,9 +65,12 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
     } on StorefrontApiException catch (e) {
       return RetailCheckoutFailure(message: e.message, retryable: e.isRetryable);
     } on FormatException catch (_) {
-      // A successful HTTP response with an invalid payload is a protocol
-      // failure, not a transient transport error.
-      return const RetailCheckoutFailure(message: 'Received an invalid response from the server.', retryable: false);
+      // A successful HTTP response with an invalid payload is an UNKNOWN
+      // state, not a definitive failure: the backend may have committed
+      // the order behind that 2xx. retryable:true keeps the caller's
+      // durable instance armed, so a retry reuses the SAME key and
+      // converges on the committed order instead of creating a duplicate.
+      return const RetailCheckoutFailure(message: 'Received an invalid response from the server.', retryable: true);
     } catch (e) {
       // Unknown transport/client failures remain retryable because the server
       // may have completed the operation; the retained idempotency key makes
