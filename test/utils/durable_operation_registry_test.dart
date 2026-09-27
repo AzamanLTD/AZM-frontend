@@ -451,4 +451,163 @@ void main() {
     expect(recovered.createdAt, isNotNull);
     expect(recovered.account, acc);
   });
+
+// =============================================================================
+// r42 CLOSE-OUT REVIEW (2026-09-27) — EXACT-MATCH PROCESS-DEATH RECOVERY.
+//
+// The withdrawn v2 rule "adopt the NEWEST pending operation of the type"
+// could bind the WRONG instance: with an older A and a newer B both
+// outstanding, it bound B, so the user's reconstruction of A opened a
+// THIRD instance and A's key was orphaned. Recovery is now exact-match
+// (recoverExact) and fails closed on ambiguity.
+// =============================================================================
+
+group('close-out proofs: exact-match process-death recovery', () {
+  test('MOST IMPORTANT REGRESSION — full post-death lifecycle: A=50/K1, '
+      'B=75/K2, both responses lost, process dies; reconstruction of A '
+      'MUST recover A (not B), retry A sends K1, B stays pending with K2, '
+      'then B recovers with K2 — and NO third key is ever minted',
+      () async {
+    const type = 'withdrawal.fiat';
+    final reqA = {'amount': 50, 'recipientPhone': '+233200000000'};
+    final reqB = {'amount': 75, 'recipientPhone': '+233200000000'};
+
+    // 1-4. A → K1, B → K2, both responses lost (both stay unfinished).
+    final a = await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/withdraw/fiat', request: reqA);
+    final b = await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/withdraw/fiat', request: reqB);
+    final k1 = a.key;
+    final k2 = b.key;
+    expect(k1, isNot(equals(k2)));
+
+    // 5. Simulate complete process death: ALL in-memory refs are gone.
+    final carried = await _persistedState();
+    await _simulateProcessDeath(carried);
+
+    // 7. The user reconstructs the intended A request.
+    // 8. Recovery MUST identify A, not B (B is newer — that must not win).
+    final matchA = await DurableOperationRegistry.recoverExact(
+        account: acc, type: type, request: reqA);
+    expect(matchA, isA<DurableRecoveryUnique>());
+    final recoveredA = (matchA as DurableRecoveryUnique).operation;
+    expect(recoveredA.operationId, a.operationId,
+        reason: 'the OLDER instance A must be recovered for A\'s body — '
+            '"newest of the type" must never be the rule');
+    expect(recoveredA.key, k1);
+
+    // 9. Retry A through the authoritative exact-instance path sends K1.
+    final retriedA = await DurableOperationRegistry.retry(recoveredA.operationId,
+        account: acc, request: reqA);
+    expect(retriedA.key, k1);
+
+    // 10. B remains pending, untouched, with K2.
+    final stillPending =
+        await DurableOperationRegistry.pending(account: acc, type: type);
+    expect(stillPending.length, 2,
+        reason: 'no instance was replaced, retired, or orphaned');
+
+    // 11. Then B is reconstructed and recovered — with K2.
+    final matchB = await DurableOperationRegistry.recoverExact(
+        account: acc, type: type, request: reqB);
+    expect(matchB, isA<DurableRecoveryUnique>());
+    final recoveredB = (matchB as DurableRecoveryUnique).operation;
+    expect(recoveredB.operationId, b.operationId);
+    final retriedB = await DurableOperationRegistry.retry(recoveredB.operationId,
+        account: acc, request: reqB);
+    expect(retriedB.key, k2);
+
+    // 12. Neither instance was replaced, orphaned, or given a third key.
+    final finalPending =
+        await DurableOperationRegistry.pending(account: acc, type: type);
+    expect(finalPending.length, 2);
+    expect(finalPending.map((o) => o.key).toSet(), {k1, k2});
+  });
+
+  test('IDENTICAL BODIES — A=deposit 10/K1 and a separate B=deposit 10/K2; '
+      'after death, recovery is AMBIGUOUS and FAILS CLOSED: no guessing, '
+      'both instances remain independently durable and recoverable',
+      () async {
+    const type = 'deposit.savings';
+    final req = {'amount': 10, 'goalId': 'goal_1'};
+
+    final a = await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/savings/deposit', request: req);
+    final b = await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/savings/deposit', request: req);
+    expect(a.key, isNot(equals(b.key)));
+
+    // Process death, then reconstruction of the same body.
+    await _simulateProcessDeath(await _persistedState());
+
+    final match = await DurableOperationRegistry.recoverExact(
+        account: acc, type: type, request: req);
+    expect(match, isA<DurableRecoveryAmbiguous>(),
+        reason: 'two identical unfinished bodies must NOT be resolved by '
+            'a heuristic');
+    final candidates = (match as DurableRecoveryAmbiguous).candidates;
+    expect(candidates.length, 2);
+    expect(candidates.map((o) => o.key).toSet(), {a.key, b.key});
+
+    // Both remain retryable by their EXPLICIT instance ids — the user
+    // (or an explicit selection surface) picks; the registry never does.
+    final retriedA =
+        await DurableOperationRegistry.retry(a.operationId, account: acc, request: req);
+    final retriedB =
+        await DurableOperationRegistry.retry(b.operationId, account: acc, request: req);
+    expect(retriedA.key, a.key);
+    expect(retriedB.key, b.key);
+  });
+
+  test('DurableRecoveryNone — a body with no unfinished match recovers '
+      'nothing: the submit is a genuinely new operation, and recovery '
+      'never mutates storage', () async {
+    const type = 'withdrawal.fiat';
+    await DurableOperationRegistry.begin(
+        account: acc,
+        type: type,
+        endpoint: '/withdraw/fiat',
+        request: {'amount': 50, 'recipientPhone': '+233200000000'});
+
+    final before = await _persistedState();
+    final match = await DurableOperationRegistry.recoverExact(
+        account: acc, type: type, request: {'amount': 999, 'recipientPhone': '+233200000000'});
+    expect(match, isA<DurableRecoveryNone>());
+    expect(await _persistedState(), before,
+        reason: 'a failed lookup must not touch the journal');
+  });
+
+  test('recovery is account-scoped — another user\'s unfinished identical '
+      'operation is invisible and unadoptable', () async {
+    const type = 'withdrawal.fiat';
+    final req = {'amount': 50, 'recipientPhone': '+233200000000'};
+    await DurableOperationRegistry.begin(
+        account: 'user_OTHER', type: type, endpoint: '/withdraw/fiat', request: req);
+
+    final match = await DurableOperationRegistry.recoverExact(
+        account: acc, type: type, request: req);
+    expect(match, isA<DurableRecoveryNone>(),
+        reason: 'a pending operation in another account namespace can '
+            'never be adopted');
+  });
+
+  test('pending(fingerprint:) selects exact instances only — the '
+      'programmatic selector behind recoverExact', () async {
+    const type = 'withdrawal.fiat';
+    final reqA = {'amount': 50, 'recipientPhone': '+233200000000'};
+    await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/withdraw/fiat', request: reqA);
+    await DurableOperationRegistry.begin(
+        account: acc,
+        type: type,
+        endpoint: '/withdraw/fiat',
+        request: {'amount': 75, 'recipientPhone': '+233200000000'});
+
+    final exact = await DurableOperationRegistry.pending(
+        account: acc, type: type, fingerprint: DurableOperationRegistry.fingerprintOf(reqA));
+    expect(exact.length, 1);
+    expect(exact.single.fingerprint, DurableOperationRegistry.fingerprintOf(reqA));
+  });
+});
+
 }

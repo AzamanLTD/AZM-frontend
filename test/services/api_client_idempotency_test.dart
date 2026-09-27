@@ -22,7 +22,7 @@
 //      instance; 409/5xx and network loss retain it for same-key retry.
 //   7. A persistence failure blocks the request entirely (the durable
 //      record must exist before the first request may leave the device).
-//   8. Post-death recovery (adoptPending) resumes the unfinished
+//   8. Post-death recovery (exact-match recoverExact) resumes the unfinished
 //      instance with the same key on an identical body.
 //   9. Non-financial routes (e.g. /wallet/saved, de-mounted from the
 //      authority in backend §9.5) keep working without a key.
@@ -159,12 +159,18 @@ void main() {
 
     final rec2 = _Recorder();
     final api2 = ApiClient(client: rec2.client);
-    // post-death recovery of the ref (the same thing withdrawal_screen's
-    // bootstrap does via FinancialOperationRef.adoptPending).
+    // post-death recovery: the flow RECONSTRUCTS the request and binds the
+    // unique unfinished instance whose fingerprint EXACTLY matches it
+    // (DurableOperationRegistry.recoverExact — the fail-closed exact-match
+    // contract that replaced the withdrawn newest-adoption rule).
     final account = await api2.operationAccount();
-    final adopted = await FinancialOperationRef.adoptPending(
-        account: account, type: 'test.trade.accept.restart');
-    ref.operationId = adopted.operationId;
+    final match = await DurableOperationRegistry.recoverExact(
+        account: account,
+        type: 'test.trade.accept.restart',
+        request: body);
+    expect(match, isA<DurableRecoveryUnique>(),
+        reason: 'exactly one unfinished instance matches the body');
+    ref.operationId = (match as DurableRecoveryUnique).operation.operationId;
 
     await api2.postFinancial('/trades/accept', body,
         operationType: 'test.trade.accept.restart',
@@ -402,4 +408,154 @@ void main() {
     expect(rec.requests, isEmpty,
         reason: 'nothing may reach the wire without a durable identity');
   });
+
+// =============================================================================
+// r42 CLOSE-OUT REVIEW (2026-09-27) — the application-level post-death
+// recovery regression. The earlier A/B test kept refs alive in memory; the
+// reviewer required proving that A SPECIFICALLY is recoverable after full
+// process death while a NEWER unfinished B of the same type also exists.
+// =============================================================================
+
+  test('CLOSE-OUT REGRESSION: A=50 and B=75 both lose their responses; '
+      'process dies; reconstructing A recovers A (NOT the newer B), the '
+      'wire retry sends K1, B stays pending with K2, then B recovers with '
+      'K2 — no third key is ever sent', () async {
+    const type = 'test.closeout.withdrawal.fiat';
+    final bodyA = {'amount': 50, 'recipientPhone': '+233200000000'};
+    final bodyB = {'amount': 75, 'recipientPhone': '+233200000000'};
+
+    // First process lifetime: A then B, both with lost responses.
+    final sent1 = <http.Request>[];
+    final api1 = ApiClient(client: _throwingClient(sent1));
+    await expectLater(
+        api1.postFinancial('/withdraw/fiat', bodyA,
+            operationType: type, requireAuth: false),
+        throwsA(isA<http.ClientException>()));
+    await expectLater(
+        api1.postFinancial('/withdraw/fiat', bodyB,
+            operationType: type, requireAuth: false),
+        throwsA(isA<http.ClientException>()));
+    final k1 = sent1[0].headers['Idempotency-Key'];
+    final k2 = sent1[1].headers['Idempotency-Key'];
+    expect(k1, isNot(equals(k2)));
+
+    // FULL process death: new client, re-seeded journal, NO refs survive.
+    final store = await SharedPreferences.getInstance();
+    final carried = <String, Object>{
+      for (final k in store.getKeys())
+        if (store.get(k) != null) k: store.get(k)! as Object,
+    };
+    SharedPreferences.setMockInitialValues(carried);
+
+    // Reconstruction of the user's intended A request → EXACT recovery.
+    final api2 = ApiClient(client: _Recorder().client);
+    final account = await api2.operationAccount();
+    final matchA = await DurableOperationRegistry.recoverExact(
+        account: account, type: type, request: bodyA);
+    expect(matchA, isA<DurableRecoveryUnique>(),
+        reason: 'recovery must find A specifically — not B because B is newer');
+    final opA = (matchA as DurableRecoveryUnique).operation;
+    expect(opA.key, k1);
+
+    final recA = _Recorder();
+    final apiA = ApiClient(client: recA.client);
+    await apiA.postFinancial('/withdraw/fiat', bodyA,
+        operationType: type,
+        ref: FinancialOperationRef(operationId: opA.operationId),
+        requireAuth: false);
+    expect(recA.requests.single.headers['Idempotency-Key'], k1,
+        reason: 'the recovered A retry MUST send A\'s original key');
+
+    // B is untouched and independently recoverable with K2.
+    final matchB = await DurableOperationRegistry.recoverExact(
+        account: account, type: type, request: bodyB);
+    expect(matchB, isA<DurableRecoveryUnique>());
+    final opB = (matchB as DurableRecoveryUnique).operation;
+    expect(opB.key, k2);
+
+    final recB = _Recorder();
+    final apiB = ApiClient(client: recB.client);
+    await apiB.postFinancial('/withdraw/fiat', bodyB,
+        operationType: type,
+        ref: FinancialOperationRef(operationId: opB.operationId),
+        requireAuth: false);
+    expect(recB.requests.single.headers['Idempotency-Key'], k2);
+
+    // Nothing was orphaned or tripled: exactly the two original keys exist.
+    final pending =
+        await DurableOperationRegistry.pending(account: account, type: type);
+    expect(pending.map((o) => o.key).toSet(), {k1, k2});
+  });
+
+  test('CLOSE-OUT: identical bodies both lost → recovery is AMBIGUOUS and '
+      'fails closed on the wire too — no key is sent until the instance is '
+      'chosen explicitly', () async {
+    const type = 'test.closeout.deposit.duplicate';
+    final body = {'amount': 10, 'goalId': 'goal_1'};
+
+    final sent1 = <http.Request>[];
+    final api1 = ApiClient(client: _throwingClient(sent1));
+    await expectLater(
+        api1.postFinancial('/savings/deposit', body,
+            operationType: type, requireAuth: false),
+        throwsA(isA<http.ClientException>()));
+    await expectLater(
+        api1.postFinancial('/savings/deposit', body,
+            operationType: type, requireAuth: false),
+        throwsA(isA<http.ClientException>()));
+
+    // Process death.
+    final store = await SharedPreferences.getInstance();
+    final carried = <String, Object>{
+      for (final k in store.getKeys())
+        if (store.get(k) != null) k: store.get(k)! as Object,
+    };
+    SharedPreferences.setMockInitialValues(carried);
+
+    final api2 = ApiClient(client: _Recorder().client);
+    final account = await api2.operationAccount();
+    final match = await DurableOperationRegistry.recoverExact(
+        account: account, type: type, request: body);
+    expect(match, isA<DurableRecoveryAmbiguous>(),
+        reason: 'the recovery contract must not guess between two '
+            'identical unfinished operations');
+    expect((match as DurableRecoveryAmbiguous).candidates.length, 2);
+  });
+
+  test('CLOSE-OUT: retryRecovered (the security-settings recovery surface) '
+      'replays the STORED snapshot of a post-death instance under its '
+      'ORIGINAL key — exact by construction', () async {
+    const type = 'test.closeout.recovered.replay';
+    final body = {'amount': 42, 'recipientPhone': '+233200000001'};
+
+    final sent1 = <http.Request>[];
+    final api1 = ApiClient(client: _throwingClient(sent1));
+    await expectLater(
+        api1.postFinancial('/withdraw/fiat', body,
+            operationType: type, requireAuth: false),
+        throwsA(isA<http.ClientException>()));
+    final originalKey = sent1.single.headers['Idempotency-Key'];
+
+    // Process death.
+    final store = await SharedPreferences.getInstance();
+    final carried = <String, Object>{
+      for (final k in store.getKeys())
+        if (store.get(k) != null) k: store.get(k)! as Object,
+    };
+    SharedPreferences.setMockInitialValues(carried);
+
+    // The user explicitly resumes the listed instance.
+    final account = await ApiClient(client: _Recorder().client).operationAccount();
+    final ops = await DurableOperationRegistry.pending(account: account, type: type);
+    expect(ops.length, 1);
+
+    final rec = _Recorder();
+    final api2 = ApiClient(client: rec.client);
+    await api2.retryRecovered(ops.single, requireAuth: false);
+
+    expect(rec.requests.single.headers['Idempotency-Key'], originalKey,
+        reason: 'the replay must reuse the ORIGINAL instance key');
+    expect(jsonDecode(rec.requests.single.body)['amount'], 42);
+  });
+
 }
