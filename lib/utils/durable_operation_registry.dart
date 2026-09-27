@@ -95,6 +95,20 @@ class DurableOperationNotFoundException extends DurableOperationException {
       '"$operationId" in this account namespace';
 }
 
+/// The instance's stored snapshot is NOT the exact wire request (it is a
+/// synthetic fingerprint body): generic replay is invalid. Resume from the
+/// operation's own flow, which reconstructs the exact request. The
+/// instance is untouched.
+class DurableOperationNotReplayableException extends DurableOperationException {
+  const DurableOperationNotReplayableException(String operationId)
+      : super(operationId);
+  @override
+  String toString() =>
+      'DurableOperationNotReplayableException: the stored snapshot of '
+      '"$operationId" is not an exact wire request — resume from the '
+      "operation's own flow; generic replay fails closed";
+}
+
 /// The request is materially different from the instance's recorded
 /// fingerprint: this is a genuinely NEW action, not a retry. The pending
 /// instance is untouched.
@@ -140,7 +154,26 @@ class DurableOperation {
 
   /// Snapshot of the request body — enough metadata to display, reconcile
   /// and re-present the operation to its owner after process death.
+  /// SECRETS ARE NEVER IN THE SNAPSHOT (see DurableOperationRegistry's
+  /// scrubber): ephemeral step-up credentials (password, TOTP, PIN ...) are
+  /// stripped before the record is persisted and must be re-supplied
+  /// freshly on any recovered retry.
   final Map<String, dynamic> request;
+
+  /// The secret request fields that were scrubbed from [request] before
+  /// persistence (empty when the request carried none). A recovered retry
+  /// of such an operation MUST gather fresh values for exactly these
+  /// fields — the durable record deliberately cannot replay them.
+  final List<String> secretFields;
+
+  /// True when the stored snapshot IS the exact non-secret wire request
+  /// (generic exact replay is valid). False when the snapshot is a
+  /// synthetic/reduced fingerprint body (e.g. a storefront cart
+  /// fingerprint): generic replay would send a materially different
+  /// request, so [ApiClient.postFinancialRecovered] FAILS CLOSED for
+  /// such instances; recovery happens in the operation's own flow, which
+  /// reconstructs its exact request and matches it via [recoverExact].
+  final bool replaySafe;
 
   const DurableOperation({
     required this.operationId,
@@ -151,6 +184,8 @@ class DurableOperation {
     required this.createdAt,
     required this.account,
     required this.request,
+    this.secretFields = const [],
+    this.replaySafe = true,
   });
 }
 
@@ -192,6 +227,39 @@ class DurableRecoveryAmbiguous extends DurableRecoveryMatch {
   const DurableRecoveryAmbiguous(this.candidates);
 }
 
+extension DurableOperationSafeSummary on DurableOperation {
+  /// SAFE, non-secret human identification for recovery surfaces
+  /// (close-out review 2, finding 5): amount, masked recipient /
+  /// destination, target/entity ids — derived ONLY from the scrubbed
+  /// durable snapshot, so it can never display credentials.
+  String safeSummary() {
+    final parts = <String>[];
+    final amount = request['amount'];
+    if (amount is num) {
+      parts.add('${amount % 1 == 0 ? amount.toInt() : amount}');
+    }
+    for (final k in const ['recipientPhone', 'destination', 'address']) {
+      final v = request[k]?.toString();
+      if (v == null || v.isEmpty) continue;
+      final tail = v.length <= 4 ? v : v.substring(v.length - 4);
+      parts.add('to ••••$tail');
+      break;
+    }
+    for (final k in const [
+      'escrowId', 'vaultId', 'susuId', 'goalId', 'friendshipId',
+      'businessProfileId', 'tradeId', 'walletId', 'groupId',
+    ]) {
+      final v = request[k]?.toString();
+      if (v != null && v.isNotEmpty) {
+        parts.add('#${v.length > 10 ? v.substring(0, 10) : v}');
+        break;
+      }
+    }
+    if (parts.isEmpty) return type;
+    return parts.join(' · ');
+  }
+}
+
 class DurableOperationRegistry {
   DurableOperationRegistry._();
 
@@ -228,14 +296,47 @@ class DurableOperationRegistry {
 
   static Set<String> _identityFields = {'clientRequestId', 'idempotencyKey'};
 
+  /// EPHEMERAL AUTHENTICATION MATERIAL — never persisted, never
+  /// fingerprinted, never displayed. Step-up credentials (password, TOTP,
+  /// PIN, ...) authenticate a REQUEST, not the operation's economic
+  /// identity: they are stripped from the durable snapshot at begin()
+  /// and must be re-supplied freshly on any recovered retry. Fields that
+  /// are economic identity (e.g. a susu INVITE token, which identifies
+  /// the resource being redeemed and is required for exact replay) are
+  /// deliberately NOT in this set.
+  static const Set<String> secretFieldsDenylist = {
+    'password',
+    'currentPassword',
+    'newPassword',
+    'pin',
+    'pinCode',
+    'totpToken',
+    'otp',
+    'otpToken',
+    'twoFactorCode',
+    'authCode',
+    'accessToken',
+    'refreshToken',
+  };
+
+  /// The non-secret, non-identity view of a request body: the fields that
+  /// constitute the operation's ECONOMIC identity.
+  static Map<String, dynamic> economicView(Map<String, dynamic> body) {
+    return Map<String, dynamic>.from(body)
+      ..removeWhere((k, _) =>
+          _identityFields.contains(k) || secretFieldsDenylist.contains(k));
+  }
+
   /// Request fingerprint: sha256 over the canonical body form. Fields that
   /// CARRY the identity (clientRequestId / idempotencyKey) are excluded —
   /// they carry the key, so including them would make the fingerprint
-  /// self-referential.
+  /// self-referential. SECRET fields are excluded too: they are ephemeral
+  /// authentication, not economic identity, and are never persisted — so
+  /// a fingerprint computed from a body WITH fresh credentials equals the
+  /// fingerprint computed from the SCRUBBED snapshot. This is what lets a
+  /// recovered step-up operation match its own record.
   static String fingerprintOf(Map<String, dynamic> body) {
-    final identityFree = Map<String, dynamic>.from(body)
-      ..removeWhere((k, _) => _identityFields.contains(k));
-    return sha256.convert(utf8.encode(canonical(identityFree))).toString();
+    return sha256.convert(utf8.encode(canonical(economicView(body)))).toString();
   }
 
   // -------------------------------------------------------------------------
@@ -257,6 +358,9 @@ class DurableOperationRegistry {
         createdAt: DateTime.parse(m['t'] as String),
         account: m['acc'] as String,
         request: (m['req'] as Map<String, dynamic>?) ?? const {},
+        secretFields:
+            (m['sec'] as List<dynamic>?)?.cast<String>() ?? const [],
+        replaySafe: (m['rs'] as bool?) ?? true,
       );
       if (expectAccount != null && op.account != expectAccount) return null;
       return op;
@@ -275,6 +379,8 @@ class DurableOperationRegistry {
         't': op.createdAt.toIso8601String(),
         'acc': op.account,
         'req': op.request,
+        'sec': op.secretFields,
+        'rs': op.replaySafe,
       });
 
   // -------------------------------------------------------------------------
@@ -290,6 +396,7 @@ class DurableOperationRegistry {
     required String type,
     required String endpoint,
     required Map<String, dynamic> request,
+    bool replaySafe = true,
   }) async {
     if (account.trim().isEmpty) {
       throw ArgumentError('account namespace is required (non-empty)');
@@ -297,7 +404,14 @@ class DurableOperationRegistry {
     if (type.trim().isEmpty) {
       throw ArgumentError('operation type is required (non-empty)');
     }
+    // SECRET SCRUBBING (close-out review 2, 2026-09-27): ephemeral
+    // credentials never reach persistent storage. The wire request keeps
+    // them; the durable record does not.
+    final secretFields = <String>[];
     final snapshot = Map<String, dynamic>.from(request);
+    for (final k in secretFieldsDenylist) {
+      if (snapshot.remove(k) != null) secretFields.add(k);
+    }
     final operationId = IdempotencyKey.generate();
     final op = DurableOperation(
       operationId: operationId,
@@ -308,6 +422,8 @@ class DurableOperationRegistry {
       createdAt: DateTime.now(),
       account: account,
       request: snapshot,
+      secretFields: secretFields,
+      replaySafe: replaySafe,
     );
     // THE invariant: the durable record exists BEFORE the first request
     // is allowed to leave the device. begin() only returns once the write

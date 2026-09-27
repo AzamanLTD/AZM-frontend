@@ -610,4 +610,128 @@ group('close-out proofs: exact-match process-death recovery', () {
   });
 });
 
+
+// =============================================================================
+// PASS 2 (close-out review 2, 2026-09-27) — EXACT-ONLY RECOVERY + SECRETS
+// =============================================================================
+
+group('pass 2: secret scrubbing (never persisted, never fingerprinted)', () {
+  test('G. a secret-bearing begin persists NO secret fields — the stored '
+      'record contains no password/totpToken, and the record knows which '
+      'fields to re-gather', () async {
+    final op = await DurableOperationRegistry.begin(
+        account: acc,
+        type: 'storefront.escrow.fund',
+        endpoint: '/escrow/fund',
+        request: const {
+          'escrowId': 'esc_1',
+          'totpToken': '123456',
+          'password': 'hunter2',
+        });
+    expect(op.request.containsKey('password'), isFalse);
+    expect(op.request.containsKey('totpToken'), isFalse);
+    expect(op.request['escrowId'], 'esc_1');
+    expect(op.secretFields, containsAll(['password', 'totpToken']));
+
+    // The SERIALIZED SharedPreferences record contains no secret values.
+    final state = await _persistedState();
+    final blob = state.values.join(' ');
+    expect(blob.contains('hunter2'), isFalse,
+        reason: 'a password may never reach persistent storage');
+    expect(blob.contains('123456'), isFalse,
+        reason: 'a TOTP may never reach persistent storage');
+  });
+
+  test('secrets are EXCLUDED from the fingerprint: a body WITH fresh '
+      'credentials matches the scrubbed snapshot\'s record — recovered '
+      'step-up operations converge on their own identity', () async {
+    final op = await DurableOperationRegistry.begin(
+        account: acc,
+        type: 'storefront.escrow.fund',
+        endpoint: '/escrow/fund',
+        request: const {
+          'escrowId': 'esc_1',
+          'totpToken': '111111',
+          'password': 'first-attempt',
+        });
+    final fingerprint = DurableOperationRegistry.fingerprintOf(
+        {'escrowId': 'esc_1', 'totpToken': '222222', 'password': 'new'});
+    expect(fingerprint, op.fingerprint,
+        reason: 'credentials are ephemeral auth, not economic identity');
+  });
+
+  test('replaySafe:false instances are marked and never generically '
+      'replayable', () async {
+    final op = await DurableOperationRegistry.begin(
+        account: acc,
+        type: 'storefront.checkout',
+        endpoint: '/storefront/checkout',
+        request: const {'lines': [{'id': 'p1', 'qty': 2}]},
+        replaySafe: false);
+    expect(op.replaySafe, isFalse);
+    // Simulated process death must preserve the flag.
+    await _simulateProcessDeath(await _persistedState());
+    final revived = await DurableOperationRegistry.byId(op.operationId,
+        account: acc);
+    expect(revived!.replaySafe, isFalse);
+  });
+});
+
+group('pass 2: exact-only recovery semantics', () {
+  test('C. stale recovery — the instance retired before the retry: retry() '
+      'throws NotFound; the caller (exact-only path) must NOT begin '
+      'anything', () async {
+    const type = 'withdrawal.fiat';
+    final req = {'amount': 50, 'recipientPhone': '+233200000000'};
+    final a = await DurableOperationRegistry.begin(
+        account: acc, type: type, endpoint: '/withdraw/fiat', request: req);
+    await DurableOperationRegistry.retire(a.operationId, account: acc);
+
+    await expectLater(
+        DurableOperationRegistry.retry(a.operationId,
+            account: acc, request: req),
+        throwsA(isA<DurableOperationNotFoundException>()));
+    // And the journal is still empty: nothing was silently re-created.
+    expect(
+        await DurableOperationRegistry.pending(account: acc, type: type),
+        isEmpty);
+  });
+
+  test('D. fingerprint mismatch on an exact resume attempt throws — never '
+      'silently replaces the instance', () async {
+    const type = 'withdrawal.fiat';
+    final a = await DurableOperationRegistry.begin(
+        account: acc,
+        type: type,
+        endpoint: '/withdraw/fiat',
+        request: {'amount': 50, 'recipientPhone': '+233200000000'});
+    await expectLater(
+        DurableOperationRegistry.retry(a.operationId,
+            account: acc,
+            request: {'amount': 51, 'recipientPhone': '+233200000000'}),
+        throwsA(isA<DurableOperationFingerprintMismatchException>()));
+    // The original instance is untouched and still recoverable.
+    final still =
+        await DurableOperationRegistry.byId(a.operationId, account: acc);
+    expect(still, isNotNull);
+    expect(still!.fingerprint,
+        DurableOperationRegistry.fingerprintOf({'amount': 50, 'recipientPhone': '+233200000000'}));
+  });
+
+  test('E. wrong-account recovery is invisible — byId/retry fail closed',
+      () async {
+    final a = await DurableOperationRegistry.begin(
+        account: 'user_OTHER',
+        type: 'withdrawal.fiat',
+        endpoint: '/withdraw/fiat',
+        request: const {'amount': 50});
+    expect(await DurableOperationRegistry.byId(a.operationId, account: acc),
+        isNull);
+    await expectLater(
+        DurableOperationRegistry.retry(a.operationId,
+            account: acc, request: const {'amount': 50}),
+        throwsA(isA<DurableOperationNotFoundException>()));
+  });
+});
+
 }

@@ -53,7 +53,7 @@ class EscrowService {
     // record is never silently replaced, it stays recoverable.
     final ref = _flowRefs.putIfAbsent(
         operationType, () => FinancialOperationRef());
-    final account = await _client.operationAccount();
+    final account = await _client.operationAccount(failClosed: true);
     final retryId = ref.operationId;
     DurableOperation op;
     if (retryId != null) {
@@ -143,18 +143,22 @@ class EscrowService {
     required String reason,
     List<String> evidenceUrls = const [],
   }) {
+    // close-out review 2, finding 3: the STORED snapshot must BE the exact
+    // non-secret wire request, so a recovered replay reproduces the
+    // original dispute (reason + evidence) under the original key. The
+    // stored body previously carried only escrowId, which would have made
+    // a recovered replay a materially different request.
+    final request = {
+      'escrowId': escrowId,
+      'reason': reason,
+      if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
+    };
     return _withDurableKey(
         operationType: 'escrow.dispute.$escrowId',
         endpoint: '/escrow/dispute',
-        request: {
-          'escrowId': escrowId,
-        },
+        request: request,
         call: (key) {
-      return _mutate('/escrow/dispute', {
-        'escrowId': escrowId,
-        'reason': reason,
-        if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
-      }, idempotencyKey: key);
+      return _mutate('/escrow/dispute', request, idempotencyKey: key);
     });
   }
 

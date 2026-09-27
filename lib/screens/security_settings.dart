@@ -30,6 +30,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   List<DurableOperation> _pendingOps = [];
   bool _pendingOpsLoading = false;
   bool _pendingOpsRetrying = false;
+  bool _pendingOpsAccountUnavailable = false;
   bool _obscurePin = true;
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
@@ -804,6 +805,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 )
+              else if (_pendingOpsAccountUnavailable)
+                _infoRow(
+                  colors,
+                  icon: Icons.lock_outline,
+                  text: 'Account could not be verified right now. For your '
+                      'safety the resumable-operation list is hidden until '
+                      'sign-in is restored.',
+                )
               else if (_pendingOps.isEmpty)
                 _infoRow(
                   colors,
@@ -819,7 +828,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                         title:
                             '${op.type} · ${op.createdAt.toLocal().toString().substring(0, 16)}',
                         subtitle:
-                            'Resumable · key …${op.key.substring(op.key.length - 6)}',
+                            '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'
+                            '${op.secretFields.isEmpty ? '' : ' · needs fresh confirmation'}',
                         onTap: _pendingOpsRetrying ? null : () => _retryPendingOp(op),
                         isLoading: _pendingOpsRetrying,
                       ),
@@ -978,12 +988,25 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   Future<void> _loadPendingOperations() async {
     setState(() => _pendingOpsLoading = true);
     try {
-      final account = await apiClient.operationAccount();
+      // Fail closed when the account namespace cannot be established: the
+      // recovery list must never silently show ANOTHER namespace's (or an
+      // anonymous namespace's) operations.
+      final account = await apiClient.operationAccount(failClosed: true);
       final ops = await DurableOperationRegistry.pending(account: account);
-      if (mounted) setState(() => _pendingOps = ops);
+      if (mounted) {
+        setState(() {
+          _pendingOps = ops;
+          _pendingOpsAccountUnavailable = false;
+        });
+      }
+    } on FinancialAccountUnavailableException {
+      if (mounted) {
+        setState(() => _pendingOpsAccountUnavailable = true);
+      }
     } catch (_) {
-      // Recovery list is best-effort to display; the registry itself is
-      // the safety authority and unaffected.
+      // Registry read failure: the registry itself is the safety authority
+      // and unaffected; show nothing rather than partial state.
+      if (mounted) setState(() => _pendingOps = []);
     } finally {
       if (mounted) setState(() => _pendingOpsLoading = false);
     }
@@ -995,7 +1018,17 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   Future<void> _retryPendingOp(DurableOperation op) async {
     setState(() => _pendingOpsRetrying = true);
     try {
-      await apiClient.retryRecovered(op);
+      // Step-up operations (escrow funding with password/TOTP, ...) had
+      // their secrets SCRUBBED before persistence — the record cannot and
+      // must not replay them. Fresh credentials are gathered from the
+      // user here and carried in-memory only, straight into the retry.
+      final freshSecrets = <String, dynamic>{};
+      if (op.secretFields.isNotEmpty) {
+        final gathered = await _promptFreshSecrets(op);
+        if (gathered == null) return; // cancelled: nothing is sent
+        freshSecrets.addAll(gathered);
+      }
+      await apiClient.retryRecovered(op, freshSecrets: freshSecrets);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('${op.type}: resumed and finished.'),
@@ -1016,6 +1049,52 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       if (mounted) setState(() => _pendingOpsRetrying = false);
       await _loadPendingOperations();
     }
+  }
+
+  /// Gather FRESH step-up credentials for a recovered operation whose
+  /// secrets were scrubbed at persistence time. In-memory only — never
+  /// persisted, never stored on the widget.
+  Future<Map<String, dynamic>?> _promptFreshSecrets(DurableOperation op) async {
+    final controllers = {
+      for (final f in op.secretFields) f: TextEditingController(),
+    };
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm to resume'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Resuming "${op.type}" requires fresh confirmation. '
+              'Your credentials are never stored and go only to this retry.'),
+          ...op.secretFields.map((f) => Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: TextField(
+                  controller: controllers[f],
+                  obscureText: true,
+                  autofocus: f == op.secretFields.first,
+                  decoration: InputDecoration(
+                    labelText: f.toLowerCase().contains('totp') ||
+                            f.toLowerCase().contains('otp')
+                        ? 'Authenticator code'
+                        : (f.toLowerCase().contains('pin') ? 'PIN' : 'Password'),
+                  ),
+                ),
+              )),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Resume')),
+        ],
+      ),
+    );
+    if (confirmed != true) return null;
+    return {
+      for (final e in controllers.entries)
+        e.key: e.value.text,
+    };
   }
 
   Widget _sectionHeader(String title, AzamanColors colors) {

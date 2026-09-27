@@ -249,7 +249,7 @@ class FriendService {
     // instance and the old record stays recoverable).
     final requestRef = _flowRefs.putIfAbsent(
         'request.$friendshipId', () => FinancialOperationRef());
-    final account = await apiClient.operationAccount();
+    final account = await apiClient.operationAccount(failClosed: true);
     DurableOperation op;
     final retryId = requestRef.operationId;
     if (retryId != null) {
@@ -259,6 +259,12 @@ class FriendService {
               'friendshipId': friendshipId,
               'amount': amount,
               if (reference != null && reference.isNotEmpty) 'reference': reference,
+              // close-out review 2, finding 3: the wire request carries
+              // clientRequestId (= the durable key). The stored snapshot
+              // carries the SAME FIELD as a placeholder so a recovered
+              // replay is byte-identical to the original wire request;
+              // the exact-only path rewrites it to the instance's key.
+              'clientRequestId': '',
             });
       } on DurableOperationException {
         op = await DurableOperationRegistry.begin(
@@ -269,6 +275,12 @@ class FriendService {
               'friendshipId': friendshipId,
               'amount': amount,
               if (reference != null && reference.isNotEmpty) 'reference': reference,
+              // close-out review 2, finding 3: the wire request carries
+              // clientRequestId (= the durable key). The stored snapshot
+              // carries the SAME FIELD as a placeholder so a recovered
+              // replay is byte-identical to the original wire request;
+              // the exact-only path rewrites it to the instance's key.
+              'clientRequestId': '',
             });
       }
     } else {
