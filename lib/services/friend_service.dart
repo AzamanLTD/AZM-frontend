@@ -7,7 +7,7 @@
 
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/utils/durable_action_registry.dart';
 
 class FriendService {
   static final FriendService _instance = FriendService._internal();
@@ -17,8 +17,12 @@ class FriendService {
   // a re-tap after a lost response reuses the SAME key (the server may
   // already have committed the debit). Retired on any answered non-409
   // outcome; a genuinely new transfer then mints a fresh key.
-  final _sendKeys = KeyedActionKeys();
-  final _requestKeys = KeyedActionKeys();
+  // r42 durable identities: one per (action, friendship), drawn from the
+  // durable registry — the SAME key survives service/app recreation, so a
+  // retry of an unfinished transfer converges on the server-side operation
+  // instead of executing twice. postFinancial owns the sendFunds lifecycle.
+  String _sendAction(String friendshipId) => 'friend.transfer.send.$friendshipId';
+  String _requestAction(String friendshipId) => 'friend.transfer.request.$friendshipId';
   FriendService._internal();
 
   // ===========================================================================
@@ -204,18 +208,18 @@ class FriendService {
   /// the same generator.
   Future<Map<String, dynamic>> sendFunds(
       String friendshipId, double amount, String? reference, String token) async {
-    // r42: one logical transfer, one identity — the Phase H12
-    // clientRequestId doubles as the HTTP Idempotency-Key the backend
-    // now requires (legacy txHash derivation keeps the body value).
-    // Armed once per LOGICAL transfer and reused across retries of it.
-    final requestId = _sendKeys.of(friendshipId).arm();
+    // r42: one logical transfer, one DURABLE identity — postFinancial arms
+    // the registry key (surviving app restart) and overwrites the legacy
+    // Phase H12 clientRequestId with it, so the header and the body carry
+    // the same identity and the backend's legacy txHash derivation stays
+    // consistent. Lifecycle (retire on answered outcomes, retain on 409 /
+    // network loss) is owned by the helper.
     final response = await apiClient.postFinancial('/friends/transfer/send', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
-      'clientRequestId': requestId,
-    }, idempotencyKey: requestId);
-    if (response.statusCode != 409) _sendKeys.of(friendshipId).retire();
+      'clientRequestId': '', // auto-filled from the durable registry
+    }, logicalActionId: _sendAction(friendshipId));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
@@ -228,18 +232,28 @@ class FriendService {
   /// duplicate ask.
   Future<Map<String, dynamic>> requestFunds(
       String friendshipId, double amount, String? reference, String token) async {
-    final requestId = _requestKeys.of(friendshipId).arm();
+    // Not an r42-mounted route (plain POST), but the same duplicate-protection
+    // rationale: one durable identity per logical ask, so a retry of an
+    // unfinished ask is the same ask. Retired on any ANSWERED outcome.
+    final requestId = await DurableActionRegistry.arm(
+        logicalActionId: _requestAction(friendshipId),
+        endpoint: '/friends/transfer/request',
+        request: {
+          'friendshipId': friendshipId,
+          'amount': amount,
+          if (reference != null && reference.isNotEmpty) 'reference': reference,
+        });
     final response = await apiClient.post('/friends/transfer/request', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
       'clientRequestId': requestId,
     });
+    // Answered — committed or definitively failed: the next ask is new.
+    await DurableActionRegistry.retire(_requestAction(friendshipId));
     if (response.statusCode == 200 || response.statusCode == 201) {
-      _requestKeys.of(friendshipId).retire(); // the ask committed
       return jsonDecode(response.body);
     }
-    _requestKeys.of(friendshipId).retire(); // answered failure — new ask is new
     
     throw Exception('Failed to request funds: ${response.body}');
   }

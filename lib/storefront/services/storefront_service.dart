@@ -12,7 +12,7 @@ import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
 import 'storefront_conflict_exception.dart';
-import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/utils/durable_action_registry.dart';
 
 class StorefrontApiException implements Exception {
   final int statusCode;
@@ -28,9 +28,11 @@ class StorefrontApiException implements Exception {
 }
 
 class StorefrontService {
-  // r42 key lifecycle: per-escrow funding keys, held on the service
-  // instance (its provider / checkout gateway keeps it alive).
-  final _fundEscrowKeys = KeyedActionKeys();
+  // r42 DURABLE key lifecycle: per-escrow funding identities drawn from the
+  // durable registry — the SAME key survives service/app recreation, so a
+  // lost-response retry after process death converges on the server-side
+  // operation instead of funding twice.
+  String _fundAction(String escrowId) => 'storefront.escrow.fund.$escrowId';
 
   final ApiClient _apiClient = ApiClient();
 
@@ -196,8 +198,36 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
-    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', {'items': items, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes, if (idempotencyKey != null) 'idempotencyKey': idempotencyKey, 'paymentMode': paymentMode});
+  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? logicalActionId, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
+    final body = {'items': items, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes, 'paymentMode': paymentMode};
+    // r42 durable identity: the body's legacy `idempotencyKey` field carries
+    // the DURABLE registry key, armed and persisted BEFORE the first
+    // request. EITHER the caller passes a PRE-ARMED durable key
+    // (idempotencyKey — the retail gateway path, lifecycle owned by the
+    // caller) OR the service arms by logicalActionId (the cart screen
+    // path, lifecycle owned by this method). A retry of the same
+    // unfinished checkout (even after app restart) reuses the SAME
+    // identity; a materially different cart is a genuinely new checkout.
+    if (idempotencyKey != null) {
+      body['idempotencyKey'] = idempotencyKey;
+    } else if (logicalActionId != null) {
+      body['idempotencyKey'] = await DurableActionRegistry.arm(
+          logicalActionId: logicalActionId,
+          endpoint: '/storefront/$businessProfileId/checkout',
+          request: body);
+    }
+    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
+    if (idempotencyKey == null && logicalActionId != null) {
+      try {
+        final parsed = _parseResponse(response) as Map<String, dynamic>;
+        // Answered success — this checkout is complete; the next is new.
+        await DurableActionRegistry.retire(logicalActionId);
+        return parsed;
+      } on StorefrontApiException catch (e) {
+        if (e.statusCode != 409) await DurableActionRegistry.retire(logicalActionId);
+        rethrow;
+      }
+    }
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
@@ -214,25 +244,33 @@ class StorefrontService {
     // on any answered definitive outcome so a corrected retry is a new
     // action. An idempotency 409 keeps the key armed — the retry must
     // converge on the same server-side operation.
-    final key = _fundEscrowKeys.of(escrowId);
+    final actionId = _fundAction(escrowId);
+    final request = {
+      'escrowId': escrowId,
+      if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
+      if (password != null && password.isNotEmpty) 'password': password,
+    };
+    // The durable key is armed and PERSISTED before the first request.
+    final key = await DurableActionRegistry.arm(
+        logicalActionId: actionId, endpoint: '/escrow/fund', request: request);
     try {
-      final response = await _apiClient.postFinancial('/escrow/fund', {
-        'escrowId': escrowId,
-        if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
-        if (password != null && password.isNotEmpty) 'password': password,
-      }, idempotencyKey: key.arm());
-      key.retire(); // answered success — this funding is complete
+      final response = await _apiClient.post('/escrow/fund', request,
+          idempotencyKey: key);
+      await DurableActionRegistry.retire(actionId); // answered success
       _parseResponse(response);
     } on StorefrontApiException catch (e) {
-      if (e.statusCode != 409) key.retire();
+      if (e.statusCode != 409) await DurableActionRegistry.retire(actionId);
       rethrow;
     } on StorefrontConflictException catch (e) {
-      // 409: an idempotency replay conflict keeps the key; a storefront
-      // draft conflict is unrelated to this action — retire.
-      if (!(e.code?.startsWith('IDEMPOTENCY') ?? false)) key.retire();
+      // 409: an idempotency replay conflict keeps the durable entry; a
+      // storefront draft conflict is unrelated to this action — retire.
+      if (!(e.code?.startsWith('IDEMPOTENCY') ?? false)) {
+        await DurableActionRegistry.retire(actionId);
+      }
       rethrow;
     }
-    // Network error / timeout: no server answer — keep the key armed.
+    // Network error / timeout: no server answer — the durable entry stays
+    // pending, so the retry re-arms with the SAME key.
   }
 
   Future<Map<String, dynamic>> getMyOrders({String? status, int limit = 20, String? cursor}) async {

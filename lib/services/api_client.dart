@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/utils/durable_action_registry.dart';
 
 /// A centralized API client for handling HTTP requests to the Azaman backend.
 /// Provides consistent error handling, authentication headers, timeouts,
@@ -84,15 +85,80 @@ class ApiClient {
   /// the handler runs. This helper makes the requirement impossible to
   /// forget — it refuses to send a money-moving request without the key.
   ///
+  /// r42 DURABLE IDENTITY (audit close-out): [logicalActionId] is a STABLE
+  /// identity of the logical action ("withdrawal.fiat", "trade.accept.<id>",
+  /// ...). The key is drawn from the [DurableActionRegistry] — persisted
+  /// BEFORE the first request is sent — and survives widget/screen/provider
+  /// recreation and full app process death:
+  ///
+  ///   - retrying the SAME unfinished action (identical request body) after
+  ///     ANY lifecycle event reuses the SAME key → the backend replays the
+  ///     committed/in-flight operation instead of moving money twice;
+  ///   - a materially different body under the same action id is a
+  ///     GENUINELY NEW action → fresh key (the fingerprint separates the
+  ///     pending action from a new one);
+  ///   - lifecycle is the helper's job, not each screen's:
+  ///       2xx                → retire (authoritative response received)
+  ///       definitive 4xx*    → retire (pre-economic; the backend authority
+  ///                            releases the claim on these routes)
+  ///       401/409/429, 5xx   → retain (may be committed/in-flight — a
+  ///                            same-key retry is exactly the protection)
+  ///       network error/timeout → retain (entry stays pending)
+  ///     * definitive 4xx = every 4xx except 401/409/429.
+  ///
   /// Where the body carries a legacy in-body identity (clientRequestId),
-  /// pass the SAME value as [idempotencyKey] so one logical operation has
-  /// exactly one identity, in the header and in the body.
+  /// the helper OVERWRITES it with the registry key: one logical operation,
+  /// one identity — in the durable registry, in the header, and in the body.
+  ///
+  /// Raw [idempotencyKey] is intentionally NOT accepted: a keyless or
+  /// in-memory-only identity path is exactly the bypass this helper exists
+  /// to make impossible.
   Future<http.Response> postFinancial(String endpoint, Map<String, dynamic> body,
-      {required String idempotencyKey, bool requireAuth = true, Map<String, String>? headers}) {
-    if (idempotencyKey.trim().isEmpty) {
-      throw ArgumentError('Financial mutations require a non-empty Idempotency-Key');
+      {required String logicalActionId, bool requireAuth = true, Map<String, String>? headers}) async {
+    if (logicalActionId.trim().isEmpty) {
+      throw ArgumentError('Financial mutations require a non-empty logicalActionId');
     }
-    return post(endpoint, body, headers: headers, requireAuth: requireAuth, idempotencyKey: idempotencyKey);
+    // Demo mode short-circuits before economics: no durable entry needed.
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryPost(endpoint, body);
+      if (m != null) return m;
+    }
+    final body_ = Map<String, dynamic>.from(body);
+    final key = await DurableActionRegistry.arm(
+        logicalActionId: logicalActionId, endpoint: endpoint, request: body_);
+    if (body_.containsKey('clientRequestId')) {
+      body_['clientRequestId'] = key; // one identity, everywhere
+    }
+    try {
+      final response = await post(endpoint, body_,
+          headers: headers, requireAuth: requireAuth, idempotencyKey: key);
+      // 2xx: the authoritative outcome is in hand — terminal.
+      await DurableActionRegistry.retire(logicalActionId);
+      return response;
+    } on ApiException catch (e) {
+      // post() throws ApiException for every answered non-2xx status; the
+      // durable disposition rides the SAME contract as the wire statuses:
+      //   definitive pre-economic 4xx (everything except 401/409/429) →
+      //     the backend authority released the claim; a corrected retry
+      //     is a genuinely new action → retire.
+      //   401 / 409 / 429 → retained (auth incomplete / same action in
+      //     flight / throttled retry of the same action).
+      final code = e.statusCode;
+      final definitivePreEconomic4xx =
+          code >= 400 && code < 500 && code != 401 && code != 409 && code != 429;
+      final unknownServerState = code >= 500;
+      if (definitivePreEconomic4xx && !unknownServerState) {
+        await DurableActionRegistry.retire(logicalActionId);
+      }
+      // 401 / 409 / 429 AND every 5xx: the entry stays pending — the
+      // mutation may have committed; the retry MUST reuse the same key.
+      rethrow;
+    } catch (_) {
+      // Timeout / connection loss: the action may have committed
+      // server-side. The durable entry survives — the retry reuses the
+      // same key.
+      rethrow;
+    }
   }
 
   Future<http.Response> put(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {

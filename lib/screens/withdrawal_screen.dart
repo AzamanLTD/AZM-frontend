@@ -92,8 +92,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // after a lost response), retired only when the next attempt is
   // genuinely new: an answered definitive failure, or acceptance.
   // This is the load-bearing protection against double withdrawals.
-  final _fiatKey = LogicalActionKey();
-  final _walletKey = LogicalActionKey();
+  // r42 durable identity: the logical-action id is STABLE across screen /
+  // process recreation; postFinancial draws its Idempotency-Key from the
+  // durable registry, so a retry of an unfinished withdrawal after app
+  // restart reuses the SAME key (the backend replays the committed
+  // operation) while a genuinely new withdrawal gets a fresh one.
+  static const _fiatActionId = 'withdrawal.fiat';
+  static const _walletActionId = 'withdrawal.wallet';
   _WithdrawMode _mode = _WithdrawMode.mobileMoney;
 
   // ── Crypto-wallet path (Phase 15 whitelist) ─────────────────────────────
@@ -270,7 +275,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
-      }, idempotencyKey: _fiatKey.arm());
+      }, logicalActionId: _fiatActionId);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -280,8 +285,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           (response.statusCode == 200 || response.statusCode == 202) &&
               data['success'] == true;
       if (accepted) {
-        // The logical withdrawal is complete — the next one is a new action.
-        _fiatKey.retire();
+        // The logical withdrawal is complete — postFinancial has already
+        // retired the durable entry (2xx), so the next one is a new action.
         HapticFeedback.heavyImpact();
         // Refresh the pool status — a successful payout debits SystemFiatPool
         // so the banner state may have changed.
@@ -315,12 +320,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // can't be debited (insufficient AZM, invalid tier, etc.). Show
         // a precise message so the user knows the AZM half failed and
         // their USDC is untouched.
-        // 409 = the SAME logical action is in flight on the server — keep
-        // the key so the user's retry converges on that operation (replay
-        // or in-progress). Any other ANSWERED status is a definitive,
-        // correctable failure — retire so the corrected retry is a
-        // genuinely new withdrawal with a fresh key.
-        if (response.statusCode != 409) _fiatKey.retire();
+        // Key lifecycle is owned by postFinancial: 409 keeps the durable
+        // entry (same action in flight — retry converges), any other
+        // ANSWERED 4xx/5xx disposition per the helper contract.
         final code = data['code']?.toString();
         final msg = code == 'AZM_SPEND_FAILED'
             ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
@@ -377,7 +379,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      }, idempotencyKey: _walletKey.arm());
+      }, logicalActionId: _walletActionId);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -387,7 +389,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           (response.statusCode == 200 || response.statusCode == 202) &&
               data['success'] == true;
       if (accepted) {
-        _walletKey.retire();
+        // (2xx → postFinancial retired the durable entry already.)
         HapticFeedback.heavyImpact();
         // Open the real progress UI from the queue-row identity carried
         // in this same response — the saved-payout queue is worker-driven,
@@ -407,9 +409,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         }
         if (mounted) Navigator.pop(context);
       } else {
-        // Same lifecycle as fiat: 409 keeps the key (same action in
-        // flight), any other answered failure retires it.
-        if (response.statusCode != 409) _walletKey.retire();
+        // Key lifecycle owned by postFinancial (same contract as fiat).
         _showSnack(
           data['message']?.toString() ?? 'Withdrawal failed',
           isError: true,

@@ -70,13 +70,13 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   late Map<String, dynamic> _goal;
   bool _busy = false;
 
-  // r42 key lifecycle: one key per LOGICAL savings action (deposit /
-  // withdraw), held on the sheet state so a re-tap after a lost response
-  // reuses the SAME key — the server may already have committed the
-  // debit. Retired on any answered (non-409) outcome; a corrected retry
-  // is then a genuinely new action.
-  final _depositKey = LogicalActionKey();
-  final _withdrawKey = LogicalActionKey();
+  // r42 durable key lifecycle: one durable identity per LOGICAL savings
+  // action (deposit / withdraw). postFinancial draws it from the durable
+  // registry — the SAME key survives a re-tap after a lost response AND
+  // full sheet/app recreation; a corrected retry of an answered failure is
+  // a genuinely new action with a fresh key.
+  static const _depositActionId = 'savings.goal.deposit';
+  static const _withdrawActionId = 'savings.goal.withdraw';
 
   @override
   void initState() {
@@ -127,28 +127,24 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   Future<void> _deposit(double amountGhs) async {
     setState(() => _busy = true);
     try {
-      // r42: one logical operation, one identity — the Phase H12
-      // clientRequestId IS the HTTP Idempotency-Key. The header is the
-      // r42 wire contract; the body value keeps the legacy txHash
-      // derivation. Never generate two identities for one deposit.
-      final requestId = _depositKey.arm();
+      // r42: one logical operation, one identity — postFinancial arms the
+      // durable registry key and OVERWRITES the legacy Phase H12
+      // clientRequestId with it, so the header and the body carry the SAME
+      // durable identity. The BE derives the savings deposit's @unique
+      // `txHash` from it — a retry after a lost response converges instead
+      // of double-debiting.
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/deposit',
         {
           'amountGhs': amountGhs,
-          // Phase H12 (2026-05-27): client-supplied idempotency key so
-          // a network retry doesn't double-debit the user. The BE uses
-          // this to derive the savings deposit's `txHash`, which is
-          // @unique on TransactionHistory — concurrent duplicates trip
-          // P2002 and the whole transaction (including the user
-          // availableBalance debit) rolls back.
-          'clientRequestId': requestId,
+          // Phase H12 (2026-05-27): client-supplied idempotency key
+          // (auto-filled from the durable registry by postFinancial).
+          'clientRequestId': '',
         },
-        idempotencyKey: requestId,
+        logicalActionId: _depositActionId,
       );
 
       final body = jsonDecode(res.body);
-      if (res.statusCode != 409) _depositKey.retire();
       if (res.statusCode == 200 && body['success'] == true) {
         HapticFeedback.heavyImpact();
         widget.onChanged();
@@ -175,11 +171,10 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
-        idempotencyKey: _withdrawKey.arm(),
+        logicalActionId: _withdrawActionId,
       );
 
       final body = jsonDecode(res.body);
-      if (res.statusCode != 409) _withdrawKey.retire();
       if (res.statusCode == 200 && body['success'] == true) {
         HapticFeedback.heavyImpact();
         widget.onChanged();

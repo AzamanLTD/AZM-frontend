@@ -16,7 +16,7 @@ class _CapturingStorefrontService extends StorefrontService {
   Object? error;
 
   @override
-  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
+  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? idempotencyKey, String? logicalActionId, String paymentMode = 'DIRECT'}) async {
     receivedBusinessProfileId = businessProfileId;
     receivedItems = items;
     receivedPaymentMode = paymentMode;

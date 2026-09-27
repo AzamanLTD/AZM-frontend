@@ -24,7 +24,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. AI Smart Filter toggle
@@ -210,7 +209,9 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
 
   // r42: one Idempotency-Key per LOGICAL trade initiation (see initiateTrade)
   // — armed across retries of the same action, never re-minted per press.
-  final _initiateKey = LogicalActionKey();
+  // r42: stable logical-action id — postFinancial arms the DURABLE key
+  // (survives app restart), so a retry after a lost response converges.
+  static const _initiateActionId = 'marketplace.trade.initiate';
   @override
   Future<List<AdListing>> build() async {
     // Re-run whenever the AI filter toggle changes
@@ -277,10 +278,9 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     // retry converges on the same server-side operation instead of
     // opening a second trade.
     final response = await apiClient.postFinancial('/trades/initiate', body,
-        idempotencyKey: _initiateKey.arm());
+        logicalActionId: _initiateActionId);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      _initiateKey.retire();
       final respBody = jsonDecode(response.body);
       final tradeId = respBody['trade']?['id']?.toString() ?? '';
       debugPrint('✅ [MarketplaceProvider] Trade initiated: $tradeId');
@@ -291,7 +291,6 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     // The logical action completed (accepted into the queue) — retire so a
     // later initiation is a new action with a fresh key.
     if (response.statusCode == 202) {
-      _initiateKey.retire();
       final respBody = jsonDecode(response.body);
       final data = respBody['data'] as Map<String, dynamic>? ?? {};
       final queueId = data['queueId']?.toString() ?? '';
@@ -307,9 +306,8 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     }
 
     // The server ANSWERED — a definitive, correctable failure: retire so
-    // the corrected retry is a genuinely new trade. (A 409 means the same
-    // action is in flight — keep the key so the retry converges on it.)
-    if (response.statusCode != 409) _initiateKey.retire();
+    // Key lifecycle is owned by postFinancial (409 keeps the durable
+    // entry so the retry converges; answered definitive failures retire).
     final respBody = jsonDecode(response.body);
     final errorMsg = respBody['message'] ?? 'Failed to initiate trade';
     final errorCode = respBody['code']?.toString();

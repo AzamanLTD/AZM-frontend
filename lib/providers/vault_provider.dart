@@ -14,7 +14,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 
 // ── Models ─────────────────────────────────────────────────────────────────
 
@@ -169,8 +168,10 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   // the notifier so they persist across the user's retries of the same
   // logical action. A lost response may mean the server already committed
   // the debit — the retry MUST reuse the same key.
-  final _depositKeys = KeyedActionKeys();
-  final _breakKeys = KeyedActionKeys();
+  // r42: stable per-vault logical-action ids — postFinancial arms the
+  // DURABLE key per (action, vault), surviving provider/app recreation.
+  String _depositAction(String vaultId) => 'vault.deposit.$vaultId';
+  String _breakAction(String vaultId) => 'vault.break.$vaultId';
   @override
   Future<List<Vault>> build() => _fetch();
 
@@ -216,9 +217,8 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
     // reused across retries of that deposit.
     final res = await apiClient.postFinancial('/vaults/$vaultId/deposit', {
       'amountUsdc': amountUsdc,
-    }, idempotencyKey: _depositKeys.of(vaultId).arm());
-    if (res.statusCode != 409) _depositKeys.of(vaultId).retire();
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    }, logicalActionId: _depositAction(vaultId));
+        if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
 
@@ -242,9 +242,8 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
     // logical break action, reused across retries of that break.
     final res = await apiClient.postFinancial('/vaults/$vaultId/break', {
       'confirmedBreak': true,
-    }, idempotencyKey: _breakKeys.of(vaultId).arm());
-    if (res.statusCode != 409) _breakKeys.of(vaultId).retire();
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    }, logicalActionId: _breakAction(vaultId));
+        if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
 

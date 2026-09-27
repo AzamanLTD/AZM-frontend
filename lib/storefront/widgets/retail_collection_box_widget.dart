@@ -5,7 +5,7 @@ import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
 import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
 import '../models/storefront_models.dart';
-import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/utils/durable_action_registry.dart';
 
 class RetailCollectionBoxWidget extends StatefulWidget {
   final Map<String, dynamic> props;
@@ -30,7 +30,10 @@ class _RetailCollectionBoxWidgetState
   // armed once and passed into the one-shot submit path; a re-tap after a
   // lost response reuses the SAME key instead of placing a second order.
   // Retired on any answered outcome (success, failure or unavailable).
-  final _checkoutKey = LogicalActionKey();
+  // r42: the checkout identity is drawn from the DURABLE registry — the
+  // SAME key survives widget/app recreation, so a retry of an unfinished
+  // checkout after process death reuses it instead of placing two orders.
+  static const _checkoutActionId = 'storefront.retail.checkout';
 
   RetailCart _cart = const RetailCart();
 
@@ -116,12 +119,23 @@ class _RetailCollectionBoxWidgetState
       escrowProtectionAvailable: widget.business.escrowProtectionAvailable,
       paymentProtection: paymentProtection,
     );
+    // Cart fingerprint: the logical checkout identity is the cart content +
+    // chosen protection. A materially different cart is a genuinely new
+    // checkout (fresh key); a retry of the same unfinished cart reuses it.
+    final cartFingerprint = {
+      'lines': [for (final l in _cart.lines) {'id': l.key, 'qty': l.quantity}],
+      'protection': options.paymentProtection.name,
+    };
+    final key = await DurableActionRegistry.arm(
+        logicalActionId: _checkoutActionId,
+        endpoint: '/storefront/checkout',
+        request: cartFingerprint);
     final result = await RetailCheckoutController(gateway).submit(
       _cart,
       options: options,
-      idempotencyKey: _checkoutKey.arm(),
+      idempotencyKey: key,
     );
-    _checkoutKey.retire(); // answered — never reuse this identity again
+    await DurableActionRegistry.retire(_checkoutActionId); // answered
     if (!mounted) return;
 
     switch (result) {

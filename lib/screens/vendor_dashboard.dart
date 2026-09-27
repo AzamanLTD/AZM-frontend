@@ -30,7 +30,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   // r42: one key per LOGICAL internal transfer, reused across retries (a
   // lost response may mean the tier transfer already committed); retired
   // on any answered non-409 outcome.
-  final _transferKey = LogicalActionKey();
+  // r42 durable identity: stable across screen/process recreation.
+  static const _transferActionId = 'vendor.wallet.internal-transfer';
 
   List<Map<String, dynamic>> pendingTrades = [];
   bool isOnline = true;
@@ -901,8 +902,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       final response = await apiClient.postFinancial('/wallet/internal-transfer', {
         'direction': direction,
         'amount': amount,
-      }, idempotencyKey: _transferKey.arm());
-      if (response.statusCode != 409) _transferKey.retire();
+      }, logicalActionId: _transferActionId);
+      // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (response.statusCode == 200) {
         HapticFeedback.heavyImpact();

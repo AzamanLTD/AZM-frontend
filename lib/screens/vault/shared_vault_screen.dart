@@ -23,7 +23,6 @@ import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -466,7 +465,8 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
   // r42: one key per LOGICAL vault creation, reused across retries (a lost
   // response may mean the vault already exists server-side); retired on
   // any answered non-409 outcome.
-  final _createKey = LogicalActionKey();
+  // r42 durable identity: stable across sheet/screen/process recreation.
+  static const _createActionId = 'shared-vault.create';
   String _emoji = '🎯';
   DateTime? _maturity;
   final _inviteControllers = <TextEditingController>[TextEditingController()];
@@ -508,8 +508,8 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
         'targetAmountUsdc': double.parse(_target.text.trim()),
         'maturityDate': _maturity?.toIso8601String(),
         'inviteAzamanIds': invites,
-      }, idempotencyKey: _createKey.arm());
-      if (res.statusCode != 409) _createKey.retire();
+      }, logicalActionId: _createActionId);
+      // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (!mounted) return;
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -746,7 +746,8 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
   // r42: one key per LOGICAL deposit into the open vault, reused across
   // retries (a lost response may mean the debit already committed);
   // retired on any answered non-409 outcome.
-  final _depositKey = LogicalActionKey();
+  // r42 durable identity: stable across sheet/screen/process recreation.
+  static const _depositActionId = 'shared-vault.deposit';
 
   @override
   void dispose() {
@@ -763,9 +764,9 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
       // deposit, reused across retries of that deposit.
       final res = await apiClient.postFinancial('/shared-vaults/${vault.id}/deposit', {
         'amountUsdc': amount,
-      }, idempotencyKey: _depositKey.arm());
+      }, logicalActionId: _depositActionId);
       if (!mounted) return;
-      if (res.statusCode != 409) _depositKey.retire();
+      // Key lifecycle owned by postFinancial (409 keeps, answered retires).
       if (res.statusCode == 200) {
         Navigator.pop(context); // close deposit sheet
         ref.refresh(sharedVaultDetailProvider(widget.vaultId));

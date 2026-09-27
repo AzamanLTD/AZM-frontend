@@ -13,7 +13,6 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/susu_service.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 
 double _num(dynamic v) {
   if (v == null) return 0.0;
@@ -207,9 +206,12 @@ class SusuActions {
   // One key per LOGICAL action: group creation is single-shot; contract
   // acceptance and vouching are per-target. A lost response may mean the
   // server already committed the stake — the retry MUST reuse the key.
-  final _createKey = LogicalActionKey();
-  final _contractKeys = KeyedActionKeys();
-  final _vouchKeys = KeyedActionKeys();
+  // r42: stable logical-action ids — postFinancial arms DURABLE keys from
+  // the registry, surviving provider/app recreation. Keyed ids include
+  // the target so per-susu / per-vouch actions stay independent.
+  static const _createActionId = 'susu.group.create';
+  String _contractAction(String susuId) => 'susu.contract.$susuId';
+  String _vouchAction(String vouchRecordId) => 'susu.vouch.$vouchRecordId';
 
   Future<SusuGroup> createSusu({
     required String groupChatId,
@@ -224,12 +226,7 @@ class SusuActions {
       'contributionUsdc': contributionUsdc,
       'frequency': frequency,
       'startDate': startDate.toIso8601String(),
-    }, idempotencyKey: _createKey.arm());
-    if (res.statusCode == 201) {
-      _createKey.retire(); // committed — a later creation is a new action
-    } else if (res.statusCode != 409) {
-      _createKey.retire(); // answered definitive failure — corrected retry is new
-    }
+    }, logicalActionId: _createActionId);
     if (res.statusCode != 201) {
       throw Exception(_msg(res.body));
     }
@@ -247,12 +244,7 @@ class SusuActions {
     final res = await apiClient.postFinancial('/susu/groups/$susuId/contract', {
       'acceptedSeverityWarning': true,
       'acceptedSeizureClause': true,
-    }, idempotencyKey: _contractKeys.of(susuId).arm());
-    if (res.statusCode == 200) {
-      _contractKeys.of(susuId).retire();
-    } else if (res.statusCode != 409) {
-      _contractKeys.of(susuId).retire();
-    }
+    }, logicalActionId: _contractAction(susuId));
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(susuDetailProvider(susuId));
   }
@@ -263,12 +255,7 @@ class SusuActions {
     final res = await apiClient.postFinancial('/susu/vouches', {
       'vouchRecordId': vouchRecordId,
       'payload': payload,
-    }, idempotencyKey: _vouchKeys.of(vouchRecordId).arm());
-    if (res.statusCode == 200) {
-      _vouchKeys.of(vouchRecordId).retire();
-    } else if (res.statusCode != 409) {
-      _vouchKeys.of(vouchRecordId).retire();
-    }
+    }, logicalActionId: _vouchAction(vouchRecordId));
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(pendingVouchesProvider);
   }

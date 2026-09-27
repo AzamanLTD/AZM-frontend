@@ -15,23 +15,20 @@ import 'dart:convert';
 
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/utils/durable_action_registry.dart';
 
 class EscrowService {
   final ApiClient _client;
   EscrowService() : _client = ApiClient();
 
-  // r42 key lifecycle: one Idempotency-Key per LOGICAL action, not per call.
-  // Armed on the first attempt and REUSED across retries of the same action
-  // (a lost response may mean the server committed — a fresh key would
-  // execute the money move twice). The service instance is held by its
-  // notifier, so the armed key survives across user taps.
-  final _fundKey = LogicalActionKey();
-  final _satisfyKey = LogicalActionKey();
-  final _disputeKey = LogicalActionKey();
-  final _cancelKey = LogicalActionKey();
-
-  /// Drives a mutating call with the correct key lifecycle:
+  // r42 DURABLE key lifecycle: one Idempotency-Key per LOGICAL action, not
+  // per call — drawn from the durable registry, so it survives service /
+  // app recreation. A lost response followed by process death can no longer
+  // fork the identity of an unfinished action.
+  //
+  // The lifecycle nuance (which this service keeps MANUALLY, because the
+  // escrow routes are not releaseOn4xx mounts — the backend conservatively
+  // RETAINS their claims on 4xx):
   ///   - answered success → retire (this action is complete; a new action
   ///     mints a fresh key);
   ///   - answered failure ≠ 409 → retire (a corrected retry is a new
@@ -40,18 +37,27 @@ class EscrowService {
   ///     converges on the server-side operation;
   ///   - no server answer (network error / auth failure) → KEEP, the retry
   ///     MUST reuse the same key.
-  Future<T> _withActionKey<T>(
-      LogicalActionKey key, Future<T> Function(String key) call) async {
+  Future<T> _withDurableKey<T>({
+    required String logicalActionId,
+    required String endpoint,
+    required Map<String, dynamic> request,
+    required Future<T> Function(String key) call,
+  }) async {
+    final key = await DurableActionRegistry.arm(
+        logicalActionId: logicalActionId,
+        endpoint: endpoint,
+        request: request);
     try {
-      final result = await call(key.arm());
-      key.retire();
+      final result = await call(key);
+      await DurableActionRegistry.retire(logicalActionId);
       return result;
     } on EscrowServiceException catch (e) {
-      if (e.statusCode != 409) key.retire();
+      if (e.statusCode != 409) await DurableActionRegistry.retire(logicalActionId);
       rethrow;
     }
     // Anything else (network error, timeout, auth-level ApiException) never
-    // carries a server answer about the action — keep the key armed.
+    // carries a server answer about the action — the durable entry stays
+    // pending, so the retry re-arms with the SAME key.
   }
 
   /// GET /escrow/ticket/:ticketId — returns null when the ticket has no escrow.
@@ -74,18 +80,24 @@ class EscrowService {
   ///
   /// r42: funding is a money-moving mutation — one Idempotency-Key per
   /// logical fund action, reused across deliberate retries.
-  Future<SmartEscrow> fundEscrow(String escrowId) => _withActionKey(
-      _fundKey,
-      (key) => _mutate('/escrow/fund', {'escrowId': escrowId},
+  Future<SmartEscrow> fundEscrow(String escrowId) => _withDurableKey(
+      logicalActionId: 'escrow.fund.$escrowId',
+      endpoint: '/escrow/fund',
+      request: {'escrowId': escrowId},
+      call: (key) => _mutate('/escrow/fund', {'escrowId': escrowId},
           idempotencyKey: key));
 
   /// POST /escrow/satisfy {escrowId} — returns whether the escrow is now fully
   /// settled (both parties satisfied) plus the latest escrow snapshot.
   Future<({bool settled, SmartEscrow escrow})> markSatisfied(
           String escrowId) =>
-      _withActionKey(_satisfyKey, (key) async {
+      _withDurableKey(
+          logicalActionId: 'escrow.satisfy.$escrowId',
+          endpoint: '/escrow/satisfy',
+          request: {'escrowId': escrowId},
+          call: (key) async {
         // r42: satisfaction commits the release — same key-lifecycle rule.
-        final res = await _client.postFinancial('/escrow/satisfy',
+        final res = await _client.post('/escrow/satisfy',
             {'escrowId': escrowId},
             idempotencyKey: key);
         final body = jsonDecode(res.body);
@@ -99,7 +111,13 @@ class EscrowService {
     required String reason,
     List<String> evidenceUrls = const [],
   }) {
-    return _withActionKey(_disputeKey, (key) {
+    return _withDurableKey(
+        logicalActionId: 'escrow.dispute.$escrowId',
+        endpoint: '/escrow/dispute',
+        request: {
+          'escrowId': escrowId,
+        },
+        call: (key) {
       return _mutate('/escrow/dispute', {
         'escrowId': escrowId,
         'reason': reason,
@@ -117,9 +135,13 @@ class EscrowService {
 
   /// POST /escrow/cancel {escrowId}
   Future<void> cancelEscrow(String escrowId) =>
-      _withActionKey(_cancelKey, (key) async {
+      _withDurableKey(
+          logicalActionId: 'escrow.cancel.$escrowId',
+          endpoint: '/escrow/cancel',
+          request: {'escrowId': escrowId},
+          call: (key) async {
         // r42: cancellation releases funds — same key-lifecycle rule.
-        final res = await _client.postFinancial(
+        final res = await _client.post(
             '/escrow/cancel', {'escrowId': escrowId},
             idempotencyKey: key);
         if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -134,9 +156,12 @@ class EscrowService {
     // r42: [idempotencyKey] is set for money-moving mutations on routes
     // the backend protects with the shared idempotency authority; purely
     // editorial routes (update-terms) stay keyless.
+    // Keyed path: the key is PRE-ARMED from the durable registry and the
+    // lifecycle is managed by the caller (_withDurableKey) — so this goes
+    // through post() directly, never minting an identity of its own.
     final res = await (idempotencyKey == null
         ? _client.post(path, body)
-        : _client.postFinancial(path, body, idempotencyKey: idempotencyKey));
+        : _client.post(path, body, idempotencyKey: idempotencyKey));
     final decoded = jsonDecode(res.body);
     return _unwrap(decoded, res.statusCode);
   }

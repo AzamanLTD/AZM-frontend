@@ -33,6 +33,9 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         businessProfileId: businessProfileId,
         items: items,
         paymentMode: paymentMode,
+        // r42: the pre-armed DURABLE registry key (armed by the retail
+        // collection box) — the same identity across retries of the same
+        // unfinished checkout.
         idempotencyKey: idempotencyKey,
       );
 

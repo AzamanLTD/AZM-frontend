@@ -39,7 +39,6 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/config.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -423,7 +422,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // r42: one key per LOGICAL deposit initiation, reused across retries
   // (a lost response may mean the initiation already committed); retired
   // on any answered non-409 outcome.
-  final _initiateKey = LogicalActionKey();
+  // r42 durable identity: the initiation key is drawn from the durable
+  // registry by postFinancial — the SAME key survives screen/process
+  // recreation, so a retry after a lost response converges on the same
+  // server-side initiation instead of creating two deposits.
+  static const _initiateActionId = 'deposit.fiat.moolre.initiate';
   Map<String, dynamic>? _depositResult;
 
   // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
@@ -595,9 +598,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       // reused across retries of the same initiation.
       final response =
           await apiClient.postFinancial('/deposit/fiat/initiate/moolre', body,
-              idempotencyKey: _initiateKey.arm());
+              logicalActionId: _initiateActionId);
       final data = jsonDecode(response.body);
-      if (response.statusCode != 409) _initiateKey.retire();
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         HapticFeedback.heavyImpact();
