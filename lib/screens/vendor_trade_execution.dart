@@ -42,15 +42,17 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   final bool _userIsTyping = false;
   bool _isReleasing = false;
 
-  // r42: one key per LOGICAL trade action on THIS trade (accept, release),
-  // held on the screen state so a re-tap after a lost response reuses the
-  // SAME key — the server may already have committed the release. Retired
-  // on any answered non-409 outcome.
-  // r42 durable identities: stable across screen/process recreation — a
-  // retry of an unfinished accept/release after app death reuses the SAME
-  // key and converges on the server-side operation.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (target-specific recovery namespaces — useful for discoverability, but
+  // NOT the instance identity). Each genuinely new accept/release gets a
+  // fresh durable INSTANCE; the refs are this screen's retry handles — a
+  // re-tap after a lost response retries the SAME instance (same key; the
+  // server may already have committed), and accept/release of the same
+  // trade remain two independently pending instances.
   String _acceptAction() => 'trade.accept.$_cleanTradeId';
   String _releaseAction() => 'trade.release.$_cleanTradeId';
+  final _acceptRef = FinancialOperationRef();
+  final _releaseRef = FinancialOperationRef();
   bool _isDisputed = false;
 
   bool _hasViewedProof = false;
@@ -467,7 +469,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       // r42: completing a P2P trade releases the escrow — one key per
       // logical release action, reused across retries of that release.
       final response = await apiClient.postFinancial('/p2p/complete', {"tradeId": _cleanTradeId},
-          logicalActionId: _releaseAction());
+          operationType: _releaseAction(), ref: _releaseRef);
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -632,7 +634,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       // r42: trade acceptance is a protected financial mutation — one key
       // per logical acceptance, reused across retries of it.
       final response = await apiClient.postFinancial('/trades/accept', {'tradeId': _cleanTradeId},
-          logicalActionId: _acceptAction());
+          operationType: _acceptAction(), ref: _acceptRef);
       if (response.statusCode == 200) {
         setState(() => _isAccepted = true);
         // Refetch the trade to get the new expiresAt set by the backend

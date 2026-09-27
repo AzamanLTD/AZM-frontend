@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
 import 'package:azaman/services/socket_service.dart';
-import 'package:azaman/utils/durable_action_registry.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 
 /// A centralized API client for handling HTTP requests to the Azaman backend.
 /// Provides consistent error handling, authentication headers, timeouts,
@@ -55,11 +55,11 @@ class ApiClient {
   /// for every backend route protected by the r42 shared financial
   /// idempotency authority. Prefer [postFinancial] for money-moving calls.
   ///
-  /// The key identifies the LOGICAL operation, not one HTTP attempt:
+  /// The key identifies the OPERATION INSTANCE, not one HTTP attempt:
   /// token-refresh retries inside [_executeWithRefresh] reuse the same
-  /// captured header. Callers must generate one key per logical action
-  /// (e.g. one button press) and reuse it for deliberate retries of that
-  /// same action; a new logical action gets a fresh key.
+  /// captured header. Financial callers should use [postFinancial], which
+  /// draws the key from the durable operation registry and owns the
+  /// instance lifecycle; raw keys are for pre-armed gateway paths only.
   Future<http.Response> post(String endpoint, Map<String, dynamic> body,
       {Map<String, String>? headers, bool requireAuth = true, String? idempotencyKey}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPost(endpoint, body); if (m != null) return m; }
@@ -80,52 +80,118 @@ class ApiClient {
     });
   }
 
+  /// The account namespace for durable operations: the signed-in user's
+  /// id from secure storage, or 'anon' when unavailable (demo mode, tests,
+  /// pre-auth). Records are namespaced per account so one user's pending
+  /// operation can never become another's.
+  Future<String> operationAccount() async {
+    try {
+      final userId = await _storage.read(key: 'user_id');
+      if (userId != null && userId.trim().isNotEmpty) return userId;
+    } catch (_) {
+      // Secure storage unavailable (tests / not-yet-bound engine): the
+      // anonymous namespace is a safe fallback — it is still a STABLE,
+      // isolated namespace for the device.
+    }
+    return 'anon';
+  }
+
   /// Financial mutation POST: the backend r42 authority REQUIRES an
   /// Idempotency-Key on these routes and rejects keyless requests before
   /// the handler runs. This helper makes the requirement impossible to
   /// forget — it refuses to send a money-moving request without the key.
   ///
-  /// r42 DURABLE IDENTITY (audit close-out): [logicalActionId] is a STABLE
-  /// identity of the logical action ("withdrawal.fiat", "trade.accept.<id>",
-  /// ...). The key is drawn from the [DurableActionRegistry] — persisted
-  /// BEFORE the first request is sent — and survives widget/screen/provider
-  /// recreation and full app process death:
+  /// r42 OPERATION-INSTANCE MODEL (independent review, 2026-09-27):
+  /// [operationType] names the operation TYPE / recovery namespace
+  /// ("withdrawal.fiat", "trade.accept.<id>", ...) — it NEVER identifies an
+  /// instance on its own. The instance identity is a durable
+  /// [DurableOperation] record created by [DurableOperationRegistry.begin]
+  /// and PERSISTED BEFORE the first request leaves the device.
   ///
-  ///   - retrying the SAME unfinished action (identical request body) after
-  ///     ANY lifecycle event reuses the SAME key → the backend replays the
-  ///     committed/in-flight operation instead of moving money twice;
-  ///   - a materially different body under the same action id is a
-  ///     GENUINELY NEW action → fresh key (the fingerprint separates the
-  ///     pending action from a new one);
-  ///   - lifecycle is the helper's job, not each screen's:
-  ///       2xx                → retire (authoritative response received)
-  ///       definitive 4xx*    → retire (pre-economic; the backend authority
-  ///                            releases the claim on these routes)
-  ///       401/409/429, 5xx   → retain (may be committed/in-flight — a
-  ///                            same-key retry is exactly the protection)
-  ///       network error/timeout → retain (entry stays pending)
-  ///     * definitive 4xx = every 4xx except 401/409/429.
+  /// [ref] is the caller's per-flow retry handle:
+  ///   - ref == null            → begin a NEW instance (fresh key).
+  ///   - ref.operationId == null → begin a NEW instance (fresh key) and
+  ///     write the instance id into ref before sending.
+  ///   - ref.operationId != null → RETRY that instance: the SAME key is
+  ///     reused when the body matches the recorded fingerprint. If the
+  ///     body has materially changed (or the instance already reached a
+  ///     terminal state), this call is treated as a GENUINELY NEW action:
+  ///     a fresh instance is begun and the old record is left untouched
+  ///     and recoverable — never silently replaced.
+  ///
+  /// Starting operation B must never disturb outstanding operation A, even
+  /// for the same type: every instance is an independent durable record.
+  ///
+  /// Disposition (the helper owns the lifecycle, mirroring the backend):
+  ///       2xx                  → retire (authoritative response received;
+  ///                              ref cleared)
+  ///       definitive 4xx*      → retire (pre-economic; the backend
+  ///                              authority released the claim; ref
+  ///                              cleared) *every 4xx except 401/409/429
+  ///       401/409/429, 5xx     → retain (may be committed/in-flight — a
+  ///                              same-key retry is exactly the protection;
+  ///                              ref kept armed)
+  ///       network error/timeout → retain (instance stays pending; ref
+  ///                              kept armed)
   ///
   /// Where the body carries a legacy in-body identity (clientRequestId),
-  /// the helper OVERWRITES it with the registry key: one logical operation,
-  /// one identity — in the durable registry, in the header, and in the body.
-  ///
-  /// Raw [idempotencyKey] is intentionally NOT accepted: a keyless or
-  /// in-memory-only identity path is exactly the bypass this helper exists
-  /// to make impossible.
+  /// the helper OVERWRITES it with the instance key: one logical operation,
+  /// one identity — in the durable record, in the header, and in the body.
   Future<http.Response> postFinancial(String endpoint, Map<String, dynamic> body,
-      {required String logicalActionId, bool requireAuth = true, Map<String, String>? headers}) async {
-    if (logicalActionId.trim().isEmpty) {
-      throw ArgumentError('Financial mutations require a non-empty logicalActionId');
+      {required String operationType,
+      FinancialOperationRef? ref,
+      bool requireAuth = true,
+      Map<String, String>? headers}) async {
+    if (operationType.trim().isEmpty) {
+      throw ArgumentError('Financial mutations require a non-empty operationType');
     }
     // Demo mode short-circuits before economics: no durable entry needed.
     if (AppConfig.demoMode) {
       final m = DemoInterceptor.tryPost(endpoint, body);
       if (m != null) return m;
     }
+    final account = await operationAccount();
     final body_ = Map<String, dynamic>.from(body);
-    final key = await DurableActionRegistry.arm(
-        logicalActionId: logicalActionId, endpoint: endpoint, request: body_);
+
+    // Resolve the instance: retry the ref's instance when it is still
+    // pending and the body matches; otherwise begin a genuinely new one.
+    DurableOperation op;
+    final retryId = ref?.operationId;
+    if (retryId != null) {
+      try {
+        op = await DurableOperationRegistry.retry(retryId,
+            account: account, request: body_);
+      } on DurableOperationNotFoundException {
+        // Already terminal (or never existed / another namespace): there
+        // is no outstanding claim — this is a genuinely new action.
+        op = await DurableOperationRegistry.begin(
+            account: account,
+            type: operationType,
+            endpoint: endpoint,
+            request: body_);
+      } on DurableOperationFingerprintMismatchException {
+        // Materially different request: a genuinely NEW instance. The
+        // old one stays pending, untouched and recoverable.
+        op = await DurableOperationRegistry.begin(
+            account: account,
+            type: operationType,
+            endpoint: endpoint,
+            request: body_);
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+          account: account,
+          type: operationType,
+          endpoint: endpoint,
+          request: body_);
+    }
+
+    // The durable record exists now — arm the caller's handle BEFORE the
+    // request leaves the device, so a failure here is a RETRY of this
+    // instance on the caller's next attempt.
+    if (ref != null) ref.operationId = op.operationId;
+
+    final key = op.key;
     if (body_.containsKey('clientRequestId')) {
       body_['clientRequestId'] = key; // one identity, everywhere
     }
@@ -133,7 +199,8 @@ class ApiClient {
       final response = await post(endpoint, body_,
           headers: headers, requireAuth: requireAuth, idempotencyKey: key);
       // 2xx: the authoritative outcome is in hand — terminal.
-      await DurableActionRegistry.retire(logicalActionId);
+      await DurableOperationRegistry.retire(op.operationId, account: account);
+      if (ref != null) ref.operationId = null;
       return response;
     } on ApiException catch (e) {
       // post() throws ApiException for every answered non-2xx status; the
@@ -148,15 +215,16 @@ class ApiClient {
           code >= 400 && code < 500 && code != 401 && code != 409 && code != 429;
       final unknownServerState = code >= 500;
       if (definitivePreEconomic4xx && !unknownServerState) {
-        await DurableActionRegistry.retire(logicalActionId);
+        await DurableOperationRegistry.retire(op.operationId, account: account);
+        if (ref != null) ref.operationId = null;
       }
-      // 401 / 409 / 429 AND every 5xx: the entry stays pending — the
+      // 401 / 409 / 429 AND every 5xx: the instance stays pending — the
       // mutation may have committed; the retry MUST reuse the same key.
       rethrow;
     } catch (_) {
-      // Timeout / connection loss: the action may have committed
-      // server-side. The durable entry survives — the retry reuses the
-      // same key.
+      // Timeout / connection loss: the operation may have committed
+      // server-side. The durable instance survives — the retry (through
+      // the same ref) reuses the same key.
       rethrow;
     }
   }
@@ -288,6 +356,42 @@ class ApiClient {
       _storage.delete(key: 'user_id'),
       _storage.delete(key: 'user_role'),
     ]);
+  }
+}
+
+/// The caller's durable retry handle for ONE operation flow.
+///
+/// [ApiClient.postFinancial] writes the live operation-instance id into the
+/// ref BEFORE the first request leaves the device and clears it when the
+/// operation reaches a terminal state. Pass the SAME ref on the next
+/// attempt of the SAME flow — postFinancial retries the SAME instance and
+/// reuses the SAME key (tap-again-to-safely-retry). A materially different
+/// body automatically begins a genuinely new instance and leaves the old
+/// one untouched and recoverable.
+///
+/// The ref is the in-session link; the durable record is the process-death
+/// horizon. After process death, recover unfinished instances with
+/// [DurableOperationRegistry.pending] and seed a ref with an instance id
+/// (see [adoptPending]) to resume them.
+class FinancialOperationRef {
+  /// The live operation instance id, armed by postFinancial. Non-null while
+  /// an instance of this flow is unresolved (may still have committed
+  /// server-side); null after terminal completion / definitive release.
+  String? operationId;
+
+  FinancialOperationRef({this.operationId});
+
+  /// Process-death recovery: adopt the NEWEST unfinished instance of
+  /// [type] in [account]'s namespace (if any) so the user's next attempt of
+  /// the same body resumes THAT instance (same key) instead of beginning a
+  /// duplicate. A materially different body begins a new instance; the
+  /// adopted record is never lost.
+  static Future<FinancialOperationRef> adoptPending(
+      {required String account, required String type}) async {
+    final pending = await DurableOperationRegistry.pending(
+        account: account, type: type);
+    return FinancialOperationRef(
+        operationId: pending.isEmpty ? null : pending.first.operationId);
   }
 }
 

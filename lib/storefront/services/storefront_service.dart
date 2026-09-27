@@ -12,7 +12,7 @@ import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
 import 'storefront_conflict_exception.dart';
-import 'package:azaman/utils/durable_action_registry.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 
 class StorefrontApiException implements Exception {
   final int statusCode;
@@ -33,6 +33,45 @@ class StorefrontService {
   // lost-response retry after process death converges on the server-side
   // operation instead of funding twice.
   String _fundAction(String escrowId) => 'storefront.escrow.fund.$escrowId';
+  final Map<String, FinancialOperationRef> _fundRefs = {};
+
+  /// Resolves the durable operation instance for a service-owned financial
+  /// flow (the SAME policy as [ApiClient.postFinancial]): retry the ref's
+  /// instance when it is still pending and the body matches its recorded
+  /// fingerprint; otherwise begin a GENUINELY NEW instance (the old record
+  /// stays untouched and recoverable — never silently replaced).
+  Future<DurableOperation> _resolveOperation({
+    required String type,
+    required String endpoint,
+    required Map<String, dynamic> request,
+    FinancialOperationRef? ref,
+  }) async {
+    final account = await _apiClient.operationAccount();
+    final retryId = ref?.operationId;
+    if (retryId != null) {
+      try {
+        return await DurableOperationRegistry.retry(retryId,
+            account: account, request: request);
+      } on DurableOperationException {
+        // Not retryable as that instance (terminal, or a materially
+        // different request): a genuinely new action.
+      }
+    }
+    final op = await DurableOperationRegistry.begin(
+        account: account, type: type, endpoint: endpoint, request: request);
+    if (ref != null) ref.operationId = op.operationId;
+    return op;
+  }
+
+  /// Terminal completion / definitive pre-economic release of the ref's
+  /// instance: retires THAT instance only and clears the ref.
+  Future<void> _releaseOperation(FinancialOperationRef? ref) async {
+    final id = ref?.operationId;
+    if (id == null) return;
+    await DurableOperationRegistry.retire(id,
+        account: await _apiClient.operationAccount());
+    if (ref != null) ref.operationId = null;
+  }
 
   final ApiClient _apiClient = ApiClient();
 
@@ -198,33 +237,45 @@ class StorefrontService {
     return _parseResponse(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? logicalActionId, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
+  Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? operationType, FinancialOperationRef? ref, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
     final body = {'items': items, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes, 'paymentMode': paymentMode};
-    // r42 durable identity: the body's legacy `idempotencyKey` field carries
-    // the DURABLE registry key, armed and persisted BEFORE the first
-    // request. EITHER the caller passes a PRE-ARMED durable key
-    // (idempotencyKey — the retail gateway path, lifecycle owned by the
-    // caller) OR the service arms by logicalActionId (the cart screen
-    // path, lifecycle owned by this method). A retry of the same
-    // unfinished checkout (even after app restart) reuses the SAME
-    // identity; a materially different cart is a genuinely new checkout.
+    // r42 OPERATION-INSTANCE MODEL: the body's legacy `idempotencyKey`
+    // field carries the durable instance key. EITHER the caller passes a
+    // PRE-ARMED key (idempotencyKey — the retail gateway path, lifecycle
+    // owned by the caller) OR the service resolves a durable INSTANCE by
+    // [operationType] + [ref] (the cart screen path, lifecycle owned by
+    // this method): the ref's unfinished instance is retried with the
+    // SAME key when the cart matches its fingerprint, and a materially
+    // different cart begins a GENUINELY NEW instance — the old record is
+    // never replaced or lost, it stays recoverable in the journal.
     if (idempotencyKey != null) {
       body['idempotencyKey'] = idempotencyKey;
-    } else if (logicalActionId != null) {
-      body['idempotencyKey'] = await DurableActionRegistry.arm(
-          logicalActionId: logicalActionId,
+    } else if (operationType != null) {
+      final op = await _resolveOperation(
+          type: operationType,
           endpoint: '/storefront/$businessProfileId/checkout',
-          request: body);
+          request: body,
+          ref: ref);
+      body['idempotencyKey'] = op.key;
     }
     final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
-    if (idempotencyKey == null && logicalActionId != null) {
+    if (idempotencyKey == null && operationType != null) {
       try {
         final parsed = _parseResponse(response) as Map<String, dynamic>;
-        // Answered success — this checkout is complete; the next is new.
-        await DurableActionRegistry.retire(logicalActionId);
+        // Answered success — this checkout instance is complete.
+        await _releaseOperation(ref);
         return parsed;
       } on StorefrontApiException catch (e) {
-        if (e.statusCode != 409) await DurableActionRegistry.retire(logicalActionId);
+        // Disposition mirrors postFinancial: definitive pre-economic 4xx
+        // (everything except 401/409/429) → the instance is terminal; the
+        // backend released the claim. 401/409/429 → retained (the mutation
+        // may be committed/in-flight; a same-key retry converges).
+        final definitive = e.statusCode >= 400 &&
+            e.statusCode < 500 &&
+            e.statusCode != 401 &&
+            e.statusCode != 409 &&
+            e.statusCode != 429;
+        if (definitive) await _releaseOperation(ref);
         rethrow;
       }
     }
@@ -244,33 +295,47 @@ class StorefrontService {
     // on any answered definitive outcome so a corrected retry is a new
     // action. An idempotency 409 keeps the key armed — the retry must
     // converge on the same server-side operation.
-    final actionId = _fundAction(escrowId);
     final request = {
       'escrowId': escrowId,
       if (totpToken != null && totpToken.trim().isNotEmpty) 'totpToken': totpToken.trim(),
       if (password != null && password.isNotEmpty) 'password': password,
     };
-    // The durable key is armed and PERSISTED before the first request.
-    final key = await DurableActionRegistry.arm(
-        logicalActionId: actionId, endpoint: '/escrow/fund', request: request);
+    // r42 OPERATION-INSTANCE MODEL: funding is a GENUINELY NEW instance
+    // per user action (per-escrow retry ref). The durable record is
+    // persisted BEFORE the first request; retries through the same ref
+    // reuse the SAME key.
+    final ref = _fundRefs.putIfAbsent(
+        escrowId, () => FinancialOperationRef());
+    final op = await _resolveOperation(
+        type: _fundAction(escrowId),
+        endpoint: '/escrow/fund',
+        request: request,
+        ref: ref);
     try {
       final response = await _apiClient.post('/escrow/fund', request,
-          idempotencyKey: key);
-      await DurableActionRegistry.retire(actionId); // answered success
+          idempotencyKey: op.key);
+      await _releaseOperation(ref); // answered success
       _parseResponse(response);
     } on StorefrontApiException catch (e) {
-      if (e.statusCode != 409) await DurableActionRegistry.retire(actionId);
+      // Disposition mirrors postFinancial (see checkoutCart).
+      final definitive = e.statusCode >= 400 &&
+          e.statusCode < 500 &&
+          e.statusCode != 401 &&
+          e.statusCode != 409 &&
+          e.statusCode != 429;
+      if (definitive) await _releaseOperation(ref);
       rethrow;
     } on StorefrontConflictException catch (e) {
-      // 409: an idempotency replay conflict keeps the durable entry; a
-      // storefront draft conflict is unrelated to this action — retire.
+      // 409: an idempotency replay conflict keeps the durable instance; a
+      // storefront draft conflict is unrelated to this action — release.
       if (!(e.code?.startsWith('IDEMPOTENCY') ?? false)) {
-        await DurableActionRegistry.retire(actionId);
+        await _releaseOperation(ref);
       }
       rethrow;
     }
-    // Network error / timeout: no server answer — the durable entry stays
-    // pending, so the retry re-arms with the SAME key.
+    // Network error / timeout: no server answer — the durable instance
+    // stays pending, so the retry through the same ref reuses the SAME
+    // key.
   }
 
   Future<Map<String, dynamic>> getMyOrders({String? status, int limit = 20, String? cursor}) async {

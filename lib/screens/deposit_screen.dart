@@ -422,11 +422,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // r42: one key per LOGICAL deposit initiation, reused across retries
   // (a lost response may mean the initiation already committed); retired
   // on any answered non-409 outcome.
-  // r42 durable identity: the initiation key is drawn from the durable
-  // registry by postFinancial — the SAME key survives screen/process
-  // recreation, so a retry after a lost response converges on the same
-  // server-side initiation instead of creating two deposits.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
+  // Each genuinely new deposit initiation gets a fresh durable instance;
+  // the ref is this flow's retry handle — a re-tap after a lost response
+  // retries the SAME instance (same key), and a materially different body
+  // begins a genuinely new instance without disturbing the old one.
   static const _initiateActionId = 'deposit.fiat.moolre.initiate';
+  final _initiateRef = FinancialOperationRef();
   Map<String, dynamic>? _depositResult;
 
   // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
@@ -598,7 +600,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       // reused across retries of the same initiation.
       final response =
           await apiClient.postFinancial('/deposit/fiat/initiate/moolre', body,
-              logicalActionId: _initiateActionId);
+              operationType: _initiateActionId, ref: _initiateRef);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 || response.statusCode == 200) {

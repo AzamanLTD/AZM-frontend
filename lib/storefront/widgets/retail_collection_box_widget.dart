@@ -5,7 +5,8 @@ import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
 import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
 import '../models/storefront_models.dart';
-import 'package:azaman/utils/durable_action_registry.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 
 class RetailCollectionBoxWidget extends StatefulWidget {
   final Map<String, dynamic> props;
@@ -28,12 +29,14 @@ class _RetailCollectionBoxWidgetState
     extends State<RetailCollectionBoxWidget> {
   // r42: one key per LOGICAL checkout of this collection box. The key is
   // armed once and passed into the one-shot submit path; a re-tap after a
-  // lost response reuses the SAME key instead of placing a second order.
-  // Retired on any answered outcome (success, failure or unavailable).
-  // r42: the checkout identity is drawn from the DURABLE registry — the
-  // SAME key survives widget/app recreation, so a retry of an unfinished
-  // checkout after process death reuses it instead of placing two orders.
+  // lost response RETRIES THE SAME durable instance (same key) instead of
+  // placing a second order; a materially different cart begins a genuinely
+  // new instance and the old record stays recoverable.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE;
+  // the INSTANCE identity is the durable record this widget resolves via
+  // its [FinancialOperationRef] retry handle.
   static const _checkoutActionId = 'storefront.retail.checkout';
+  final _checkoutRef = FinancialOperationRef();
 
   RetailCart _cart = const RetailCart();
 
@@ -126,16 +129,41 @@ class _RetailCollectionBoxWidgetState
       'lines': [for (final l in _cart.lines) {'id': l.key, 'qty': l.quantity}],
       'protection': options.paymentProtection.name,
     };
-    final key = await DurableActionRegistry.arm(
-        logicalActionId: _checkoutActionId,
-        endpoint: '/storefront/checkout',
-        request: cartFingerprint);
+    // r42 instance resolution (same policy as postFinancial): retry the
+    // ref's unfinished instance when the cart fingerprint matches, else
+    // begin a genuinely new instance — the old record is never replaced.
+    final api = ApiClient();
+    final account = await api.operationAccount();
+    DurableOperation op;
+    final retryId = _checkoutRef.operationId;
+    if (retryId != null) {
+      try {
+        op = await DurableOperationRegistry.retry(retryId,
+            account: account, request: cartFingerprint);
+      } on DurableOperationException {
+        op = await DurableOperationRegistry.begin(
+            account: account,
+            type: _checkoutActionId,
+            endpoint: '/storefront/checkout',
+            request: cartFingerprint);
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+          account: account,
+          type: _checkoutActionId,
+          endpoint: '/storefront/checkout',
+          request: cartFingerprint);
+    }
+    _checkoutRef.operationId = op.operationId;
     final result = await RetailCheckoutController(gateway).submit(
       _cart,
       options: options,
-      idempotencyKey: key,
+      idempotencyKey: op.key,
     );
-    await DurableActionRegistry.retire(_checkoutActionId); // answered
+    // Answered outcome (success, failure or unavailable): this instance is
+    // terminal — retire THAT instance only, clear the ref.
+    await DurableOperationRegistry.retire(op.operationId, account: account);
+    _checkoutRef.operationId = null;
     if (!mounted) return;
 
     switch (result) {

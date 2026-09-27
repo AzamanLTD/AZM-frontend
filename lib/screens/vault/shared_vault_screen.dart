@@ -465,8 +465,13 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
   // r42: one key per LOGICAL vault creation, reused across retries (a lost
   // response may mean the vault already exists server-side); retired on
   // any answered non-409 outcome.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
+  // The ref is this flow's retry handle — a re-tap after a lost response
+  // retries the SAME instance (same key); a materially different body
+  // begins a genuinely new instance, leaving the old one recoverable.
   // r42 durable identity: stable across sheet/screen/process recreation.
   static const _createActionId = 'shared-vault.create';
+  final _createRef = FinancialOperationRef();
   String _emoji = '🎯';
   DateTime? _maturity;
   final _inviteControllers = <TextEditingController>[TextEditingController()];
@@ -508,7 +513,7 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
         'targetAmountUsdc': double.parse(_target.text.trim()),
         'maturityDate': _maturity?.toIso8601String(),
         'inviteAzamanIds': invites,
-      }, logicalActionId: _createActionId);
+      }, operationType: _createActionId, ref: _createRef);
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (!mounted) return;
@@ -746,8 +751,12 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
   // r42: one key per LOGICAL deposit into the open vault, reused across
   // retries (a lost response may mean the debit already committed);
   // retired on any answered non-409 outcome.
+  // r42 OPERATION-INSTANCE MODEL (see the create sheet above): the ref is
+  // this deposit flow's retry handle — same body re-tap retries the SAME
+  // instance; a materially different body begins a genuinely new one.
   // r42 durable identity: stable across sheet/screen/process recreation.
   static const _depositActionId = 'shared-vault.deposit';
+  final _depositRef = FinancialOperationRef();
 
   @override
   void dispose() {
@@ -764,7 +773,7 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
       // deposit, reused across retries of that deposit.
       final res = await apiClient.postFinancial('/shared-vaults/${vault.id}/deposit', {
         'amountUsdc': amount,
-      }, logicalActionId: _depositActionId);
+      }, operationType: _depositActionId, ref: _depositRef);
       if (!mounted) return;
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
       if (res.statusCode == 200) {

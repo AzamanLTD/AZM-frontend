@@ -92,13 +92,20 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // after a lost response), retired only when the next attempt is
   // genuinely new: an answered definitive failure, or acceptance.
   // This is the load-bearing protection against double withdrawals.
-  // r42 durable identity: the logical-action id is STABLE across screen /
-  // process recreation; postFinancial draws its Idempotency-Key from the
-  // durable registry, so a retry of an unfinished withdrawal after app
-  // restart reuses the SAME key (the backend replays the committed
-  // operation) while a genuinely new withdrawal gets a fresh one.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation
+  // TYPES (recovery namespaces), never instances. Each genuinely new
+  // withdrawal gets a fresh durable instance; the ref is this flow's
+  // retry handle — postFinancial arms it before the first request, so a
+  // re-tap after a lost response RETRIES THE SAME INSTANCE (same key).
+  // Post-death recovery: on screen open we adopt the newest unfinished
+  // instance of each type from the durable journal, so a same-body
+  // resubmit resumes THAT instance instead of double-sending; a
+  // materially different body begins a genuinely new instance and the
+  // adopted record stays recoverable.
   static const _fiatActionId = 'withdrawal.fiat';
   static const _walletActionId = 'withdrawal.wallet';
+  final _fiatRef = FinancialOperationRef();
+  final _walletRef = FinancialOperationRef();
   _WithdrawMode _mode = _WithdrawMode.mobileMoney;
 
   // ── Crypto-wallet path (Phase 15 whitelist) ─────────────────────────────
@@ -159,6 +166,20 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   Future<void> _bootstrap() async {
     await Future.wait([_fetchSavedWallets(), _fetchUserBalance()]);
+    // r42 process-death recovery: adopt the newest unfinished withdrawal
+    // instance of each type (if any) so a resubmit of the same body
+    // resumes IT (same key) rather than opening a duplicate.
+    try {
+      final account = await apiClient.operationAccount();
+      _fiatRef.operationId = (await FinancialOperationRef.adoptPending(
+              account: account, type: _fiatActionId))
+          .operationId;
+      _walletRef.operationId = (await FinancialOperationRef.adoptPending(
+              account: account, type: _walletActionId))
+          .operationId;
+    } catch (_) {
+      // Recovery is best-effort: a fresh flow simply begins new instances.
+    }
     // Phase E2 — prime AZM spend options for the fee-discount selector
     ref.read(azmSpendProvider.notifier).primeIfNeeded();
   }
@@ -275,7 +296,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
-      }, logicalActionId: _fiatActionId);
+      }, operationType: _fiatActionId, ref: _fiatRef);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -379,7 +400,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      }, logicalActionId: _walletActionId);
+      }, operationType: _walletActionId, ref: _walletRef);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

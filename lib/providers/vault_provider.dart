@@ -170,8 +170,15 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   // the debit — the retry MUST reuse the same key.
   // r42: stable per-vault logical-action ids — postFinancial arms the
   // DURABLE key per (action, vault), surviving provider/app recreation.
+  // r42 OPERATION-INSTANCE MODEL: the action ids name the operation TYPES
+  // (target-specific recovery namespaces). Each genuinely new deposit /
+  // break gets a fresh durable INSTANCE; the refs are per-target retry
+  // handles — a re-tap after a lost response retries the SAME instance
+  // (same key), and operations on different vaults stay independent.
   String _depositAction(String vaultId) => 'vault.deposit.$vaultId';
   String _breakAction(String vaultId) => 'vault.break.$vaultId';
+  final Map<String, FinancialOperationRef> _depositRefs = {};
+  final Map<String, FinancialOperationRef> _breakRefs = {};
   @override
   Future<List<Vault>> build() => _fetch();
 
@@ -217,7 +224,9 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
     // reused across retries of that deposit.
     final res = await apiClient.postFinancial('/vaults/$vaultId/deposit', {
       'amountUsdc': amountUsdc,
-    }, logicalActionId: _depositAction(vaultId));
+    }, operationType: _depositAction(vaultId),
+        ref: _depositRefs.putIfAbsent(
+            vaultId, () => FinancialOperationRef()));
         if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
@@ -242,7 +251,9 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
     // logical break action, reused across retries of that break.
     final res = await apiClient.postFinancial('/vaults/$vaultId/break', {
       'confirmedBreak': true,
-    }, logicalActionId: _breakAction(vaultId));
+    }, operationType: _breakAction(vaultId),
+        ref: _breakRefs.putIfAbsent(
+            vaultId, () => FinancialOperationRef()));
         if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
