@@ -93,6 +93,44 @@ regenerated rasters must be produced in the pinned CI environment (Linux,
 Flutter 3.47.5) and committed from there. This is why the CI version pin is a
 prerequisite and not an optional tidy-up.
 
+## Regeneration status — BLOCKED, needs a maintainer action
+
+The regeneration has **not** happened yet, and it cannot be completed from a
+feature branch.
+
+**Why.** `flutter test --update-goldens` must run in the pinned Linux /
+Flutter 3.47.5 environment. The options were:
+
+| Option | Status |
+|---|---|
+| Local Linux container | **unavailable** — no Docker and no WSL on this machine |
+| A `workflow_dispatch` workflow | **blocked** — GitHub only registers a workflow once it exists on the **default branch** |
+
+A dedicated `regenerate-goldens.yml` was written and verified, but a
+`workflow_dispatch` workflow cannot be dispatched from a feature branch: GitHub's
+workflow API only lists workflows present on the default branch, so the manual
+"Regenerate Premium Goldens" entry does not appear until the file is merged to
+`main`. Committing it only to the PR would add a workflow that cannot run, so it
+was removed rather than left as a dead file.
+
+**What a maintainer needs to do** (any one of these unblocks it):
+
+1. Land `.github/workflows/regenerate-goldens.yml` on `main` (it only uploads
+   artifacts, it never commits), then run "Regenerate Premium Goldens" against
+   this branch; or
+2. Provision any Linux runner with Flutter 3.47.5 and run
+   `flutter test --update-goldens test/widgets/premium_glass_container_golden_test.dart`
+   there; or
+3. Check out this branch on a Linux machine with Flutter 3.47.5 and run the
+   same command.
+
+Only the four `premium_glass_container_*.png` files are in scope; the
+regeneration must not touch any other golden.
+
+**Do not** regenerate on Windows. The current rasters are already a
+Windows-generated set; replacing them with another Windows set would re-bake the
+same host-specific drift and waste the typography correction.
+
 ## Gradient / dithering
 
 The glass surface uses gradients and shadow layers, which are candidates for
