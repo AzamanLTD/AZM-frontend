@@ -35,6 +35,7 @@ import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
 import 'package:azaman/services/receipt_service.dart';
@@ -166,22 +167,90 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   Future<void> _bootstrap() async {
     await Future.wait([_fetchSavedWallets(), _fetchUserBalance()]);
-    // r42 process-death recovery: adopt the newest unfinished withdrawal
-    // instance of each type (if any) so a resubmit of the same body
-    // resumes IT (same key) rather than opening a duplicate.
-    try {
-      final account = await apiClient.operationAccount();
-      _fiatRef.operationId = (await FinancialOperationRef.adoptPending(
-              account: account, type: _fiatActionId))
-          .operationId;
-      _walletRef.operationId = (await FinancialOperationRef.adoptPending(
-              account: account, type: _walletActionId))
-          .operationId;
-    } catch (_) {
-      // Recovery is best-effort: a fresh flow simply begins new instances.
-    }
+    // NOTE (r42 close-out review, 2026-09-27): this screen previously
+    // ADOPTED the newest unfinished withdrawal instance of each type at
+    // bootstrap. That rule was unsafe — with an older operation A and a
+    // newer operation B both outstanding, it bound B, so the user's
+    // reconstruction of A opened a THIRD instance and A's key was orphaned.
+    // Recovery is now EXACT and happens at SUBMIT time, when the user's
+    // actual request exists to match fingerprints against (see
+    // _recoverExactInstance below).
     // Phase E2 — prime AZM spend options for the fee-discount selector
     ref.read(azmSpendProvider.notifier).primeIfNeeded();
+  }
+
+  /// r42 exact-instance process-death recovery (close-out review,
+  /// 2026-09-27).
+  ///
+  /// Binds [ref] to the unfinished durable instance whose recorded
+  /// fingerprint EXACTLY matches the RECONSTRUCTED [body], so a post-death
+  /// resubmit of the SAME operation resumes IT (same key) instead of
+  /// opening a duplicate identity. Rules:
+  ///
+  ///   1. An ARMED ref is already exact (it was bound by postFinancial or
+  ///      by this method) — the in-session retry path stays authoritative
+  ///      and no lookup happens.
+  ///   2. NO unfinished instance matches the body → the ref stays unarmed:
+  ///      this submit is a GENUINELY NEW operation.
+  ///   3. EXACTLY ONE unfinished instance matches → bind it.
+  ///   4. SEVERAL identical unfinished instances exist → FAIL CLOSED: the
+  ///      user is shown every matching instance and picks which one to
+  ///      resume (or starts a new operation explicitly). Never a heuristic
+  ///      — not "newest", not "oldest".
+  ///
+  /// Returns false when the submit must NOT proceed (user cancelled).
+  Future<bool> _bindRecoveredInstance(FinancialOperationRef ref, String type,
+      Map<String, dynamic> body) async {
+    if (ref.operationId != null) return true; // case 1: already exact
+    final account = await apiClient.operationAccount();
+    final match = await DurableOperationRegistry.recoverExact(
+        account: account, type: type, request: body);
+    if (match is DurableRecoveryNone) return true; // case 2: genuinely new
+    if (match is DurableRecoveryUnique) {
+      ref.operationId = match.operation.operationId; // case 3: resume IT
+      return true;
+    }
+    // case 4: ambiguous — present every candidate, let the USER choose.
+    final candidates = (match as DurableRecoveryAmbiguous).candidates;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unfinished operations found'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(shrinkWrap: true, children: [
+            const Text(
+                'More than one unfinished operation with these exact '
+                'details exists. Choose which one to resume — resuming '
+                'reuses its original safety key and can never double-send. '
+                'The others stay untouched and recoverable.'),
+            const SizedBox(height: 8),
+            ...candidates.map((op) => ListTile(
+                  dense: true,
+                  title: Text(
+                      'Started ${op.createdAt.toLocal().toString().substring(0, 19)}'),
+                  subtitle: Text('Key …${op.key.substring(op.key.length - 6)}'),
+                  trailing: const Text('Resume'),
+                  onTap: () => Navigator.pop(ctx, op.operationId),
+                )),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'new'),
+            child: const Text('Start a new operation'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return false; // cancelled
+    if (picked == 'new') return true; // explicit new: ref stays unarmed
+    ref.operationId = picked; // the user's EXPLICIT instance choice
+    return true;
   }
 
   Future<void> _fetchUserBalance() async {
@@ -282,7 +351,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // REQUIRED Idempotency-Key header (the legacy /finance alias is
       // deprecated). Acceptance is 202 at the commit boundary; provider
       // dispatch continues server-side after the response.
-      final response = await apiClient.postFinancial('/withdraw/fiat', {
+      //
+      // The request is reconstructed FIRST, then bound to an unfinished
+      // durable instance whose fingerprint EXACTLY matches it (r42
+      // exact-instance process-death recovery — never "newest pending").
+      final body = <String, dynamic>{
         'amount': amount,
         'recipientPhone': phone,
         'network': _selectedNetwork.apiValue,
@@ -296,7 +369,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'savedAccountId': _selectedSavedMomoId,
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
-      }, operationType: _fiatActionId, ref: _fiatRef);
+      };
+      final bound = await _bindRecoveredInstance(_fiatRef, _fiatActionId, body);
+      if (!bound) {
+        setState(() => _isSubmitting = false);
+        return;
+      }
+      final response = await apiClient.postFinancial('/withdraw/fiat', body,
+          operationType: _fiatActionId, ref: _fiatRef);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -396,11 +476,22 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // requires an HTTP Idempotency-Key for the whole logical withdrawal.
       // r42: the key identifies the WHOLE logical withdrawal (armed once,
       // reused across retries of this action) — not one HTTP attempt.
-      final response = await apiClient.postFinancial('/wallet/withdraw', {
+      //
+      // The request is reconstructed FIRST, then bound to an unfinished
+      // durable instance whose fingerprint EXACTLY matches it (r42
+      // exact-instance process-death recovery — never "newest pending").
+      final body = <String, dynamic>{
         'amount': amount,
         'destination': destination,
         'networkPref': networkPref,
-      }, operationType: _walletActionId, ref: _walletRef);
+      };
+      final bound = await _bindRecoveredInstance(_walletRef, _walletActionId, body);
+      if (!bound) {
+        setState(() => _isSubmitting = false);
+        return;
+      }
+      final response = await apiClient.postFinancial('/wallet/withdraw', body,
+          operationType: _walletActionId, ref: _walletRef);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

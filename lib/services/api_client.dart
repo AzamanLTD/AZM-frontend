@@ -229,6 +229,28 @@ class ApiClient {
     }
   }
 
+  /// Retry ONE recovered instance by replaying its STORED request snapshot.
+  ///
+  /// This is the authoritative post-death resume path for any operation a
+  /// user selects from an explicit recovery surface (e.g. the security
+  /// settings "unfinished financial operations" list): exact by
+  /// construction — the snapshot IS the body whose fingerprint the durable
+  /// record holds, and the ref binds the instance id — so
+  /// [postFinancial] retries THAT instance with its ORIGINAL key. Nothing
+  /// is guessed, nothing is replaced, and a materially different stored
+  /// body is impossible (the snapshot is immutable).
+  ///
+  /// Disposition is postFinancial's: a 2xx or definitive pre-economic 4xx
+  /// retires the instance; retain statuses/network loss keep it armed.
+  Future<http.Response> retryRecovered(DurableOperation op,
+      {bool requireAuth = true, Map<String, String>? headers}) {
+    return postFinancial(op.endpoint, Map<String, dynamic>.from(op.request),
+        operationType: op.type,
+        ref: FinancialOperationRef(operationId: op.operationId),
+        requireAuth: requireAuth,
+        headers: headers);
+  }
+
   Future<http.Response> put(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {
     if (AppConfig.demoMode) { final m = DemoInterceptor.tryPut(endpoint, body); if (m != null) return m; }
     final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
@@ -370,9 +392,16 @@ class ApiClient {
 /// one untouched and recoverable.
 ///
 /// The ref is the in-session link; the durable record is the process-death
-/// horizon. After process death, recover unfinished instances with
-/// [DurableOperationRegistry.pending] and seed a ref with an instance id
-/// (see [adoptPending]) to resume them.
+/// horizon. After process death no ref survives — recovery is EXPLICIT and
+/// EXACT: the flow reconstructs the user's request and calls
+/// [DurableOperationRegistry.recoverExact] (see its fail-closed contract),
+/// binding the unique matching instance id into a fresh ref before
+/// submitting. There is deliberately NO "adopt the newest pending operation
+/// of the type" helper: that rule (v2's `adoptPending`) could bind the
+/// WRONG instance when several operations of one type are outstanding, and
+/// the user's reconstruction of an OLDER operation would then open a third
+/// identity while the original's key was orphaned — the exact bug this
+/// contract exists to prevent.
 class FinancialOperationRef {
   /// The live operation instance id, armed by postFinancial. Non-null while
   /// an instance of this flow is unresolved (may still have committed
@@ -380,19 +409,6 @@ class FinancialOperationRef {
   String? operationId;
 
   FinancialOperationRef({this.operationId});
-
-  /// Process-death recovery: adopt the NEWEST unfinished instance of
-  /// [type] in [account]'s namespace (if any) so the user's next attempt of
-  /// the same body resumes THAT instance (same key) instead of beginning a
-  /// duplicate. A materially different body begins a new instance; the
-  /// adopted record is never lost.
-  static Future<FinancialOperationRef> adoptPending(
-      {required String account, required String type}) async {
-    final pending = await DurableOperationRegistry.pending(
-        account: account, type: type);
-    return FinancialOperationRef(
-        operationId: pending.isEmpty ? null : pending.first.operationId);
-  }
 }
 
 class ApiException implements Exception {

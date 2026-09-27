@@ -7,6 +7,7 @@ import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -25,6 +26,10 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   final _pinController = TextEditingController();
   final _pinConfirmController = TextEditingController();
   bool _pinSet = false;
+  // r42 — unfinished durable financial operations (process-death recovery).
+  List<DurableOperation> _pendingOps = [];
+  bool _pendingOpsLoading = false;
+  bool _pendingOpsRetrying = false;
   bool _obscurePin = true;
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
@@ -51,6 +56,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   @override
   void initState() {
     super.initState();
+    _loadPendingOperations();
     // Fetch current 2FA status from user profile
     // Note: If the User model adds isTwoFactorEnabled in the future,
     // uncomment the line below. For now we default to false.
@@ -781,6 +787,45 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           const SizedBox(height: 28),
 
           // ── PRIVACY & DATA (GDPR) ────────────────────────────────────────────
+          _sectionHeader('Unfinished Financial Operations', colors),
+          _buildCard(
+            colors,
+            children: [
+              _infoRow(
+                colors,
+                icon: Icons.sync_outlined,
+                text: 'Operations that were interrupted before confirming '
+                    '(app closed, connection lost). Resuming reuses the '
+                    'original safety key and can never double-send. '
+                    'Nothing here is ever deleted while unresolved.',
+              ),
+              if (_pendingOpsLoading)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_pendingOps.isEmpty)
+                _infoRow(
+                  colors,
+                  icon: Icons.check_circle_outline,
+                  text: 'No unfinished financial operations.',
+                )
+              else
+                ..._pendingOps.map((op) => Column(children: [
+                      Divider(color: colors.divider, height: 1),
+                      _actionRow(
+                        colors,
+                        icon: Icons.history,
+                        title:
+                            '${op.type} · ${op.createdAt.toLocal().toString().substring(0, 16)}',
+                        subtitle:
+                            'Resumable · key …${op.key.substring(op.key.length - 6)}',
+                        onTap: _pendingOpsRetrying ? null : () => _retryPendingOp(op),
+                        isLoading: _pendingOpsRetrying,
+                      ),
+                    ])),
+            ],
+          ),
           _sectionHeader('Privacy & Data', colors),
           _buildCard(
             colors,
@@ -923,6 +968,54 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ),
       ],
     );
+  }
+
+  /// r42 process-death recovery: every unfinished durable financial
+  /// operation in the signed-in account's namespace, newest first. This is
+  /// the product surface through which ANY flow's interrupted operation is
+  /// reachable after process death — the durable record is useless if the
+  /// flow cannot recover and USE it.
+  Future<void> _loadPendingOperations() async {
+    setState(() => _pendingOpsLoading = true);
+    try {
+      final account = await apiClient.operationAccount();
+      final ops = await DurableOperationRegistry.pending(account: account);
+      if (mounted) setState(() => _pendingOps = ops);
+    } catch (_) {
+      // Recovery list is best-effort to display; the registry itself is
+      // the safety authority and unaffected.
+    } finally {
+      if (mounted) setState(() => _pendingOpsLoading = false);
+    }
+  }
+
+  /// Resume ONE user-selected unfinished operation by replaying its
+  /// stored request snapshot — exact by construction: same instance, same
+  /// key. The USER chose the instance from the list; nothing is guessed.
+  Future<void> _retryPendingOp(DurableOperation op) async {
+    setState(() => _pendingOpsRetrying = true);
+    try {
+      await apiClient.retryRecovered(op);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${op.type}: resumed and finished.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      // Retained statuses (401/409/429/5xx) keep the instance armed — it
+      // stays listed here until it reaches a terminal outcome.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${op.type}: ${e.message}'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Network unavailable — operation stays resumable.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _pendingOpsRetrying = false);
+      await _loadPendingOperations();
+    }
   }
 
   Widget _sectionHeader(String title, AzamanColors colors) {

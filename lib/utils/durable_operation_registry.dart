@@ -154,6 +154,44 @@ class DurableOperation {
   });
 }
 
+// ============================================================================
+// EXACT-MATCH PROCESS-DEATH RECOVERY (r42 close-out review, 2026-09-27)
+//
+// Recovery lookups NEVER guess. They report one of three outcomes:
+// ============================================================================
+
+/// The outcome of an exact-fingerprint recovery lookup. The lookup itself
+/// never picks: [DurableRecoveryAmbiguous] is a FAIL-CLOSED result — with
+/// more than one pending instance of the exact same body, no code path may
+/// silently select one.
+@immutable
+abstract class DurableRecoveryMatch {
+  const DurableRecoveryMatch();
+}
+
+/// No pending instance of the type matches the reconstructed request: a
+/// submit of this request is a GENUINELY NEW operation instance.
+class DurableRecoveryNone extends DurableRecoveryMatch {
+  const DurableRecoveryNone();
+}
+
+/// EXACTLY ONE pending instance matches: this is the recovered operation.
+/// Binding its operationId into the flow's FinancialOperationRef resumes
+/// THAT instance — same key — on the next submit.
+class DurableRecoveryUnique extends DurableRecoveryMatch {
+  final DurableOperation operation;
+  const DurableRecoveryUnique(this.operation);
+}
+
+/// MORE THAN ONE pending instance matches the exact same body. FAIL CLOSED:
+/// the caller must surface the candidates explicitly (the user picks the
+/// instance) or refuse. Never pick one automatically — not the newest, not
+/// the oldest, not by any heuristic.
+class DurableRecoveryAmbiguous extends DurableRecoveryMatch {
+  final List<DurableOperation> candidates;
+  const DurableRecoveryAmbiguous(this.candidates);
+}
+
 class DurableOperationRegistry {
   DurableOperationRegistry._();
 
@@ -320,10 +358,18 @@ class DurableOperationRegistry {
   }
 
   /// Recovery: every unfinished instance, optionally filtered by [account]
-  /// namespace and/or operation [type]. Never assumes a single pending
-  /// action per type. Newest first.
+  /// namespace, operation [type], and an EXACT [fingerprint] match. Never
+  /// assumes a single pending action per type. Newest first.
+  ///
+  /// The [fingerprint] filter is the exact-instance selector of the
+  /// process-death recovery contract (r42 close-out review, 2026-09-27):
+  /// recovery must identify the operation INSTANCE whose recorded
+  /// fingerprint EXACTLY matches the reconstructed request — never "the
+  /// newest pending operation of the type". If the filter matches more
+  /// than one instance, the CALLER must fail closed (see [recoverExact])
+  /// and never guess.
   static Future<List<DurableOperation>> pending(
-      {String? account, String? type}) async {
+      {String? account, String? type, String? fingerprint}) async {
     final store = await _store();
     final results = <DurableOperation>[];
     for (final k in store.getKeys()) {
@@ -333,10 +379,48 @@ class DurableOperationRegistry {
       final op = _decode(raw, expectAccount: account);
       if (op == null) continue;
       if (type != null && op.type != type) continue;
+      if (fingerprint != null && op.fingerprint != fingerprint) continue;
       results.add(op);
     }
     results.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return results;
+  }
+
+  // -------------------------------------------------------------------------
+  // EXACT-MATCH PROCESS-DEATH RECOVERY (r42 close-out review, 2026-09-27)
+  // -------------------------------------------------------------------------
+
+  /// Exact-instance process-death recovery. Given the RECONSTRUCTED request
+  /// (the user re-entered the operation's details), finds the pending
+  /// instance of [type] in [account]'s namespace whose recorded fingerprint
+  /// EXACTLY matches it:
+  ///
+  ///   DurableRecoveryNone      → nothing outstanding matches: this submit
+  ///                              is a genuinely new instance.
+  ///   DurableRecoveryUnique    → resume THAT instance (same key).
+  ///   DurableRecoveryAmbiguous → several identical unfinished operations:
+  ///                              FAIL CLOSED — present them, never guess.
+  ///
+  /// This replaces the withdrawn v2 `adoptPending` rule ("adopt the newest
+  /// pending operation of the type"), which could bind the WRONG instance:
+  /// with A (key K1, response lost) and B (key K2, response lost) both
+  /// outstanding, newest-only adoption bound B, so the user's reconstruction
+  /// of A began a THIRD instance and A's key was orphaned again — the exact
+  /// lost-identity bug this registry exists to prevent.
+  ///
+  /// In-session retries do NOT go through this path: an armed
+  /// FinancialOperationRef (postFinancial's retry path, retry(operationId))
+  /// remains the AUTHORITATIVE exact-instance route. recoverExact is only
+  /// for binding a ref AFTER process death, when no ref survives.
+  static Future<DurableRecoveryMatch> recoverExact(
+      {required String account,
+      required String type,
+      required Map<String, dynamic> request}) async {
+    final matches = await pending(
+        account: account, type: type, fingerprint: fingerprintOf(request));
+    if (matches.isEmpty) return const DurableRecoveryNone();
+    if (matches.length == 1) return DurableRecoveryUnique(matches.first);
+    return DurableRecoveryAmbiguous(matches);
   }
 
   /// Introspection: ONE instance by id, or null. Account-scoped.
