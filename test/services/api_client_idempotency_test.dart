@@ -481,10 +481,24 @@ void main() {
         requireAuth: false);
     expect(recB.requests.single.headers['Idempotency-Key'], k2);
 
-    // Nothing was orphaned or tripled: exactly the two original keys exist.
+    // Nothing was orphaned or tripled: across the ENTIRE wire history —
+    // the two lost originals plus both recovered retries — exactly the two
+    // original keys were ever sent. NO third key exists.
+    final sentKeys = {
+      ...sent1.map((r) => r.headers['Idempotency-Key']),
+      ...recA.requests.map((r) => r.headers['Idempotency-Key']),
+      ...recB.requests.map((r) => r.headers['Idempotency-Key']),
+    };
+    expect(sentKeys, {k1, k2},
+        reason: 'no third key may ever be minted or sent');
+
+    // Both recovered retries were answered 2xx, so each instance reached
+    // its terminal state through its OWN retry — nothing was replaced,
+    // orphaned, or left dangling.
     final pending =
         await DurableOperationRegistry.pending(account: account, type: type);
-    expect(pending.map((o) => o.key).toSet(), {k1, k2});
+    expect(pending, isEmpty,
+        reason: 'each instance retired only through its own resolution');
   });
 
   test('CLOSE-OUT: identical bodies both lost → recovery is AMBIGUOUS and '
