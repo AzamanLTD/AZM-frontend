@@ -142,7 +142,7 @@ class _RetailCollectionBoxWidgetState
         op = await DurableOperationRegistry.retry(retryId,
             account: account, request: cartFingerprint);
       } on DurableOperationException {
-        op = await DbeginNew(account, cartFingerprint);
+        op = await _beginNew(account, cartFingerprint);
       }
     } else {
       // close-out review 2, finding 3 (in-flow recovery adapter): the
@@ -156,7 +156,7 @@ class _RetailCollectionBoxWidgetState
       if (match is DurableRecoveryUnique) {
         op = match.operation; // exact: same cart resumes the same key
       } else {
-        op = await DbeginNew(account, cartFingerprint);
+        op = await _beginNew(account, cartFingerprint);
       }
     }
     _checkoutRef.operationId = op.operationId;
@@ -165,11 +165,25 @@ class _RetailCollectionBoxWidgetState
       options: options,
       idempotencyKey: op.key,
     );
-    // Answered outcome (success, failure or unavailable): this instance is
-    // terminal — retire THAT instance only, clear the ref.
-    await DurableOperationRegistry.retire(op.operationId, account: account);
-    _checkoutRef.operationId = null;
     if (!mounted) return;
+    // Disposition (r42): only a DEFINITIVE outcome retires the instance.
+    // A retryable failure (network loss, 408/425/429, 5xx, or a 2xx whose
+    // body could not be parsed) means the server state is UNKNOWN — the
+    // order may already exist. The instance stays pending and the ref
+    // stays armed, so the user's re-tap reuses the SAME key and the
+    // backend converges on the committed order instead of executing a
+    // second checkout. Retiring here would silently arm a fresh key and
+    // duplicate the order.
+    final definitive = switch (result) {
+      RetailCheckoutSuccess() => true,
+      RetailCheckoutUnavailable() => true,
+      RetailCheckoutFailure(retryable: false) => true,
+      RetailCheckoutFailure() => false,
+    };
+    if (definitive) {
+      await DurableOperationRegistry.retire(op.operationId, account: account);
+      _checkoutRef.operationId = null;
+    }
 
     switch (result) {
       case RetailCheckoutSuccess(
@@ -223,7 +237,7 @@ class _RetailCollectionBoxWidgetState
   /// stored snapshot is the cart FINGERPRINT, not a wire request; generic
   /// recovery replay must fail closed (this flow recovers via
   /// recoverExact above).
-  Future<DurableOperation> DbeginNew(
+  Future<DurableOperation> _beginNew(
       String account, Map<String, dynamic> cartFingerprint) {
     return DurableOperationRegistry.begin(
         account: account,

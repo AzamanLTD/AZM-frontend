@@ -284,6 +284,12 @@ class FriendService {
             });
       }
     } else {
+      // The snapshot must be byte-identical to the wire request the way the
+      // retry branch stores it: the wire body carries clientRequestId (= the
+      // durable key), so the snapshot carries the SAME FIELD as a
+      // placeholder. The exact-only recovery path rewrites it to the
+      // instance's key — a recovered replay without the field would be a
+      // materially different request.
       op = await DurableOperationRegistry.begin(
           account: account,
           type: _requestAction(friendshipId),
@@ -292,6 +298,7 @@ class FriendService {
             'friendshipId': friendshipId,
             'amount': amount,
             if (reference != null && reference.isNotEmpty) 'reference': reference,
+            'clientRequestId': '',
           });
     }
     requestRef.operationId = op.operationId;

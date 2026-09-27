@@ -1026,6 +1026,17 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       if (op.secretFields.isNotEmpty) {
         final gathered = await _promptFreshSecrets(op);
         if (gathered == null) return; // cancelled: nothing is sent
+        // Never replay with blank credentials: a doomed replay would get a
+        // definitive 400 and RETIRE the genuinely pending instance, taking
+        // away the user's ability to resume it. Nothing is sent instead.
+        if (gathered.values.any((v) => v.toString().trim().isEmpty)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Enter your credentials to resume ${op.type}.'),
+          ));
+          return;
+        }
         freshSecrets.addAll(gathered);
       }
       await apiClient.retryRecovered(op, freshSecrets: freshSecrets);
@@ -1090,11 +1101,20 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ],
       ),
     );
-    if (confirmed != true) return null;
-    return {
+    if (confirmed != true) {
+      for (final c in controllers.values) {
+        c.dispose();
+      }
+      return null;
+    }
+    final gathered = {
       for (final e in controllers.entries)
         e.key: e.value.text,
     };
+    for (final c in controllers.values) {
+      c.dispose();
+    }
+    return gathered;
   }
 
   Widget _sectionHeader(String title, AzamanColors colors) {

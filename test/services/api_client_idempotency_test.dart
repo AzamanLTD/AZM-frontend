@@ -830,4 +830,146 @@ void main() {
     expect(rec.requests, isEmpty);
   });
 
+// =============================================================================
+// PASS 3 (independent audit pass 3) — caller snapshot exactness.
+//
+// The audit demanded wire proofs for the custom durable callers whose
+// snapshots carry identity-field placeholders: FriendService.requestFunds
+// (clientRequestId) and StorefrontService.checkoutCart (idempotencyKey in
+// the body, plus the :businessProfileId ROUTE PARAMETER in the endpoint).
+// A recovered replay must reproduce the ORIGINAL wire request exactly —
+// route, body, and key — never a materially different request.
+// =============================================================================
+
+  test('PASS 3: friend requestFunds semantics — the recovered replay '
+      'reproduces the ORIGINAL wire request (route + body + clientRequestId '
+      'rewritten to the ORIGINAL key)', () async {
+    const type = 'test.pass3.friend.request';
+    // The EXACT snapshot FriendService.requestFunds stores (both branches
+    // after the pass-3 fix): economic fields plus the clientRequestId
+    // placeholder the exact-only path rewrites to the instance's key.
+    final snapshot = {
+      'friendshipId': 101,
+      'amount': 25.0,
+      'reference': 'lunch money',
+      'clientRequestId': '',
+    };
+
+    final account = await ApiClient(client: _Recorder().client).operationAccount();
+    final op = await DurableOperationRegistry.begin(
+        account: account,
+        type: type,
+        endpoint: '/friends/transfer/request',
+        request: snapshot);
+
+    // The ORIGINAL wire request FriendService sends: the same economic
+    // fields with clientRequestId = the durable key (plain post).
+    final recOriginal = _Recorder();
+    await ApiClient(client: recOriginal.client).post(
+        '/friends/transfer/request',
+        {
+          'friendshipId': 101,
+          'amount': 25.0,
+          'reference': 'lunch money',
+          'clientRequestId': op.key,
+        },
+        requireAuth: false);
+    final original = recOriginal.requests.single;
+
+    // Process death.
+    final store = await SharedPreferences.getInstance();
+    final carried = <String, Object>{
+      for (final k in store.getKeys())
+        if (store.get(k) != null) k: store.get(k)! as Object,
+    };
+    SharedPreferences.setMockInitialValues(carried);
+
+    final ops = await DurableOperationRegistry.pending(account: account, type: type);
+    expect(ops, hasLength(1));
+
+    final rec = _Recorder();
+    await ApiClient(client: rec.client)
+        .retryRecovered(ops.single, requireAuth: false);
+
+    final replay = rec.requests.single;
+    expect(replay.url.path, original.url.path,
+        reason: 'the recovered replay must hit the SAME route');
+    expect(jsonDecode(replay.body), jsonDecode(original.body),
+        reason: 'the recovered replay must be byte-identical to the '
+            'original wire request — clientRequestId rewritten to the '
+            'ORIGINAL key');
+    expect(jsonDecode(replay.body)['clientRequestId'], op.key);
+    expect(replay.headers['Idempotency-Key'], op.key,
+        reason: 'the replay carries the ORIGINAL key everywhere');
+  });
+
+  test('PASS 3: storefront checkoutCart route/body exactness — the '
+      'recovered replay preserves the :businessProfileId ROUTE PARAMETER '
+      'and reproduces the ORIGINAL body with idempotencyKey = ORIGINAL key',
+      () async {
+    const type = 'test.pass3.storefront.checkout';
+    // The EXACT snapshot StorefrontService.checkoutCart stores: the cart
+    // body plus the idempotencyKey placeholder the exact-only path
+    // rewrites to the instance's key. The endpoint CARRIES the route
+    // parameter — the backend fingerprint includes params + body.
+    final snapshot = {
+      'items': [
+        {'productId': 'p1', 'quantity': 2},
+        {'productId': 'p2', 'quantity': 1, 'variants': {'Size': 'Large'}},
+      ],
+      'paymentMode': 'DIRECT',
+      'idempotencyKey': '',
+    };
+
+    final account = await ApiClient(client: _Recorder().client).operationAccount();
+    final op = await DurableOperationRegistry.begin(
+        account: account,
+        type: type,
+        endpoint: '/storefront/biz-001/checkout',
+        request: snapshot);
+
+    // The ORIGINAL wire request StorefrontService sends: the same cart
+    // body with the durable key in the legacy idempotencyKey field.
+    final recOriginal = _Recorder();
+    await ApiClient(client: recOriginal.client).post(
+        '/storefront/biz-001/checkout',
+        {
+          'items': [
+            {'productId': 'p1', 'quantity': 2},
+            {'productId': 'p2', 'quantity': 1, 'variants': {'Size': 'Large'}},
+          ],
+          'paymentMode': 'DIRECT',
+          'idempotencyKey': op.key,
+        },
+        requireAuth: false);
+    final original = recOriginal.requests.single;
+
+    // Process death.
+    final store = await SharedPreferences.getInstance();
+    final carried = <String, Object>{
+      for (final k in store.getKeys())
+        if (store.get(k) != null) k: store.get(k)! as Object,
+    };
+    SharedPreferences.setMockInitialValues(carried);
+
+    final ops = await DurableOperationRegistry.pending(account: account, type: type);
+    expect(ops, hasLength(1));
+
+    final rec = _Recorder();
+    await ApiClient(client: rec.client)
+        .retryRecovered(ops.single, requireAuth: false);
+
+    final replay = rec.requests.single;
+    expect(replay.url.path, original.url.path,
+        reason: 'the recovered replay must preserve the ROUTE PARAMETER '
+            '(businessProfileId) — a different route is a materially '
+            'different request');
+    expect(replay.url.path, endsWith('/api/storefront/biz-001/checkout'));
+    expect(jsonDecode(replay.body), jsonDecode(original.body),
+        reason: 'the recovered replay must be byte-identical to the '
+            'original wire request');
+    expect(jsonDecode(replay.body)['idempotencyKey'], op.key);
+    expect(replay.headers['Idempotency-Key'], op.key);
+  });
+
 }
