@@ -660,28 +660,31 @@ void main() {
 
     // Now simulate the storage engine failing for account resolution.
     final rec = _Recorder();
-    final failing = ApiClient(client: rec.client)
-      ..operationAccountOverride =
-          () => throw const FinancialAccountUnavailableException();
+    ApiClient.operationAccountOverride =
+        () => throw const FinancialAccountUnavailableException();
+    final failing = ApiClient(client: rec.client);
     await expectLater(
         failing.postFinancial('/withdraw/fiat', body,
             operationType: type, requireAuth: true),
         throwsA(isA<FinancialAccountUnavailableException>()));
     expect(rec.requests, isEmpty,
         reason: 'an unestablishable namespace must block the send entirely');
-    // And the exact-only path fails closed the same way.
-    final failingRec = _Recorder();
-    final failing2 = ApiClient(client: failingRec.client)
-      ..operationAccountOverride =
-          () => throw const FinancialAccountUnavailableException();
+    // And the exact-only path fails closed the same way. The pending
+    // instance is listed through the REAL (anon, unauthenticated) test
+    // namespace BEFORE the override is armed, proving the failure is
+    // purely the unestablishable AUTHENTICATED namespace.
     final ops = await DurableOperationRegistry.pending(
         account: await ApiClient(client: _Recorder().client)
             .operationAccount(failClosed: false),
         type: type);
+    expect(ops.length, 1);
+    final failingRec = _Recorder();
+    final failing2 = ApiClient(client: failingRec.client);
     await expectLater(
         failing2.retryRecovered(ops.single, requireAuth: true),
         throwsA(isA<FinancialAccountUnavailableException>()));
     expect(failingRec.requests, isEmpty);
+    ApiClient.operationAccountOverride = null;
   });
 
   test('PASS 2 G+H: secret-bearing operation — the durable record holds no '
