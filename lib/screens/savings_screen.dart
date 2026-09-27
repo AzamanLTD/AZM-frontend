@@ -13,6 +13,7 @@ import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key});
@@ -244,8 +245,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           final goal = Map<String, dynamic>.from(goals[index - 1] as Map);
           final name = goal['name']?.toString() ?? 'Goal';
           final current = (goal["currentAmountGhs"] as num?)?.toDouble() ?? 0.0;
-          final target  = (goal["targetAmountGhs"] as num?)?.toDouble() ?? 1.0;
-          final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
+          final target = (goal["targetAmountGhs"] as num?)?.toDouble() ?? 1.0;
+          final progress = target > 0
+              ? (current / target).clamp(0.0, 1.0)
+              : 0.0;
           return _GoalCircle(
             colors: colors,
             label: name.split(' ').first,
@@ -289,11 +292,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
   void _showCreateGoalSheet(AzamanColors colors) {
     HapticFeedback.mediumImpact();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CreateGoalSheet(onCreated: _fetchOverview),
+    // NEW-B: Panel weight. A four-field form with a keyboard and a Create
+    // commit — past the whisper ceiling, and the commit must survive the
+    // keyboard opening.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _CreateGoalSheet(
+        onCreated: _fetchOverview,
+        scrollController: scrollController,
+      ),
     );
   }
 }
@@ -303,7 +310,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 // =============================================================================
 class _CreateGoalSheet extends ConsumerStatefulWidget {
   final VoidCallback onCreated;
-  const _CreateGoalSheet({required this.onCreated});
+
+  /// The Panel's own scroll controller, supplied by the show call.
+  final ScrollController scrollController;
+
+  const _CreateGoalSheet({
+    required this.onCreated,
+    required this.scrollController,
+  });
 
   @override
   ConsumerState<_CreateGoalSheet> createState() => _CreateGoalSheetState();
@@ -384,155 +398,179 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final primaryTextOnAccent = colors.isDark ? Colors.black : Colors.white;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            10,
-            16,
-            MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(999),
+    // NEW-B: the weight owns surface, radius, safe-area and the handle, so
+    // the old Container + SafeArea + handle bar are deleted. The Create row
+    // is pinned below the scroll area (§I.8.3) — this form is keyboard-bound
+    // and the keyboard will otherwise cover the commit.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: SingleChildScrollView(
+              controller: widget.scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Create savings goal',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Create savings goal',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 14),
+                  _GoalTextField(
+                    colors: colors,
+                    controller: _nameController,
+                    label: 'Goal name',
+                    hint: 'Emergency fund',
+                    textCapitalization: TextCapitalization.words,
                   ),
-                ),
-                const SizedBox(height: 14),
-                _GoalTextField(
-                  colors: colors,
-                  controller: _nameController,
-                  label: 'Goal name',
-                  hint: 'Emergency fund',
-                  textCapitalization: TextCapitalization.words,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _GoalTextField(
-                        colors: colors,
-                        controller: _targetController,
-                        label: 'Target',
-                        hint: '1,500',
-                        prefixText: 'GHS ',
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _GoalTextField(
-                        colors: colors,
-                        controller: _amountController,
-                        label: 'Deposit',
-                        hint: '100',
-                        prefixText: 'GHS ',
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Frequency',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _frequencies
-                      .map(
-                        (frequency) => _FrequencyChip(
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _GoalTextField(
                           colors: colors,
-                          label: frequency,
-                          selected: _frequency == frequency,
-                          onTap: () => setState(() => _frequency = frequency),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 12),
-                _LockGoalCard(
-                  colors: colors,
-                  isLocked: _isLocked,
-                  onChanged: (value) => setState(() => _isLocked = value),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      foregroundColor: primaryTextOnAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _isSubmitting
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: primaryTextOnAccent,
-                            ),
-                          )
-                        : const Text(
-                            'Create goal',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                            ),
+                          controller: _targetController,
+                          label: 'Target',
+                          hint: '1,500',
+                          prefixText: 'GHS ',
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.]'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _GoalTextField(
+                          colors: colors,
+                          controller: _amountController,
+                          label: 'Deposit',
+                          hint: '100',
+                          prefixText: 'GHS ',
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.]'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Frequency',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _frequencies
+                        .map(
+                          (frequency) => _FrequencyChip(
+                            colors: colors,
+                            label: frequency,
+                            selected: _frequency == frequency,
+                            onTap: () => setState(() => _frequency = frequency),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  _LockGoalCard(
+                    colors: colors,
+                    isLocked: _isLocked,
+                    onChanged: (value) => setState(() => _isLocked = value),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: primaryTextOnAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: primaryTextOnAccent,
+                              ),
+                            )
+                          : const Text(
+                              'Create goal',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          // Create pinned (§I.8.3).
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: primaryTextOnAccent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: _isSubmitting
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: primaryTextOnAccent,
+                      ),
+                    )
+                  : const Text(
+                      'Create goal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
@@ -846,65 +884,83 @@ class _GoalCircle extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 68, height: 68,
-              child: Stack(alignment: Alignment.center, children: [
-                if (!isAdd)
-                  SizedBox(
-                    width: 68, height: 68,
-                    child: CircularProgressIndicator(
-                      value: progress.clamp(0.0, 1.0),
-                      strokeWidth: 3.5,
-                      color: colors.accent,
-                      backgroundColor: colors.softSurface,
-                    ),
-                  ),
-                Container(
-                  width: 56, height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isAdd
-                      ? colors.softSurface
-                      : colors.accent.withValues(alpha: 0.14),
-                  ),
-                  child: isAdd
-                    ? Icon(Icons.add,
-                        color: colors.textSecondary, size: 24)
-                    : Text(initials ?? "?",
-                        style: TextStyle(color: colors.accent,
-                          fontSize: 16, fontWeight: FontWeight.w800)),
-                ),
-                if (!isAdd)
-                  Positioned(
-                    bottom: 2, right: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
+              width: 68,
+              height: 68,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (!isAdd)
+                    SizedBox(
+                      width: 68,
+                      height: 68,
+                      child: CircularProgressIndicator(
+                        value: progress.clamp(0.0, 1.0),
+                        strokeWidth: 3.5,
                         color: colors.accent,
-                        borderRadius: BorderRadius.circular(6),
+                        backgroundColor: colors.softSurface,
                       ),
-                      child: Text(
-                        "${(progress * 100).toInt()}%",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
+                    ),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isAdd
+                          ? colors.softSurface
+                          : colors.accent.withValues(alpha: 0.14),
+                    ),
+                    child: isAdd
+                        ? Icon(Icons.add, color: colors.textSecondary, size: 24)
+                        : Text(
+                            initials ?? "?",
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                  if (!isAdd)
+                    Positioned(
+                      bottom: 2,
+                      right: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          "${(progress * 100).toInt()}%",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ]),
+                ],
+              ),
             ),
             const SizedBox(height: 6),
             SizedBox(
               width: 68,
-              child: Text(label,
+              child: Text(
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary,
-                  fontSize: 11, fontWeight: FontWeight.w500)),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         ),

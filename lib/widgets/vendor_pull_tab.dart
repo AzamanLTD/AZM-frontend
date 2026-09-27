@@ -30,7 +30,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/screens/vendor_apply.dart';
 import 'package:azaman/screens/vendor_dashboard.dart';
-
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class VendorPullTab extends ConsumerStatefulWidget {
   const VendorPullTab({super.key});
@@ -214,12 +214,17 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
   void _showVendorInfoPopup() {
     final colors = ref.read(themeProvider).colors;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _VendorRequirementSheet(
+    // NEW-B: Panel weight. This is the one surface in the app that is NOT a
+    // sheet — `VendorPullTab` is a side ribbon — but the requirements sheet it
+    // opens *is* a scrollable task surface, so it takes the Panel grammar.
+    // Note the inner DraggableScrollableSheet (0.72/0.4/0.9) is deleted: the
+    // Panel supplies its own, and two detent systems on one gesture means the
+    // inner one wins the drag and the panel never reaches its extended detent.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (ctx, scrollController) => _VendorRequirementSheet(
         colors: colors,
+        scrollController: scrollController,
         onOpenWebsite: () async {
           final uri = Uri.parse('https://azaman.me/vendors');
           if (await canLaunchUrl(uri)) {
@@ -256,10 +261,7 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
                   const SizedBox(height: 2),
                   Text(
                     'Pull the tab one more time to start your application',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),
@@ -319,26 +321,26 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
     final tabBgColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withValues(alpha: 0.2)
-            : (_hasHitLimit && !isVendor)
-                ? colors.danger.withValues(alpha: 0.15)
-                : colors.surface.withValues(alpha: 0.95);
+        ? colors.accent.withValues(alpha: 0.2)
+        : (_hasHitLimit && !isVendor)
+        ? colors.danger.withValues(alpha: 0.15)
+        : colors.surface.withValues(alpha: 0.95);
 
     final tabBorderColor = _hasPassedThreshold
         ? colors.accent
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent.withValues(alpha: 0.7)
-            : (_hasHitLimit && !isVendor)
-                ? colors.danger.withValues(alpha: 0.6)
-                : colors.accent.withValues(alpha: 0.4);
+        ? colors.accent.withValues(alpha: 0.7)
+        : (_hasHitLimit && !isVendor)
+        ? colors.danger.withValues(alpha: 0.6)
+        : colors.accent.withValues(alpha: 0.4);
 
     final tabTextColor = _hasPassedThreshold
         ? (colors.isDark ? Colors.black : Colors.white)
         : (_pullCount >= 2 && !isVendor)
-            ? colors.accent
-            : (_hasHitLimit && !isVendor)
-                ? colors.danger
-                : colors.accent;
+        ? colors.accent
+        : (_hasHitLimit && !isVendor)
+        ? colors.danger
+        : colors.accent;
 
     return AnimatedBuilder(
       animation: _floatAnimation,
@@ -350,7 +352,8 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
           // rotated rectangle's edge; with the painter's natural
           // orientation that's no longer needed.
           left: 0 + _dragX,
-          top: MediaQuery.of(context).size.height * 0.45 +
+          top:
+              MediaQuery.of(context).size.height * 0.45 +
               (_isDragging ? 0 : _floatAnimation.value),
           child: GestureDetector(
             onHorizontalDragStart: _onDragStart,
@@ -373,9 +376,15 @@ class _VendorPullTabState extends ConsumerState<VendorPullTab>
                               colors.accent.withValues(alpha: 0.0),
                               (_hasHitLimit && !isVendor)
                                   ? (_pullCount >= 2
-                                      ? colors.accent.withValues(alpha: progress * 0.7)
-                                      : colors.danger.withValues(alpha: progress * 0.5))
-                                  : colors.accent.withValues(alpha: progress * 0.5),
+                                        ? colors.accent.withValues(
+                                            alpha: progress * 0.7,
+                                          )
+                                        : colors.danger.withValues(
+                                            alpha: progress * 0.5,
+                                          ))
+                                  : colors.accent.withValues(
+                                      alpha: progress * 0.5,
+                                    ),
                             ],
                           ),
                         ),
@@ -531,8 +540,11 @@ class _RibbonPainter extends CustomPainter {
     // ~25% of the length.
     final t = (x / len).clamp(0.0, 1.0);
     final fade = (t < 0.25) ? (t / 0.25) : 1.0;
-    final wave = amp * fade *
-        (0.6 * _sin(phase + t * 6.2831853) + 0.4 * _sin(phase * 1.5 + t * 9.42));
+    final wave =
+        amp *
+        fade *
+        (0.6 * _sin(phase + t * 6.2831853) +
+            0.4 * _sin(phase * 1.5 + t * 9.42));
     return wave;
   }
 
@@ -552,10 +564,6 @@ class _RibbonPainter extends CustomPainter {
       old.label != label;
 }
 
-
-
-
-
 // =============================================================================
 // VENDOR REQUIREMENT POPUP (Bottom Sheet) — shown on 1st pull
 // =============================================================================
@@ -564,218 +572,221 @@ class _VendorRequirementSheet extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onOpenWebsite;
 
+  /// The Panel's own scroll controller.
+  final ScrollController scrollController;
+
   const _VendorRequirementSheet({
     required this.colors,
     required this.onOpenWebsite,
+    required this.scrollController,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.72,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          return SingleChildScrollView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+    // NEW-B: the weight owns surface, radius and handle, so the old Container
+    // and the inline handle bar are deleted rather than ported.
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
 
-                // Header
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colors.accent.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.storefront_outlined,
-                        color: colors.accent, size: 40),
-                  ),
-                ),
-                const SizedBox(height: 20),
+          // Header
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.storefront_outlined,
+                color: colors.accent,
+                size: 40,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
 
-                Center(
-                  child: Text(
-                    'You\'re Not a Vendor Yet',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Earn from every trade. Set your own rates. Build your reputation.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
+          Center(
+            child: Text(
+              'You\'re Not a Vendor Yet',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Earn from every trade. Set your own rates. Build your reputation.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
 
-                const SizedBox(height: 28),
+          const SizedBox(height: 28),
 
-                _buildSectionTitle('What You\'ll Need'),
-                const SizedBox(height: 12),
-                _buildRequirement(Icons.badge_outlined,
-                    'Valid Government ID',
-                    'Passport, National ID, or Driver\'s License with a selfie'),
-                _buildRequirement(Icons.home_outlined,
-                    'Proof of Address',
-                    'Utility bill or bank statement (within 3 months)'),
-                _buildRequirement(Icons.account_balance_wallet_outlined,
-                    'Minimum \$500 USDT Collateral',
-                    'Locked during your active vendor period'),
-                _buildRequirement(Icons.credit_card_outlined,
-                    'At Least 2 Payment Methods',
-                    'Mobile Money, bank transfer, or supported e-wallets'),
-                _buildRequirement(Icons.shield_outlined,
-                    'Financial Background Check',
-                    'Source of funds and trading experience'),
+          _buildSectionTitle('What You\'ll Need'),
+          const SizedBox(height: 12),
+          _buildRequirement(
+            Icons.badge_outlined,
+            'Valid Government ID',
+            'Passport, National ID, or Driver\'s License with a selfie',
+          ),
+          _buildRequirement(
+            Icons.home_outlined,
+            'Proof of Address',
+            'Utility bill or bank statement (within 3 months)',
+          ),
+          _buildRequirement(
+            Icons.account_balance_wallet_outlined,
+            'Minimum \$500 USDT Collateral',
+            'Locked during your active vendor period',
+          ),
+          _buildRequirement(
+            Icons.credit_card_outlined,
+            'At Least 2 Payment Methods',
+            'Mobile Money, bank transfer, or supported e-wallets',
+          ),
+          _buildRequirement(
+            Icons.shield_outlined,
+            'Financial Background Check',
+            'Source of funds and trading experience',
+          ),
 
-                const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-                _buildSectionTitle('Why Become a Vendor?'),
-                const SizedBox(height: 12),
-                _buildBenefit('Set your own exchange rates and margins'),
-                _buildBenefit('Earn on every trade with zero platform listing fees'),
-                _buildBenefit('Priority support and dispute resolution'),
-                _buildBenefit('Vendor XP system with level-up rewards'),
-                _buildBenefit('Access to analytics dashboard and ad boosting'),
+          _buildSectionTitle('Why Become a Vendor?'),
+          const SizedBox(height: 12),
+          _buildBenefit('Set your own exchange rates and margins'),
+          _buildBenefit('Earn on every trade with zero platform listing fees'),
+          _buildBenefit('Priority support and dispute resolution'),
+          _buildBenefit('Vendor XP system with level-up rewards'),
+          _buildBenefit('Access to analytics dashboard and ad boosting'),
 
-                const SizedBox(height: 28),
+          const SizedBox(height: 28),
 
-                // Website link
-                GestureDetector(
-                  onTap: onOpenWebsite,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colors.accent.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
+          // Website link
+          GestureDetector(
+            onTap: onOpenWebsite,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.share_outlined, color: colors.accent, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.share_outlined,
-                            color: colors.accent, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Learn More on Our Website',
-                                  style: TextStyle(
-                                      color: colors.accent,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 2),
-                              Text(
-                                  'azaman.me/vendors — Full details, FAQ, and success stories',
-                                  style: TextStyle(
-                                      color: colors.textTertiary,
-                                      fontSize: 11)),
-                            ],
+                        Text(
+                          'Learn More on Our Website',
+                          style: TextStyle(
+                            color: colors.accent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Icon(Icons.arrow_forward,
-                            color: colors.accent.withValues(alpha: 0.5), size: 14),
+                        const SizedBox(height: 2),
+                        Text(
+                          'azaman.me/vendors — Full details, FAQ, and success stories',
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── Phase UI-1 (2026-05-26): "Start Application" CTA removed
-                // ────────────────────────────────────────────────────────────
-                // The application path is intentionally gated by the 3-pull
-                // confirmation flow on the side tab. A primary button here
-                // bypassed that gate and produced two parallel onboarding
-                // entrances. Replaced with a clean text block prompting the
-                // user to either browse the website (link above) or pull the
-                // tab two more times to begin the in-app application.
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colors.surface.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.divider),
+                  Icon(
+                    Icons.arrow_forward,
+                    color: colors.accent.withValues(alpha: 0.5),
+                    size: 14,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: colors.accent, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Want to apply?',
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Phase UI-1 (2026-05-26): "Start Application" CTA removed
+          // ────────────────────────────────────────────────────────────
+          // The application path is intentionally gated by the 3-pull
+          // confirmation flow on the side tab. A primary button here
+          // bypassed that gate and produced two parallel onboarding
+          // entrances. Replaced with a clean text block prompting the
+          // user to either browse the website (link above) or pull the
+          // tab two more times to begin the in-app application.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.surface.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, color: colors.accent, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Want to apply?',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'For full vendor program details, FAQ, and success '
-                        'stories visit our official website above. To begin '
-                        'your application in-app, dismiss this and pull the '
-                        'side tab two more times within 5 seconds.',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 12,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'For full vendor program details, FAQ, and success '
+                  'stories visit our official website above. To begin '
+                  'your application in-app, dismiss this and pull the '
+                  'side tab two more times within 5 seconds.',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    height: 1.5,
                   ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(title,
-        style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w800));
+    return Text(
+      title,
+      style: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+      ),
+    );
   }
 
   Widget _buildRequirement(IconData icon, String title, String subtitle) {
@@ -797,15 +808,19 @@ class _VendorRequirementSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 12)),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -822,8 +837,10 @@ class _VendorRequirementSheet extends StatelessWidget {
           Icon(Icons.check_circle_outline, color: colors.success, size: 16),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(text,
-                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+            child: Text(
+              text,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
           ),
         ],
       ),

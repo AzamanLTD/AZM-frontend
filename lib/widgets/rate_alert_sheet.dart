@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/rate_alert_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/rate_alert_service.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 // =============================================================================
 // AZAMAN — RATE ALERT SHEET (Phase Q12-FE)
@@ -15,17 +16,27 @@ import 'package:azaman/services/rate_alert_service.dart';
 class RateAlertSheet extends ConsumerStatefulWidget {
   final double? currentRate;
 
-  const RateAlertSheet({super.key, this.currentRate});
+  /// The sheet's own scroll controller, supplied by [show].
+  final ScrollController scrollController;
+  const RateAlertSheet({
+    super.key,
+    this.currentRate,
+    required this.scrollController,
+  });
 
+  // NEW-B: Panel weight. The sheet carries both a create form and a list of
+  // existing alerts, so it is both taller than the whisper ceiling and
+  // scrollable — a whisper here would clip the alert list the user came to
+  // read. Note this also drops the old hand-rolled 20px `shape`: the weight
+  // owns its radius now, and two sources of truth for the same corner is how
+  // two sheets end up looking different for no reason.
   static void show(BuildContext context, WidgetRef ref, {double? currentRate}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: ref.read(themeProvider).colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => RateAlertSheet(
+        currentRate: currentRate,
+        scrollController: scrollController,
       ),
-      builder: (_) => RateAlertSheet(currentRate: currentRate),
     );
   }
 
@@ -66,13 +77,15 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
 
     setState(() => _isCreating = true);
 
-    final success = await ref.read(rateAlertProvider).createAlert(
-      targetRate: rate,
-      direction: _direction,
-      note: _noteController.text.trim().isNotEmpty
-          ? _noteController.text.trim()
-          : null,
-    );
+    final success = await ref
+        .read(rateAlertProvider)
+        .createAlert(
+          targetRate: rate,
+          direction: _direction,
+          note: _noteController.text.trim().isNotEmpty
+              ? _noteController.text.trim()
+              : null,
+        );
 
     if (!mounted) return;
     setState(() => _isCreating = false);
@@ -83,15 +96,17 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
       _noteController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('USDC/GHS alert set: notify when rate goes $_direction $rateText'),
+          content: Text(
+            'USDC/GHS alert set: notify when rate goes $_direction $rateText',
+          ),
           backgroundColor: Colors.green,
         ),
       );
     } else {
       final err = ref.read(rateAlertProvider).error ?? 'Failed to create alert';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(err), backgroundColor: Colors.red));
     }
   }
 
@@ -103,205 +118,74 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          return SingleChildScrollView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      // NEW-B: the outer DraggableScrollableSheet is now supplied by
+      // AzamanSheet.showPanel, so this body must not nest a second one.
+      // Two detent systems stacked on each other fight over the same gesture
+      // and the inner one wins on drag — the panel then never reaches its
+      // extended detent. The handle is likewise the weight's job now.
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Row(
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                Icon(
+                  Icons.notifications_outlined,
+                  color: colors.accent,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Rate Alerts',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Icon(Icons.notifications_outlined,
-                        color: colors.accent, size: 22),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Rate Alerts',
+                const Spacer(),
+                if (widget.currentRate != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'USDC/GHS ${widget.currentRate!.toStringAsFixed(2)}',
                       style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 20,
+                        color: colors.accent,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Spacer(),
-                    if (widget.currentRate != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'USDC/GHS ${widget.currentRate!.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: colors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Get notified when the USDC→GHS rate hits your target.',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.divider),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NEW USDC/GHS ALERT',
-                        style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _rateController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Target USDC/GHS rate (e.g. 15.50)',
-                          hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(Icons.swap_horiz,
-                              color: colors.accent, size: 20),
-                          filled: true,
-                          fillColor: colors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _DirectionChip(
-                            label: 'ABOVE',
-                            icon: Icons.analytics_outlined,
-                            isSelected: _direction == 'ABOVE',
-                            colors: colors,
-                            onTap: () =>
-                                setState(() => _direction = 'ABOVE'),
-                          ),
-                          const SizedBox(width: 10),
-                          _DirectionChip(
-                            label: 'BELOW',
-                            icon: Icons.analytics_outlined,
-                            isSelected: _direction == 'BELOW',
-                            colors: colors,
-                            onTap: () =>
-                                setState(() => _direction = 'BELOW'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _noteController,
-                        style: TextStyle(
-                            color: colors.textPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Label (optional)',
-                          hintStyle: TextStyle(color: colors.textTertiary),
-                          prefixIcon: Icon(Icons.label_outline,
-                              color: colors.textTertiary, size: 18),
-                          filled: true,
-                          fillColor: colors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 46,
-                        child: ElevatedButton(
-                          onPressed: _isCreating ? null : _handleCreate,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.accent,
-                            foregroundColor:
-                                colors.isDark ? Colors.black : Colors.white,
-                            disabledBackgroundColor:
-                                colors.accent.withValues(alpha: 0.3),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isCreating
-                              ? SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    color: colors.isDark
-                                        ? Colors.black
-                                        : Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Create Alert',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (alertState.isLoading && !alertState.hasFetched)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: CircularProgressIndicator(color: colors.accent),
-                    ),
-                  )
-                else if (alertState.alerts.isNotEmpty) ...[
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Get notified when the USDC→GHS rate hits your target.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    'YOUR ALERTS',
+                    'NEW USDC/GHS ALERT',
                     style: TextStyle(
                       color: colors.textTertiary,
                       fontSize: 10,
@@ -309,39 +193,175 @@ class _RateAlertSheetState extends ConsumerState<RateAlertSheet> {
                       letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  ...alertState.alerts.map(
-                    (alert) => _AlertTile(
-                      alert: alert,
-                      colors: colors,
-                      onDelete: () => _handleDelete(alert.id),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _rateController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                  ),
-                ] else if (alertState.hasFetched) ...[
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Icon(Icons.notifications_outlined,
-                              size: 36, color: colors.textTertiary),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No alerts yet',
-                            style: TextStyle(
-                              color: colors.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Target USDC/GHS rate (e.g. 15.50)',
+                      hintStyle: TextStyle(color: colors.textTertiary),
+                      prefixIcon: Icon(
+                        Icons.swap_horiz,
+                        color: colors.accent,
+                        size: 20,
+                      ),
+                      filled: true,
+                      fillColor: colors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _DirectionChip(
+                        label: 'ABOVE',
+                        icon: Icons.analytics_outlined,
+                        isSelected: _direction == 'ABOVE',
+                        colors: colors,
+                        onTap: () => setState(() => _direction = 'ABOVE'),
+                      ),
+                      const SizedBox(width: 10),
+                      _DirectionChip(
+                        label: 'BELOW',
+                        icon: Icons.analytics_outlined,
+                        isSelected: _direction == 'BELOW',
+                        colors: colors,
+                        onTap: () => setState(() => _direction = 'BELOW'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _noteController,
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Label (optional)',
+                      hintStyle: TextStyle(color: colors.textTertiary),
+                      prefixIcon: Icon(
+                        Icons.label_outline,
+                        color: colors.textTertiary,
+                        size: 18,
+                      ),
+                      filled: true,
+                      fillColor: colors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: _isCreating ? null : _handleCreate,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.isDark
+                            ? Colors.black
+                            : Colors.white,
+                        disabledBackgroundColor: colors.accent.withValues(
+                          alpha: 0.3,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isCreating
+                          ? SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: colors.isDark
+                                    ? Colors.black
+                                    : Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Create Alert',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
-          );
-        },
+            const SizedBox(height: 24),
+            if (alertState.isLoading && !alertState.hasFetched)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: CircularProgressIndicator(color: colors.accent),
+                ),
+              )
+            else if (alertState.alerts.isNotEmpty) ...[
+              Text(
+                'YOUR ALERTS',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...alertState.alerts.map(
+                (alert) => _AlertTile(
+                  alert: alert,
+                  colors: colors,
+                  onDelete: () => _handleDelete(alert.id),
+                ),
+              ),
+            ] else if (alertState.hasFetched) ...[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.notifications_outlined,
+                        size: 36,
+                        color: colors.textTertiary,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No alerts yet',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -390,9 +410,11 @@ class _DirectionChip extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 16,
-                  color: isSelected ? colors.accent : colors.textTertiary),
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? colors.accent : colors.textTertiary,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -435,8 +457,8 @@ class _AlertTile extends StatelessWidget {
           color: isTriggered
               ? colors.divider.withValues(alpha: 0.5)
               : alert.direction == 'ABOVE'
-                  ? colors.success.withValues(alpha: 0.3)
-                  : colors.danger.withValues(alpha: 0.3),
+              ? colors.success.withValues(alpha: 0.3)
+              : colors.danger.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -445,10 +467,9 @@ class _AlertTile extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: (alert.direction == 'ABOVE'
-                      ? colors.success
-                      : colors.danger)
-                  .withValues(alpha: isTriggered ? 0.05 : 0.1),
+              color:
+                  (alert.direction == 'ABOVE' ? colors.success : colors.danger)
+                      .withValues(alpha: isTriggered ? 0.05 : 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -457,8 +478,8 @@ class _AlertTile extends StatelessWidget {
               color: isTriggered
                   ? colors.textTertiary
                   : alert.direction == 'ABOVE'
-                      ? colors.success
-                      : colors.danger,
+                  ? colors.success
+                  : colors.danger,
             ),
           ),
           const SizedBox(width: 12),
@@ -476,15 +497,18 @@ class _AlertTile extends StatelessWidget {
                             : colors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        decoration:
-                            isTriggered ? TextDecoration.lineThrough : null,
+                        decoration: isTriggered
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
                     if (isTriggered) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colors.success.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
@@ -505,10 +529,7 @@ class _AlertTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     alert.note!,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -518,13 +539,15 @@ class _AlertTile extends StatelessWidget {
           ),
           if (!isTriggered)
             IconButton(
-              icon: Icon(Icons.cancel_outlined,
-                  size: 18, color: colors.textTertiary),
+              icon: Icon(
+                Icons.cancel_outlined,
+                size: 18,
+                color: colors.textTertiary,
+              ),
               onPressed: onDelete,
               splashRadius: 18,
               padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints(minWidth: 28, minHeight: 28),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
         ],
       ),

@@ -12,6 +12,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class BookingSuccessSheet extends ConsumerWidget {
   final String bookingRef;
@@ -30,6 +31,10 @@ class BookingSuccessSheet extends ConsumerWidget {
   });
 
   /// Convenience method to show the sheet.
+  // NEW-B: Whisper weight. classify() says so — a celebration confirmation with
+  // a fixed four-row receipt and two actions. It is not scrollable and it is
+  // comfortably under the 45% ceiling, so it gets no detent and no handle: a
+  // receipt the user must drag open is a receipt they never read.
   static Future<void> show(
     BuildContext context, {
     required String bookingRef,
@@ -38,10 +43,8 @@ class BookingSuccessSheet extends ConsumerWidget {
     required String route,
     required DateTime departureTime,
   }) {
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    return AzamanSheet.showWhisper<void>(
+      context,
       builder: (_) => BookingSuccessSheet(
         bookingRef: bookingRef,
         seatCount: seatCount,
@@ -56,117 +59,151 @@ class BookingSuccessSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    // NEW-B: the weight owns surface, whisper radius and bottom safe-area, so
+    // the old Container and SafeArea are deleted rather than ported. The
+    // stagger is where the removed sheet-level fade-in used to live.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      child: AzStaggeredColumn(
+        children: [
+          // Success icon with bounce animation
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: colors.success.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle_rounded,
+              color: colors.success,
+              size: 40,
+            ),
+          ).animate().scale(
+            delay: 100.ms,
+            duration: 400.ms,
+            curve: Curves.easeOutBack,
+          ),
+
+          const SizedBox(height: 20),
+          Text(
+            'Booking Confirmed!',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Reference: $bookingRef',
+            style: TextStyle(
+              fontSize: 14,
+              color: colors.textTertiary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Detail rows
+          _detailRow(colors, Icons.route_rounded, 'Route', route),
+          _detailRow(
+            colors,
+            Icons.event_seat_rounded,
+            'Seats',
+            '$seatCount seat${seatCount == 1 ? '' : 's'}',
+          ),
+          _detailRow(
+            colors,
+            Icons.calendar_today_rounded,
+            'Departure',
+            '${departureTime.day}/${departureTime.month} · '
+                '${TimeOfDay.fromDateTime(departureTime).format(context)}',
+          ),
+          _detailRow(
+            colors,
+            Icons.payments_rounded,
+            'Total Paid',
+            '\$${totalFare.toStringAsFixed(2)} USDC',
+          ),
+
+          const SizedBox(height: 24),
+
+          // Action buttons
+          Row(
             children: [
-              // Success icon with bounce animation
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: colors.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.check_circle_rounded,
-                    color: colors.success, size: 40),
-              )
-                  .animate()
-                  .scale(delay: 100.ms, duration: 400.ms, curve: Curves.easeOutBack),
-
-              const SizedBox(height: 20),
-              Text('Booking Confirmed!',
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: colors.textPrimary)),
-              const SizedBox(height: 6),
-              Text('Reference: $bookingRef',
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: colors.textTertiary,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 24),
-
-              // Detail rows
-              _detailRow(colors, Icons.route_rounded, 'Route', route),
-              _detailRow(colors, Icons.event_seat_rounded, 'Seats',
-                  '$seatCount seat${seatCount == 1 ? '' : 's'}'),
-              _detailRow(
-                  colors,
-                  Icons.calendar_today_rounded,
-                  'Departure',
-                  '${departureTime.day}/${departureTime.month} · '
-                      '${TimeOfDay.fromDateTime(departureTime).format(context)}'),
-              _detailRow(colors, Icons.payments_rounded, 'Total Paid',
-                  '\$${totalFare.toStringAsFixed(2)} USDC'),
-
-              const SizedBox(height: 24),
-
-              // Action buttons
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Done',
-                        style: TextStyle(
-                            color: colors.textSecondary,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Done',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w600,
                     ),
-                    onPressed: () {
-                      AzamanHaptics.confirm();
-                      Navigator.pop(context);
-                      context.go('/marketplace/transit');
-                    },
-                    child: const Text('View My Trips',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
-              ]),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    AzamanHaptics.confirm();
+                    Navigator.pop(context);
+                    context.go('/marketplace/transit');
+                  },
+                  child: const Text(
+                    'View My Trips',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _detailRow(
-      AzamanColors colors, IconData icon, String label, String value) {
+    AzamanColors colors,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(children: [
-        Icon(icon, size: 18, color: colors.textTertiary),
-        const SizedBox(width: 12),
-        Text(label,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: colors.textTertiary),
+          const SizedBox(width: 12),
+          Text(
+            label,
             style: TextStyle(
-                fontSize: 13,
-                color: colors.textTertiary,
-                fontWeight: FontWeight.w500)),
-        const Spacer(),
-        Text(value,
+              fontSize: 13,
+              color: colors.textTertiary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
             style: TextStyle(
-                fontSize: 14,
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w700)),
-      ]),
+              fontSize: 14,
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

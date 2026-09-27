@@ -38,6 +38,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/susu/susu_wheel.dart';
 
 
 class SusuDashboardScreen extends ConsumerWidget {
@@ -114,6 +115,15 @@ class SusuDashboardScreen extends ConsumerWidget {
                     .animate()
                     .fadeIn(duration: 320.ms)
                     .slideY(begin: 0.05, end: 0),
+                const SizedBox(height: 18),
+                _SectionTitle('Payout wheel', colors: colors),
+                const SizedBox(height: 8),
+                SusuWheel(
+                  members: _bestMembers(susu, members.valueOrNull),
+                  cycles: cycles.valueOrNull ?? const [],
+                  totalSlots: susu.totalCycles,
+                  meUserId: me?.id,
+                ),
                 if (susu.status == SusuStatus.completed)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -154,12 +164,6 @@ class SusuDashboardScreen extends ConsumerWidget {
                   meUserId: me?.id,
                   colors: colors,
                 ),
-                if (cycles.valueOrNull != null && cycles.valueOrNull!.isNotEmpty)
-                  _SusuPayoutTimeline(
-                    cycles: cycles.valueOrNull!,
-                    currentUserId: me?.id,
-                    colors: colors,
-                  ),
                 const SizedBox(height: 18),
                 _SectionTitle('Cycle schedule', colors: colors),
                 const SizedBox(height: 8),
@@ -1122,120 +1126,5 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
         ],
       ),
     );
-  }
-}
-
-class _SusuPayoutTimeline extends StatelessWidget {
-  final List<SusuCycleView> cycles;
-  final String? currentUserId;
-  final AzamanColors colors;
-
-  const _SusuPayoutTimeline({
-    required this.cycles,
-    required this.currentUserId,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final mySlotIndex = cycles.indexWhere((cycle) =>
-      cycle.payoutUserId.toString() == currentUserId);
-    final nextPendingIndex = cycles.indexWhere((cycle) =>
-      cycle.status == SusuCycleStatus.pending || cycle.status == SusuCycleStatus.collecting || cycle.status == SusuCycleStatus.collectingGrace);
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (nextPendingIndex >= 0) ...[
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              colors.accent.withValues(alpha: 0.15),
-              colors.accent.withValues(alpha: 0.05)]),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
-          ),
-          child: Row(children: [
-            Icon(Icons.event_available_outlined, color: colors.accent, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("Next Payout — Slot ${nextPendingIndex + 1}",
-                style: TextStyle(color: colors.accent,
-                  fontSize: 13, fontWeight: FontWeight.w800)),
-              Text(
-                cycles[nextPendingIndex].payoutUserId.toString() == currentUserId
-                  ? "Your turn!"
-                  : "Slot #${nextPendingIndex + 1}",
-                style: TextStyle(color: colors.textPrimary,
-                  fontSize: 16, fontWeight: FontWeight.w900)),
-              Text(
-                _fmtDateInline(cycles[nextPendingIndex].scheduledRunAt),
-                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-            ])),
-            if (mySlotIndex >= 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: colors.accent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text("Your slot: #${mySlotIndex + 1}",
-                  style: const TextStyle(color: Colors.white,
-                    fontSize: 11, fontWeight: FontWeight.w700)),
-              ),
-          ]),
-        ),
-      ],
-      SizedBox(
-        height: 70,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.only(bottom: 12),
-          itemCount: cycles.length,
-          itemBuilder: (_, i) {
-            final cycle = cycles[i];
-            final isMe = cycle.payoutUserId.toString() == currentUserId;
-            final isDone = cycle.status == SusuCycleStatus.paidOut;
-            final isNext = i == nextPendingIndex;
-            final color = isDone ? colors.success
-                : isMe   ? colors.accent
-                : colors.softSurface;
-            return Container(
-              width: 52, margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: isDone || isMe ? 0.15 : 1.0),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isNext ? colors.accent : colors.divider,
-                  width: isNext ? 2 : 1,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("#${i + 1}",
-                    style: TextStyle(
-                      color: isDone ? colors.success : isMe ? colors.accent : colors.textTertiary,
-                      fontSize: 14, fontWeight: FontWeight.w800)),
-                  if (isDone)
-                    Icon(Icons.check, color: colors.success, size: 14)
-                  else if (isMe)
-                    Icon(Icons.person_outline, color: colors.accent, size: 12)
-                  else
-                    const SizedBox.shrink(),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    ]);
-  }
-
-  String _fmtDateInline(DateTime dt) {
-    final months = ["Jan","Feb","Mar","Apr","May","Jun",
-                    "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 }

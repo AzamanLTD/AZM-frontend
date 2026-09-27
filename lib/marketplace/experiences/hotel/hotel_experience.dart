@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:azaman/widgets/azaman_sheet.dart';
+
 class HotelRoom {
   final String id;
   final String name;
@@ -34,11 +36,25 @@ class HotelRoom {
       name: (json['name'] ?? json['roomName'] ?? 'Room').toString(),
       floor: json['floor']?.toString(),
       description: json['description']?.toString(),
-      nightlyRate: rate is num ? rate.toDouble() : double.tryParse(rate?.toString() ?? ''),
+      nightlyRate: rate is num
+          ? rate.toDouble()
+          : double.tryParse(rate?.toString() ?? ''),
       currency: json['currency']?.toString(),
-      capacity: json['capacity'] is num ? (json['capacity'] as num).toInt() : int.tryParse(json['capacity']?.toString() ?? ''),
-      amenities: rawAmenities is List ? rawAmenities.map((e) => e.toString()).where((e) => e.isNotEmpty).toList(growable: false) : const [],
-      imageUrls: rawImages is List ? rawImages.map((e) => e.toString()).where((e) => e.isNotEmpty).toList(growable: false) : const [],
+      capacity: json['capacity'] is num
+          ? (json['capacity'] as num).toInt()
+          : int.tryParse(json['capacity']?.toString() ?? ''),
+      amenities: rawAmenities is List
+          ? rawAmenities
+                .map((e) => e.toString())
+                .where((e) => e.isNotEmpty)
+                .toList(growable: false)
+          : const [],
+      imageUrls: rawImages is List
+          ? rawImages
+                .map((e) => e.toString())
+                .where((e) => e.isNotEmpty)
+                .toList(growable: false)
+          : const [],
       available: json['available'] != false && json['isAvailable'] != false,
     );
   }
@@ -61,13 +77,20 @@ class HotelRoomExplorer extends StatelessWidget {
   final List<HotelRoom> rooms;
   final ValueChanged<HotelRoom> onRoomSelected;
 
-  const HotelRoomExplorer({super.key, required this.rooms, required this.onRoomSelected});
+  const HotelRoomExplorer({
+    super.key,
+    required this.rooms,
+    required this.onRoomSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (rooms.isEmpty) {
-      return const Padding(padding: EdgeInsets.all(16), child: Text('No rooms available for the selected dates.'));
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No rooms available for the selected dates.'),
+      );
     }
     return ListView.separated(
       shrinkWrap: true,
@@ -82,7 +105,10 @@ class HotelRoomExplorer extends StatelessWidget {
           label: '${room.name}, ${room.formattedRate}',
           child: Material(
             color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: theme.dividerColor)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: theme.dividerColor),
+            ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: room.available ? () => onRoomSelected(room) : null,
@@ -92,22 +118,62 @@ class HotelRoomExplorer extends StatelessWidget {
                     width: 124,
                     height: 132,
                     child: image == null
-                        ? ColoredBox(color: theme.colorScheme.surfaceContainerHighest, child: const Icon(Icons.hotel_outlined))
-                        : Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.hotel_outlined)),
+                        ? ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Icon(Icons.hotel_outlined),
+                          )
+                        : Image.network(
+                            image,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.hotel_outlined),
+                          ),
                   ),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(13),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(room.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                        if (room.floor != null) Text('Floor ${room.floor}', style: theme.textTheme.bodySmall),
-                        if (room.capacity != null) Text('Up to ${room.capacity} guests', style: theme.textTheme.bodySmall),
-                        const SizedBox(height: 5),
-                        Text(room.available ? room.formattedRate : 'Unavailable', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800, color: room.available ? theme.colorScheme.primary : theme.colorScheme.error)),
-                      ]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            room.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (room.floor != null)
+                            Text(
+                              'Floor ${room.floor}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          if (room.capacity != null)
+                            Text(
+                              'Up to ${room.capacity} guests',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          const SizedBox(height: 5),
+                          Text(
+                            room.available ? room.formattedRate : 'Unavailable',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: room.available
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  Padding(padding: const EdgeInsets.only(right: 8), child: Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant)),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -118,29 +184,107 @@ class HotelRoomExplorer extends StatelessWidget {
   }
 }
 
-Future<void> showHotelRoomDetail(BuildContext context, {required HotelRoom room, required ValueChanged<HotelRoom> onBook}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) => SafeArea(
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Expanded(child: Text(room.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800))), IconButton(tooltip: 'Close', onPressed: () => Navigator.of(sheetContext).pop(), icon: const Icon(Icons.close))]),
-            if (room.imageUrls.isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(18), child: AspectRatio(aspectRatio: 1.7, child: Image.network(room.imageUrls.first, fit: BoxFit.cover))),
-            const SizedBox(height: 12),
-            Text(room.formattedRate, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-            if (room.description?.isNotEmpty == true) ...[const SizedBox(height: 8), Text(room.description!)],
-            if (room.amenities.isNotEmpty) ...[const SizedBox(height: 10), Wrap(spacing: 6, runSpacing: 6, children: room.amenities.take(8).map((a) => Chip(label: Text(a), visualDensity: VisualDensity.compact)).toList())],
-            const SizedBox(height: 14),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: room.available ? () { Navigator.of(sheetContext).pop(); onBook(room); } : null, child: Text(room.available ? 'Select room' : 'Unavailable'))),
-          ]),
-        ),
+Future<void> showHotelRoomDetail(
+  BuildContext context, {
+  required HotelRoom room,
+  required ValueChanged<HotelRoom> onBook,
+}) {
+  // NEW-B: Panel weight. classify() returns panel for a non-scrollable body of
+  // unknown height, and that is the right answer here for a concrete reason:
+  // `room.description` is free text, so this body has no fixed height. Before
+  // the migration it was a bare Column with no scroller, which meant a long
+  // description pushed the amenities off-screen and the "Select room" commit
+  // row with it — the one control that has to be reachable.
+  //
+  // The commit row is pinned below the scroll area, so booking stays one tap
+  // away no matter how long the description runs.
+  return AzamanSheet.showPanel<void>(
+    context,
+    builder: (sheetContext, scrollController) => Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          room.name,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  if (room.imageUrls.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: AspectRatio(
+                        aspectRatio: 1.7,
+                        child: Image.network(
+                          room.imageUrls.first,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    room.formattedRate,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (room.description?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(room.description!),
+                  ],
+                  if (room.amenities.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: room.amenities
+                          .take(8)
+                          .map(
+                            (a) => Chip(
+                              label: Text(a),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: room.available
+                  ? () {
+                      Navigator.of(sheetContext).pop();
+                      onBook(room);
+                    }
+                  : null,
+              child: Text(room.available ? 'Select room' : 'Unavailable'),
+            ),
+          ),
+        ],
       ),
     ),
   );

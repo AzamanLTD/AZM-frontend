@@ -72,7 +72,15 @@ extension _SortLabel on _SortMode {
 }
 
 class MarketplaceHomeScreen extends ConsumerStatefulWidget {
-  const MarketplaceHomeScreen({super.key});
+  const MarketplaceHomeScreen({super.key, this.initialCategory});
+
+  /// Wire value of the vertical to open with: `'RETAIL'`, `'FOOD_BEVERAGE'`,
+  /// `'LOGISTICS'`, `'HOSPITALITY'` or `'REAL_ESTATE'` (the wire the in-app
+  /// category dial itself sends for Hotels). `null` or an unknown value opens
+  /// the marketplace unfiltered ("All").
+  ///
+  /// Added for the TASK-010b vertical launcher and future deep links.
+  final String? initialCategory;
 
   @override
   ConsumerState<MarketplaceHomeScreen> createState() =>
@@ -124,6 +132,10 @@ class _MarketplaceHomeScreenState
   @override
   void initState() {
     super.initState();
+    // Seed the category BEFORE the first post-frame search, so a launcher or a
+    // deep link lands on an already-filtered marketplace rather than flashing
+    // "All" and then filtering a frame later.
+    _selectedCategory = _validatedInitialCategory();
     _scrollCtrl.addListener(_onScroll);
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.hasClients) {
@@ -134,7 +146,8 @@ class _MarketplaceHomeScreenState
       if (mounted) setState(() => _searchFocused = _searchFocusNode.hasFocus);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(businessSearchProvider.notifier).search('');
+      ref.read(businessSearchProvider.notifier)
+          .search('', category: _selectedCategory);
       // Prefetch the signed-in user's own business profile so the
       // Register/Your-Business FAB shows the correct state immediately
       // instead of waiting on whatever triggered it before (opening the
@@ -159,6 +172,32 @@ class _MarketplaceHomeScreenState
     _scrollCtrl.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Wire values a launcher or deep link may use to open the marketplace with a
+  /// vertical already selected. Includes `REAL_ESTATE` because that is the wire
+  /// the in-app category dial itself sends for Hotels (`_controlRow`).
+  static const Set<String> _launchableCategoryWires = <String>{
+    'FOOD_BEVERAGE',
+    'RETAIL',
+    'LOGISTICS',
+    'HOSPITALITY',
+    'REAL_ESTATE',
+  };
+
+  /// Normalises [MarketplaceHomeScreen.initialCategory] into a wire the dial
+  /// already understands, or `null` for "open unfiltered".
+  ///
+  /// Why an allowlist rather than `BusinessCategories.fromWire`: `fromWire`
+  /// does not model `REAL_ESTATE` and falls back to `OTHER` (see F-029), so
+  /// round-tripping a hotel launch through it would mislabel the result. The
+  /// allowlist accepts exactly what the app itself can send today, and nothing
+  /// else — an unrecognised value is a caller bug, not a licence to guess.
+  String? _validatedInitialCategory() {
+    final wire = widget.initialCategory;
+    if (wire == null || wire.trim().isEmpty) return null;
+    final normalised = wire.trim().toUpperCase();
+    return _launchableCategoryWires.contains(normalised) ? normalised : null;
   }
 
   // ── Query plumbing ─────────────────────────────────────────────────────────

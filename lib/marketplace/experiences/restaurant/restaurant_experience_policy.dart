@@ -25,9 +25,6 @@ Map<String, dynamic>? effectiveRestaurantExperience({
 
   return <String, dynamic>{
     ...experience,
-    'detail': <String, dynamic>{
-      ...detailMap,
-      'showOptions': true,
-    },
+    'detail': <String, dynamic>{...detailMap, 'showOptions': true},
   };
 }

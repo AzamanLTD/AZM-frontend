@@ -28,6 +28,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 
 enum AzamanButtonVariant { primary, secondary, danger, ghost }
 
@@ -161,7 +162,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
       onTap: disabled
           ? null
           : () {
-              HapticFeedback.lightImpact();
+              AzamanHaptics.confirm();
               widget.onPressed!();
             },
       child: scaled,

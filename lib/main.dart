@@ -9,14 +9,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/services/push_notification_service.dart';
 
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
@@ -221,8 +219,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget?> _pages;
-  late final AnimationController _fadeCtrl;
+  late final AnimationController _transitionCtrl;
   int _displayedIndex = 0;
+  int _transitionDirection = 1;
 
   @override
   void initState() {
@@ -234,12 +233,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       null,
     ];
 
-    _fadeCtrl = AnimationController(vsync: this, duration: MotionTokens.standard)..value = 1.0;
-    _fadeCtrl.addListener(() {
-      if (_fadeCtrl.value >= 0.25 && _displayedIndex != _selectedIndex) {
-        setState(() => _displayedIndex = _selectedIndex);
-      }
-    });
+    _transitionCtrl = AnimationController(
+      vsync: this,
+      duration: MotionTokens.emphasized,
+      value: 1.0,
+    )..addStatusListener(_onTransitionStatus);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initUnifiedSocket();
@@ -260,28 +258,65 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     }
   }
 
+  void _onTransitionStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (_displayedIndex == _selectedIndex) return;
+    setState(() => _displayedIndex = _selectedIndex);
+  }
+
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
     final page = _pages[i] ?? _pageFor(i);
-    final disableAnimations = MediaQuery.of(context).disableAnimations;
+    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final midTransition = _displayedIndex != _selectedIndex;
 
     setState(() {
       _pages[i] = page;
-      _selectedIndex = i;
-      if (disableAnimations) {
+      if (disableAnimations || midTransition) {
+        // Snap when the user taps mid-flight, or when a11y animations are off.
         _displayedIndex = i;
+        _selectedIndex = i;
+      } else {
+        _selectedIndex = i;
+        _transitionDirection = i > _displayedIndex ? 1 : -1;
       }
     });
 
-    if (!disableAnimations) {
-      _fadeCtrl.forward(from: 0);
+    if (!disableAnimations && !midTransition) {
+      _transitionCtrl.forward(from: 0);
     }
   }
 
-  double get _tabFadeOpacity {
-    final v = _fadeCtrl.value;
-    if (v < 0.25) return (1 - (v / 0.25)).clamp(0.0, 1.0);
-    return ((v - 0.25) / 0.75).clamp(0.0, 1.0);
+  /// Incoming page: 6% inset slide + fade in.
+  Widget _buildIncoming(int index) {
+    final incoming = _selectedIndex != _displayedIndex;
+    if (!incoming) {
+      return _pages[index]!;
+    }
+    final d = _transitionDirection;
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: Offset(0.06 * d, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.symmetric)),
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.enter),
+        ),
+        child: _pages[index]!,
+      ),
+    );
+  }
+
+  /// Outgoing page: fade out only, so it never ghosts over the new content.
+  Widget _buildOutgoing(int index) {
+    if (index == _selectedIndex) return const SizedBox.shrink();
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
+        CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.exit),
+      ),
+      child: _pages[index]!,
+    );
   }
 
   @override
@@ -290,7 +325,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     socketService.removeNewTradeRequestListener();
     socketService.removeBizNotificationListener();
     socketService.removeBizNotificationsUpdatedListener();
-    _fadeCtrl.dispose();
+    _transitionCtrl.dispose();
     super.dispose();
   }
 
@@ -430,26 +465,48 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(selectedIndex: _selectedIndex, onItemSelected: _onNavItemSelected),
-      body: Stack(
+      // F-0xx / TASK-010: the nav pill compresses while the page scrolls. One
+      // listener above the whole shell means every scrollable page feeds the
+      // same notifier without threading a controller through each one.
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n is ScrollUpdateNotification) {
+            final reduce = MediaQuery.disableAnimationsOf(context);
+            if (reduce) return false;
+            final next = (navScrollCompression.value +
+                    NavScrollCompression.fromDelta(n.scrollDelta ?? 0.0))
+                .clamp(0.0, 1.0)
+                .toDouble();
+            if ((next - navScrollCompression.value).abs() > 0.001) {
+              navScrollCompression.value = next;
+            }
+            return false;
+          }
+          if (n is ScrollEndNotification || n is OverscrollNotification) {
+            if (navScrollCompression.value != 0) navScrollCompression.value = 0;
+            return false;
+          }
+          return false;
+        },
+        child: Stack(
         children: [
           AnimatedBuilder(
-            animation: _fadeCtrl,
-            builder: (context, child) => Opacity(opacity: _tabFadeOpacity, child: child),
-            child: Stack(
+            animation: _transitionCtrl,
+            builder: (context, child) => Stack(
               fit: StackFit.expand,
               children: [
                 for (var index = 0; index < _pages.length; index++)
-                  if (_pages[index] != null)
-                    Offstage(
-                      offstage: index != _displayedIndex,
-                      child: _pages[index],
-                    ),
+                  if (_pages[index] != null && index != _selectedIndex)
+                    _buildOutgoing(index),
+                if (_pages[_selectedIndex] != null) _buildIncoming(_selectedIndex),
               ],
             ),
+            child: const SizedBox.expand(),
           ),
           if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
           DrawerPeekHint(onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer()),
-        ],
+          ],
+        ),
       ),
     );
   }

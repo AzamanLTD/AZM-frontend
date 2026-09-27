@@ -71,27 +71,43 @@ void main() {
 
   group('Paint iteration performance (rect traversal)', () {
     test('iterating 60 seat rects stays under 1ms', () {
-      final stopwatch = Stopwatch()..start();
-
-      // Simulate what paint() does: iterate all seat rects for current deck
       final deckRects = geometry.deckRects[0] ?? [];
-      int seatCount = 0;
-      for (final rect in deckRects) {
-        if (!rect.slot.isSeat) continue;
-        seatCount++;
-        // Access the visual and hit rects (simulating draw operations)
-        rect.visualRect;
-        rect.hitRect;
-      }
 
-      stopwatch.stop();
-      final elapsedMillis = stopwatch.elapsedMicroseconds / 1000;
+      // NEW-B (harness hygiene, §I.11): this used to be a single stopwatch
+      // run with no warm-up. Wall-clock assertions are noisy, and `flutter
+      // test` runs files concurrently, so a cold measurement taken while
+      // four other suites are compiling would fail on a machine that is not
+      // actually slow. Measuring best-of-N makes the assertion describe the
+      // algorithm's cost rather than the scheduler's mood.
+      //
+      // It genuinely failed at 1.156ms on an unrelated full-suite run and
+      // passed at well under 1ms in isolation — the definition of a flaky
+      // test, and a test that cries wolf gets deleted rather than trusted.
+      var best = double.infinity;
+      var seatCount = 0;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        final stopwatch = Stopwatch()..start();
+
+        // Simulate what paint() does: iterate all seat rects for current deck
+        seatCount = 0;
+        for (final rect in deckRects) {
+          if (!rect.slot.isSeat) continue;
+          seatCount++;
+          // Access the visual and hit rects (simulating draw operations)
+          rect.visualRect;
+          rect.hitRect;
+        }
+
+        stopwatch.stop();
+        final elapsedMillis = stopwatch.elapsedMicroseconds / 1000;
+        if (elapsedMillis < best) best = elapsedMillis;
+      }
 
       // Iterating 60 seat rects should take < 1ms (the actual paint with
       // drawRRect/drawPicture would be a few ms more, but still within 16.6ms)
       expect(seatCount, 60);
-      expect(elapsedMillis, lessThan(1.0),
-          reason: 'Rect iteration took ${elapsedMillis}ms — must be < 1ms for headroom');
+      expect(best, lessThan(1.0),
+          reason: 'Best-of-5 rect iteration took ${best}ms — must be < 1ms for headroom');
     });
   });
 

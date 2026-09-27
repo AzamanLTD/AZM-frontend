@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 class VaultCreateScreen extends ConsumerStatefulWidget {
@@ -46,11 +47,18 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
   }
 
   Future<void> _showRules(AzamanColors colors) async {
-    final accepted = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _RulesSheet(colors: colors),
+    // NEW-B / 4th pass — weight: Panel. Seven rules of free-text legal copy
+    // plus a consent gate that only unlocks once the reader reaches the
+    // bottom. The commit row is PINNED (§I.8.3): the checkbox is disabled
+    // until the scroll completes, so a scrolling commit hides the very
+    // instruction that explains why it is disabled. The body scrolls through
+    // the controller `showPanel` hands the builder (§I.3.4) so drag-to-dismiss
+    // and the detent stay one system — no nested DraggableScrollableSheet
+    // (§I.13.3).
+    final accepted = await AzamanSheet.showPanel<bool>(
+      context,
+      builder: (_, scrollController) =>
+          _RulesSheet(colors: colors, scrollController: scrollController),
     );
     if (accepted == true && mounted) setState(() => _rulesAccepted = true);
   }
@@ -334,61 +342,68 @@ class _DatePill extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────
 // RULES SHEET — frosted glass overlay, must scroll-to-bottom + check consent
 // ─────────────────────────────────────────────────────────────────────────
+/// The vault rules sheet. Scrolling is owned by the Panel weight: the
+/// controller handed to the builder IS the sheet's detent controller, so the
+/// reader's drag moves the content and the sheet together (§I.3.4). The surface
+/// container, the top radius and the drag handle are supplied by
+/// `AzSheetSurface` and are deliberately NOT re-declared here (§I.8.1).
 class _RulesSheet extends StatefulWidget {
   final AzamanColors colors;
-  const _RulesSheet({required this.colors});
+
+  /// The Panel's own scroll controller. Owned by the sheet; this widget only
+  /// reads `hasClients` and disposes nothing.
+  final ScrollController scrollController;
+
+  const _RulesSheet({
+    required this.colors,
+    required this.scrollController,
+  });
 
   @override
   State<_RulesSheet> createState() => _RulesSheetState();
 }
 
 class _RulesSheetState extends State<_RulesSheet> {
-  final _scroll = ScrollController();
   bool _scrolledToBottom = false;
   bool _consent = false;
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(() {
-      if (_scroll.offset >= _scroll.position.maxScrollExtent - 8 && !_scrolledToBottom) {
-        setState(() => _scrolledToBottom = true);
-      }
-    });
+    widget.scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RulesSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollController != widget.scrollController) {
+      oldWidget.scrollController.removeListener(_onScroll);
+      widget.scrollController.addListener(_onScroll);
+    }
   }
 
   @override
   void dispose() {
-    _scroll.dispose();
+    widget.scrollController.removeListener(_onScroll);
     super.dispose();
+  }
+
+  void _onScroll() {
+    final c = widget.scrollController;
+    if (!c.hasClients || _scrolledToBottom) return;
+    if (c.offset >= c.position.maxScrollExtent - 8) {
+      setState(() => _scrolledToBottom = true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
     final canAccept = _scrolledToBottom && _consent;
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.78,
-        decoration: BoxDecoration(
-          color: colors.background.withValues(alpha: 0.92),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border.all(color: colors.glow.withValues(alpha: 0.18), width: 0.8),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
-          child: Column(
-            children: [
-              Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 18),
+      child: Column(
+        children: [
               Row(
                 children: [
                   Icon(Icons.gavel, color: colors.warning, size: 18),
@@ -406,7 +421,7 @@ class _RulesSheetState extends State<_RulesSheet> {
               const SizedBox(height: 12),
               Expanded(
                 child: SingleChildScrollView(
-                  controller: _scroll,
+                  controller: widget.scrollController,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -473,9 +488,7 @@ class _RulesSheetState extends State<_RulesSheet> {
               ),
             ],
           ),
-        ),
-      ),
-    );
+      );
   }
 
   Widget _rule(AzamanColors colors, String head, String body) => Padding(

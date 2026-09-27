@@ -9,6 +9,7 @@ import 'package:azaman/models/notification_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -43,16 +44,22 @@ class _State extends ConsumerState<NotificationOverlay>
   void initState() {
     super.initState();
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 420));
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     _slideAnim = Tween<Offset>(
-        begin: const Offset(0, -1), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutQuart));
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutQuart));
     _slideCtrl.forward();
     _bobCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
-    _bobAnim = Tween<double>(begin: 0, end: 5).animate(
-        CurvedAnimation(parent: _bobCtrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _bobAnim = Tween<double>(
+      begin: 0,
+      end: 5,
+    ).animate(CurvedAnimation(parent: _bobCtrl, curve: Curves.easeInOut));
     _loadQuietHours();
   }
 
@@ -93,14 +100,16 @@ class _State extends ConsumerState<NotificationOverlay>
   }
 
   void _showQuietHoursSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _QuietHoursSheet(
+    // NEW-B: Panel weight. With quiet hours enabled this body carries a
+    // header, a description, a toggle and two time pickers — well past the
+    // 45% whisper ceiling — and the Save row must stay reachable. Pinned.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (ctx, scrollController) => _QuietHoursSheet(
         enabled: _quietHoursEnabled,
         start: _quietStart,
         end: _quietEnd,
+        scrollController: scrollController,
         onChanged: (enabled, start, end) {
           setState(() {
             _quietHoursEnabled = enabled;
@@ -128,25 +137,39 @@ class _State extends ConsumerState<NotificationOverlay>
       return true;
     }
     final t = (n.title + n.body).toLowerCase();
-    return t.contains('cfo') || t.contains('balance low') || t.contains('low balance');
+    return t.contains('cfo') ||
+        t.contains('balance low') ||
+        t.contains('low balance');
   }
 
   bool _isMoney(AppNotification n) {
     if (n.category != NotificationCategory.general) return false;
     final t = n.title.toLowerCase();
-    return t.contains('deposit') || t.contains('withdraw') || t.contains('transfer') ||
-        t.contains('payment') || t.contains('vault') || t.contains('susu') ||
-        t.contains('route') || t.contains('auction') || t.contains('escrow') ||
+    return t.contains('deposit') ||
+        t.contains('withdraw') ||
+        t.contains('transfer') ||
+        t.contains('payment') ||
+        t.contains('vault') ||
+        t.contains('susu') ||
+        t.contains('route') ||
+        t.contains('auction') ||
+        t.contains('escrow') ||
         t.contains('invoice');
   }
 
   bool _isSocial(AppNotification n) =>
-      n.category == NotificationCategory.general && !_isMoney(n) && !_isSystem(n);
+      n.category == NotificationCategory.general &&
+      !_isMoney(n) &&
+      !_isSystem(n);
 
   // Business notification card — shown when the Business tab is selected.
   // Business notifications (NEW_ORDER, KYB_STATUS_CHANGED, etc.) live on a
   // separate API + screen, so we show a summary card with a deep-link.
-  Widget _buildBusinessSection(BuildContext context, AzamanColors colors, int unread) {
+  Widget _buildBusinessSection(
+    BuildContext context,
+    AzamanColors colors,
+    int unread,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -155,8 +178,11 @@ class _State extends ConsumerState<NotificationOverlay>
             behavior: HitTestBehavior.opaque,
             onTap: () {
               widget.onClose();
-              Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const BusinessNotificationsScreen()),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BusinessNotificationsScreen(),
+                ),
               );
             },
             child: Container(
@@ -169,25 +195,31 @@ class _State extends ConsumerState<NotificationOverlay>
               child: Row(
                 children: [
                   Container(
-                    width: 44, height: 44,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: colors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.storefront_rounded,
-                        size: 22, color: colors.accent),
+                    child: Icon(
+                      Icons.storefront_rounded,
+                      size: 22,
+                      color: colors.accent,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Business Notifications',
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            )),
+                        Text(
+                          'Business Notifications',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           unread > 0
@@ -203,7 +235,10 @@ class _State extends ConsumerState<NotificationOverlay>
                   ),
                   if (unread > 0)
                     Container(
-                      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                      constraints: const BoxConstraints(
+                        minWidth: 22,
+                        minHeight: 22,
+                      ),
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
@@ -220,8 +255,11 @@ class _State extends ConsumerState<NotificationOverlay>
                       ),
                     )
                   else
-                    Icon(Icons.chevron_right_rounded,
-                        size: 22, color: colors.textSecondary),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: colors.textSecondary,
+                    ),
                 ],
               ),
             ),
@@ -229,10 +267,7 @@ class _State extends ConsumerState<NotificationOverlay>
           const SizedBox(height: 12),
           Text(
             'New orders, KYB updates, and other business alerts appear here.',
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: colors.textSecondary, fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -245,16 +280,28 @@ class _State extends ConsumerState<NotificationOverlay>
 
   bool _matchesTab(AppNotification n, int tab) {
     switch (tab) {
-      case 0: return !n.isRead;
-      case 1: return _isMoney(n);
-      case 2: return _isSocial(n);
-      case 3: return _isSecurity(n);
-      case 4: return _isSystem(n);
-      default: return false;
+      case 0:
+        return !n.isRead;
+      case 1:
+        return _isMoney(n);
+      case 2:
+        return _isSocial(n);
+      case 3:
+        return _isSecurity(n);
+      case 4:
+        return _isSystem(n);
+      default:
+        return false;
     }
   }
 
-  Widget _categoryRow(int idx, IconData icon, String label, int count, AzamanColors colors) {
+  Widget _categoryRow(
+    int idx,
+    IconData icon,
+    String label,
+    int count,
+    AzamanColors colors,
+  ) {
     final sel = _tab == idx;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -262,219 +309,386 @@ class _State extends ConsumerState<NotificationOverlay>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-            color: sel ? colors.accentSurface : Colors.transparent,
-            borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [
-          Icon(icon, size: 18, color: sel ? colors.accent : colors.textSecondary),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label, style: TextStyle(
-              color: sel ? colors.accent : colors.textPrimary, fontSize: 14,
-              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-              decoration: TextDecoration.none))),
-          if (count > 0) Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
+          color: sel ? colors.accentSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: sel ? colors.accent : colors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: sel ? colors.accent : colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
                   color: sel ? colors.accent : colors.divider,
-                  borderRadius: BorderRadius.circular(10)),
-              child: Text('$count', style: TextStyle(
-                  color: sel ? Colors.white : colors.textTertiary,
-                  fontSize: 11, fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.none))),
-          const SizedBox(width: 4),
-          Icon(Icons.chevron_right, size: 16,
-              color: sel ? colors.accent : colors.textTertiary),
-        ]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: sel ? Colors.white : colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: sel ? colors.accent : colors.textTertiary,
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors  = ref.watch(themeProvider).colors;
-    final topPad  = MediaQuery.of(context).padding.top;
+    final colors = ref.watch(themeProvider).colors;
+    final topPad = MediaQuery.of(context).padding.top;
     final screenH = MediaQuery.of(context).size.height;
-    final all     = ref.watch(generalNotificationsProvider);
-    final sec     = ref.watch(securityNotificationsProvider);
-    final vendor  = ref.watch(vendorNotificationsProvider);
-    final hasBiz  = ref.watch(myBusinessProvider).profile != null;
+    final all = ref.watch(generalNotificationsProvider);
+    final sec = ref.watch(securityNotificationsProvider);
+    final vendor = ref.watch(vendorNotificationsProvider);
+    final hasBiz = ref.watch(myBusinessProvider).profile != null;
     final bizUnread = ref.watch(bizUnreadCountProvider);
     final allN = [...all, ...sec, ...vendor]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
-    final unread  = allN.where((n) => !n.isRead).length + (hasBiz ? bizUnread : 0);
-    final sysCnt  = allN.where(_isSystem).length;
-    final money   = allN.where(_isMoney).length;
-    final social  = allN.where(_isSocial).length;
-    final secCnt  = allN.where(_isSecurity).length;
+    final unread =
+        allN.where((n) => !n.isRead).length + (hasBiz ? bizUnread : 0);
+    final sysCnt = allN.where(_isSystem).length;
+    final money = allN.where(_isMoney).length;
+    final social = allN.where(_isSocial).length;
+    final secCnt = allN.where(_isSecurity).length;
 
     // Build the body: business tab shows a link to business notifications,
     // other tabs show the filtered notification list.
     final showBusinessTab = _tab == 5 && hasBiz;
 
-    return Stack(children: [
-      GestureDetector(onTap: _dismiss, child: Container(color: Colors.transparent)),
-      AnimatedBuilder(
-        animation: _slideAnim,
-        builder: (_, __) {
-          final off = _drag != 0
-              ? Offset(0, _drag / screenH) : _slideAnim.value;
-          return Transform.translate(
-            offset: Offset(0, off.dy * screenH),
-            child: GestureDetector(
-              onVerticalDragUpdate: (d) {
-                if ((d.primaryDelta ?? 0) < 0) {
-                  setState(() => _drag += d.primaryDelta!);
-                }
-              },
-              onVerticalDragEnd: (d) {
-                if ((d.primaryVelocity ?? 0) < -350 || _drag < -80) {
-                  _dismiss();
-                } else {
-                  setState(() => _drag = 0);
-                }
-              },
-              child: SizedBox(
-                height: screenH * 0.92,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                    child: DefaultTextStyle(
-                      style: const TextStyle(decoration: TextDecoration.none),
-                      child: Container(
-                        decoration: BoxDecoration(
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: _dismiss,
+          child: Container(color: Colors.transparent),
+        ),
+        AnimatedBuilder(
+          animation: _slideAnim,
+          builder: (_, __) {
+            final off = _drag != 0
+                ? Offset(0, _drag / screenH)
+                : _slideAnim.value;
+            return Transform.translate(
+              offset: Offset(0, off.dy * screenH),
+              child: GestureDetector(
+                onVerticalDragUpdate: (d) {
+                  if ((d.primaryDelta ?? 0) < 0) {
+                    setState(() => _drag += d.primaryDelta!);
+                  }
+                },
+                onVerticalDragEnd: (d) {
+                  if ((d.primaryVelocity ?? 0) < -350 || _drag < -80) {
+                    _dismiss();
+                  } else {
+                    setState(() => _drag = 0);
+                  }
+                },
+                child: SizedBox(
+                  height: screenH * 0.92,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(24),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                      child: DefaultTextStyle(
+                        style: const TextStyle(decoration: TextDecoration.none),
+                        child: Container(
+                          decoration: BoxDecoration(
                             color: colors.isDark
                                 ? Colors.black.withValues(alpha: 0.75)
                                 : Colors.white.withValues(alpha: 0.72),
                             borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(24))),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: topPad + 14),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(children: [
-                                Text('Notifications', style: TextStyle(
-                                    color: colors.textPrimary, fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    decoration: TextDecoration.none)),
-                                const Spacer(),
-                                // Quiet hours indicator
-                                if (_quietHoursEnabled)
-                                  GestureDetector(
-                                    onTap: _showQuietHoursSheet,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                          color: _isCurrentlyQuietHours()
-                                              ? colors.accent.withValues(alpha: 0.15)
-                                              : colors.softSurface,
-                                          borderRadius: BorderRadius.circular(20)),
-                                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                        Icon(HugeIconsSolid.moon01, size: 13,
-                                            color: _isCurrentlyQuietHours() ? colors.accent : colors.textTertiary),
-                                        const SizedBox(width: 5),
-                                        Text(_isCurrentlyQuietHours() ? 'Quiet' : 'Quiet hrs',
-                                            style: TextStyle(
-                                                color: _isCurrentlyQuietHours() ? colors.accent : colors.textTertiary,
-                                                fontSize: 11, fontWeight: FontWeight.w600,
-                                                decoration: TextDecoration.none)),
-                                      ]),
-                                    ),
-                                  ),
-                                // Settings gear
-                                GestureDetector(
-                                  onTap: _showQuietHoursSheet,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                        color: colors.softSurface,
-                                        borderRadius: BorderRadius.circular(20)),
-                                    child: Icon(HugeIconsSolid.settings02, size: 15, color: colors.textSecondary),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    ref.read(notificationProvider.notifier).markAllAsRead();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                        color: colors.accentSurface,
-                                        borderRadius: BorderRadius.circular(20)),
-                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                      Icon(HugeIconsSolid.checkmarkCircle02, size: 13, color: colors.accent),
-                                      const SizedBox(width: 5),
-                                      Text('Read all', style: TextStyle(
-                                          color: colors.accent, fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          decoration: TextDecoration.none)),
-                                    ]),
-                                  ),
-                                ),
-                              ]),
+                              bottom: Radius.circular(24),
                             ),
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Container(
-                                decoration: BoxDecoration(
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(height: topPad + 14),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Notifications',
+                                      style: TextStyle(
+                                        color: colors.textPrimary,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    // Quiet hours indicator
+                                    if (_quietHoursEnabled)
+                                      GestureDetector(
+                                        onTap: _showQuietHoursSheet,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _isCurrentlyQuietHours()
+                                                ? colors.accent.withValues(
+                                                    alpha: 0.15,
+                                                  )
+                                                : colors.softSurface,
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                HugeIconsSolid.moon01,
+                                                size: 13,
+                                                color: _isCurrentlyQuietHours()
+                                                    ? colors.accent
+                                                    : colors.textTertiary,
+                                              ),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                _isCurrentlyQuietHours()
+                                                    ? 'Quiet'
+                                                    : 'Quiet hrs',
+                                                style: TextStyle(
+                                                  color:
+                                                      _isCurrentlyQuietHours()
+                                                      ? colors.accent
+                                                      : colors.textTertiary,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  decoration:
+                                                      TextDecoration.none,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    // Settings gear
+                                    GestureDetector(
+                                      onTap: _showQuietHoursSheet,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: colors.softSurface,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          HugeIconsSolid.settings02,
+                                          size: 15,
+                                          color: colors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        ref
+                                            .read(notificationProvider.notifier)
+                                            .markAllAsRead();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: colors.accentSurface,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              HugeIconsSolid.checkmarkCircle02,
+                                              size: 13,
+                                              color: colors.accent,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              'Read all',
+                                              style: TextStyle(
+                                                color: colors.accent,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                decoration: TextDecoration.none,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
                                     color: colors.card,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: colors.divider, width: 0.8)),
-                                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                  _categoryRow(0, Icons.mark_chat_unread_rounded, 'All Unread', unread, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(1, Icons.account_balance_wallet_rounded, 'Money', money, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(2, Icons.people_rounded, 'Social', social, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(3, Icons.lock_rounded, 'Security', secCnt, colors),
-                                  Divider(height: 1, color: colors.divider),
-                                  _categoryRow(4, Icons.admin_panel_settings_rounded, 'System', sysCnt, colors),
-                                  if (hasBiz)
-                                    _categoryRow(5, Icons.storefront_rounded, 'Business', bizUnread, colors),
-                                ]),
+                                    border: Border.all(
+                                      color: colors.divider,
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _categoryRow(
+                                        0,
+                                        Icons.mark_chat_unread_rounded,
+                                        'All Unread',
+                                        unread,
+                                        colors,
+                                      ),
+                                      Divider(height: 1, color: colors.divider),
+                                      _categoryRow(
+                                        1,
+                                        Icons.account_balance_wallet_rounded,
+                                        'Money',
+                                        money,
+                                        colors,
+                                      ),
+                                      Divider(height: 1, color: colors.divider),
+                                      _categoryRow(
+                                        2,
+                                        Icons.people_rounded,
+                                        'Social',
+                                        social,
+                                        colors,
+                                      ),
+                                      Divider(height: 1, color: colors.divider),
+                                      _categoryRow(
+                                        3,
+                                        Icons.lock_rounded,
+                                        'Security',
+                                        secCnt,
+                                        colors,
+                                      ),
+                                      Divider(height: 1, color: colors.divider),
+                                      _categoryRow(
+                                        4,
+                                        Icons.admin_panel_settings_rounded,
+                                        'System',
+                                        sysCnt,
+                                        colors,
+                                      ),
+                                      if (hasBiz)
+                                        _categoryRow(
+                                          5,
+                                          Icons.storefront_rounded,
+                                          'Business',
+                                          bizUnread,
+                                          colors,
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: showBusinessTab
-                                  ? _buildBusinessSection(context, colors, bizUnread)
-                                  : filtered.isEmpty
-                                  ? Center(child: Text(
-                                  _tab == 0 ? 'No unread notifications' : 'Nothing here',
-                                  style: TextStyle(color: colors.textTertiary, fontSize: 13,
-                                      decoration: TextDecoration.none)))
-                                  : _buildGroupedList(filtered, colors),
-                            ),
-                            AnimatedBuilder(
-                              animation: _bobAnim,
-                              builder: (_, __) => Padding(
-                                padding: EdgeInsets.only(bottom: 10 + _bobAnim.value, top: 6),
-                                child: Center(child: Container(
-                                    width: 100, height: 5,
-                                    decoration: BoxDecoration(
-                                        color: colors.textTertiary.withValues(alpha: 0.35),
-                                        borderRadius: BorderRadius.circular(3)))),
+                              const SizedBox(height: 8),
+                              Expanded(
+                                child: showBusinessTab
+                                    ? _buildBusinessSection(
+                                        context,
+                                        colors,
+                                        bizUnread,
+                                      )
+                                    : filtered.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          _tab == 0
+                                              ? 'No unread notifications'
+                                              : 'Nothing here',
+                                          style: TextStyle(
+                                            color: colors.textTertiary,
+                                            fontSize: 13,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                      )
+                                    : _buildGroupedList(filtered, colors),
                               ),
-                            ),
-                          ],
+                              AnimatedBuilder(
+                                animation: _bobAnim,
+                                builder: (_, __) => Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: 10 + _bobAnim.value,
+                                    top: 6,
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      width: 100,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: colors.textTertiary.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-    ]);
+            );
+          },
+        ),
+      ],
+    );
   }
 
   // ── Date-grouped notification list ──────────────────────────────────────────
@@ -498,7 +712,13 @@ class _State extends ConsumerState<NotificationOverlay>
       groups.putIfAbsent(label, () => []).add(n);
     }
 
-    final sectionOrder = ['Today', 'Yesterday', 'This Week', 'This Month', 'Earlier'];
+    final sectionOrder = [
+      'Today',
+      'Yesterday',
+      'This Week',
+      'This Month',
+      'Earlier',
+    ];
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -506,7 +726,8 @@ class _State extends ConsumerState<NotificationOverlay>
       itemBuilder: (_, sectionIdx) {
         final label = sectionOrder[sectionIdx];
         final sectionItems = groups[label];
-        if (sectionItems == null || sectionItems.isEmpty) return const SizedBox();
+        if (sectionItems == null || sectionItems.isEmpty)
+          return const SizedBox();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,14 +745,19 @@ class _State extends ConsumerState<NotificationOverlay>
                 ),
               ),
             ),
-            ...sectionItems.map((n) => _SlideRevealNotification(
-              key: ValueKey(n.id),
-              notification: n,
-              colors: colors,
-              onMarkRead: () => ref.read(notificationProvider.notifier).markAsRead(n.id),
-              onDelete: () => ref.read(notificationProvider.notifier).deleteNotification(n.id),
-              onSnooze: () {},
-            )),
+            ...sectionItems.map(
+              (n) => _SlideRevealNotification(
+                key: ValueKey(n.id),
+                notification: n,
+                colors: colors,
+                onMarkRead: () =>
+                    ref.read(notificationProvider.notifier).markAsRead(n.id),
+                onDelete: () => ref
+                    .read(notificationProvider.notifier)
+                    .deleteNotification(n.id),
+                onSnooze: () {},
+              ),
+            ),
           ],
         );
       },
@@ -597,11 +823,14 @@ class _SlideState extends State<_SlideRevealNotification>
       builder: (context, child) {
         final offset = _controller.value;
         final showRight = offset > 12;
-        final showLeft  = offset < -12;
+        final showLeft = offset < -12;
 
         return GestureDetector(
           onHorizontalDragUpdate: (d) {
-            _controller.value = (_controller.value + d.primaryDelta!).clamp(-_maxReveal, _maxReveal);
+            _controller.value = (_controller.value + d.primaryDelta!).clamp(
+              -_maxReveal,
+              _maxReveal,
+            );
           },
           onHorizontalDragEnd: (d) {
             final val = _controller.value;
@@ -615,56 +844,125 @@ class _SlideState extends State<_SlideRevealNotification>
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
-            child: Stack(clipBehavior: Clip.none, children: [
-              Positioned.fill(
-                child: Row(children: [
-                  if (showRight)
-                    GestureDetector(
-                        onTap: () { widget.onMarkRead(); _snapBack(); },
-                        child: _chip(c, HugeIconsSolid.checkmarkCircle01,
-                            n.isRead ? 'Unread' : 'Read', c.success)),
-                  const Spacer(),
-                  if (showLeft) ...[
-                    GestureDetector(
-                        onTap: () { widget.onSnooze(); _snapBack(); },
-                        child: _chip(c, HugeIconsSolid.clock01, 'Later', c.warning)),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                        onTap: () { widget.onDelete(); setState(() => _hidden = true); },
-                        child: _chip(c, HugeIconsSolid.delete01, 'Delete', c.danger)),
-                  ],
-                ]),
-              ),
-              Transform.translate(
-                offset: Offset(offset, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: n.isRead ? c.card : c.accent.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: c.divider.withValues(alpha: 0.5))),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(width: 6, height: 6, margin: const EdgeInsets.only(top: 5),
-                        decoration: BoxDecoration(
-                            color: n.isRead ? Colors.transparent : c.accent,
-                            shape: BoxShape.circle)),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(n.title, style: TextStyle(color: c.textPrimary, fontSize: 13,
-                          fontWeight: FontWeight.w600, decoration: TextDecoration.none)),
-                      const SizedBox(height: 2),
-                      Text(n.body, style: TextStyle(color: c.textSecondary,
-                          fontSize: 12, height: 1.4, decoration: TextDecoration.none),
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(_relTime(n.createdAt), style: TextStyle(
-                          color: c.textTertiary, fontSize: 10,
-                          decoration: TextDecoration.none)),
-                    ])),
-                  ]),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      if (showRight)
+                        GestureDetector(
+                          onTap: () {
+                            widget.onMarkRead();
+                            _snapBack();
+                          },
+                          child: _chip(
+                            c,
+                            HugeIconsSolid.checkmarkCircle01,
+                            n.isRead ? 'Unread' : 'Read',
+                            c.success,
+                          ),
+                        ),
+                      const Spacer(),
+                      if (showLeft) ...[
+                        GestureDetector(
+                          onTap: () {
+                            widget.onSnooze();
+                            _snapBack();
+                          },
+                          child: _chip(
+                            c,
+                            HugeIconsSolid.clock01,
+                            'Later',
+                            c.warning,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            widget.onDelete();
+                            setState(() => _hidden = true);
+                          },
+                          child: _chip(
+                            c,
+                            HugeIconsSolid.delete01,
+                            'Delete',
+                            c.danger,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-            ]),
+                Transform.translate(
+                  offset: Offset(offset, 0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: n.isRead
+                          ? c.card
+                          : c.accent.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: c.divider.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(top: 5),
+                          decoration: BoxDecoration(
+                            color: n.isRead ? Colors.transparent : c.accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                n.title,
+                                style: TextStyle(
+                                  color: c.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                n.body,
+                                style: TextStyle(
+                                  color: c.textSecondary,
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  decoration: TextDecoration.none,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _relTime(n.createdAt),
+                                style: TextStyle(
+                                  color: c.textTertiary,
+                                  fontSize: 10,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -675,26 +973,36 @@ class _SlideState extends State<_SlideRevealNotification>
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.3))),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(label, style: TextStyle(color: color, fontSize: 11,
-              fontWeight: FontWeight.w700, decoration: TextDecoration.none)),
-        ]),
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+        ),
       );
 
   String _relTime(DateTime dt) {
     final d = DateTime.now().difference(dt);
     if (d.inSeconds < 60) return 'Just now';
     if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours   < 24) return '${d.inHours}h ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
     return '${d.inDays}d ago';
   }
 }
-
 
 // ── Quiet Hours Bottom Sheet ─────────────────────────────────────────────────
 
@@ -704,11 +1012,15 @@ class _QuietHoursSheet extends ConsumerStatefulWidget {
   final TimeOfDay end;
   final void Function(bool enabled, TimeOfDay start, TimeOfDay end) onChanged;
 
+  /// The sheet's own scroll controller, supplied by the Panel that hosts it.
+  final ScrollController scrollController;
+
   const _QuietHoursSheet({
     required this.enabled,
     required this.start,
     required this.end,
     required this.onChanged,
+    required this.scrollController,
   });
 
   @override
@@ -738,134 +1050,195 @@ class _QuietHoursSheetState extends ConsumerState<_QuietHoursSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.all(24),
+    // NEW-B: the weight owns surface, radius and safe-area, so the old
+    // Container and inline handle are deleted. Scrolls through the sheet's own
+    // controller; Save is pinned below the scroll area.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Icon(HugeIconsSolid.moon01, size: 22, color: colors.accent),
-              const SizedBox(width: 10),
-              Text('Quiet Hours',
-                  style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Suppress non-urgent notifications during your quiet hours. Security alerts will still come through.',
-            style: TextStyle(color: colors.textTertiary, fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          // Enable toggle
-          Row(
-            children: [
-              Expanded(
-                child: Text('Enable Quiet Hours',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-              ),
-              Switch.adaptive(
-                value: _enabled,
-                activeColor: colors.accent,
-                onChanged: (v) => setState(() => _enabled = v),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_enabled) ...[
-            // Start time
-              GestureDetector(
-              onTap: () async {
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: _start,
-                  builder: (_, child) => Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: Theme.of(context).colorScheme.copyWith(
-                        primary: colors.accent,
+          Flexible(
+            child: SingleChildScrollView(
+              controller: widget.scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        HugeIconsSolid.moon01,
+                        size: 22,
+                        color: colors.accent,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Quiet Hours',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Suppress non-urgent notifications during your quiet hours. Security alerts will still come through.',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 24),
+                  // Enable toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Enable Quiet Hours',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: _enabled,
+                        activeColor: colors.accent,
+                        onChanged: (v) => setState(() => _enabled = v),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (_enabled) ...[
+                    // Start time
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _start,
+                          builder: (_, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: Theme.of(
+                                context,
+                              ).colorScheme.copyWith(primary: colors.accent),
+                            ),
+                            child: child ?? const SizedBox(),
+                          ),
+                        );
+                        if (picked != null) setState(() => _start = picked);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colors.border, width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              HugeIconsSolid.moon02,
+                              size: 20,
+                              color: colors.accent,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Start',
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatTime(_start),
+                              style: TextStyle(
+                                color: colors.accent,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 20,
+                              color: colors.textTertiary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: child ?? const SizedBox(),
-                  ),
-                );
-                if (picked != null) setState(() => _start = picked);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    Icon(HugeIconsSolid.moon02, size: 20, color: colors.accent),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text('Start', style: TextStyle(color: colors.textPrimary, fontSize: 15))),
-                    Text(_formatTime(_start),
-                        style: TextStyle(color: colors.accent, fontSize: 15, fontWeight: FontWeight.w700)),
-                    const SizedBox(width: 8),
-                    Icon(Icons.chevron_right_rounded, size: 20, color: colors.textTertiary),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // End time
-            GestureDetector(
-              onTap: () async {
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: _end,
-                  builder: (_, child) => Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: Theme.of(context).colorScheme.copyWith(
-                        primary: colors.accent,
+                    const SizedBox(height: 12),
+                    // End time
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _end,
+                          builder: (_, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: Theme.of(
+                                context,
+                              ).colorScheme.copyWith(primary: colors.accent),
+                            ),
+                            child: child ?? const SizedBox(),
+                          ),
+                        );
+                        if (picked != null) setState(() => _end = picked);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colors.border, width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              HugeIconsSolid.sunrise,
+                              size: 20,
+                              color: colors.accent,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'End',
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatTime(_end),
+                              style: TextStyle(
+                                color: colors.accent,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 20,
+                              color: colors.textTertiary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: child ?? const SizedBox(),
-                  ),
-                );
-                if (picked != null) setState(() => _end = picked);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    Icon(HugeIconsSolid.sunrise, size: 20, color: colors.accent),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text('End', style: TextStyle(color: colors.textPrimary, fontSize: 15))),
-                    Text(_formatTime(_end),
-                        style: TextStyle(color: colors.accent, fontSize: 15, fontWeight: FontWeight.w700)),
-                    const SizedBox(width: 8),
-                    Icon(Icons.chevron_right_rounded, size: 20, color: colors.textTertiary),
                   ],
-                ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-          ],
-          const SizedBox(height: 24),
-          // Save button
+          ),
+          const SizedBox(height: 16),
+          // Save pinned.
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -873,16 +1246,21 @@ class _QuietHoursSheetState extends ConsumerState<_QuietHoursSheet> {
                 backgroundColor: colors.accent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               onPressed: () {
                 widget.onChanged(_enabled, _start, _end);
                 Navigator.of(context).pop();
               },
-              child: const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Save',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
         ],
       ),
     );

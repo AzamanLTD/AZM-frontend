@@ -15,10 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class MarketplaceFilters {
@@ -49,17 +48,30 @@ class MarketplaceFilters {
 
 class AdvancedFilterSheet extends ConsumerStatefulWidget {
   final MarketplaceFilters initial;
-  const AdvancedFilterSheet({super.key, required this.initial});
 
+  /// The sheet's own scroll controller, supplied by [show].
+  final ScrollController scrollController;
+
+  const AdvancedFilterSheet({
+    super.key,
+    required this.initial,
+    required this.scrollController,
+  });
+
+  // NEW-B: Panel weight, same reasoning as P2PFilterSheet — a facet form
+  // taller than the whisper ceiling whose Reset/Apply pair is the point of
+  // opening it. That pair is pinned below the scroll area, not left at the
+  // end of a list.
   static Future<MarketplaceFilters?> show(
     BuildContext context,
     MarketplaceFilters initial,
   ) {
-    return showModalBottomSheet<MarketplaceFilters>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AdvancedFilterSheet(initial: initial),
+    return AzamanSheet.showPanel<MarketplaceFilters>(
+      context,
+      builder: (_, scrollController) => AdvancedFilterSheet(
+        initial: initial,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -80,9 +92,11 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
   void initState() {
     super.initState();
     _minCtrl = TextEditingController(
-        text: widget.initial.minPrice?.toStringAsFixed(0) ?? '');
+      text: widget.initial.minPrice?.toStringAsFixed(0) ?? '',
+    );
     _maxCtrl = TextEditingController(
-        text: widget.initial.maxPrice?.toStringAsFixed(0) ?? '');
+      text: widget.initial.maxPrice?.toStringAsFixed(0) ?? '',
+    );
     _minRating = widget.initial.minRating;
     _verifiedOnly = widget.initial.verifiedOnly;
     _delivery = widget.initial.deliveryAvailable;
@@ -126,68 +140,181 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    return PremiumGlassContainer(
-      blur: 30, opacity: 0.12, borderRadius: 24,
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, top: 16, left: 20, right: 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)))),
-          Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: colors.textPrimary)).animate().fadeIn(duration: 200.ms),
-          const SizedBox(height: 20),
-          _label(colors, 'Price range (USDC)'),
-          const SizedBox(height: 8),
-          Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: ListView(
+            controller: widget.scrollController,
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              top: 8,
+              left: 20,
+              right: 20,
+            ),
             children: [
-              Expanded(child: _priceField(colors, _minCtrl, 'Min')),
-              const SizedBox(width: 12),
-              Expanded(child: _priceField(colors, _maxCtrl, 'Max')),
+              Text(
+                'Filters',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _label(colors, 'Price range (USDC)'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: _priceField(colors, _minCtrl, 'Min')),
+                  const SizedBox(width: 12),
+                  Expanded(child: _priceField(colors, _maxCtrl, 'Max')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Minimum Rating',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _minRating.toDouble(),
+                      min: 0,
+                      max: 5,
+                      divisions: 5,
+                      activeColor: colors.accent,
+                      inactiveColor: colors.divider,
+                      label: '${_minRating.toStringAsFixed(0)}★',
+                      onChanged: (v) => setState(() => _minRating = v.toInt()),
+                    ),
+                  ),
+                  Text(
+                    '${_minRating.toStringAsFixed(0)}★',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: colors.accent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _premiumToggleRow(
+                'Verified businesses only',
+                Icons.verified_rounded,
+                _verifiedOnly,
+                (v) => setState(() => _verifiedOnly = v),
+                colors,
+              ),
+              const SizedBox(height: 12),
+              _premiumToggleRow(
+                'Delivery available',
+                Icons.local_shipping_rounded,
+                _delivery,
+                (v) => setState(() => _delivery = v),
+                colors,
+              ),
+              const SizedBox(height: 12),
+              _premiumToggleRow(
+                'Has physical location',
+                Icons.storefront_rounded,
+                _location,
+                (v) => setState(() => _location = v),
+                colors,
+              ),
+              const SizedBox(height: 8),
             ],
           ),
-          const SizedBox(height: 16),
-          Text('Minimum Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colors.textSecondary)),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: Slider(value: _minRating.toDouble(), min: 0, max: 5, divisions: 5,
-              activeColor: colors.accent, inactiveColor: colors.divider, label: '${_minRating.toStringAsFixed(0)}★',
-              onChanged: (v) => setState(() => _minRating = v.toInt()))),
-            Text('${_minRating.toStringAsFixed(0)}★', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.accent)),
-          ]),
-          const SizedBox(height: 16),
-          _premiumToggleRow('Verified businesses only', Icons.verified_rounded, _verifiedOnly, (v) => setState(() => _verifiedOnly = v), colors),
-          const SizedBox(height: 12),
-          _premiumToggleRow('Delivery available', Icons.local_shipping_rounded, _delivery, (v) => setState(() => _delivery = v), colors),
-          const SizedBox(height: 12),
-          _premiumToggleRow('Has physical location', Icons.storefront_rounded, _location, (v) => setState(() => _location = v), colors),
-          const SizedBox(height: 24),
-          Row(children: [
-            Expanded(child: GestureDetector(onTap: _reset, child: Container(height: 48,
-              decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider)),
-              child: Center(child: Text('Reset', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textSecondary)))))),
-            const SizedBox(width: 12),
-            Expanded(flex: 2, child: GestureDetector(onTap: _apply, child: Container(height: 48,
-              decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 4))]),
-              child: Center(child: Text('Apply Filters', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.background)))))),
-          ]),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOutCubic);
+        ),
+        // Reset/Apply pinned: the primary action of a form should never be
+        // the thing that scrolls away.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _reset,
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.divider),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Reset',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: _apply,
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.accent.withValues(alpha: 0.25),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Apply Filters',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: colors.background,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _label(AzamanColors colors, String text) => Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          color: colors.textTertiary,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-        ),
-      );
+    text.toUpperCase(),
+    style: TextStyle(
+      color: colors.textTertiary,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.8,
+    ),
+  );
 
   Widget _priceField(
-      AzamanColors colors, TextEditingController ctrl, String hint) {
+    AzamanColors colors,
+    TextEditingController ctrl,
+    String hint,
+  ) {
     return TextField(
       controller: ctrl,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -208,24 +335,60 @@ class _AdvancedFilterSheetState extends ConsumerState<AdvancedFilterSheet> {
     );
   }
 
-  Widget _premiumToggleRow(String label, IconData icon, bool value, ValueChanged<bool> onChanged, dynamic colors) {
+  Widget _premiumToggleRow(
+    String label,
+    IconData icon,
+    bool value,
+    ValueChanged<bool> onChanged,
+    dynamic colors,
+  ) {
     return GestureDetector(
-      onTap: () { AzamanHaptics.toggle(); onChanged(!value); },
-      child: Row(children: [
-        Icon(icon, size: 18, color: colors.textSecondary), const SizedBox(width: 10),
-        Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary))),
-        AnimatedContainer(
-          duration: 200.ms, width: 44, height: 26,
-          decoration: BoxDecoration(color: value ? colors.accent : colors.softSurface, borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: value ? Colors.transparent : colors.divider)),
-          child: AnimatedAlign(
-            duration: 200.ms, curve: Curves.easeOutCubic,
-            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(width: 20, height: 20, margin: const EdgeInsets.all(2),
-              decoration: BoxDecoration(color: value ? colors.background : colors.textTertiary, shape: BoxShape.circle)),
+      onTap: () {
+        AzamanHaptics.toggle();
+        onChanged(!value);
+      },
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: colors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
           ),
-        ),
-      ]),
+          AnimatedContainer(
+            duration: 200.ms,
+            width: 44,
+            height: 26,
+            decoration: BoxDecoration(
+              color: value ? colors.accent : colors.softSurface,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: value ? Colors.transparent : colors.divider,
+              ),
+            ),
+            child: AnimatedAlign(
+              duration: 200.ms,
+              curve: Curves.easeOutCubic,
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 20,
+                height: 20,
+                margin: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: value ? colors.background : colors.textTertiary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class UserLocalPaymentMethodsScreen extends ConsumerStatefulWidget {
   const UserLocalPaymentMethodsScreen({super.key});
@@ -88,9 +88,9 @@ class _UserLocalPaymentMethodsScreenState
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ok
-                ? 'Payment method saved'
-                : 'Could not save — check details'),
+            content: Text(
+              ok ? 'Payment method saved' : 'Could not save — check details',
+            ),
             backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
           ),
         );
@@ -129,9 +129,10 @@ class _UserLocalPaymentMethodsScreenState
         title: Text(
           'Payment Methods',
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold),
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: AzPullToRefresh(
@@ -140,20 +141,22 @@ class _UserLocalPaymentMethodsScreenState
         child: _isLoading
             ? _buildSkeleton(colors)
             : _methods.isEmpty
-                ? _buildEmpty(colors)
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _methods.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _buildTile(_methods[i], colors),
-                  ),
+            ? _buildEmpty(colors)
+            : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _methods.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _buildTile(_methods[i], colors),
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: colors.accent,
         foregroundColor: Colors.black,
         icon: const Icon(Icons.add),
-        label: const Text('Add Method',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Add Method',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         onPressed: () {
           HapticFeedback.selectionClick();
           _showAddSheet(colors);
@@ -184,15 +187,21 @@ class _UserLocalPaymentMethodsScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 120),
-        Icon(Icons.account_balance_wallet_outlined,
-            size: 56, color: colors.textTertiary),
+        Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 56,
+          color: colors.textTertiary,
+        ),
         const SizedBox(height: 16),
         Center(
-          child: Text('No payment methods yet',
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16)),
+          child: Text(
+            'No payment methods yet',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         ),
         const SizedBox(height: 6),
         Center(
@@ -226,33 +235,44 @@ class _UserLocalPaymentMethodsScreenState
           CircleAvatar(
             radius: 22,
             backgroundColor: _typeColor(type, colors).withValues(alpha: 0.15),
-            child: Icon(_typeIcon(type),
-                color: _typeColor(type, colors), size: 22),
+            child: Icon(
+              _typeIcon(type),
+              color: _typeColor(type, colors),
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label.isEmpty ? type : label,
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14)),
+                Text(
+                  label.isEmpty ? type : label,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(number,
-                    style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontFamily: 'monospace')),
+                Text(
+                  number,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
+                ),
                 if ((owner ?? '').isNotEmpty)
-                  Text(owner!,
-                      style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11)),
+                  Text(
+                    owner!,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  ),
                 if ((bank ?? '').isNotEmpty && type == 'Bank Transfer')
-                  Text(bank!,
-                      style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11)),
+                  Text(
+                    bank!,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  ),
               ],
             ),
           ),
@@ -270,20 +290,26 @@ class _UserLocalPaymentMethodsScreenState
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: colors.card,
-        title: Text('Remove method?',
-            style: TextStyle(color: colors.textPrimary)),
-        content: Text('This payment method will no longer appear in withdrawals.',
-            style: TextStyle(color: colors.textSecondary)),
+        title: Text(
+          'Remove method?',
+          style: TextStyle(color: colors.textPrimary),
+        ),
+        content: Text(
+          'This payment method will no longer appear in withdrawals.',
+          style: TextStyle(color: colors.textSecondary),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('CANCEL', style: TextStyle(color: colors.textTertiary))),
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCEL', style: TextStyle(color: colors.textTertiary)),
+          ),
           TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _deleteMethod(id);
-              },
-              child: Text('REMOVE', style: TextStyle(color: colors.danger))),
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteMethod(id);
+            },
+            child: Text('REMOVE', style: TextStyle(color: colors.danger)),
+          ),
         ],
       ),
     );
@@ -328,21 +354,20 @@ class _UserLocalPaymentMethodsScreenState
     final nameCtrl = TextEditingController();
     final bankCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-      builder: (ctx) => StatefulBuilder(
+    // NEW-B: Panel weight. A four-field form whose height varies by type (Bank
+    // Transfer adds a bank-name field) and whose Save row is the whole point.
+    // The hand-rolled `backgroundColor: colors.card` and 22px `shape` are
+    // deleted — the weight owns surface and radius.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (ctx, scrollController) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final bool isBank = selectedType == 'Bank Transfer';
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              top: 18,
+              top: 8,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
             child: Form(
@@ -351,104 +376,121 @@ class _UserLocalPaymentMethodsScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colors.divider,
-                        borderRadius: BorderRadius.circular(4),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Add Payment Method',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Type selector
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _localTypes.map((t) {
+                              final sel = t == selectedType;
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setSheet(() => selectedType = t);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: sel
+                                        ? _typeColor(
+                                            t,
+                                            colors,
+                                          ).withValues(alpha: 0.15)
+                                        : colors.surface,
+                                    border: Border.all(
+                                      color: sel
+                                          ? _typeColor(t, colors)
+                                          : colors.divider,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _typeIcon(t),
+                                        size: 14,
+                                        color: _typeColor(t, colors),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        t,
+                                        style: TextStyle(
+                                          color: colors.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                          _field(
+                            controller: labelCtrl,
+                            label: 'Nickname (e.g. "My MTN")',
+                            colors: colors,
+                            required: true,
+                          ),
+                          const SizedBox(height: 10),
+                          _field(
+                            controller: nameCtrl,
+                            label: 'Account / Holder Name',
+                            colors: colors,
+                            required: true,
+                          ),
+                          const SizedBox(height: 10),
+                          _field(
+                            controller: numberCtrl,
+                            label: isBank ? 'Account Number' : 'Phone Number',
+                            colors: colors,
+                            keyboardType: TextInputType.number,
+                            required: true,
+                          ),
+                          if (isBank) ...[
+                            const SizedBox(height: 10),
+                            _field(
+                              controller: bankCtrl,
+                              label: 'Bank Name (e.g. GCB, Ecobank)',
+                              colors: colors,
+                              required: true,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Text('Add Payment Method',
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  // Type selector
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _localTypes.map((t) {
-                      final sel = t == selectedType;
-                      return GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setSheet(() => selectedType = t);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: sel
-                                ? _typeColor(t, colors).withValues(alpha: 0.15)
-                                : colors.surface,
-                            border: Border.all(
-                                color: sel
-                                    ? _typeColor(t, colors)
-                                    : colors.divider),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_typeIcon(t),
-                                  size: 14, color: _typeColor(t, colors)),
-                              const SizedBox(width: 6),
-                              Text(t,
-                                  style: TextStyle(
-                                      color: colors.textPrimary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  _field(
-                    controller: labelCtrl,
-                    label: 'Nickname (e.g. "My MTN")',
-                    colors: colors,
-                    required: true,
-                  ),
-                  const SizedBox(height: 10),
-                  _field(
-                    controller: nameCtrl,
-                    label: 'Account / Holder Name',
-                    colors: colors,
-                    required: true,
-                  ),
-                  const SizedBox(height: 10),
-                  _field(
-                    controller: numberCtrl,
-                    label: isBank ? 'Account Number' : 'Phone Number',
-                    colors: colors,
-                    keyboardType: TextInputType.number,
-                    required: true,
-                  ),
-                  if (isBank) ...[
-                    const SizedBox(height: 10),
-                    _field(
-                      controller: bankCtrl,
-                      label: 'Bank Name (e.g. GCB, Ecobank)',
-                      colors: colors,
-                      required: true,
-                    ),
-                  ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  // Save pinned (§I.8.3).
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: _isSaving
                         ? null
@@ -468,10 +510,14 @@ class _UserLocalPaymentMethodsScreenState
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.black),
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
                           )
-                        : const Text('SAVE METHOD',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        : const Text(
+                            'SAVE METHOD',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ],
               ),
@@ -494,8 +540,9 @@ class _UserLocalPaymentMethodsScreenState
       keyboardType: keyboardType,
       style: TextStyle(color: colors.textPrimary),
       validator: required
-          ? (v) =>
-              (v == null || v.trim().isEmpty) ? 'This field is required' : null
+          ? (v) => (v == null || v.trim().isEmpty)
+                ? 'This field is required'
+                : null
           : null,
       decoration: InputDecoration(
         labelText: label,

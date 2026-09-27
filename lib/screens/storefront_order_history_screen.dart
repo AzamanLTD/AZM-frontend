@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storefront/providers/storefront_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class StorefrontOrderHistoryScreen extends ConsumerStatefulWidget {
   const StorefrontOrderHistoryScreen({super.key});
@@ -56,9 +57,9 @@ class _StorefrontOrderHistoryScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load orders: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load orders: $e')));
       }
     }
   }
@@ -84,7 +85,10 @@ class _StorefrontOrderHistoryScreenState
             },
             itemBuilder: (ctx) => [
               const PopupMenuItem(value: null, child: Text('All Orders')),
-              const PopupMenuItem(value: 'AWAITING_PAYMENT', child: Text('Awaiting Payment')),
+              const PopupMenuItem(
+                value: 'AWAITING_PAYMENT',
+                child: Text('Awaiting Payment'),
+              ),
               const PopupMenuItem(value: 'PAID', child: Text('Paid')),
               const PopupMenuItem(value: 'FULFILLED', child: Text('Fulfilled')),
               const PopupMenuItem(value: 'DELIVERED', child: Text('Delivered')),
@@ -96,32 +100,33 @@ class _StorefrontOrderHistoryScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _orders.isEmpty
-              ? _buildEmptyState()
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (notif) {
-                    if (notif is ScrollEndNotification &&
-                       notif.metrics.pixels >= notif.metrics.maxScrollExtent - 200) {
-                      _loadMore();
-                    }
-                    return false;
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _orders.length + (_nextCursor != null ? 1 : 0),
-                    itemBuilder: (ctx, i) {
-                      if (i >= _orders.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      return _OrderCard(
-                        order: _orders[i],
-                        onReorder: () => _reorder(_orders[i]),
-                      );
-                    },
-                  ),
-                ),
+          ? _buildEmptyState()
+          : NotificationListener<ScrollNotification>(
+              onNotification: (notif) {
+                if (notif is ScrollEndNotification &&
+                    notif.metrics.pixels >=
+                        notif.metrics.maxScrollExtent - 200) {
+                  _loadMore();
+                }
+                return false;
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _orders.length + (_nextCursor != null ? 1 : 0),
+                itemBuilder: (ctx, i) {
+                  if (i >= _orders.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return _OrderCard(
+                    order: _orders[i],
+                    onReorder: () => _reorder(_orders[i]),
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -130,8 +135,11 @@ class _StorefrontOrderHistoryScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.shopping_bag_outlined, size: 64,
-              color: Theme.of(context).colorScheme.outline),
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.outline,
+          ),
           const SizedBox(height: 16),
           Text(
             _statusFilter != null
@@ -143,8 +151,8 @@ class _StorefrontOrderHistoryScreenState
           Text(
             'Orders you place from storefronts will appear here.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
         ],
       ),
@@ -154,7 +162,11 @@ class _StorefrontOrderHistoryScreenState
   void _reorder(Map<String, dynamic> order) {
     final bizId = order['businessProfile']?['id'];
     if (bizId != null) {
-      Navigator.pushNamed(context, '/storefront', arguments: {'businessProfileId': bizId});
+      Navigator.pushNamed(
+        context,
+        '/storefront',
+        arguments: {'businessProfileId': bizId},
+      );
     }
   }
 }
@@ -191,8 +203,8 @@ class _OrderCard extends StatelessWidget {
                   if (business?['logoUrl'] != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: AzamanNetworkImage(imageUrl: 
-                        business!['logoUrl'],
+                      child: AzamanNetworkImage(
+                        imageUrl: business!['logoUrl'],
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
@@ -208,16 +220,16 @@ class _OrderCard extends StatelessWidget {
                       children: [
                         Text(
                           business?['businessName'] ?? 'Unknown Business',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (createdAt != null)
                           Text(
                             _formatDate(DateTime.tryParse(createdAt)),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   color: Theme.of(context).colorScheme.outline,
                                 ),
                           ),
@@ -233,12 +245,13 @@ class _OrderCard extends StatelessWidget {
                   if (product?['imageUrl'] != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: AzamanNetworkImage(imageUrl: 
-                        product!['imageUrl'],
+                      child: AzamanNetworkImage(
+                        imageUrl: product!['imageUrl'],
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => _productPlaceholder(context),
+                        errorWidget: (_, __, ___) =>
+                            _productPlaceholder(context),
                       ),
                     )
                   else
@@ -250,15 +263,15 @@ class _OrderCard extends StatelessWidget {
                       children: [
                         Text(
                           product?['name'] ?? order['title'] ?? 'Order',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w500),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           '$amount USDC',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -269,9 +282,9 @@ class _OrderCard extends StatelessWidget {
                   Text(
                     orderRef,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      fontFamily: 'monospace',
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -283,30 +296,45 @@ class _OrderCard extends StatelessWidget {
   }
 
   Widget _logoPlaceholder(BuildContext context) => Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.store, size: 20, color: Theme.of(context).colorScheme.outline),
-      );
+    width: 40,
+    height: 40,
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(
+      Icons.store,
+      size: 20,
+      color: Theme.of(context).colorScheme.outline,
+    ),
+  );
 
   Widget _productPlaceholder(BuildContext context) => Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(Icons.inventory_2_outlined, size: 20, color: Theme.of(context).colorScheme.outline),
-      );
+    width: 48,
+    height: 48,
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Icon(
+      Icons.inventory_2_outlined,
+      size: 20,
+      color: Theme.of(context).colorScheme.outline,
+    ),
+  );
 
   void _showOrderDetail(BuildContext context, Map<String, dynamic> order) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => _OrderDetailSheet(order: order, onReorder: onReorder),
+    // NEW-B: Panel weight. The detail body is a scrolling list and it already
+    // carried its own DraggableScrollableSheet(0.7/0.4/0.9) — deleted here,
+    // because two detent systems on one gesture means the inner one wins the
+    // drag and the panel never reaches its extended detent.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _OrderDetailSheet(
+        order: order,
+        onReorder: onReorder,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -374,7 +402,14 @@ class _OrderDetailSheet extends StatelessWidget {
   final Map<String, dynamic> order;
   final VoidCallback onReorder;
 
-  const _OrderDetailSheet({required this.order, required this.onReorder});
+  /// The Panel's own scroll controller.
+  final ScrollController scrollController;
+
+  const _OrderDetailSheet({
+    required this.order,
+    required this.onReorder,
+    required this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -385,55 +420,46 @@ class _OrderDetailSheet extends StatelessWidget {
     final orderRef = order['orderRef'] as String? ?? '';
     final customerNotes = order['customerNotes'] as String?;
     final deliveryNotes = order['deliveryNotes'] as String?;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (ctx, scrollController) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: ListView(
-          controller: scrollController,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    // NEW-B: the weight owns surface, radius, safe-area and the handle, so
+    // the old Container and the inline handle bar are deleted.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: ListView(
+        controller: scrollController,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Order Details',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
+              _StatusChip(status: status),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _section(context, 'Order Reference', orderRef),
+          _section(context, 'Business', business?['businessName'] ?? '—'),
+          _section(
+            context,
+            'Product',
+            product?['name'] ?? order['title'] ?? '—',
+          ),
+          _section(context, 'Amount', '$amount USDC'),
+          if (customerNotes != null && customerNotes.isNotEmpty)
+            _section(context, 'Customer Notes', customerNotes),
+          if (deliveryNotes != null && deliveryNotes.isNotEmpty)
+            _section(context, 'Delivery Notes', deliveryNotes),
+          if (business?['contactPhone'] != null)
+            _section(context, 'Contact', business!['contactPhone']),
+          const SizedBox(height: 24),
+          if (status == 'DELIVERED' || status == 'FULFILLED')
+            FilledButton.icon(
+              onPressed: onReorder,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reorder'),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Order Details', style: Theme.of(context).textTheme.titleLarge),
-                _StatusChip(status: status),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _section(context, 'Order Reference', orderRef),
-            _section(context, 'Business', business?['businessName'] ?? '—'),
-            _section(context, 'Product', product?['name'] ?? order['title'] ?? '—'),
-            _section(context, 'Amount', '$amount USDC'),
-            if (customerNotes != null && customerNotes.isNotEmpty)
-              _section(context, 'Customer Notes', customerNotes),
-            if (deliveryNotes != null && deliveryNotes.isNotEmpty)
-              _section(context, 'Delivery Notes', deliveryNotes),
-            if (business?['contactPhone'] != null)
-              _section(context, 'Contact', business!['contactPhone']),
-            const SizedBox(height: 24),
-            if (status == 'DELIVERED' || status == 'FULFILLED')
-              FilledButton.icon(
-                onPressed: onReorder,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reorder'),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -444,11 +470,13 @@ class _OrderDetailSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                    fontWeight: FontWeight.w500,
-                  )),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(value, style: Theme.of(context).textTheme.bodyLarge),
         ],

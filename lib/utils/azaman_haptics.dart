@@ -35,6 +35,7 @@
 // =============================================================================
 
 import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 
 class AzamanHaptics {
   const AzamanHaptics._();
@@ -70,6 +71,121 @@ class AzamanHaptics {
   static Future<void> warn() async {
     await HapticFeedback.heavyImpact();
     await Future<void>.delayed(const Duration(milliseconds: 140));
+    await HapticFeedback.heavyImpact();
+  }
+
+  // ── SELECTION & THRESHOLD ─────────────────────────────────────────────
+
+  /// Alias of [toggle]. Preferred name in new code.
+  static Future<void> selection() => toggle();
+
+  /// Alias of [nav]. Preferred name in new code — the bottom nav and the
+  /// radial launcher (TASK-018) both speak in "navigation taps".
+  static Future<void> navigation() => nav();
+
+  /// A gesture crossed its commit point mid-drag — pull-to-refresh armed,
+  /// swipe-to-reply armed, drag-to-dismiss armed.
+  ///
+  /// IMPORTANT: fire this EXACTLY ONCE per crossing, not on every frame past
+  /// the threshold. A repeating threshold tick reads as a broken sensor.
+  static Future<void> threshold() => HapticFeedback.mediumImpact();
+
+  // ── OUTCOMES ──────────────────────────────────────────────────────────
+
+  /// A financial value landed — payment sent, deposit cleared, escrow released,
+  /// trade settled.
+  ///
+  /// The "thunk-tick": a heavy beat immediately followed by a lighter one. It
+  /// reads as weight landing and then settling, which is exactly the mental
+  /// model of money arriving. Falls back to a single heavy beat on devices with
+  /// no vibrator.
+  static Future<void> moneyLanded() async {
+    try {
+      final hasVibrator = (await Vibration.hasVibrator()) == true;
+      if (hasVibrator) {
+        await Vibration.vibrate(
+          pattern: <int>[0, 42, 62, 22],
+          intensities: <int>[0, 200, 0, 96],
+        );
+        return;
+      }
+    } catch (_) {
+      // Feature detection failed (platform channel unavailable) — fall through
+      // to the HapticFeedback path rather than surfacing an error.
+    }
+    await HapticFeedback.heavyImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 62));
+    await HapticFeedback.lightImpact();
+  }
+
+  /// An item was added to a tray — two quick beats that read as a "clack".
+  /// Used by retail `liftIntoTray` and restaurant `paperRip` commits.
+  static Future<void> addToCart() async {
+    await HapticFeedback.mediumImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    await HapticFeedback.lightImpact();
+  }
+
+  /// Selecting the [index]-th seat (0-based). Intensity RISES with the index so
+  /// that selecting a row of seats feels like an ascending scale — the user
+  /// physically feels how many they have chosen.
+  ///
+  /// Index is clamped to 0..3; beyond the fourth seat the sensation stays at
+  /// heavy so the pattern does not become a machine-gun.
+  static Future<void> seatSelected(int index) {
+    switch (index.clamp(0, 3)) {
+      case 0:
+        return HapticFeedback.selectionClick();
+      case 1:
+        return HapticFeedback.lightImpact();
+      case 2:
+        return HapticFeedback.mediumImpact();
+      default:
+        return HapticFeedback.heavyImpact();
+    }
+  }
+
+  /// A high-value moment — vault goal hit, AZM reward received, susu cycle
+  /// completed. Two ascending beats over ~120ms.
+  ///
+  /// Used sparingly by design: if this fires more than a few times a week the
+  /// user stops noticing it, and it stops being a reward.
+  static Future<void> celebration() async {
+    try {
+      final hasVibrator = (await Vibration.hasVibrator()) == true;
+      if (hasVibrator) {
+        await Vibration.vibrate(
+          pattern: <int>[0, 30, 90, 60],
+          intensities: <int>[0, 128, 0, 220],
+        );
+        return;
+      }
+    } catch (_) {
+      // Fall through.
+    }
+    await HapticFeedback.mediumImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await HapticFeedback.lightImpact();
+  }
+
+  /// Kept for backward compatibility with the retired duplicate vocabulary.
+  /// Prefer [celebration] in new code.
+  static Future<void> celebrationPulse() => celebration();
+
+  /// Kept for backward compatibility. Prefer [moneyLanded] in new code.
+  static Future<void> moneyMoved() => moneyLanded();
+
+  // ── FAILURE ───────────────────────────────────────────────────────────
+
+  /// Alias of [warn]. Preferred name in new code.
+  static Future<void> warning() => warn();
+
+  /// A failure the user must notice — a decline, a validation failure, a
+  /// failed network commit. Same shape as [warn] but slightly faster, so it
+  /// reads as "rejected" rather than as "are you sure?".
+  static Future<void> error() async {
+    await HapticFeedback.heavyImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 90));
     await HapticFeedback.heavyImpact();
   }
 }

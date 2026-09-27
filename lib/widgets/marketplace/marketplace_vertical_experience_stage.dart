@@ -1,14 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/theme/az_radius.dart';
+import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/marketplace/marketplace_dossier_sheet.dart';
+import 'package:azaman/widgets/marketplace/marketplace_experience_scope.dart';
 import 'package:azaman/widgets/marketplace/restaurant_menu_journey_adapter.dart';
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
@@ -60,7 +69,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
             : _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: blueprint);
         break;
       case 'SHOP_FLOOR':
-        stage = _retailStage(blueprint);
+        stage = _retailStage(context, blueprint);
         break;
       case 'BUILDING_WALK':
         stage = _hotelStage(blueprint);
@@ -79,18 +88,30 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         );
         break;
       default:
-        stage = _legacyStage(profile);
+        stage = _legacyStage(context, profile);
         break;
     }
-    return AnimatedSwitcher(duration: blueprint.motionDuration(context), switchInCurve: MotionTokens.enter, switchOutCurve: MotionTokens.exit, child: KeyedSubtree(key: ValueKey('${blueprint.preset}:${blueprint.motionTempo}'), child: stage));
+    return MarketplaceExperienceScope(
+      blueprint: blueprint,
+      colors: colors,
+      child: AnimatedSwitcher(
+        duration: MarketplaceTempo.standard(context, blueprint.motionTempo),
+        switchInCurve: MarketplaceTempo.enterCurve(blueprint.motionTempo),
+        switchOutCurve: MarketplaceTempo.exitCurve(blueprint.motionTempo),
+        child: KeyedSubtree(
+          key: ValueKey('${blueprint.preset}:${blueprint.motionTempo}'),
+          child: stage,
+        ),
+      ),
+    );
   }
 
-  Widget _legacyStage(MarketplaceExperienceProfile profile) {
+  Widget _legacyStage(BuildContext context, MarketplaceExperienceProfile profile) {
     if (profile.supports(MarketplaceExperienceCapability.menuFlipbook)) {
       if (_hasMenu && (onAddToTray != null || onOrderProduct != null)) return _restaurantStage(_blueprint);
       if (profile.supports(MarketplaceExperienceCapability.reservation)) return _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: _blueprint);
     }
-    if (profile.supports(MarketplaceExperienceCapability.retailCollection)) return _retailStage(_blueprint);
+    if (profile.supports(MarketplaceExperienceCapability.retailCollection)) return _retailStage(context, _blueprint);
     if (profile.supports(MarketplaceExperienceCapability.hotelFloorMap)) return _hotelStage(_blueprint);
     if (profile.supports(MarketplaceExperienceCapability.transitSeatMap)) return _transitStage(_blueprint);
     return ServiceExperienceStage(
@@ -105,7 +126,49 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
 
   Widget _stageHeader(MarketplaceExperienceBlueprint blueprint, {required String title}) {
     if (!blueprint.showNavigationContext) return const SizedBox.shrink();
-    return Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 10), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 2), Text(blueprint.navigationLabel, style: TextStyle(color: colors.textTertiary, fontSize: 11))])), Text(blueprint.detailLabel, style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600))]));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: colors.accentSurface,
+              borderRadius: BorderRadius.circular(AzRadius.md),
+            ),
+            child: Icon(_navigationGlyph(blueprint.navigationMode), size: 18, color: colors.accent),
+          ),
+          const SizedBox(width: AzSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AzText.titleL.copyWith(color: colors.textPrimary)),
+                const SizedBox(height: AzSpace.xxs),
+                Text(blueprint.navigationLabel, style: AzText.caption.copyWith(color: colors.textTertiary)),
+              ],
+            ),
+          ),
+          Text(blueprint.detailLabel, style: AzText.caption.copyWith(color: colors.textTertiary)),
+        ],
+      ),
+    );
+  }
+
+  /// Per-navigation-mode glyph. Names verified in-repo (see the icon table in
+  /// TASK-008 Step 5b); all four exist in `hugeicons_pro`.
+  IconData _navigationGlyph(MarketplaceNavigationMode mode) {
+    switch (mode) {
+      case MarketplaceNavigationMode.contextual:
+        return HugeIconsSolid.flash;
+      case MarketplaceNavigationMode.floorTraverse:
+        return HugeIconsSolid.bank;
+      case MarketplaceNavigationMode.aisleTraverse:
+        return HugeIconsSolid.store01;
+      case MarketplaceNavigationMode.journeyTimeline:
+        return HugeIconsSolid.arrowDataTransferHorizontal;
+    }
   }
 
   Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
@@ -141,14 +204,112 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     );
   }
 
-  Widget _retailStage(MarketplaceExperienceBlueprint blueprint) {
+  Widget _retailStage(BuildContext context, MarketplaceExperienceBlueprint blueprint) {
     if (business.products.isEmpty) return _bookCtaCard(icon: Icons.shopping_bag_outlined, title: 'Shop the Catalog', subtitle: 'Browse this business\'s full catalog and check out with escrow-backed payment protection.', buttonLabel: 'Shop Now', onTap: onOpenCatalogView, blueprint: blueprint);
     final products = business.products.take(6).map((product) => RetailProduct(id: product.id, name: product.name, description: product.description, price: product.priceUsdc, currency: 'USDC', imageUrls: product.imageUrls, tags: product.tags, available: product.isActive)).toList(growable: false);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _stageHeader(blueprint, title: 'Bestsellers'),
-      RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Popular items from this store', products: products), onProductTap: (_) => onOpenCatalogView?.call()),
+      RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Popular items from this store', products: products), onProductTap: (product) => _openRetailDetail(context, blueprint, product)),
       Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: onOpenCatalogView, icon: Icon(blueprint.commitStyle == MarketplaceCommitStyle.liftIntoTray ? Icons.shopping_bag_outlined : Icons.arrow_forward_outlined), label: Text(blueprint.persistentTray ? 'Open full catalog' : 'Continue to catalog')))),
     ]);
+  }
+
+  /// `morph` keeps the shipped behaviour (tap -> full catalog). Every other
+  /// presentation opens the shared dossier sheet, so a tap on a product now
+  /// actually shows the product.
+  void _openRetailDetail(BuildContext context, MarketplaceExperienceBlueprint blueprint, RetailProduct product) {
+    AzamanHaptics.selection();
+    if (blueprint.detailPresentation == MarketplaceDetailPresentation.morph) {
+      onOpenCatalogView?.call();
+      return;
+    }
+    showMarketplaceDossierSheet(
+      context,
+      presentation: blueprint.detailPresentation,
+      title: product.name,
+      colors: colors,
+      tempo: blueprint.motionTempo,
+      content: (_) => _productDossierContent(product),
+      footer: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: onOpenCatalogView == null
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  onOpenCatalogView!();
+                },
+          icon: const Icon(Icons.arrow_forward_outlined),
+          label: const Text('Open full catalog'),
+        ),
+      ),
+    );
+  }
+
+  /// The minimal `productDossier` body. TASK-012 upgrades this with swatch
+  /// variants and a quantity row; the scaffold itself does not change.
+  Widget _productDossierContent(RetailProduct product) {
+    final price = product.price;
+    final isGhs = (product.currency ?? '').toUpperCase() == 'GHS';
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (product.imageUrls.isNotEmpty) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AzRadius.lg),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: AzamanNetworkImage(imageUrl: product.imageUrls.first, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(height: AzSpace.lg),
+        ],
+        if (price != null) ...[
+          Text(
+            isGhs ? AzMoney.ghs(price) : AzMoney.usdc(price),
+            style: AzText.money(colors.textPrimary, size: AzText.sizeTitleXl),
+          ),
+          const SizedBox(height: AzSpace.sm),
+        ],
+        if (product.description != null && product.description!.isNotEmpty)
+          Text(product.description!, style: AzText.body.copyWith(color: colors.textSecondary)),
+        const SizedBox(height: AzSpace.md),
+        Wrap(
+          spacing: AzSpace.xs,
+          runSpacing: AzSpace.xs,
+          children: [
+            _statusPill(product.available),
+            for (final tag in product.tags.take(3)) _tagPill(tag),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _statusPill(bool available) {
+    return Container(
+      padding: AzSpace.tag,
+      decoration: BoxDecoration(
+        color: available ? colors.accentSurface : colors.softSurface,
+        borderRadius: AzRadius.brPill,
+      ),
+      child: Text(
+        available ? 'In stock' : 'Unavailable',
+        style: AzText.label.copyWith(color: available ? colors.accent : colors.textTertiary),
+      ),
+    );
+  }
+
+  Widget _tagPill(String tag) {
+    return Container(
+      padding: AzSpace.tag,
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: AzRadius.brPill,
+      ),
+      child: Text(tag, style: AzText.caption.copyWith(color: colors.textSecondary)),
+    );
   }
 
   Widget _hotelStage(MarketplaceExperienceBlueprint blueprint) {

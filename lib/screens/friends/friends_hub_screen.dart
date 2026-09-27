@@ -27,6 +27,7 @@ import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
   const FriendsHubScreen({super.key});
@@ -74,18 +75,27 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       MaterialPageRoute(
         builder: (_) => StoryCameraScreen(
           onCaptured: (File mediaFile, bool isVideo, StoryFilter filter) {
-            Navigator.pushReplacement(context, MaterialPageRoute(
-              builder: (_) => StoryEditorScreen(
-                mediaFile: mediaFile,
-                isVideo: isVideo,
-                initialFilter: filter,
-                onPublish: (File file, bool isVid) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                    builder: (_) => StoryCreationScreen(mediaFile: file, isVideo: isVid),
-                  ));
-                },
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StoryEditorScreen(
+                  mediaFile: mediaFile,
+                  isVideo: isVideo,
+                  initialFilter: filter,
+                  onPublish: (File file, bool isVid) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StoryCreationScreen(
+                          mediaFile: file,
+                          isVideo: isVid,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ));
+            );
           },
         ),
       ),
@@ -106,96 +116,85 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     if (!mounted) return;
 
     final colors = ref.read(themeProvider).colors;
-    final maxHeight = MediaQuery.of(context).size.height * 0.72;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
+    // NEW-B: Panel weight. The request list is unbounded — a user can have any
+    // number of pending requests — and the old code faked a maxHeight of 0.72
+    // rather than using a detent. The Panel supplies that, and the list scrolls
+    // through the sheet's own controller.
+    await AzamanSheet.showPanel<void>(
+      context,
+      builder: (sheetContext, scrollController) {
         return Consumer(
           builder: (context, ref, _) {
             final provider = ref.watch(friendProvider);
             final bottomInset = MediaQuery.of(sheetContext).padding.bottom;
-            return Container(
-              constraints: BoxConstraints(maxHeight: maxHeight + bottomInset),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(28),
-                ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(18, 10, 18, bottomInset),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: colors.textTertiary.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
+            // NEW-B: the weight owns surface, radius, safe-area and the
+            // handle, so the old Container + handle bar are deleted.
+            return Padding(
+              padding: EdgeInsets.fromLTRB(18, 8, 18, bottomInset),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Requests',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Text(
-                          'Requests',
-                          style: TextStyle(
+                      const SizedBox(width: 10),
+                      if (provider.pendingRequests.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.softSurface,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${provider.pendingRequests.length}',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(sheetContext),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: colors.softSurface,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            HugeIconsSolid.cancel01,
                             color: colors.textPrimary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
+                            size: 18,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        if (provider.pendingRequests.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.softSurface,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '${provider.pendingRequests.length}',
-                              style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(sheetContext),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: colors.softSurface,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(
-                              HugeIconsSolid.cancel01,
-                              color: colors.textPrimary,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: _buildRequestsSheetBody(
+                      colors,
+                      provider,
+                      scrollController,
                     ),
-                    const SizedBox(height: 14),
-                    Expanded(child: _buildRequestsSheetBody(colors, provider)),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -208,31 +207,21 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     final colors = ref.read(themeProvider).colors;
     final messageController = TextEditingController();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
+    // NEW-B: Panel weight. A keyboard-bound form with a free-text message —
+    // unbounded height, and a Send commit that must survive the keyboard
+    // opening. The weight owns surface, radius, safe-area and the handle.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (ctx, scrollController) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.textTertiary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 24),
                 Container(
                   width: 56,
                   height: 56,
@@ -294,7 +283,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
-                      counterStyle: TextStyle(color: colors.textTertiary, fontSize: 11),
+                      counterStyle: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 ),
@@ -303,16 +295,20 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   width: double.infinity,
                   child: GestureDetector(
                     onTap: () async {
-                      final success = await ref.read(friendProvider).sendRequest(
-                        user['id'],
-                        messageController.text.trim(),
-                      );
+                      final success = await ref
+                          .read(friendProvider)
+                          .sendRequest(
+                            user['id'],
+                            messageController.text.trim(),
+                          );
                       if (!ctx.mounted || !mounted) return;
                       Navigator.pop(ctx);
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Friend request sent to ${user['username']}!'),
+                            content: Text(
+                              'Friend request sent to ${user['username']}!',
+                            ),
                           ),
                         );
                       }
@@ -365,158 +361,280 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      'Inbox',
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 28,
-                        letterSpacing: -0.5,
-                      ),
-                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
+                    child:
+                        Text(
+                              'Inbox',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 28,
+                                letterSpacing: -0.5,
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 300.ms)
+                            .slideY(begin: 0.1, end: 0),
                   ),
                   ScaleTap(
-                    onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: colors.softSurface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(Icons.contacts_rounded, color: colors.textPrimary, size: 18),
-                    ),
-                  ).animate().fadeIn(delay: 60.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
-                  ScaleTap(
-                    onTap: _openRequestsSheet,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
+                        onTap: () => pushWithVerticalTransition(
+                          context,
+                          const ContactsScreen(),
+                        ),
+                        child: Container(
                           width: 42,
                           height: 42,
+                          margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             color: colors.softSurface,
                             shape: BoxShape.circle,
-                            border: Border.all(color: colors.textTertiary.withValues(alpha: 0.08), width: 0.5),
+                            border: Border.all(
+                              color: colors.textTertiary.withValues(
+                                alpha: 0.08,
+                              ),
+                              width: 0.5,
+                            ),
                           ),
                           alignment: Alignment.center,
-                          child: Icon(Icons.person_add_rounded, color: colors.textPrimary, size: 20),
+                          child: Icon(
+                            Icons.contacts_rounded,
+                            color: colors.textPrimary,
+                            size: 18,
+                          ),
                         ),
-                        if (provider.pendingRequests.isNotEmpty)
-                          Positioned(top: -2, right: -2, child: ChatUnreadBadge(count: provider.pendingRequests.length, fontSize: 10)),
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 120.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
+                      )
+                      .animate()
+                      .fadeIn(delay: 60.ms, duration: 300.ms)
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1, 1),
+                      ),
+                  ScaleTap(
+                        onTap: _openRequestsSheet,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: colors.softSurface,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: colors.textTertiary.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  width: 0.5,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.person_add_rounded,
+                                color: colors.textPrimary,
+                                size: 20,
+                              ),
+                            ),
+                            if (provider.pendingRequests.isNotEmpty)
+                              Positioned(
+                                top: -2,
+                                right: -2,
+                                child: ChatUnreadBadge(
+                                  count: provider.pendingRequests.length,
+                                  fontSize: 10,
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(delay: 120.ms, duration: 300.ms)
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1, 1),
+                      ),
                   const SizedBox(width: 8),
                   ScaleTap(
-                    onTap: _toggleSearch,
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: _isSearching ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _isSearching ? colors.accent.withValues(alpha: 0.2) : colors.textTertiary.withValues(alpha: 0.08),
-                          width: 0.5),
+                        onTap: _toggleSearch,
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: _isSearching
+                                ? colors.accent.withValues(alpha: 0.12)
+                                : colors.softSurface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _isSearching
+                                  ? colors.accent.withValues(alpha: 0.2)
+                                  : colors.textTertiary.withValues(alpha: 0.08),
+                              width: 0.5,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            _isSearching
+                                ? HugeIconsSolid.cancel01
+                                : Icons.search_rounded,
+                            color: _isSearching
+                                ? colors.accent
+                                : colors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(delay: 180.ms, duration: 300.ms)
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1, 1),
                       ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        _isSearching ? HugeIconsSolid.cancel01 : Icons.search_rounded,
-                        color: _isSearching ? colors.accent : colors.textPrimary,
-                        size: 20),
-                    ),
-                  ).animate().fadeIn(delay: 180.ms, duration: 300.ms).scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                 ],
               ),
             ),
 
             if (!_isSearching) ...[
               const SizedBox(height: 12),
-              Consumer(builder: (context, ref, _) {
-                final feed = ref.watch(storyFeedProvider);
-                final auth = ref.watch(authProvider);
-                final myAvatar = auth.user?.profilePictureUrl;
-                
-                Widget buildMyStatus() {
-                  return GestureDetector(
-                    onTap: _pickAndCreateStory,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: Column(children: [
-                        Stack(
-                          alignment: Alignment.bottomRight,
+              Consumer(
+                builder: (context, ref, _) {
+                  final feed = ref.watch(storyFeedProvider);
+                  final auth = ref.watch(authProvider);
+                  final myAvatar = auth.user?.profilePictureUrl;
+
+                  Widget buildMyStatus() {
+                    return GestureDetector(
+                      onTap: _pickAndCreateStory,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: Column(
                           children: [
-                            StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: colors.accent,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: colors.surface, width: 2),
+                            Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                StoryRing(
+                                  avatarUrl: myAvatar,
+                                  hasUnseenStory: false,
+                                  isBoosted: false,
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: colors.accent,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: colors.surface,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.add,
+                                    size: 16,
+                                    color: colors.isDark
+                                        ? Colors.black
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              width: 64,
+                              child: Text(
+                                'My Status',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 11,
+                                ),
                               ),
-                              child: Icon(Icons.add, size: 16, color: colors.isDark ? Colors.black : Colors.white),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        SizedBox(width: 64, child: Text('My Status', maxLines: 1,
-                          overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                          style: TextStyle(color: colors.textSecondary, fontSize: 11))),
-                      ]),
+                      ),
+                    );
+                  }
+
+                  return feed.when(
+                    data: (groups) => SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: groups.length + 1,
+                        itemBuilder: (_, i) {
+                          if (i == 0) {
+                            return buildMyStatus()
+                                .animate()
+                                .fadeIn(duration: 250.ms)
+                                .slideX(begin: -0.15, end: 0);
+                          }
+                          final g = groups[i - 1];
+                          return GestureDetector(
+                                onTap: () => StoryViewerScreen.open(
+                                  context,
+                                  groups: groups,
+                                  initialGroupIndex: i - 1,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 14),
+                                  child: Column(
+                                    children: [
+                                      StoryRing(
+                                        avatarUrl: g.authorAvatarUrl,
+                                        hasUnseenStory: g.hasUnseen,
+                                        isBoosted: g.isBoosted,
+                                        storyCount: g.stories.length,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      SizedBox(
+                                        width: 64,
+                                        child: Text(
+                                          g.authorUsername,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: colors.textSecondary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .animate()
+                              .fadeIn(
+                                delay: Duration(milliseconds: 80 * i),
+                                duration: 300.ms,
+                              )
+                              .slideX(
+                                begin: -0.1,
+                                end: 0,
+                                delay: Duration(milliseconds: 80 * i),
+                              );
+                        },
+                      ),
+                    ),
+                    loading: () => SizedBox(
+                      height: 96,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [buildMyStatus()],
+                      ),
+                    ),
+                    error: (_, __) => SizedBox(
+                      height: 96,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [buildMyStatus()],
+                      ),
                     ),
                   );
-                }
-
-                return feed.when(
-                  data: (groups) => SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: groups.length + 1,
-                      itemBuilder: (_, i) {
-                        if (i == 0) {
-                          return buildMyStatus().animate().fadeIn(duration: 250.ms).slideX(begin: -0.15, end: 0);
-                        }
-                        final g = groups[i - 1];
-                        return GestureDetector(
-                          onTap: () => StoryViewerScreen.open(context, groups: groups, initialGroupIndex: i - 1),
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: Column(children: [
-                              StoryRing(avatarUrl: g.authorAvatarUrl, hasUnseenStory: g.hasUnseen, isBoosted: g.isBoosted, storyCount: g.stories.length),
-                              const SizedBox(height: 6),
-                              SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
-                                overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500))),
-                            ]),
-                          ),
-                        ).animate().fadeIn(delay: Duration(milliseconds: 80 * i), duration: 300.ms).slideX(begin: -0.1, end: 0, delay: Duration(milliseconds: 80 * i));
-                      },
-                    ),
-                  ),
-                  loading: () => SizedBox(
-                    height: 96,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      children: [buildMyStatus()],
-                    ),
-                  ),
-                  error: (_, __) => SizedBox(
-                    height: 96,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      children: [buildMyStatus()],
-                    ),
-                  ),
-                );
-              }),
+                },
+              ),
             ],
 
             if (_isSearching) ...[
@@ -531,7 +649,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Row(
                     children: [
-                      Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 18),
+                      Icon(
+                        HugeIconsSolid.search01,
+                        color: colors.textTertiary,
+                        size: 18,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
@@ -553,7 +675,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -588,7 +712,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsSolid.userSearch01, size: 44, color: colors.textTertiary),
+            Icon(
+              HugeIconsSolid.userSearch01,
+              size: 44,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 14),
             Text(
               'Search by username or ID',
@@ -643,9 +771,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
           child: Row(
             children: [
               Container(
@@ -693,7 +819,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
               ),
               if (isFriend)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -709,7 +838,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 )
               else if (requestSent)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.softSurface,
                     borderRadius: BorderRadius.circular(20),
@@ -727,7 +859,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 GestureDetector(
                   onTap: () => _showAddFriendDialog(user),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.accent,
                       borderRadius: BorderRadius.circular(20),
@@ -764,32 +899,71 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               PremiumGlassContainer(
-                blur: 20,
-                opacity: 0.05,
-                borderRadius: 60,
-                padding: const EdgeInsets.all(28),
-                child: Icon(HugeIconsStroke.userGroup, color: colors.accent, size: 56),
-              ).animate(onPlay: (c) => c.repeat(reverse: true))
-                .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 2000.ms, curve: Curves.easeInOut),
+                    blur: 20,
+                    opacity: 0.05,
+                    borderRadius: 60,
+                    padding: const EdgeInsets.all(28),
+                    child: Icon(
+                      HugeIconsStroke.userGroup,
+                      color: colors.accent,
+                      size: 56,
+                    ),
+                  )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scale(
+                    begin: const Offset(1, 1),
+                    end: const Offset(1.05, 1.05),
+                    duration: 2000.ms,
+                    curve: Curves.easeInOut,
+                  ),
               const SizedBox(height: 28),
-              Text('Your inbox is empty',
-                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.4))
-                .animate().fadeIn(delay: 200.ms, duration: 400.ms),
+              Text(
+                'Your inbox is empty',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  letterSpacing: -0.4,
+                ),
+              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
               const SizedBox(height: 10),
-              Text('Add friends by their Azaman ID to start chatting.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center)
-                .animate().fadeIn(delay: 300.ms, duration: 400.ms),
+              Text(
+                'Add friends by their Azaman ID to start chatting.',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
               const SizedBox(height: 24),
               GestureDetector(
-                onTap: () => pushWithVerticalTransition(context, const ContactsScreen()),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(24)),
-                  child: Text('Find Friends',
-                    style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-                ),
-              ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
+                    onTap: () => pushWithVerticalTransition(
+                      context,
+                      const ContactsScreen(),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Text(
+                        'Find Friends',
+                        style: TextStyle(
+                          color: colors.isDark ? Colors.black : Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .animate()
+                  .fadeIn(delay: 400.ms, duration: 400.ms)
+                  .slideY(begin: 0.1, end: 0),
             ],
           ),
         ),
@@ -812,17 +986,24 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           // labelled sections (GROUPS header, then FRIENDS header) — mixed
           // now into a single list sorted by most-recent activity, with a
           // faint hairline between rows instead of category chrome.
-          final entries = <_ChatListEntry>[
-            for (final g in groups)
-              _ChatListEntry(sortTime: g.updatedAt, builder: () => _GroupChatTile(group: g, colors: colors)),
-            for (final f in provider.friends)
-              _ChatListEntry(sortTime: _friendSortTime(f), builder: () => _buildFriendTile(f, colors)),
-          ]..sort((a, b) {
-              if (a.sortTime == null && b.sortTime == null) return 0;
-              if (a.sortTime == null) return 1;
-              if (b.sortTime == null) return -1;
-              return b.sortTime!.compareTo(a.sortTime!);
-            });
+          final entries =
+              <_ChatListEntry>[
+                for (final g in groups)
+                  _ChatListEntry(
+                    sortTime: g.updatedAt,
+                    builder: () => _GroupChatTile(group: g, colors: colors),
+                  ),
+                for (final f in provider.friends)
+                  _ChatListEntry(
+                    sortTime: _friendSortTime(f),
+                    builder: () => _buildFriendTile(f, colors),
+                  ),
+              ]..sort((a, b) {
+                if (a.sortTime == null && b.sortTime == null) return 0;
+                if (a.sortTime == null) return 1;
+                if (b.sortTime == null) return -1;
+                return b.sortTime!.compareTo(a.sortTime!);
+              });
 
           // FIX (2026-07-08): Stan wants the row content to start at the
           // screen edge, not inset -- removed the outer 20px horizontal
@@ -847,8 +1028,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    (colors.isDark ? Colors.black : Colors.black)
-                        .withValues(alpha: colors.isDark ? 0.35 : 0.07),
+                    (colors.isDark ? Colors.black : Colors.black).withValues(
+                      alpha: colors.isDark ? 0.35 : 0.07,
+                    ),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.5, 1.0],
@@ -874,7 +1056,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     return DateTime.tryParse(raw.toString());
   }
 
-  Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
+  Widget _buildFriendsList(
+    List<Map<String, dynamic>> friends,
+    AzamanColors colors,
+  ) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(
         parent: ClampingScrollPhysics(),
@@ -893,24 +1078,25 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         ? friend['latestMessage'] as Map<String, dynamic>
         : null;
 
-    final username = (friendObj['username'] ??
-            friend['username'] ??
-            friend['friendUsername'] ??
-            'Unknown')
-        .toString();
-    final lastMessage = (latestMessage?['content'] ?? friend['lastMessage'] ?? '')
-        .toString();
+    final username =
+        (friendObj['username'] ??
+                friend['username'] ??
+                friend['friendUsername'] ??
+                'Unknown')
+            .toString();
+    final lastMessage =
+        (latestMessage?['content'] ?? friend['lastMessage'] ?? '').toString();
     final lastTime = _formatRelativeTime(
-        latestMessage?['createdAt'] ?? friend['lastMessageTime']);
+      latestMessage?['createdAt'] ?? friend['lastMessageTime'],
+    );
     final unread = friend['unreadCount'] is int
         ? friend['unreadCount'] as int
         : int.tryParse('${friend['unreadCount']}') ?? 0;
     final currentUsername = ref.watch(authProvider).user?.username ?? '';
-    final bool isMentioned = currentUsername.isNotEmpty &&
-        lastMessage.contains('@$currentUsername');
-    final friendshipId = friend['friendshipId']?.toString() ??
-        friend['id']?.toString() ??
-        '';
+    final bool isMentioned =
+        currentUsername.isNotEmpty && lastMessage.contains('@$currentUsername');
+    final friendshipId =
+        friend['friendshipId']?.toString() ?? friend['id']?.toString() ?? '';
     final friendIdRaw =
         friendObj['id'] ?? friend['friendId'] ?? friend['userId'] ?? 0;
     final friendId = friendIdRaw is int
@@ -974,7 +1160,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.textPrimary,
-                            fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight: hasUnread
+                                ? FontWeight.w800
+                                : FontWeight.w600,
                             fontSize: 15,
                             letterSpacing: -0.2,
                           ),
@@ -982,8 +1170,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       ),
                       if (isVerifiedVendor) ...[
                         const SizedBox(width: 4),
-                        Icon(HugeIconsSolid.checkmarkCircle01,
-                            color: colors.accent, size: 13),
+                        Icon(
+                          HugeIconsSolid.checkmarkCircle01,
+                          color: colors.accent,
+                          size: 13,
+                        ),
                       ],
                     ],
                   ),
@@ -992,7 +1183,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     Row(
                       children: [
                         if (rating != null) ...[
-                          Icon(HugeIconsSolid.star, color: colors.warning, size: 11),
+                          Icon(
+                            HugeIconsSolid.star,
+                            color: colors.warning,
+                            size: 11,
+                          ),
                           const SizedBox(width: 2),
                           Text(
                             rating.toStringAsFixed(1),
@@ -1033,20 +1228,29 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          lastMessage.isNotEmpty ? lastMessage : 'Start chatting...',
+                          lastMessage.isNotEmpty
+                              ? lastMessage
+                              : 'Start chatting...',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: hasUnread ? colors.textSecondary : colors.textTertiary,
+                            color: hasUnread
+                                ? colors.textSecondary
+                                : colors.textTertiary,
                             fontSize: 13,
-                            fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: hasUnread
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
                       if (isMentioned) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.warning,
                             borderRadius: BorderRadius.circular(10),
@@ -1054,7 +1258,9 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                           child: Text(
                             '@',
                             style: TextStyle(
-                              color: colors.isDark ? Colors.black : Colors.white,
+                              color: colors.isDark
+                                  ? Colors.black
+                                  : Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
                             ),
@@ -1073,13 +1279,33 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                 if (hasUnread)
                   ChatUnreadBadge(count: unread)
                 else if (lastTime.isNotEmpty)
-                  Text(lastTime, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+                  Text(
+                    lastTime,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 if (isMentioned && hasUnread) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                    child: Text('@You', style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '@You',
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -1087,13 +1313,14 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           ],
         ),
       ),
-    )
-    .animate()
-    .fadeIn(duration: 250.ms)
-    .slideX(begin: 0.05, end: 0);
+    ).animate().fadeIn(duration: 250.ms).slideX(begin: 0.05, end: 0);
   }
 
-  Widget _buildRequestsSheetBody(AzamanColors colors, FriendProvider provider) {
+  Widget _buildRequestsSheetBody(
+    AzamanColors colors,
+    FriendProvider provider,
+    ScrollController scrollController,
+  ) {
     if (provider.isLoading && provider.pendingRequests.isEmpty) {
       return Center(
         child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2),
@@ -1105,7 +1332,11 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsStroke.userGroup, size: 44, color: colors.textTertiary),
+            Icon(
+              HugeIconsStroke.userGroup,
+              size: 44,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 14),
             Text(
               'No requests',
@@ -1125,6 +1356,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       color: colors.accent,
       backgroundColor: colors.card,
       child: ListView.separated(
+        controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(
           parent: ClampingScrollPhysics(),
         ),
@@ -1139,7 +1371,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     );
   }
 
-  Widget _buildRequestSheetTile(Map<String, dynamic> request, AzamanColors colors) {
+  Widget _buildRequestSheetTile(
+    Map<String, dynamic> request,
+    AzamanColors colors,
+  ) {
     final requester = request['requester'] ?? request['sender'] ?? {};
     final username = requester['username'] ?? request['username'] ?? 'Unknown';
     final message = request['message'] ?? '';
@@ -1261,10 +1496,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     decoration: BoxDecoration(
                       color: colors.card,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: colors.divider,
-                        width: 1,
-                      ),
+                      border: Border.all(color: colors.divider, width: 1),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -1326,26 +1558,82 @@ class _GroupChatTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-        child: Row(children: [
-          _GroupBubbleAvatar(group: group, colors: colors),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Expanded(child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
-              if (timeStr.isNotEmpty) Text(timeStr, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
-              if (group.isSusuEnabled) ...[
-                const SizedBox(width: 6),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                  child: Text('SUSU', style: TextStyle(color: colors.warning, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
-              ],
-            ]),
-            const SizedBox(height: 2),
-            Text('${group.members.length} members', style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
-          ])),
-          Icon(HugeIconsSolid.arrowRight01, color: colors.textTertiary, size: 16),
-        ]),
+        child: Row(
+          children: [
+            _GroupBubbleAvatar(group: group, colors: colors),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          group.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      if (timeStr.isNotEmpty)
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      if (group.isSusuEnabled) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.warning.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'SUSU',
+                            style: TextStyle(
+                              color: colors.warning,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${group.members.length} members',
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              HugeIconsSolid.arrowRight01,
+              color: colors.textTertiary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     ).animate().fadeIn(duration: 250.ms).slideX(begin: 0.05, end: 0);
   }
@@ -1373,7 +1661,8 @@ class _GroupBubbleAvatar extends StatelessWidget {
         child: AzamanNetworkImage(
           imageUrl: group.avatarUrl!,
           fit: BoxFit.cover,
-          width: 50, height: 50,
+          width: 50,
+          height: 50,
           placeholder: (_, __) => _gradientBubble(group.name, 50),
           errorWidget: (_, __, ___) => _gradientBubble(group.name, 50),
         ),
@@ -1381,16 +1670,41 @@ class _GroupBubbleAvatar extends StatelessWidget {
     }
     final members = group.members;
     return SizedBox(
-      width: 50, height: 50,
-      child: Stack(children: [
-        Positioned(top: 0, left: 8, child: _gradientBubble(group.name, 30)),
-        if (members.isNotEmpty)
-          Positioned(bottom: 2, left: 0, child: _memberBubble(members.first.profilePictureUrl, members.first.username ?? '?', 24, colors.accentSecondary)),
-        if (members.length > 1)
-          Positioned(bottom: 0, right: 2, child: _memberBubble(members[1].profilePictureUrl, members[1].username ?? '+', 24, colors.success))
-        else if (members.length == 1)
-          Positioned(bottom: 0, right: 2, child: _countBubble('+', 24, colors.success)),
-      ]),
+      width: 50,
+      height: 50,
+      child: Stack(
+        children: [
+          Positioned(top: 0, left: 8, child: _gradientBubble(group.name, 30)),
+          if (members.isNotEmpty)
+            Positioned(
+              bottom: 2,
+              left: 0,
+              child: _memberBubble(
+                members.first.profilePictureUrl,
+                members.first.username ?? '?',
+                24,
+                colors.accentSecondary,
+              ),
+            ),
+          if (members.length > 1)
+            Positioned(
+              bottom: 0,
+              right: 2,
+              child: _memberBubble(
+                members[1].profilePictureUrl,
+                members[1].username ?? '+',
+                24,
+                colors.success,
+              ),
+            )
+          else if (members.length == 1)
+            Positioned(
+              bottom: 0,
+              right: 2,
+              child: _countBubble('+', 24, colors.success),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1402,28 +1716,58 @@ class _GroupBubbleAvatar extends StatelessWidget {
     final hue1 = (hash % 360).toDouble();
     final hue2 = ((hash ~/ 360) % 360).toDouble();
     return Container(
-      width: size, height: size, alignment: Alignment.center,
+      width: size,
+      height: size,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(size * 0.3),
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [
-          HSLColor.fromAHSL(1.0, hue1, 0.55, 0.45).toColor(),
-          HSLColor.fromAHSL(1.0, hue2, 0.50, 0.35).toColor(),
-        ]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HSLColor.fromAHSL(1.0, hue1, 0.55, 0.45).toColor(),
+            HSLColor.fromAHSL(1.0, hue2, 0.50, 0.35).toColor(),
+          ],
+        ),
         border: Border.all(color: colors.background, width: 1.5),
       ),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: TextStyle(color: Colors.white, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: size * 0.36,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 
-  Widget _memberBubble(String? photoUrl, String name, double size, Color fallbackColor) {
+  Widget _memberBubble(
+    String? photoUrl,
+    String name,
+    double size,
+    Color fallbackColor,
+  ) {
     if (photoUrl != null && photoUrl.isNotEmpty) {
       return Container(
-        width: size, height: size,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.3), border: Border.all(color: colors.background, width: 1.5)),
-        child: ClipRRect(borderRadius: BorderRadius.circular(size * 0.3 - 1.5), child: AzamanNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, width: size, height: size,
-          placeholder: (_, __) => _countBubble(name, size, fallbackColor),
-          errorWidget: (_, __, ___) => _countBubble(name, size, fallbackColor))),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.3),
+          border: Border.all(color: colors.background, width: 1.5),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.3 - 1.5),
+          child: AzamanNetworkImage(
+            imageUrl: photoUrl,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            placeholder: (_, __) => _countBubble(name, size, fallbackColor),
+            errorWidget: (_, __, ___) =>
+                _countBubble(name, size, fallbackColor),
+          ),
+        ),
       );
     }
     return _countBubble(name, size, fallbackColor);
@@ -1431,9 +1775,22 @@ class _GroupBubbleAvatar extends StatelessWidget {
 
   Widget _countBubble(String char, double size, Color color) {
     return Container(
-      width: size, height: size, alignment: Alignment.center,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.3), color: color.withValues(alpha: 0.15), border: Border.all(color: colors.background, width: 1.5)),
-      child: Text(char.isNotEmpty ? char[0].toUpperCase() : '?', style: TextStyle(color: color, fontSize: size * 0.36, fontWeight: FontWeight.w800)),
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.3),
+        color: color.withValues(alpha: 0.15),
+        border: Border.all(color: colors.background, width: 1.5),
+      ),
+      child: Text(
+        char.isNotEmpty ? char[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: color,
+          fontSize: size * 0.36,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }

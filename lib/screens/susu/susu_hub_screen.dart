@@ -26,34 +26,28 @@ import 'package:azaman/screens/susu/susu_credit_score_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/theme/az_space.dart';
 
 
 class SusuHubScreen extends ConsumerWidget {
   const SusuHubScreen({super.key});
 
+  // NEW-B, fourth pass — Whisper.
+  //
+  // classify(): not scrollable, four fixed instruction lines plus a single CTA,
+  // no unbounded or free-text content. Height is bounded by constants, so it is
+  // a Whisper on content, not a Panel. The 20px radius, the surface colour and
+  // the bottom safe-area are deleted rather than ported — AzSheetSurface owns
+  // all three, and its radius is the AzRadius.sheetTop 28px step.
   void _showStartHelp(BuildContext context, AzamanColors colors) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    AzamanSheet.showWhisper<void>(
+      context,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(
+            AzSpace.lg, AzSpace.xl, AzSpace.lg, AzSpace.xxl),
+        child: AzStaggeredColumn(
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: colors.divider,
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 16),
             Text('Start a Susu',
                 style: TextStyle(
                     color: colors.textPrimary,

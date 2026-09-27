@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_profile_service.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 /// Public entry point — opens the breakdown as a modal bottom sheet.
@@ -37,10 +38,12 @@ Future<void> showTrustBreakdownSheet(
   int negativeReviews = 0,
   bool isVerifiedVendor = false,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
+  // NEW-B: Whisper weight. classify() says so: this is a fixed five-row
+  // drill-down that is not scrollable and measures well under the 45% ceiling.
+  // A read-only glance that the user can drag open and drag away between is
+  // exactly the weight that should not have a detent.
+  return AzamanSheet.showWhisper<void>(
+    context,
     builder: (_) => _TrustBreakdownSheet(
       username: username,
       breakdown: breakdown,
@@ -75,33 +78,13 @@ class _TrustBreakdownSheet extends ConsumerWidget {
     final total = breakdown.total;
     final reviewTotal = positiveReviews + negativeReviews;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        border: Border.all(color: colors.divider, width: 0.5),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        20 + MediaQuery.of(context).viewPadding.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    // NEW-B: the weight owns surface, radius and safe-area, so the old
+    // Container is deleted rather than ported. A migrated body that
+    // re-declares its own chrome has two sources of truth for one corner.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: AzStaggeredColumn(
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
           // Header row
           Row(
             children: [
