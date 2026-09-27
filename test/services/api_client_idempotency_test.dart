@@ -623,17 +623,24 @@ void main() {
         reason: 'no substitute instance may be silently begun');
 
     // D: fingerprint mismatch on the exact-only path (a tampered replay).
+    // A FRESH instance: the C-case instance is retired, and retry() fails
+    // closed on NotFound before any fingerprint comparison.
+    final pendingD = await DurableOperationRegistry.begin(
+        account: account,
+        type: type,
+        endpoint: '/withdraw/fiat',
+        request: {'amount': 50, 'recipientPhone': '+233200000000'});
     final tampered = DurableOperation(
-      operationId: op.operationId,
-      type: op.type,
-      key: op.key,
-      endpoint: op.endpoint,
-      fingerprint: op.fingerprint,
-      createdAt: op.createdAt,
-      account: op.account,
-      request: {...op.request, 'amount': 999},
-      secretFields: op.secretFields,
-      replaySafe: op.replaySafe,
+      operationId: pendingD.operationId,
+      type: pendingD.type,
+      key: pendingD.key,
+      endpoint: pendingD.endpoint,
+      fingerprint: pendingD.fingerprint,
+      createdAt: pendingD.createdAt,
+      account: pendingD.account,
+      request: {...pendingD.request, 'amount': 999},
+      secretFields: pendingD.secretFields,
+      replaySafe: pendingD.replaySafe,
     );
     final recD = _Recorder();
     await expectLater(
@@ -658,6 +665,16 @@ void main() {
             operationType: type, requireAuth: false),
         throwsA(isA<http.ClientException>()));
 
+    // The pending instance is listed through the REAL (anon,
+    // unauthenticated) test namespace BEFORE the failure override is armed,
+    // proving the fail-closed behavior is purely the unestablishable
+    // AUTHENTICATED namespace.
+    final ops = await DurableOperationRegistry.pending(
+        account: await ApiClient(client: _Recorder().client)
+            .operationAccount(failClosed: false),
+        type: type);
+    expect(ops.length, 1, reason: 'K1 is pending before the failure');
+
     // Now simulate the storage engine failing for account resolution.
     final rec = _Recorder();
     ApiClient.operationAccountOverride =
@@ -669,15 +686,7 @@ void main() {
         throwsA(isA<FinancialAccountUnavailableException>()));
     expect(rec.requests, isEmpty,
         reason: 'an unestablishable namespace must block the send entirely');
-    // And the exact-only path fails closed the same way. The pending
-    // instance is listed through the REAL (anon, unauthenticated) test
-    // namespace BEFORE the override is armed, proving the failure is
-    // purely the unestablishable AUTHENTICATED namespace.
-    final ops = await DurableOperationRegistry.pending(
-        account: await ApiClient(client: _Recorder().client)
-            .operationAccount(failClosed: false),
-        type: type);
-    expect(ops.length, 1);
+    // And the exact-only path fails closed the same way.
     final failingRec = _Recorder();
     final failing2 = ApiClient(client: failingRec.client);
     await expectLater(
