@@ -49,8 +49,6 @@
 //   )
 // =============================================================================
 
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import 'package:azaman/theme/az_elevation.dart';
@@ -357,14 +355,14 @@ class _HolographicSurfaceState extends State<HolographicSurface>
 ///
 /// This is the mechanism that moves the specular band WITHOUT touching layout —
 /// the band is painted at a different place, but the widget tree is unchanged.
-class _SheenTransform extends ui.GradientTransform {
+class _SheenTransform extends GradientTransform {
   const _SheenTransform(this.dx, this.dy);
 
   final double dx;
   final double dy;
 
   @override
-  Matrix4? transform(ui.Rect bounds, {ui.TextDirection? textDirection}) {
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
     return Matrix4.translationValues(
       bounds.width * dx,
       bounds.height * dy,
