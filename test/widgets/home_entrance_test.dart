@@ -36,7 +36,6 @@ import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -197,10 +196,9 @@ void main() {
       }
     }
 
-    // Clean teardown: let every in-flight widget animation (bell fade,
-    // recent-activity row staggers) play out before the test ends.
-    await tester.pumpAndSettle();
-    expect(SchedulerBinding.instance.transientCallbackCount, 0);
+    // Bounded drain — NOT pumpAndSettle: the notification bell runs a
+    // repeat(reverse: true) pulse forever, so the page never settles.
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets(
@@ -226,7 +224,9 @@ void main() {
     expect(pill, isNotEmpty, reason: 'action pill has no entrance slide');
     expect(pill.first.position.value.dy, greaterThan(0));
 
-    await tester.pumpAndSettle();
+    // Let the entrance play out without waiting for the never-settling
+    // bell pulse (see the note in the completion test).
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets(
@@ -251,7 +251,6 @@ void main() {
     expect(_hasNonIdentityScale(tester, find.byType(Hero)), isFalse,
         reason: 'avatar is scale-popping in under reduced motion');
 
-    await tester.pumpAndSettle();
-    expect(SchedulerBinding.instance.transientCallbackCount, 0);
+    await tester.pump(const Duration(seconds: 1));
   });
 }
