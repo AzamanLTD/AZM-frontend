@@ -464,10 +464,12 @@ class _BadgeStack extends StatelessWidget {
                 count > 99 ? '99+' : '$count',
                 style: AzText.caption.copyWith(
                   // The badge sits on `danger`, so its text must be the paired
-                  // foreground. `onError` is white in both themes — the same
-                  // value the old literal used — but now a future palette
-                  // change cannot leave a white label on a light-red badge.
-                  color: color.onError,
+                  // foreground. `AzamanColors` does not carry an `onError`; the
+                  // ColorScheme built from it does, and maps `onError` to white
+                  // in both themes — the same value the old literal used, but
+                  // now from the theme layer, so a future palette change
+                  // cannot leave a white label on a light-red badge.
+                  color: Theme.of(context).colorScheme.onError,
                   fontWeight: FontWeight.w800,
                   fontSize: 9,
                   letterSpacing: 0,

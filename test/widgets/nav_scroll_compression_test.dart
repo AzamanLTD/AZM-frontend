@@ -33,21 +33,23 @@ FixedScrollMetrics _metrics(
   AxisDirection axisDirection = AxisDirection.down,
 }) {
   return FixedScrollMetrics(
-    0,
-    5000,
-    pixels,
-    400,
-    axisDirection,
+    minScrollExtent: 0,
+    maxScrollExtent: 5000,
+    pixels: pixels,
+    viewportDimension: 400,
+    devicePixelRatio: 1,
+    axisDirection: axisDirection,
   );
 }
 
 ScrollUpdateNotification _scroll(
+  BuildContext context,
   double pixels, {
   AxisDirection axisDirection = AxisDirection.down,
 }) {
   return ScrollUpdateNotification(
     metrics: _metrics(pixels, axisDirection: axisDirection),
-    context: null,
+    context: context,
     scrollDelta: 12.0,
   );
 }
@@ -133,65 +135,83 @@ void main() {
       expect(NavScrollCompression.fromPixels(9), 0.1);
     });
 
-    test('reversible: scrolling down and back lands on the same value', () {
-      // Through the STATEFUL writer: 30px down, then to 60, then back to 30.
-      // The value at a given depth must be identical however the user got
-      // there — the property the old per-frame delta accumulator lost.
-      NavScrollCompression.applyTo(_scroll(30));
-      expect(navScrollCompression.value, NavScrollCompression.fromPixels(30));
-      NavScrollCompression.applyTo(_scroll(60));
-      NavScrollCompression.applyTo(_scroll(30));
-      expect(navScrollCompression.value, NavScrollCompression.fromPixels(30));
-
-      // And a full down-and-up roundtrip ends exactly at rest.
-      NavScrollCompression.applyTo(_scroll(90));
-      NavScrollCompression.applyTo(_scroll(45));
-      NavScrollCompression.applyTo(_scroll(0));
-      expect(navScrollCompression.value, 0);
-    });
   });
 
   group('applyTo — the MainWrapper writer policy', () {
-    test('a vertical scroll writes the quantised compression', () {
-      final consumed = NavScrollCompression.applyTo(_scroll(45));
+    // Notifications need a non-null BuildContext; pump a stub to obtain one.
+    Future<BuildContext> _context(WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+      return tester.element(find.byType(Scaffold));
+    }
+
+    testWidgets('reversible: scrolling down and back lands on the same value',
+        (tester) async {
+      final ctx = await _context(tester);
+      // Through the STATEFUL writer: 30px down, then to 60, then back to 30.
+      // The value at a given depth must be identical however the user got
+      // there — the property the old per-frame delta accumulator lost.
+      NavScrollCompression.applyTo(_scroll(ctx, 30));
+      expect(navScrollCompression.value, NavScrollCompression.fromPixels(30));
+      NavScrollCompression.applyTo(_scroll(ctx, 60));
+      NavScrollCompression.applyTo(_scroll(ctx, 30));
+      expect(navScrollCompression.value, NavScrollCompression.fromPixels(30));
+
+      // And a full down-and-up roundtrip ends exactly at rest.
+      NavScrollCompression.applyTo(_scroll(ctx, 90));
+      NavScrollCompression.applyTo(_scroll(ctx, 45));
+      NavScrollCompression.applyTo(_scroll(ctx, 0));
+      expect(navScrollCompression.value, 0);
+    });
+
+    testWidgets('a vertical scroll writes the quantised compression',
+        (tester) async {
+      final ctx = await _context(tester);
+      final consumed = NavScrollCompression.applyTo(_scroll(ctx, 45));
       expect(consumed, isFalse, reason: 'notifications must keep bubbling');
       expect(navScrollCompression.value, 0.5);
     });
 
-    test('the same step writes nothing (quantisation caps rebuilds)', () {
-      NavScrollCompression.applyTo(_scroll(45));
+    testWidgets('the same step writes nothing (quantisation caps rebuilds)',
+        (tester) async {
+      final ctx = await _context(tester);
+      NavScrollCompression.applyTo(_scroll(ctx, 45));
       var writes = 0;
       void listener() => writes++;
       navScrollCompression.addListener(listener);
       // Same depth again → identical step → no notification.
-      NavScrollCompression.applyTo(_scroll(46));
-      NavScrollCompression.applyTo(_scroll(47));
+      NavScrollCompression.applyTo(_scroll(ctx, 46));
+      NavScrollCompression.applyTo(_scroll(ctx, 47));
       expect(writes, 0);
       // Crossing into the next step → exactly one write.
-      NavScrollCompression.applyTo(_scroll(54)); // 0.6 of travel
+      NavScrollCompression.applyTo(_scroll(ctx, 54)); // 0.6 of travel
       expect(writes, 1);
       navScrollCompression.removeListener(listener);
     });
 
-    test('returning to the top restores rest (recovery)', () {
-      NavScrollCompression.applyTo(_scroll(90));
+    testWidgets('returning to the top restores rest (recovery)',
+        (tester) async {
+      final ctx = await _context(tester);
+      NavScrollCompression.applyTo(_scroll(ctx, 90));
       expect(navScrollCompression.value, 1);
-      NavScrollCompression.applyTo(_scroll(0));
+      NavScrollCompression.applyTo(_scroll(ctx, 0));
       expect(navScrollCompression.value, 0);
     });
 
-    test(
+    testWidgets(
       'horizontal scrollables never compress the vertical chrome',
-      () {
+      (tester) async {
+        final ctx = await _context(tester);
         NavScrollCompression.applyTo(
-          _scroll(400, axisDirection: AxisDirection.right),
+          _scroll(ctx, 400, axisDirection: AxisDirection.right),
         );
         expect(navScrollCompression.value, 0);
       },
     );
 
-    test('pull-to-refresh overscroll at the top does not compress', () {
-      NavScrollCompression.applyTo(_scroll(-25));
+    testWidgets('pull-to-refresh overscroll at the top does not compress',
+        (tester) async {
+      final ctx = await _context(tester);
+      NavScrollCompression.applyTo(_scroll(ctx, -25));
       expect(navScrollCompression.value, 0);
     });
   });
