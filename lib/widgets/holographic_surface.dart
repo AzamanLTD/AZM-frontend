@@ -278,8 +278,12 @@ class _HolographicSurfaceState extends State<HolographicSurface>
               Positioned.fill(
                 child: IgnorePointer(
                   child: DecoratedBox(
+                    // No borderRadius here: BoxDecoration forbids a radius with
+                    // a non-uniform-color Border, and this rim is deliberately
+                    // two-tone (top/left lit, bottom/right shaded). The outer
+                    // ClipRRect already clips these hairlines to the rounded
+                    // corners, so the painted result is identical.
                     decoration: BoxDecoration(
-                      borderRadius: radius,
                       border: Border(
                         top: BorderSide(
                           color: AzElevation.rimHighlight(isDark),
