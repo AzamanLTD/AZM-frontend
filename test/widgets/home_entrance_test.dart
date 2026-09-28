@@ -20,8 +20,6 @@ import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'
-    show RenderTransform, Vector4;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,35 +65,32 @@ Future<void> _pumpHome(
   await tester.pump();
 }
 
-/// Every `RenderTransform` in [finder]'s ancestor chain, nearest first —
-/// flutter_animate's slides render as Transforms, and widgets may nest their
-/// own (the flippable card's flip, ScaleTap's press), so tests must look at
-/// the whole chain rather than the nearest one.
-List<RenderTransform> _ancestorTransforms(WidgetTester tester, Finder finder) {
-  final renders =
-      tester.renderObjectList(finder).cast<RenderObject>().toList();
-  expect(renders, isNotEmpty, reason: 'nothing matched $finder');
-  final out = <RenderTransform>[];
-  for (final start in renders) {
-    RenderObject? node = start;
-    while (node != null) {
-      if (node is RenderTransform) out.add(node);
-      node = node.parent as RenderObject?;
-    }
+/// The translation of the first `Transform` ancestor of [finder] that is
+/// actually offset — i.e. the block's entrance slide, ignoring widgets that
+/// legitimately carry an identity or perspective-only Transform (the
+/// flippable card's flip at rest, ScaleTap's press state).
+(double, double)? _entranceOffset(WidgetTester tester, Finder finder) {
+  final ancestors =
+      find.ancestor(of: finder, matching: find.byType(Transform)).evaluate();
+  for (final element in ancestors) {
+    final matrix = (element.widget as Transform).transform;
+    final pos = matrix.getTranslation();
+    if (pos.x.abs() > 0.5 || pos.y.abs() > 0.5) return (pos.x, pos.y);
   }
-  return out;
+  return null;
 }
 
-Vector4? _netTranslation(List<RenderTransform> transforms) {
-  Vector4? net;
-  for (final t in transforms) {
-    final pos = t.transform.getTranslation();
-    if (pos.x.abs() > 0.5 || pos.y.abs() > 0.5) {
-      net = pos;
-      break;
-    }
+/// Whether any `Transform` ancestor of [finder] applies a non-identity
+/// scale (the avatar's entrance pop would be a 0.8 scale on early frames).
+bool _hasNonIdentityScale(WidgetTester tester, Finder finder) {
+  final ancestors =
+      find.ancestor(of: finder, matching: find.byType(Transform)).evaluate();
+  for (final element in ancestors) {
+    final scale =
+        (element.widget as Transform).transform.getMaxScaleOnAxis();
+    if ((scale - 1).abs() > 0.01) return true;
   }
-  return net;
+  return false;
 }
 
 void main() {
@@ -137,23 +132,22 @@ void main() {
 
     // First frame: every block sits exactly at its begin offset.
     // Header (block 0) travels from the LEFT: negative x.
-    final gift = _netTranslation(
-        _ancestorTransforms(tester, find.byIcon(HugeIconsSolid.gift)));
+    final gift = _entranceOffset(tester, find.byIcon(HugeIconsSolid.gift));
     expect(gift, isNotNull, reason: 'header gift icon has no entrance offset');
-    expect(gift!.x, lessThan(-2));
+    expect(gift!.$1, lessThan(-2));
 
     // The rail (block 3) travels from the RIGHT: positive x, opposite the
     // header — the deck is slid in, not dropped.
-    final rail = _netTranslation(_ancestorTransforms(
-        tester, find.byType(FlippableBalanceCard)));
+    final rail =
+        _entranceOffset(tester, find.byType(FlippableBalanceCard));
     expect(rail, isNotNull, reason: 'balance rail has no entrance offset');
-    expect(rail!.x, greaterThan(2));
+    expect(rail!.$1, greaterThan(2));
 
     // The action pills (block 2) rise from BELOW: positive y.
-    final pill = _netTranslation(
-        _ancestorTransforms(tester, find.byIcon(HugeIconsSolid.plusSign)));
+    final pill =
+        _entranceOffset(tester, find.byIcon(HugeIconsSolid.plusSign));
     expect(pill, isNotNull, reason: 'action pill has no entrance offset');
-    expect(pill!.y, greaterThan(2));
+    expect(pill!.$2, greaterThan(2));
   });
 
   testWidgets('reduced motion: Home is fully painted on the first frame',
@@ -176,7 +170,7 @@ void main() {
       find.byIcon(HugeIconsSolid.plusSign),
       find.byType(FlippableBalanceCard),
     ]) {
-      expect(_netTranslation(_ancestorTransforms(tester, finder)), isNull,
+      expect(_entranceOffset(tester, finder), isNull,
           reason: '$finder carries an offset under reduced motion');
     }
 
@@ -190,9 +184,7 @@ void main() {
     // The avatar (the tree's only Hero) simply IS there: no non-identity
     // scale in its transform chain. The entrance pop-in would be a 0.8
     // scale on the first frames.
-    for (final t in _ancestorTransforms(tester, find.byType(Hero))) {
-      expect((t.transform.getMaxScaleOnAxis() - 1).abs(), lessThan(0.01),
-          reason: 'avatar is scale-popping in under reduced motion');
-    }
+    expect(_hasNonIdentityScale(tester, find.byType(Hero)), isFalse,
+        reason: 'avatar is scale-popping in under reduced motion');
   });
 }
