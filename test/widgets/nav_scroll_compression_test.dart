@@ -340,8 +340,18 @@ void main() {
         await tester.pump();
         expect(selections, [1]);
 
-        // Now Chat is selected (per the app state model): re-tapping the
-        // active tab is an acknowledgment, not another selection.
+        // The app answers the selection by rebuilding the nav with the new
+        // index. Re-tapping the NOW-ACTIVE Chat tab must not re-issue the
+        // selection: it is an acknowledgment, not another selection.
+        await tester.pumpWidget(
+          _host(
+            PremiumBottomNav(
+              selectedIndex: 1,
+              onItemSelected: selections.add,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
         await tester.tap(find.byIcon(HugeIconsSolid.message01));
         await tester.pump();
         expect(selections, [1], reason: 'active-tab re-tap must be a no-op');
