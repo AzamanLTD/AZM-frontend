@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 
@@ -36,10 +37,15 @@ import 'package:azaman/services/webrtc_service.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/startup_coordinator.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/theme/az_radius.dart';
+import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
 class P2POrder {
@@ -202,6 +208,253 @@ class AzamanApp extends ConsumerWidget {
         routerConfig: appRouter,
         builder: (context, child) => ThemedAppBackdrop(
           child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TASK-010b — Market-tab long-press vertical launcher
+//
+// A deliberate long-press on the Market tab opens the vertical launcher
+// sheet; picking a vertical lands on the marketplace with that vertical
+// already selected (the TASK-011 `initialCategory` contract). A normal tap
+// is unchanged — this is purely an additive gesture seam. TASK-018 will
+// replace the sheet's body with the unified radial launcher; the seam below
+// ([openVerticalLauncherForTab] + the nav's `onTabLongPress`) is what stays.
+//
+// WEIGHT NOTE (deviation from the brief's "Whisper-weight sheet"): five
+// fixed rows plus a header (~430 logical px) exceed the grammar's whisper
+// ceiling (45% of the viewport) on phone heights, and the sheet grammar's
+// own rule (I.10.2) routes content that cannot fit the whisper band to the
+// Panel weight. The launcher therefore ships as an AzamanSheet Panel — the
+// same compact single-column list the brief intended, but bounded: it opens
+// at the 45% detent, scrolls its rows, and can never extend into an
+// unusable region at any screen size.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// The Market tab's index in the shell (Home 0 · Chat 1 · P2P 2 · Market 3).
+const int kMarketTabIndex = 3;
+
+/// The launcher's five targets — exactly the wires TASK-011's launch allowlist
+/// guards (`MarketplaceHomeScreen._launchableCategoryWires`), so a launcher
+/// landing can never offer a wire the marketplace would reject or guess at.
+///
+/// Order mirrors the in-app category dial (Restaurants, Hotels, Transit,
+/// Retail). The app carries two hotel wire variants (F-029): the dial's
+/// `REAL_ESTATE` entry and the model-canonical `HOSPITALITY` wire that backend
+/// records are tagged with — the launcher surfaces both as distinct targets,
+/// labelled distinctly. Icons follow F-035 (only Hugeicons names verified
+/// in-repo).
+const List<({String wire, String label, IconData icon, String subtitle})>
+    kVerticalLauncherEntries = [
+  (
+    wire: 'FOOD_BEVERAGE',
+    label: 'Restaurants',
+    icon: HugeIconsSolid.store01,
+    subtitle: 'Menus & tables',
+  ),
+  (
+    wire: 'REAL_ESTATE',
+    label: 'Hotels',
+    icon: HugeIconsSolid.bank,
+    subtitle: 'Rooms & floors',
+  ),
+  (
+    wire: 'LOGISTICS',
+    label: 'Transit',
+    icon: HugeIconsSolid.arrowDataTransferHorizontal,
+    subtitle: 'Trips & seats',
+  ),
+  (
+    wire: 'RETAIL',
+    label: 'Retail',
+    icon: HugeIconsStroke.shoppingBag01,
+    subtitle: 'Shop the shelf',
+  ),
+  (
+    wire: 'HOSPITALITY',
+    label: 'Hospitality',
+    icon: HugeIconsSolid.bank,
+    subtitle: 'Book rooms & check availability',
+  ),
+];
+
+/// Opens the vertical launcher for a nav-tab long-press.
+///
+/// The gating contract lives HERE, not in the shell: only the Market tab
+/// ([kMarketTabIndex]) owns a launcher, so a long-press on any other tab
+/// returns `false` and nothing happens. The launcher is a single
+/// Panel-weight [AzamanSheet.showPanel] route — that route is the one
+/// authoritative lifecycle. There are no task-owned OverlayEntries or
+/// animation controllers to leak: a cancelled/interrupted long-press simply
+/// never opens the sheet, and the modal barrier makes a concurrent duplicate
+/// open impossible.
+///
+/// On a target pick the sheet is popped exactly once, [selectTab] selects the
+/// Market tab underneath, and the already-filtered marketplace is pushed as a
+/// new route — back returns to the unfiltered marketplace tab.
+bool openVerticalLauncherForTab(
+  int index,
+  BuildContext context, {
+  required void Function(int index) selectTab,
+}) {
+  if (index != kMarketTabIndex) return false;
+  AzamanSheet.showPanel<void>(
+    context,
+    builder: (sheetContext, scrollController) => VerticalLauncherSheet(
+      scrollController: scrollController,
+      onLaunch: (wire) {
+        // Close the launcher exactly once: pop the SHEET route with its own
+        // context, then navigate with the still-mounted shell context.
+        Navigator.pop(sheetContext);
+        AzamanHaptics.navigation();
+        selectTab(kMarketTabIndex);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MarketplaceHomeScreen(initialCategory: wire),
+          ),
+        );
+      },
+    ),
+  );
+  return true;
+}
+
+/// The launcher's Panel body: a pinned "Explore the market" header + the five
+/// target rows in the sheet's own scrollable, so a drag on the rows and a drag
+/// on the detent are the same gesture (I.3.4). The sheet surface (colour,
+/// scrim, blur, handle, safe-area, detents) is owned by `AzSheetSurface`; this
+/// widget owns no animation of its own, so reduced motion needs no task-owned
+/// collapse path — the rows are fully rendered on the sheet's first frame.
+class VerticalLauncherSheet extends ConsumerWidget {
+  const VerticalLauncherSheet({
+    super.key,
+    required this.scrollController,
+    required this.onLaunch,
+  });
+
+  /// The DraggableScrollableSheet's own controller — the one that moves the
+  /// detent when the rows are dragged.
+  final ScrollController scrollController;
+
+  /// Invoked exactly once with the picked target's wire.
+  final void Function(String wire) onLaunch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(theme_pkg.themeProvider).colors;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.sm, AzSpace.lg, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Explore the market',
+                style: AzText.title.copyWith(color: colors.textPrimary),
+              ),
+              const SizedBox(height: AzSpace.xxs),
+              Text(
+                'Jump straight into a vertical',
+                style: AzText.bodyS.copyWith(color: colors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+        Flexible(
+          child: ListView(
+            controller: scrollController,
+            // Five fixed rows: materialise them all eagerly so every target
+            // is in the tree (and findable by semantics) from the first
+            // frame, at every viewport size — the list only ever scrolls on
+            // viewports shorter than the content.
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.xs, AzSpace.lg, AzSpace.md),
+            children: [
+              for (final entry in kVerticalLauncherEntries)
+                _VerticalLauncherRow(
+                  colors: colors,
+                  entry: entry,
+                  onLaunch: onLaunch,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VerticalLauncherRow extends StatelessWidget {
+  const _VerticalLauncherRow({
+    required this.colors,
+    required this.entry,
+    required this.onLaunch,
+  });
+
+  final theme_pkg.AzamanColors colors;
+  final ({String wire, String label, IconData icon, String subtitle}) entry;
+  final void Function(String wire) onLaunch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: ValueKey('vertical_launcher_${entry.wire}'),
+      padding: const EdgeInsets.symmetric(vertical: AzSpace.xxs),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: AzRadius.brLg,
+          onTap: () => onLaunch(entry.wire),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AzSpace.sm,
+              vertical: AzSpace.md,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colors.accentSurface,
+                    borderRadius: AzRadius.brMd,
+                  ),
+                  child: Icon(entry.icon, size: 20, color: colors.accent),
+                ),
+                const SizedBox(width: AzSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.label,
+                        style: AzText.title.copyWith(
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        entry.subtitle,
+                        style: AzText.bodyS.copyWith(
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  HugeIconsSolid.arrowRight01,
+                  size: 16,
+                  color: colors.textTertiary,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -469,7 +722,19 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       backgroundColor: colors.surface,
       endDrawer: const SettingsDrawer(),
       extendBody: true,
-      bottomNavigationBar: PremiumBottomNav(selectedIndex: _selectedIndex, onItemSelected: _onNavItemSelected),
+      bottomNavigationBar: PremiumBottomNav(
+        selectedIndex: _selectedIndex,
+        onItemSelected: _onNavItemSelected,
+        // TASK-010b: a long-press on the Market tab opens the vertical
+        // launcher; the gating (Market is the only launcher-owned tab) lives
+        // in [openVerticalLauncherForTab], so the shell stays a one-line
+        // seam. Tabs 0..2 long-press inertly — TASK-018 owns those gestures.
+        onTabLongPress: (index) => openVerticalLauncherForTab(
+          index,
+          context,
+          selectTab: _onNavItemSelected,
+        ),
+      ),
       // TASK-010: the nav pill compresses while the page scrolls. ONE
       // listener above the whole shell catches every ScrollNotification
       // bubbled from every scrollable in every page, so no page needs a
