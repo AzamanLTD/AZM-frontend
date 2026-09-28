@@ -52,6 +52,53 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
     });
   }
 
+  /// Applies block [block]'s entrance choreography — or nothing at all when
+  /// [reduceMotion] is set: Home simply IS there on the first frame. One
+  /// method owns the whole camera move, so the entrance's tempo, direction
+  /// and reduced-motion policy are each tunable from one place.
+  ///
+  /// Block map (see the choreography comment in [build]):
+  ///   0 header    — control,   from the left  (-0.04)
+  ///   1 title     — control,   from the left  (-0.04)
+  ///   2 pills     — standard,  from below     (+0.12)
+  ///   3 rail      — standard,  from the right (+0.06)
+  ///   4 susu      — standard,  from below     (+0.06)
+  ///   5 activity  — standard,  from below     (+0.06)
+  ///   6 market    — standard,  from below     (+0.06)
+  Widget _stage(int block, Widget child, bool reduceMotion) {
+    if (reduceMotion) return child;
+    final delay = block == 0 ? Duration.zero : MotionTokens.staggerDelay(block);
+    final duration = block <= 1 ? MotionTokens.control : MotionTokens.standard;
+    final onX = block <= 1 || block == 3;
+    final begin = switch (block) {
+      2 => 0.12,
+      3 => 0.06,
+      _ => onX ? -0.04 : 0.06,
+    };
+    final entered = child
+        .animate()
+        .fadeIn(
+          delay: delay,
+          duration: duration,
+          curve: MotionTokens.enter,
+        );
+    return onX
+        ? entered.slideX(
+            begin: begin,
+            end: 0,
+            delay: delay,
+            duration: duration,
+            curve: MotionTokens.enter,
+          )
+        : entered.slideY(
+            begin: begin,
+            end: 0,
+            delay: delay,
+            duration: duration,
+            curve: MotionTokens.enter,
+          );
+  }
+
   Future<void> _onRefresh() async {
     // A refresh is a "re-check the world" action, not a navigation. The
     // threshold tick is the same sensation the pull gesture armed with, so the
@@ -69,6 +116,10 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    // Reduced motion: Home simply IS there on the first frame — no fade, no
+    // slide. Same convention as the tab transitions in main.dart and the
+    // in-app push banner; the entrance is non-essential motion.
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -109,123 +160,40 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
                 const SizedBox(height: AzSpace.sm),
 
                 // Block 0 — header, arrives from the left.
-                const _GreetingHeader()
-                    .animate()
-                    .fadeIn(
-                      duration: MotionTokens.control,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideX(begin: -0.04, end: 0, curve: MotionTokens.enter),
+                _stage(0, const _GreetingHeader(), reduceMotion),
 
                 const SizedBox(height: AzSpace.lg),
 
                 // Block 1 — greeting title, follows the header.
-                const _GreetingTitle()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(1),
-                      duration: MotionTokens.control,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideX(
-                      begin: -0.04,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(1),
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(1, const _GreetingTitle(), reduceMotion),
 
                 const SizedBox(height: AzSpace.lg),
 
                 // Block 2 — action pills, rise into place.
-                const _ActionPills()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(2),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideY(
-                      begin: 0.12,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(2),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(2, const _ActionPills(), reduceMotion),
 
                 const SizedBox(height: AzSpace.xl),
 
                 // Block 3 — the rail, arrives from the RIGHT. This is the one
                 // block that travels opposite the others, so the deck feels
                 // slid into view rather than dropped in.
-                const _BalanceCardsScroll()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(3),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideX(
-                      begin: 0.06,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(3),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(3, const _BalanceCardsScroll(), reduceMotion),
 
                 const SizedBox(height: AzSpace.xxl),
 
                 // Block 4 — susu shortcut.
-                const _SusuShortcutCard()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(4),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideY(
-                      begin: 0.06,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(4),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(4, const _SusuShortcutCard(), reduceMotion),
 
                 const SizedBox(height: AzSpace.xxl),
 
                 // Block 5 — recent activity.
-                const RecentActivitySection()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(5),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideY(
-                      begin: 0.06,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(5),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(5, const RecentActivitySection(), reduceMotion),
 
                 const SizedBox(height: AzSpace.xxl),
 
                 // Block 6 — live market. Last to arrive; the page is fully
                 // painted at staggerDelay(6) + standard = 240 + 220 = 460ms.
-                const LiveMarketSection()
-                    .animate()
-                    .fadeIn(
-                      delay: MotionTokens.staggerDelay(6),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    )
-                    .slideY(
-                      begin: 0.06,
-                      end: 0,
-                      delay: MotionTokens.staggerDelay(6),
-                      duration: MotionTokens.standard,
-                      curve: MotionTokens.enter,
-                    ),
+                _stage(6, const LiveMarketSection(), reduceMotion),
               ],
             ),
           ),
@@ -243,6 +211,7 @@ class _GreetingHeader extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(authProvider).user;
     final isVisible = ref.watch(balanceVisibleProvider);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     // V3 Marketplace Sprint (2026-06-21): owner notification bell — only shown
     // when the signed-in user has a registered business.
@@ -250,76 +219,88 @@ class _GreetingHeader extends ConsumerWidget {
     final username = user?.username ?? '';
     final initials = _initials(username);
 
+    // The avatar's scale is the one micro-detail inside a block the parent
+    // already fades (F-015, TASK-008 spec 2c). Reduced motion drops even
+    // this — the avatar simply IS there, like everything else.
+    final avatarCore = ScaleTap(
+      onTap: () {
+        AzamanHaptics.nav();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+        );
+      },
+      child: Hero(
+        tag: 'profile-avatar',
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [colors.accent, colors.accentSecondary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.surface,
+            ),
+            child: ClipOval(
+              child: (user?.profilePictureUrl != null &&
+                      user!.profilePictureUrl!.isNotEmpty)
+                  ? AzamanNetworkImage(
+                      imageUrl: user.profilePictureUrl!,
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Center(
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final avatar = reduceMotion
+        ? avatarCore
+        : avatarCore
+            .animate()
+            .scale(
+              begin: const Offset(0.8, 0.8),
+              end: const Offset(1, 1),
+              duration: 300.ms,
+              curve: Curves.easeOutBack,
+            );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          ScaleTap(
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
-            child: Hero(
-              tag: 'profile-avatar',
-              child: Container(
-              width: 46, height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [colors.accent, colors.accentSecondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.surface,
-                ),
-                child: ClipOval(
-                  child: (user?.profilePictureUrl != null &&
-                          user!.profilePictureUrl!.isNotEmpty)
-                      ? AzamanNetworkImage(
-                          imageUrl: user.profilePictureUrl!,
-                          width: 42, height: 42,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Center(
-                            child: Text(
-                              initials,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            initials,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-            ),
-          ),
-          ).animate().scale(
-                begin: const Offset(0.8, 0.8),
-                end: const Offset(1, 1),
-                duration: 300.ms,
-                curve: Curves.easeOutBack,
-              ),
+          avatar,
           const Spacer(),
           ScaleTap(
             onTap: () {
@@ -335,7 +316,8 @@ class _GreetingHeader extends ConsumerWidget {
               borderRadius: 22,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               enableShadow: false,
-              border: Border.all(color: colors.success.withValues(alpha: 0.2), width: 0.5),
+              border:
+                  Border.all(color: colors.success.withValues(alpha: 0.2), width: 0.5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -371,7 +353,8 @@ class _GreetingHeader extends ConsumerWidget {
               padding: EdgeInsets.zero,
               enableShadow: false,
               child: SizedBox(
-                width: 40, height: 40,
+                width: 40,
+                height: 40,
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: 250.ms,
@@ -443,6 +426,7 @@ class _ActionPills extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     // Icon family: hugeicons_pro, matching the bottom nav. These four names
     // are verified in-repo (`rg -o "HugeIcons(Solid|Stroke)\.[A-Za-z0-9_]+" lib`).
     final pills = [
@@ -463,22 +447,26 @@ class _ActionPills extends ConsumerWidget {
         children: pills.asMap().entries.map((entry) {
           final i = entry.key;
           final p = entry.value;
+          final pill = _buildPill(context, colors, p);
           return Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: _buildPill(context, colors, p)
-                .animate()
-                .fadeIn(
-                  delay: MotionTokens.staggerDelay(i),
-                  duration: MotionTokens.control,
-                  curve: MotionTokens.decelerate,
-                )
-                .slideY(
-                  begin: 0.18,
-                  end: 0,
-                  delay: MotionTokens.staggerDelay(i),
-                  duration: MotionTokens.control,
-                  curve: MotionTokens.enter,
-                ),
+            // Reduced motion: the pills sit at rest immediately, no stagger.
+            child: reduceMotion
+                ? pill
+                : pill
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(i),
+                      duration: MotionTokens.control,
+                      curve: MotionTokens.decelerate,
+                    )
+                    .slideY(
+                      begin: 0.18,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(i),
+                      duration: MotionTokens.control,
+                      curve: MotionTokens.enter,
+                    ),
           );
         }).toList(),
       ),
