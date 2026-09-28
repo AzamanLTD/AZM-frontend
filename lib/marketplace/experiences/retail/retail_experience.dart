@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:azaman/widgets/azaman_sheet.dart';
+
 class RetailProduct {
   final String id;
   final String name;
@@ -232,12 +234,13 @@ Future<void> showRetailQuickLook(
   required RetailProduct product,
   required ValueChanged<RetailCartSelection> onAddToCart,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) => RetailQuickLookSheet(
+  // NEW-B: Panel weight. The quick-look body is a SingleChildScrollView, so
+  // classify() returns panel, and the add-to-cart row is the pinned commit.
+  return AzamanSheet.showPanel<void>(
+    context,
+    builder: (sheetContext, scrollController) => RetailQuickLookSheet(
       product: product,
+      scrollController: scrollController,
       onAddToCart: (selection) {
         Navigator.of(sheetContext).pop();
         onAddToCart(selection);
@@ -262,10 +265,14 @@ class RetailQuickLookSheet extends StatefulWidget {
   final RetailProduct product;
   final ValueChanged<RetailCartSelection> onAddToCart;
 
+  /// The sheet's own scroll controller, supplied by [showRetailQuickLook].
+  final ScrollController scrollController;
+
   const RetailQuickLookSheet({
     super.key,
     required this.product,
     required this.onAddToCart,
+    required this.scrollController,
   });
 
   @override
@@ -287,119 +294,126 @@ class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
         : widget.product.imageUrls.first;
     final variants = widget.product.variants;
 
-    return SafeArea(
-      child: Material(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Quick look',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+    // NEW-B: the weight owns surface, radius, handle and safe-area, so the old
+    // SafeArea + Material + clip are deleted. The Add-to-bag row is PINNED
+    // below the scroll area — see §I.8.3. It used to be the last child of the
+    // scroll view, and on a Panel opened at the 45% rest detent that put the
+    // one control the whole sheet exists for below the fold.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: SingleChildScrollView(
+              controller: widget.scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Quick look',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  if (image != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: AspectRatio(
+                        aspectRatio: 1.2,
+                        child: Image.network(
+                          image,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const _RetailImageFallback(),
                         ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
+                  const SizedBox(height: 14),
+                  Text(
+                    widget.product.name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
-                if (image != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: AspectRatio(
-                      aspectRatio: 1.2,
-                      child: Image.network(
-                        image,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const _RetailImageFallback(),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    widget.product.formattedPrice,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (widget.product.description?.isNotEmpty == true) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.product.description!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                const SizedBox(height: 14),
-                Text(
-                  widget.product.name,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  widget.product.formattedPrice,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (widget.product.description?.isNotEmpty == true) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    widget.product.description!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-                if (variants.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  ...variants.entries.map(_variantField),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text('Quantity', style: theme.textTheme.titleSmall),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Decrease quantity',
-                      onPressed: _quantity > 1
-                          ? () => setState(() => _quantity--)
-                          : null,
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                    Text('$_quantity', style: theme.textTheme.titleMedium),
-                    IconButton(
-                      tooltip: 'Increase quantity',
-                      onPressed: () => setState(() => _quantity++),
-                      icon: const Icon(Icons.add_circle_outline),
-                    ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: widget.product.available && _allVariantsSelected
-                        ? () => widget.onAddToCart(
-                              RetailCartSelection(
-                                product: widget.product,
-                                variants: Map.unmodifiable(_selections),
-                                quantity: _quantity,
-                              ),
-                            )
-                        : null,
-                    icon: const Icon(Icons.shopping_bag_outlined),
-                    label: Text(
-                      widget.product.available ? 'Add to bag' : 'Unavailable',
-                    ),
+                  if (variants.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    ...variants.entries.map(_variantField),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text('Quantity', style: theme.textTheme.titleSmall),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'Decrease quantity',
+                        onPressed: _quantity > 1
+                            ? () => setState(() => _quantity--)
+                            : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text('$_quantity', style: theme.textTheme.titleMedium),
+                      IconButton(
+                        tooltip: 'Increase quantity',
+                        onPressed: () => setState(() => _quantity++),
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
-        ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: widget.product.available && _allVariantsSelected
+                  ? () => widget.onAddToCart(
+                      RetailCartSelection(
+                        product: widget.product,
+                        variants: Map.unmodifiable(_selections),
+                        quantity: _quantity,
+                      ),
+                    )
+                  : null,
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: Text(
+                widget.product.available ? 'Add to bag' : 'Unavailable',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -407,9 +421,9 @@ class _RetailQuickLookSheetState extends State<RetailQuickLookSheet> {
   Widget _variantField(MapEntry<String, dynamic> entry) {
     final values = entry.value is List
         ? (entry.value as List)
-            .map((value) => value.toString())
-            .where((value) => value.isNotEmpty)
-            .toList()
+              .map((value) => value.toString())
+              .where((value) => value.isNotEmpty)
+              .toList()
         : [entry.value.toString()];
     if (values.isEmpty) return const SizedBox.shrink();
 

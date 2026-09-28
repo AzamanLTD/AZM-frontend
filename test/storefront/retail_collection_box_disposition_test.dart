@@ -5,6 +5,7 @@ import 'package:azaman/storefront/models/storefront_models.dart';
 import 'package:azaman/storefront/widgets/retail_collection_box_widget.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,9 +16,11 @@ class _ScriptedGateway implements RetailCheckoutGateway {
   final results = <RetailCheckoutResult>[];
 
   @override
-  Future<RetailCheckoutResult> checkout(RetailCart cart,
-      {RetailCheckoutOptions options = const RetailCheckoutOptions(),
-      required String idempotencyKey}) async {
+  Future<RetailCheckoutResult> checkout(
+    RetailCart cart, {
+    RetailCheckoutOptions options = const RetailCheckoutOptions(),
+    required String idempotencyKey,
+  }) async {
     keys.add(idempotencyKey);
     if (results.isEmpty) {
       throw StateError('no scripted result');
@@ -26,8 +29,11 @@ class _ScriptedGateway implements RetailCheckoutGateway {
   }
 
   @override
-  Future<void> fundEscrow(String escrowId,
-      {String? totpToken, String? password}) async {}
+  Future<void> fundEscrow(
+    String escrowId, {
+    String? totpToken,
+    String? password,
+  }) async {}
 }
 
 // =============================================================================
@@ -58,8 +64,9 @@ void main() {
 
   /// The bag badge's '1' (white, w800) — distinct from a quantity '1'
   /// inside the still-open quick look sheet.
-  final bagBadge = find.byWidgetPredicate((w) =>
-      w is Text && w.data == '1' && w.style?.fontWeight == FontWeight.w800);
+  final bagBadge = find.byWidgetPredicate(
+    (w) => w is Text && w.data == '1' && w.style?.fontWeight == FontWeight.w800,
+  );
 
   Future<void> addToBag(WidgetTester tester) async {
     await tester.tap(find.text('Everyday Bag'));
@@ -75,31 +82,49 @@ void main() {
   }
 
   testWidgets('a retryable checkout failure RETAINS the durable instance — '
-      'the re-tap reuses the SAME key (never a duplicate order)',
-      (tester) async {
+      'the re-tap reuses the SAME key (never a duplicate order)', (
+    tester,
+  ) async {
     final gateway = _ScriptedGateway();
-    gateway.results.add(const RetailCheckoutFailure(
+    gateway.results.add(
+      const RetailCheckoutFailure(
         message: 'Connection lost — your order is still pending.',
-        retryable: true));
-    gateway.results.add(const RetailCheckoutSuccess(
+        retryable: true,
+      ),
+    );
+    gateway.results.add(
+      const RetailCheckoutSuccess(
         orderId: 'order-1',
-        confirmationMessage: 'Order placed successfully.'));
+        confirmationMessage: 'Order placed successfully.',
+      ),
+    );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: RetailCollectionBoxWidget(
-          business: business,
-          checkoutGateway: gateway,
-          props: {
-            'id': 'collection-1',
-            'title': 'Staff Picks',
-            'products': [
-              {'id': 'p1', 'name': 'Everyday Bag', 'price': 25, 'currency': 'GHS'},
-            ],
-          },
+    // The quick-look sheet renders through AzSheetSurface, which reads
+    // themeProvider — so the harness needs a ProviderScope like the real app.
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: RetailCollectionBoxWidget(
+              business: business,
+              checkoutGateway: gateway,
+              props: {
+                'id': 'collection-1',
+                'title': 'Staff Picks',
+                'products': [
+                  {
+                    'id': 'p1',
+                    'name': 'Everyday Bag',
+                    'price': 25,
+                    'currency': 'GHS',
+                  },
+                ],
+              },
+            ),
+          ),
         ),
       ),
-    ));
+    );
 
     // First checkout attempt: transport failure.
     await addToBag(tester);
@@ -110,13 +135,17 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
     expect(gateway.keys, hasLength(1));
-    expect(find.text('Connection lost — your order is still pending.'),
-        findsOneWidget);
+    expect(
+      find.text('Connection lost — your order is still pending.'),
+      findsOneWidget,
+    );
 
     // The instance must STILL be pending — retiring it would arm a fresh
     // key on the re-tap and duplicate the order.
     var ops = await DurableOperationRegistry.pending(
-        account: 'user-1', type: 'storefront.retail.checkout');
+      account: 'user-1',
+      type: 'storefront.retail.checkout',
+    );
     expect(ops, hasLength(1));
     final originalKey = ops.single.key;
 
@@ -127,41 +156,63 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(gateway.keys, hasLength(2));
-    expect(gateway.keys[1], gateway.keys[0],
-        reason: 'the re-tap must reuse the SAME durable key');
+    expect(
+      gateway.keys[1],
+      gateway.keys[0],
+      reason: 'the re-tap must reuse the SAME durable key',
+    );
     expect(gateway.keys[0], originalKey);
 
     // The answered success retires the instance.
     ops = await DurableOperationRegistry.pending(
-        account: 'user-1', type: 'storefront.retail.checkout');
+      account: 'user-1',
+      type: 'storefront.retail.checkout',
+    );
     expect(ops, isEmpty);
   });
 
   testWidgets('a definitive (non-retryable) checkout failure RETIRES the '
-      'durable instance — the next checkout mints a fresh key',
-      (tester) async {
+      'durable instance — the next checkout mints a fresh key', (tester) async {
     final gateway = _ScriptedGateway();
     gateway.results.add(
-        const RetailCheckoutFailure(message: 'Your bag is empty.', retryable: false));
-    gateway.results.add(const RetailCheckoutSuccess(
+      const RetailCheckoutFailure(
+        message: 'Your bag is empty.',
+        retryable: false,
+      ),
+    );
+    gateway.results.add(
+      const RetailCheckoutSuccess(
         orderId: 'order-2',
-        confirmationMessage: 'Order placed successfully.'));
+        confirmationMessage: 'Order placed successfully.',
+      ),
+    );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: RetailCollectionBoxWidget(
-          business: business,
-          checkoutGateway: gateway,
-          props: {
-            'id': 'collection-1',
-            'title': 'Staff Picks',
-            'products': [
-              {'id': 'p1', 'name': 'Everyday Bag', 'price': 25, 'currency': 'GHS'},
-            ],
-          },
+    // The quick-look sheet renders through AzSheetSurface, which reads
+    // themeProvider — so the harness needs a ProviderScope like the real app.
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: RetailCollectionBoxWidget(
+              business: business,
+              checkoutGateway: gateway,
+              props: {
+                'id': 'collection-1',
+                'title': 'Staff Picks',
+                'products': [
+                  {
+                    'id': 'p1',
+                    'name': 'Everyday Bag',
+                    'price': 25,
+                    'currency': 'GHS',
+                  },
+                ],
+              },
+            ),
+          ),
         ),
       ),
-    ));
+    );
 
     await addToBag(tester);
     await tester.tap(find.text('Continue to checkout'));
@@ -171,9 +222,14 @@ void main() {
     expect(gateway.keys, hasLength(1));
 
     final ops = await DurableOperationRegistry.pending(
-        account: 'user-1', type: 'storefront.retail.checkout');
-    expect(ops, isEmpty,
-        reason: 'a definitive failure never committed — retire it');
+      account: 'user-1',
+      type: 'storefront.retail.checkout',
+    );
+    expect(
+      ops,
+      isEmpty,
+      reason: 'a definitive failure never committed — retire it',
+    );
 
     // The next checkout is a genuinely new action: a fresh key.
     await tester.tap(bagBadge);

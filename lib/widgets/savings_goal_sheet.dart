@@ -34,9 +34,8 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
-import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
-
 
 /// Public entry-point. Call from the SavingsScreen goal card `onTap`.
 class SavingsGoalSheet {
@@ -45,11 +44,16 @@ class SavingsGoalSheet {
     required Map<String, dynamic> goal,
     required VoidCallback onChanged,
   }) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SheetBody(goal: goal, onChanged: onChanged),
+    // NEW-B: Panel weight. The goal detail carries a progress header, a
+    // balance summary and a stack of action tiles — a long sheet that also
+    // opens two more sheets of its own (fund / withdraw).
+    return AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _SheetBody(
+        goal: goal,
+        onChanged: onChanged,
+        scrollController: scrollController,
+      ),
     );
   }
 }
@@ -58,7 +62,14 @@ class _SheetBody extends ConsumerStatefulWidget {
   final Map<String, dynamic> goal;
   final VoidCallback onChanged;
 
-  const _SheetBody({required this.goal, required this.onChanged});
+  /// The Panel's own scroll controller, supplied by [SavingsGoalSheet.show].
+  final ScrollController scrollController;
+
+  const _SheetBody({
+    required this.goal,
+    required this.onChanged,
+    required this.scrollController,
+  });
 
   @override
   ConsumerState<_SheetBody> createState() => _SheetBodyState();
@@ -104,8 +115,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
   double get _currentGhs =>
       (_goal['currentAmountGhs'] as num?)?.toDouble() ?? 0;
-  double get _targetGhs =>
-      (_goal['targetAmountGhs'] as num?)?.toDouble() ?? 0;
+  double get _targetGhs => (_goal['targetAmountGhs'] as num?)?.toDouble() ?? 0;
   double get _frequencyAmount =>
       (_goal['frequencyAmount'] as num?)?.toDouble() ?? 0;
   String get _frequency => _goal['frequency']?.toString() ?? 'WEEKLY';
@@ -153,7 +163,9 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
         widget.onChanged();
         if (mounted) {
           Navigator.pop(context);
-          _toast('Deposited GHS ${amountGhs.toStringAsFixed(2)} into "$_name".');
+          _toast(
+            'Deposited GHS ${amountGhs.toStringAsFixed(2)} into "$_name".',
+          );
         }
       } else {
         _toast(body['message']?.toString() ?? 'Deposit failed.', error: true);
@@ -186,7 +198,10 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           _toast(body['message']?.toString() ?? 'Withdrawal successful.');
         }
       } else {
-        _toast(body['message']?.toString() ?? 'Withdrawal failed.', error: true);
+        _toast(
+          body['message']?.toString() ?? 'Withdrawal failed.',
+          error: true,
+        );
       }
     } catch (e) {
       _toast('Network error: $e', error: true);
@@ -201,10 +216,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
     setState(() => _busy = true);
     try {
-      final res = await apiClient.put(
-        '/savings/goals/$_goalId/$endpoint',
-        {},
-      );
+      final res = await apiClient.put('/savings/goals/$_goalId/$endpoint', {});
 
       final body = jsonDecode(res.body);
       if (res.statusCode == 200 && body['success'] == true) {
@@ -215,8 +227,10 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           _goal['status'] = isPaused ? 'ACTIVE' : 'PAUSED';
         });
         widget.onChanged();
-        _toast(body['message']?.toString() ??
-            (isPaused ? 'Goal resumed.' : 'Goal paused.'));
+        _toast(
+          body['message']?.toString() ??
+              (isPaused ? 'Goal resumed.' : 'Goal paused.'),
+        );
       } else {
         _toast(body['message']?.toString() ?? 'Action failed.', error: true);
       }
@@ -236,212 +250,210 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
     final canWithdraw = _currentGhs > 0 && _status != 'CANCELLED';
     final isPaused = _status == 'PAUSED';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 14,
-        bottom: MediaQuery.of(context).padding.bottom + 22,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Header — name, status badge, progress bar, balance summary
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colors.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+    // NEW-B: the weight owns surface, radius, safe-area and the handle, so
+    // the old Container and drag handle are deleted. The action tiles stay
+    // scrollable with the header rather than being pinned — none of them is
+    // irreversible on a tap that cannot be undone by scrolling back.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header — name, status badge, progress bar, balance summary
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.savings_outlined,
+                    color: colors.accent,
+                    size: 22,
+                  ),
                 ),
-                child: Icon(Icons.savings_outlined,
-                    color: colors.accent, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_name,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _name,
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                        )),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        _statusBadge(colors),
-                        const SizedBox(width: 8),
-                        if (_isLocked)
-                          Icon(Icons.lock_outline,
-                              size: 12, color: colors.textTertiary),
-                        if (_isLocked)
-                          const SizedBox(width: 3),
-                        Text(
-                          '$_frequency \u00b7 GHS ${_frequencyAmount.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 11,
-                          ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          _statusBadge(colors),
+                          const SizedBox(width: 8),
+                          if (_isLocked)
+                            Icon(
+                              Icons.lock_outline,
+                              size: 12,
+                              color: colors.textTertiary,
+                            ),
+                          if (_isLocked) const SizedBox(width: 3),
+                          Text(
+                            '$_frequency \u00b7 GHS ${_frequencyAmount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: _progress,
+                minHeight: 6,
+                backgroundColor: colors.divider,
+                valueColor: AlwaysStoppedAnimation(colors.accent),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'GHS ${_currentGhs.toStringAsFixed(2)} / ${_targetGhs.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${(_progress * 100).toStringAsFixed(0)}% saved',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+
+            // Action grid — Fund + Withdraw side-by-side
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionTile(
+                    icon: Icons.add,
+                    label: 'Fund',
+                    color: colors.success,
+                    enabled: canFund && !_busy,
+                    onTap: () => _showFundSheet(colors),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ActionTile(
+                    icon: Icons.north_east,
+                    label: 'Withdraw',
+                    color: colors.accent,
+                    enabled: canWithdraw && !_busy,
+                    onTap: () => _showWithdrawSheet(colors),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Pause / Resume toggle button
+            OutlinedButton.icon(
+              icon: Icon(
+                isPaused
+                    ? Icons.play_circle_outline
+                    : Icons.pause_circle_outline,
+                color: isPaused ? colors.success : colors.warning,
+                size: 18,
+              ),
+              label: Text(
+                isPaused ? 'Resume Goal' : 'Pause Goal',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              onPressed:
+                  _busy || _status == 'COMPLETED' || _status == 'CANCELLED'
+                  ? null
+                  : _toggleStatus,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: BorderSide(color: colors.divider),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+
+            if (_busy) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.accent,
+                  ),
+                ),
+              ),
+            ],
+
+            if (_status == 'COMPLETED') ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.success.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.celebration_outlined,
+                      color: colors.success,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Goal complete. You can withdraw the full balance with no penalty.',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 11,
+                          height: 1.4,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: _progress,
-              minHeight: 6,
-              backgroundColor: colors.divider,
-              valueColor: AlwaysStoppedAnimation(colors.accent),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'GHS ${_currentGhs.toStringAsFixed(2)} / ${_targetGhs.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                '${(_progress * 100).toStringAsFixed(0)}% saved',
-                style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-
-          // Action grid — Fund + Withdraw side-by-side
-          Row(
-            children: [
-              Expanded(
-                child: _ActionTile(
-                  icon: Icons.add,
-                  label: 'Fund',
-                  color: colors.success,
-                  enabled: canFund && !_busy,
-                  onTap: () => _showFundSheet(colors),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ActionTile(
-                  icon: Icons.north_east,
-                  label: 'Withdraw',
-                  color: colors.accent,
-                  enabled: canWithdraw && !_busy,
-                  onTap: () => _showWithdrawSheet(colors),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Pause / Resume toggle button
-          OutlinedButton.icon(
-            icon: Icon(
-              isPaused ? Icons.play_circle_outline : Icons.pause_circle_outline,
-              color: isPaused ? colors.success : colors.warning,
-              size: 18,
-            ),
-            label: Text(
-              isPaused ? 'Resume Goal' : 'Pause Goal',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            onPressed: _busy || _status == 'COMPLETED' || _status == 'CANCELLED'
-                ? null
-                : _toggleStatus,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: BorderSide(color: colors.divider),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-
-          if (_busy) ...[
-            const SizedBox(height: 12),
-            Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.accent,
-                ),
-              ),
-            ),
           ],
-
-          if (_status == 'COMPLETED') ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colors.success.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.celebration_outlined,
-                      color: colors.success, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Goal complete. You can withdraw the full balance with no penalty.',
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 11,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -474,11 +486,11 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
   void _showFundSheet(AzamanColors colors) {
     HapticFeedback.selectionClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AmountPromptSheet(
+    // NEW-B: Panel weight — a numeric keypad-bound amount form.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _AmountPromptSheet(
+        scrollController: scrollController,
         title: 'Fund "$_name"',
         ctaLabel: 'Deposit',
         ctaColor: colors.success,
@@ -493,17 +505,20 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
   void _showWithdrawSheet(AzamanColors colors) {
     HapticFeedback.selectionClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AmountPromptSheet(
+    // NEW-B: Panel weight — same shape as the fund sheet, plus a withdraw-all
+    // shortcut. The penalty warning lives here, so this is not a whisper.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _AmountPromptSheet(
+        scrollController: scrollController,
         title: 'Withdraw from "$_name"',
         subtitle: _earlyWithdrawalApplies
             ? 'Locked goal \u2014 a 2% early-withdrawal penalty applies.'
             : 'Available: GHS ${_currentGhs.toStringAsFixed(2)}.',
         subtitleColor: _earlyWithdrawalApplies ? colors.danger : null,
-        ctaLabel: _earlyWithdrawalApplies ? 'Withdraw with Penalty' : 'Withdraw',
+        ctaLabel: _earlyWithdrawalApplies
+            ? 'Withdraw with Penalty'
+            : 'Withdraw',
         ctaColor: _earlyWithdrawalApplies ? colors.danger : colors.accent,
         suggestion: _currentGhs,
         max: _currentGhs,
@@ -530,6 +545,9 @@ class _AmountPromptSheet extends ConsumerStatefulWidget {
   final bool showWithdrawAllShortcut;
   final Future<void> Function(double amount) onSubmit;
 
+  /// The Panel's own scroll controller, supplied by the show call.
+  final ScrollController scrollController;
+
   const _AmountPromptSheet({
     required this.title,
     this.subtitle,
@@ -540,6 +558,7 @@ class _AmountPromptSheet extends ConsumerStatefulWidget {
     this.max,
     this.showWithdrawAllShortcut = false,
     required this.onSubmit,
+    required this.scrollController,
   });
 
   @override
@@ -576,8 +595,9 @@ class _AmountPromptSheetState extends ConsumerState<_AmountPromptSheet> {
       return;
     }
     if (widget.max != null && amount > widget.max!) {
-      setState(() => _error =
-          'Cannot exceed GHS ${widget.max!.toStringAsFixed(2)}.');
+      setState(
+        () => _error = 'Cannot exceed GHS ${widget.max!.toStringAsFixed(2)}.',
+      );
       return;
     }
     widget.onSubmit(amount);
@@ -587,34 +607,24 @@ class _AmountPromptSheetState extends ConsumerState<_AmountPromptSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // NEW-B: the weight owns surface, radius, safe-area and the handle, so the
+    // old Container + handle bar are deleted. Scrolls through the sheet's own
+    // controller. The SlideToConfirm commit stays in the scroll flow: it is a
+    // deliberate friction affordance, and pinning it would separate the thing
+    // the user is being asked to do from the amount it acts on.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         20,
-        14,
+        8,
         20,
         MediaQuery.of(context).viewInsets.bottom + 22,
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(20),
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             Text(
               widget.title,
               style: TextStyle(
@@ -637,8 +647,9 @@ class _AmountPromptSheetState extends ConsumerState<_AmountPromptSheet> {
             TextField(
               controller: _controller,
               autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
               ],

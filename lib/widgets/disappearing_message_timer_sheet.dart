@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/premium_chat_provider.dart';
+import 'azaman_sheet.dart';
 
 /// Pre-defined timer options (seconds, label, icon)
 const List<({int seconds, String label, IconData icon})> _kDisappearOptions = [
@@ -25,37 +26,32 @@ const List<({int seconds, String label, IconData icon})> _kDisappearOptions = [
 /// Pass the active [ChatContextParams] so the sheet reads/writes the right
 /// provider instance.
 void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => Consumer(
+  // NEW-B: Panel weight, decided by AzSheetGeometry.classify — seven options
+  // plus a header and description measure ~510px against a 45% ceiling of
+  // ~380px on a 390×844 phone, so this is a panel and not a whisper.
+  //
+  // The body scrolls through the controller the sheet hands it. A Panel whose
+  // child ignores that controller has no way to move its detent, so the drag
+  // silently does nothing.
+  AzamanSheet.showPanel<void>(
+    context,
+    builder: (_, scrollController) => Consumer(
       builder: (ctx, ref, _) {
         final theme = Theme.of(ctx);
         final cs = theme.colorScheme;
-        final currentTimer = ref.watch(premiumChatProvider(params)).disappearAfterSeconds;
+        final currentTimer =
+            ref.watch(premiumChatProvider(params)).disappearAfterSeconds;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.only(top: 12, bottom: 32),
+        return SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.only(top: 8, bottom: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
-              Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: cs.outline.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
               // Title row
               Padding(
-                padding: const EdgeInsets.only(left: 24, right: 24, bottom: 4),
+                padding:
+                    const EdgeInsets.only(left: 24, right: 24, bottom: 4),
                 child: Row(
                   children: [
                     Icon(Icons.timer_outlined, size: 22, color: cs.primary),
@@ -68,7 +64,8 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
               ),
               // Description
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 4),
                 child: Text(
                   'New messages sent in this chat will disappear after the '
                   'selected time. The timer starts when the message is sent.',
@@ -83,14 +80,18 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
                 return ListTile(
                   leading: Icon(opt.icon,
                       size: 22,
-                      color: isSelected ? cs.primary : cs.onSurfaceVariant),
+                      color: isSelected
+                          ? cs.primary
+                          : cs.onSurfaceVariant),
                   title: Text(opt.label),
                   trailing: isSelected
                       ? Icon(Icons.check_circle, size: 22, color: cs.primary)
                       : null,
                   onTap: () {
-                    ref.read(premiumChatProvider(params).notifier)
-                        .setDisappearTimer(opt.seconds == 0 ? null : opt.seconds);
+                    ref
+                        .read(premiumChatProvider(params).notifier)
+                        .setDisappearTimer(
+                            opt.seconds == 0 ? null : opt.seconds);
                     Navigator.of(ctx).pop();
                   },
                 );

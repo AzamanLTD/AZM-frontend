@@ -24,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 
@@ -128,31 +129,28 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     }
   }
 
+  /// NEW-B / I.8: WHISPER. Two decisions, no scroll, sized to content — well
+  /// under the 45% ceiling. Forced to Panel it would carry a grab handle and a
+  /// 45% rest detent for a ~150px surface, which reads as a heavyweight form for
+  /// a two-tap choice. Classified, then migrated: its own surface colour and
+  /// 16px top radius are deleted, because `AzSheetSurface` supplies both.
   Future<ImageSource?> _showImageSourcePicker() async {
     final colors = ref.read(themeProvider).colors;
-    return showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.camera_alt_outlined, color: colors.accent),
-              title: Text('Camera', style: TextStyle(color: colors.textPrimary)),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            ListTile(
-              leading: Icon(Icons.image_outlined, color: colors.accent),
-              title: Text('Gallery', style: TextStyle(color: colors.textPrimary)),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-          ],
-        ),
+    return AzamanSheet.showWhisper<ImageSource>(
+      context,
+      builder: (ctx) => AzStaggeredColumn(
+        children: [
+          ListTile(
+            leading: Icon(Icons.camera_alt_outlined, color: colors.accent),
+            title: Text('Camera', style: TextStyle(color: colors.textPrimary)),
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+          ),
+          ListTile(
+            leading: Icon(Icons.image_outlined, color: colors.accent),
+            title: Text('Gallery', style: TextStyle(color: colors.textPrimary)),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+          ),
+        ],
       ),
     );
   }

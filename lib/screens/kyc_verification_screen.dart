@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 class KycVerificationScreen extends ConsumerStatefulWidget {
@@ -64,32 +65,30 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
 
     final colors = ref.read(themeProvider).colors;
 
-    // Let user choose camera or gallery
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Select Image Source", style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _sourceOption(colors, Icons.camera_alt_outlined, "Camera", () => Navigator.pop(ctx, ImageSource.camera)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _sourceOption(colors, Icons.image_outlined, "Gallery", () => Navigator.pop(ctx, ImageSource.gallery)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+    // Let user choose camera or gallery.
+    //
+    // Migration note: Whisper weight — two decisions, no scroll, sized to
+    // content. AzSheetSurface now supplies the surface, the 28px sheetTop
+    // radius and the bottom safe-area, so the old local Container/Padding
+    // chrome is deleted rather than ported (I.8.1).
+    final source = await AzamanSheet.showWhisper<ImageSource>(
+      context,
+      builder: (ctx) => AzStaggeredColumn(
+        children: [
+          Text("Select Image Source", style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _sourceOption(colors, Icons.camera_alt_outlined, "Camera", () => Navigator.pop(ctx, ImageSource.camera)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _sourceOption(colors, Icons.image_outlined, "Gallery", () => Navigator.pop(ctx, ImageSource.gallery)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
 

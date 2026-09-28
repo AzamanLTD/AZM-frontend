@@ -20,13 +20,13 @@
 // compact bottom-sheet picker instead of jumping straight to one workspace.
 // =============================================================================
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/ticket_service.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class ActiveTicketHud extends ConsumerStatefulWidget {
   final List<Ticket> tickets;
@@ -52,7 +52,8 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
 
   // ── Snap-back (elastic return after release) ───────────────────────────────
   late final AnimationController _snapCtrl;
-  Animation<double> _snapAnim; // reassigned per drag-end (same pattern as VendorPullTab)
+  Animation<double>
+  _snapAnim; // reassigned per drag-end (same pattern as VendorPullTab)
   late final VoidCallback _snapListener;
 
   // ── Drag state ─────────────────────────────────────────────────────────────
@@ -74,18 +75,20 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
-    _floatAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
-      CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut),
-    );
+    _floatAnim = Tween<double>(
+      begin: -3.0,
+      end: 3.0,
+    ).animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
 
     // Snap-back — listener installed ONCE (avoids the leak VendorPullTab docs warn about)
     _snapCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _snapAnim = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut),
-    );
+    _snapAnim = Tween<double>(
+      begin: 0,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut));
     _snapListener = () {
       if (mounted) setState(() => _dragX = _snapAnim.value);
     };
@@ -136,9 +139,10 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
     } else {
       // Snap back with elastic
       HapticFeedback.lightImpact();
-      _snapAnim = Tween<double>(begin: _dragX, end: 0).animate(
-        CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut),
-      );
+      _snapAnim = Tween<double>(
+        begin: _dragX,
+        end: 0,
+      ).animate(CurvedAnimation(parent: _snapCtrl, curve: Curves.elasticOut));
       _snapCtrl.forward(from: 0).then((_) {
         if (mounted) setState(() => _dragX = 0);
       });
@@ -154,8 +158,10 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
     final mq = MediaQuery.of(context);
     final maxTop = mq.size.height - mq.padding.bottom - 120.0;
     setState(() {
-      _topOffset = ((_topOffset ?? mq.size.height * 0.35) + d.delta.dy)
-          .clamp(0.0, maxTop);
+      _topOffset = ((_topOffset ?? mq.size.height * 0.35) + d.delta.dy).clamp(
+        0.0,
+        maxTop,
+      );
     });
   }
 
@@ -165,9 +171,13 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
       return;
     }
     final colors = ref.read(themeProvider).colors;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
+    // NEW-B: Whisper weight, per AzSheetGeometry.classify — a fixed list of
+    // active deals with a single tap-to-pick action, not scrollable. The
+    // 45% ceiling is also a real constraint rather than a formality: a user can
+    // have many tickets open with this peer, and a whisper is the weight that
+    // clips politely at the ceiling instead of pushing the last deal off-screen.
+    AzamanSheet.showWhisper<void>(
+      context,
       builder: (_) => _TicketPickerSheet(
         colors: colors,
         tickets: widget.tickets,
@@ -198,8 +208,7 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
         child: AnimatedBuilder(
           animation: Listenable.merge([_floatAnim, _snapCtrl]),
           builder: (_, child) {
-            final floatOffset =
-                _isDragging ? 0.0 : _floatAnim.value;
+            final floatOffset = _isDragging ? 0.0 : _floatAnim.value;
             final scaleX =
                 1.0 + (_dragX / (mq.size.width * 2)).clamp(0.0, 0.15);
             return Transform.translate(
@@ -213,9 +222,8 @@ class _ActiveTicketHudState extends ConsumerState<ActiveTicketHud>
           },
           child: _TabBody(
             count: widget.tickets.length,
-            dragProgress:
-                (_dragX / (MediaQuery.of(context).size.width * 0.5))
-                    .clamp(0.0, 1.0),
+            dragProgress: (_dragX / (MediaQuery.of(context).size.width * 0.5))
+                .clamp(0.0, 1.0),
           ),
         ),
       ),
@@ -294,43 +302,35 @@ class _TicketPickerSheet extends StatelessWidget {
   });
 
   Color _statusColor(TicketStatus s) => switch (s) {
-        TicketStatus.open => const Color(0xFFF59E0B),
-        TicketStatus.closed => const Color(0xFF22C55E),
-        TicketStatus.cancelled => const Color(0xFFEF4444),
-      };
+    TicketStatus.open => const Color(0xFFF59E0B),
+    TicketStatus.closed => const Color(0xFF22C55E),
+    TicketStatus.cancelled => const Color(0xFFEF4444),
+  };
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    // NEW-B: the weight owns surface, radius, safe-area and the handle
+    // decision, so the old Container and inline handle are deleted. The
+    // stagger carries the old list's arrival.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: AzStaggeredColumn(
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
           Row(
             children: [
-              const Icon(Icons.lock_rounded, color: Color(0xFFF59E0B), size: 18),
+              const Icon(
+                Icons.lock_rounded,
+                color: Color(0xFFF59E0B),
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Active Deals with $peerName',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800),
+                  color: colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -344,8 +344,10 @@ class _TicketPickerSheet extends StatelessWidget {
               },
               child: Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: colors.card,
                   borderRadius: BorderRadius.circular(14),
@@ -357,31 +359,41 @@ class _TicketPickerSheet extends StatelessWidget {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                          color: sc, shape: BoxShape.circle),
+                        color: sc,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(t.name,
-                              style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
+                          Text(
+                            t.name,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             '${t.targetAmount.toStringAsFixed(2)} ${t.targetCurrency}  ·  ${t.type.label}',
                             style: TextStyle(
-                                color: colors.textSecondary, fontSize: 11),
+                              color: colors.textSecondary,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right,
-                        color: colors.textTertiary, size: 18),
+                    Icon(
+                      Icons.chevron_right,
+                      color: colors.textTertiary,
+                      size: 18,
+                    ),
                   ],
                 ),
               ),

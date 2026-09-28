@@ -22,6 +22,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class EscrowStatusPanel extends ConsumerStatefulWidget {
   final SmartEscrow? escrow;
@@ -262,75 +263,67 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
   Future<void> _openDisputeSheet() async {
     final controller = TextEditingController();
     final colors = ref.read(themeProvider).colors;
-    final reason = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
+    // NEW-B (I.10.2): free-text from the user is not bounded by a constant, so
+    // this is a Panel, not a Whisper. The Submit row is pinned (I.8.3) — a gated
+    // commit that scrolls out of view is a commit the user cannot find.
+    final reason = await AzamanSheet.showPanel<String>(
+      context,
+      builder: (ctx, scrollController) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.divider,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+        child: Column(
+          children: [
+            Flexible(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                 children: [
-                  Icon(Icons.error_outline,
-                      color: colors.danger, size: 20),
-                  const SizedBox(width: 8),
-                  Text('Raise a Dispute',
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      )),
+                  Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          color: colors.danger, size: 20),
+                      const SizedBox(width: 8),
+                      Text('Raise a Dispute',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tell us what went wrong. An admin will review the escrow.',
+                    style:
+                        TextStyle(color: colors.textTertiary, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    minLines: 3,
+                    maxLength: 1000,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Describe the issue…',
+                      hintStyle: TextStyle(color: colors.textTertiary),
+                      filled: true,
+                      fillColor: colors.card,
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Tell us what went wrong. An admin will review the escrow.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 12.5),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                maxLines: 4,
-                minLines: 3,
-                maxLength: 1000,
-                textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(color: colors.textPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Describe the issue…',
-                  hintStyle: TextStyle(color: colors.textTertiary),
-                  filled: true,
-                  fillColor: colors.card,
-                  counterText: '',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
@@ -347,12 +340,12 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     ),
                   ),
                   child: const Text('Submit Dispute',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800)),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -376,33 +369,20 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
     final controller =
         TextEditingController(text: escrow?.deliveryTerms ?? '');
     final colors = ref.read(themeProvider).colors;
-    final terms = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
+    // NEW-B: same shape as the dispute sheet — free-text, keyboard-bound,
+    // Panel with the Save row pinned so the primary action is never scrolled
+    // off the 45% rest detent.
+    final terms = await AzamanSheet.showPanel<String>(
+      context,
+      builder: (ctx, scrollController) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.divider,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+        child: Column(
+          children: [
+            Flexible(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                children: [
               Text('Update Delivery Terms',
                   style: TextStyle(
                     color: colors.textPrimary,
@@ -429,8 +409,12 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-              SizedBox(
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () =>
@@ -444,12 +428,12 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     ),
                   ),
                   child: const Text('Save Terms',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800)),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

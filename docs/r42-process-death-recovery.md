@@ -232,6 +232,8 @@ writer, so the migration is contained.
   post-death instance under its ORIGINAL key.
 
 **Storefront order-endpoint alignment (r42):** `AZM-backend/__tests__/storefront-order-idempotency.test.js`
+(backend repo — not part of the Flutter workspace; asserted here, to be
+confirmed against a live backend run before release)
 — route-level contract for the two customer-facing storefront order
 endpoints: a keyed first request creates exactly one order; a same-key
 replay returns the SAME logical order (`idempotent:true`); a concurrent

@@ -51,6 +51,7 @@ import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
 
@@ -398,27 +399,16 @@ class SettingsScreen extends ConsumerWidget {
     required ValueChanged<String> onPicked,
   }) async {
     AzamanHaptics.toggle();
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    // NEW-B: a fixed option list is the reference Whisper surface — sized to
+    // content, no handle, no scroll. The old body carried its own surface
+    // colour, 20px radius and drag handle; the weight supplies all three now,
+    // so they are deleted rather than ported (I.8.1).
+    final selected = await AzamanSheet.showWhisper<String>(
+      context,
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(height: 12),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
@@ -450,7 +440,6 @@ class SettingsScreen extends ConsumerWidget {
               }),
               const SizedBox(height: 12),
             ],
-          ),
         );
       },
     );

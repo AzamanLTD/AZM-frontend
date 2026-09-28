@@ -24,7 +24,9 @@ class TransitExperienceTrip {
   });
 
   factory TransitExperienceTrip.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic value) => DateTime.tryParse(value?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    DateTime parseDate(dynamic value) =>
+        DateTime.tryParse(value?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     return TransitExperienceTrip(
       id: (json['id'] ?? json['tripId'] ?? '').toString(),
       origin: (json['origin'] ?? json['from'] ?? '').toString(),
@@ -33,7 +35,9 @@ class TransitExperienceTrip {
       arrival: parseDate(json['arrival']),
       operatorName: json['operatorName']?.toString(),
       vehicleType: json['vehicleType']?.toString(),
-      fare: json['fare'] is num ? (json['fare'] as num).toDouble() : double.tryParse('${json['fare'] ?? ''}'),
+      fare: json['fare'] is num
+          ? (json['fare'] as num).toDouble()
+          : double.tryParse('${json['fare'] ?? ''}'),
       currency: json['currency']?.toString(),
       availableSeats: int.tryParse('${json['availableSeats'] ?? 0}') ?? 0,
     );
@@ -51,7 +55,9 @@ abstract class TransitHoldGateway {
   Future<TransitHoldResult> hold(TransitSeatSelection selection);
 }
 
-sealed class TransitHoldResult { const TransitHoldResult(); }
+sealed class TransitHoldResult {
+  const TransitHoldResult();
+}
 
 class TransitHoldSuccess extends TransitHoldResult {
   final String holdId;
@@ -71,16 +77,28 @@ class TransitHoldController {
 
   Future<TransitHoldResult> hold(TransitSeatSelection selection) async {
     if (selection.trip.id.isEmpty) {
-      return const TransitHoldFailure(message: 'Trip information is missing.', retryable: false);
+      return const TransitHoldFailure(
+        message: 'Trip information is missing.',
+        retryable: false,
+      );
     }
     if (selection.seatIds.isEmpty) {
-      return const TransitHoldFailure(message: 'Select at least one seat.', retryable: false);
+      return const TransitHoldFailure(
+        message: 'Select at least one seat.',
+        retryable: false,
+      );
     }
     if (selection.seatIds.length > selection.trip.availableSeats) {
-      return const TransitHoldFailure(message: 'Not enough seats are available.', retryable: false);
+      return const TransitHoldFailure(
+        message: 'Not enough seats are available.',
+        retryable: false,
+      );
     }
     if (!selection.trip.arrival.isAfter(selection.trip.departure)) {
-      return const TransitHoldFailure(message: 'This trip has invalid schedule data.', retryable: false);
+      return const TransitHoldFailure(
+        message: 'This trip has invalid schedule data.',
+        retryable: false,
+      );
     }
     return gateway.hold(selection);
   }

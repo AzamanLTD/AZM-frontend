@@ -26,7 +26,7 @@ import 'package:azaman/providers/trade_account_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/trade_account_service.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class TradeAccountsScreen extends ConsumerStatefulWidget {
   const TradeAccountsScreen({super.key});
@@ -92,8 +92,8 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
         child: accountState.isLoading && accountState.accounts.isEmpty
             ? _buildSkeleton(colors)
             : accountState.accounts.isEmpty
-                ? _buildEmpty(colors)
-                : _buildAccountList(accountState.accounts, colors),
+            ? _buildEmpty(colors)
+            : _buildAccountList(accountState.accounts, colors),
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: colors.accent,
@@ -126,13 +126,13 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
     final statusColor = account.isApproved
         ? colors.success
         : account.isPending
-            ? colors.warning
-            : colors.danger;
+        ? colors.warning
+        : colors.danger;
     final statusText = account.isApproved
         ? 'APPROVED'
         : account.isPending
-            ? 'PENDING'
-            : 'REJECTED';
+        ? 'PENDING'
+        : 'REJECTED';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -173,7 +173,9 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
@@ -218,8 +220,11 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 120),
-        Icon(Icons.account_balance_wallet_outlined,
-            size: 56, color: colors.textTertiary),
+        Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 56,
+          color: colors.textTertiary,
+        ),
         const SizedBox(height: 16),
         Center(
           child: Text(
@@ -294,8 +299,10 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: colors.card,
-        title: Text('Remove account?',
-            style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Remove account?',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         content: Text(
           'Delete your ${SupportedMethod.displayName(account.methodType)} account '
           '(${account.displayLabel})?\n\n'
@@ -305,8 +312,7 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child:
-                Text('CANCEL', style: TextStyle(color: colors.textTertiary)),
+            child: Text('CANCEL', style: TextStyle(color: colors.textTertiary)),
           ),
           TextButton(
             onPressed: () async {
@@ -318,11 +324,12 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
                 HapticFeedback.lightImpact();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(success
-                        ? 'Account removed'
-                        : 'Could not remove — may have active ads'),
-                    backgroundColor:
-                        success ? colors.success : colors.danger,
+                    content: Text(
+                      success
+                          ? 'Account removed'
+                          : 'Could not remove — may have active ads',
+                    ),
+                    backgroundColor: success ? colors.success : colors.danger,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -338,14 +345,16 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
   // ── Add Account Bottom Sheet ──────────────────────────────────────────────
 
   void _showAddAccountSheet(AzamanColors colors) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    // NEW-B: Panel weight. Two states — a method grid and a per-method form
+    // with a screenshot uploader — and the submit row is the point of both.
+    // The hand-rolled `backgroundColor: colors.card` and 22px `shape` are
+    // deleted: the weight owns surface and radius now.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => _AddTradeAccountSheet(
+        colors: colors,
+        scrollController: scrollController,
       ),
-      builder: (ctx) => _AddTradeAccountSheet(colors: colors),
     );
   }
 
@@ -387,15 +396,21 @@ class _TradeAccountsScreenState extends ConsumerState<TradeAccountsScreen> {
 
 class _AddTradeAccountSheet extends ConsumerStatefulWidget {
   final AzamanColors colors;
-  const _AddTradeAccountSheet({required this.colors});
+
+  /// The Panel's own scroll controller, supplied by the show call.
+  final ScrollController scrollController;
+
+  const _AddTradeAccountSheet({
+    required this.colors,
+    required this.scrollController,
+  });
 
   @override
   ConsumerState<_AddTradeAccountSheet> createState() =>
       _AddTradeAccountSheetState();
 }
 
-class _AddTradeAccountSheetState
-    extends ConsumerState<_AddTradeAccountSheet> {
+class _AddTradeAccountSheetState extends ConsumerState<_AddTradeAccountSheet> {
   String? _selectedType;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
@@ -544,12 +559,16 @@ class _AddTradeAccountSheetState
     setState(() => _isUploadingScreenshot = true);
     try {
       final uri = Uri.parse(
-          '${AppConfig.apiUrl}/trade-accounts/upload-screenshot');
+        '${AppConfig.apiUrl}/trade-accounts/upload-screenshot',
+      );
       final req = http.MultipartRequest('POST', uri)
-        ..files.add(await http.MultipartFile.fromPath(
-            'screenshot', _screenshot!.path));
+        ..files.add(
+          await http.MultipartFile.fromPath('screenshot', _screenshot!.path),
+        );
       final res = await apiClient.multipart(
-          '/trade-accounts/upload-screenshot', req);
+        '/trade-accounts/upload-screenshot',
+        req,
+      );
       if (res.statusCode == 201 || res.statusCode == 200) {
         final body = jsonDecode(res.body);
         return body['url'] as String?;
@@ -569,7 +588,9 @@ class _AddTradeAccountSheetState
     if (!_formKey.currentState!.validate()) return;
 
     if (_screenshot == null) {
-      _showError('Upload a screenshot of your account profile to verify ownership.');
+      _showError(
+        'Upload a screenshot of your account profile to verify ownership.',
+      );
       return;
     }
 
@@ -607,7 +628,9 @@ class _AddTradeAccountSheetState
       return;
     }
 
-    final result = await ref.read(tradeAccountProvider.notifier).addAccount(
+    final result = await ref
+        .read(tradeAccountProvider.notifier)
+        .addAccount(
           methodType: _selectedType!,
           accountDetails: details,
           verificationScreenshot: screenshotUrl,
@@ -647,29 +670,21 @@ class _AddTradeAccountSheetState
     final c = widget.colors;
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
 
+    // NEW-B: the weight owns surface, radius, safe-area and the handle, so
+    // the inline handle is deleted. Both branches already scroll through a
+    // Flexible, which is the shape the Panel wants — they now share the
+    // sheet's controller so content drag and detent drag are one gesture.
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 18,
+        top: 8,
         bottom: bottomPad + 20,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: c.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
           Text(
             _selectedType == null
                 ? 'Choose Payment Method'
@@ -686,6 +701,7 @@ class _AddTradeAccountSheetState
             // ── Type Selection Grid ─────────────────────────────────────────
             Flexible(
               child: SingleChildScrollView(
+                controller: widget.scrollController,
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -697,7 +713,9 @@ class _AddTradeAccountSheetState
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: c.surface,
                           border: Border.all(color: c.divider),
@@ -751,39 +769,46 @@ class _AddTradeAccountSheetState
             // ── Dynamic Form ────────────────────────────────────────────────
             Flexible(
               child: SingleChildScrollView(
+                controller: widget.scrollController,
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ..._fieldsForType(_selectedType!).map((field) {
-                        final required =
-                            _isFieldRequired(_selectedType!, field);
+                        final required = _isFieldRequired(
+                          _selectedType!,
+                          field,
+                        );
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: TextFormField(
                             controller: _controllers[field],
                             style: TextStyle(color: c.textPrimary),
-                            keyboardType: field == 'phone' ||
+                            keyboardType:
+                                field == 'phone' ||
                                     field == 'accountNumber' ||
                                     field == 'routingNumber'
                                 ? TextInputType.phone
                                 : field == 'email'
-                                    ? TextInputType.emailAddress
-                                    : TextInputType.text,
+                                ? TextInputType.emailAddress
+                                : TextInputType.text,
                             validator: required
                                 ? (v) => (v == null || v.trim().isEmpty)
-                                    ? 'Required'
-                                    : null
+                                      ? 'Required'
+                                      : null
                                 : null,
                             decoration: InputDecoration(
                               labelText: _fieldLabel(field),
-                              labelStyle:
-                                  TextStyle(color: c.textTertiary, fontSize: 13),
+                              labelStyle: TextStyle(
+                                color: c.textTertiary,
+                                fontSize: 13,
+                              ),
                               hintText: required ? 'Required' : 'Optional',
                               hintStyle: TextStyle(
-                                  color: c.textTertiary.withValues(alpha: 0.5),
-                                  fontSize: 12),
+                                color: c.textTertiary.withValues(alpha: 0.5),
+                                fontSize: 12,
+                              ),
                               filled: true,
                               fillColor: c.surface,
                               border: OutlineInputBorder(
@@ -810,12 +835,12 @@ class _AddTradeAccountSheetState
                           color: c.accent.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: c.accent.withValues(alpha: 0.15)),
+                            color: c.accent.withValues(alpha: 0.15),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline,
-                                size: 16, color: c.accent),
+                            Icon(Icons.info_outline, size: 16, color: c.accent),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -866,12 +891,12 @@ class _AddTradeAccountSheetState
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
-                                  color: (_screenshot != null
-                                          ? c.success
-                                          : c.accent)
-                                      .withValues(alpha: 0.12),
-                                  borderRadius:
-                                      BorderRadius.circular(12),
+                                  color:
+                                      (_screenshot != null
+                                              ? c.success
+                                              : c.accent)
+                                          .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: _screenshot != null
@@ -888,8 +913,7 @@ class _AddTradeAccountSheetState
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       _screenshot != null
@@ -934,8 +958,7 @@ class _AddTradeAccountSheetState
                         style: ElevatedButton.styleFrom(
                           backgroundColor: c.accent,
                           foregroundColor: Colors.black,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

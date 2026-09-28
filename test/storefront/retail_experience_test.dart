@@ -63,10 +63,17 @@ void main() {
   });
 
   testWidgets('quick look uses accessible close control', (tester) async {
+    // NEW-B: RetailQuickLookSheet now requires the Panel's own scroll
+    // controller so that scrolling the content and moving the detent are the
+    // same gesture. In the app the Panel supplies it; here the sheet is pumped
+    // standalone, so the test supplies one and disposes it.
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: RetailQuickLookSheet(
+            scrollController: scrollController,
             product: const RetailProduct(
               id: 'p1',
               name: 'Bag',

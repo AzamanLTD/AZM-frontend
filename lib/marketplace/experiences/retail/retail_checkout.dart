@@ -2,10 +2,7 @@ import 'retail_cart.dart';
 import '../../../utils/idempotency_key.dart';
 
 /// Payment protection choices presented to a retail customer.
-enum RetailPaymentProtection {
-  direct,
-  escrow,
-}
+enum RetailPaymentProtection { direct, escrow }
 
 class RetailCheckoutOptions {
   final bool escrowProtectionAvailable;
@@ -42,7 +39,9 @@ abstract class RetailCheckoutGateway {
     String? totpToken,
     String? password,
   }) async {
-    throw UnimplementedError('This checkout gateway does not support escrow funding.');
+    throw UnimplementedError(
+      'This checkout gateway does not support escrow funding.',
+    );
   }
 }
 
@@ -70,10 +69,7 @@ class RetailCheckoutFailure extends RetailCheckoutResult {
   final String message;
   final bool retryable;
 
-  const RetailCheckoutFailure({
-    required this.message,
-    this.retryable = true,
-  });
+  const RetailCheckoutFailure({required this.message, this.retryable = true});
 }
 
 class RetailCheckoutUnavailable extends RetailCheckoutResult {
@@ -100,18 +96,17 @@ class RetailCheckoutOperation {
     required this.options,
     required this.idempotencyKey,
     required RetailCheckoutGateway gateway,
-  })  : cart = RetailCart(
-          lines: List.unmodifiable(
-            cart.lines
-                .map(
-                  (line) => line.copyWith(
-                    variants: Map.unmodifiable(line.variants),
-                  ),
-                )
-                .toList(growable: false),
-          ),
-        ),
-        _gateway = gateway;
+  }) : cart = RetailCart(
+         lines: List.unmodifiable(
+           cart.lines
+               .map(
+                 (line) =>
+                     line.copyWith(variants: Map.unmodifiable(line.variants)),
+               )
+               .toList(growable: false),
+         ),
+       ),
+       _gateway = gateway;
 
   Future<RetailCheckoutResult> submit() {
     return _gateway.checkout(

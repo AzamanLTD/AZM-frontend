@@ -4,12 +4,17 @@ abstract class RestaurantOrderGateway {
   Future<RestaurantOrderResult> placeOrder(RestaurantTray tray);
 }
 
-sealed class RestaurantOrderResult { const RestaurantOrderResult(); }
+sealed class RestaurantOrderResult {
+  const RestaurantOrderResult();
+}
 
 class RestaurantOrderSuccess extends RestaurantOrderResult {
   final String orderId;
   final String status;
-  const RestaurantOrderSuccess({required this.orderId, this.status = 'received'});
+  const RestaurantOrderSuccess({
+    required this.orderId,
+    this.status = 'received',
+  });
 }
 
 class RestaurantOrderFailure extends RestaurantOrderResult {

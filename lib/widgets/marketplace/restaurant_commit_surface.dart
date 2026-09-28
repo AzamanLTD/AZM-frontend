@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
 typedef RestaurantCommitAction = void Function();
@@ -41,16 +42,10 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
   String? _commitLabel;
   String? _commitSubtitle;
 
-  Duration get _commitDuration {
-    switch (widget.motionTempo) {
-      case MarketplaceMotionTempo.relaxed:
-        return const Duration(milliseconds: 820);
-      case MarketplaceMotionTempo.balanced:
-        return const Duration(milliseconds: 720);
-      case MarketplaceMotionTempo.quick:
-        return const Duration(milliseconds: 560);
-    }
-  }
+  /// The commit-ritual ladder now lives in [MarketplaceTempo] (F-028). The
+  /// three returned values are byte-identical to the literals this getter used
+  /// to hold — this is de-duplication, not a retune.
+  Duration get _commitDuration => MarketplaceTempo.commit(widget.motionTempo);
 
   Duration get _commitDelay {
     return Duration(

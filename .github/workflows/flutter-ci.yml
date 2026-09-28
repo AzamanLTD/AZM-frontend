@@ -24,7 +24,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.0'
+          # Pinned to the project's intentional baseline (recorded in
+          # AZAMAN_PREMIUM_BUILD_BRIEF.md). The golden-image set is rasterised
+          # by the engine's text and gradient paths, so an engine version
+          # difference is a real, measurable rendering difference — the
+          # "Flutter/Dart version" note on `matchesGoldenFile` warns about
+          # exactly this. Bumping this pin requires a deliberate reviewable
+          # golden regeneration, never a silent drift.
+          flutter-version: '3.47.5'
           channel: stable
           cache: true
 

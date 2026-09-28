@@ -26,6 +26,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 class QrScannerScreen extends ConsumerStatefulWidget {
@@ -147,17 +148,14 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final username = user['username'] ?? 'Unknown';
     final tradesCompleted = user['tradesCompleted'] ?? 0;
 
-    return showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    // Migration note: Whisper weight — a single confirm/cancel decision on a
+    // fixed-height avatar card, no scroll. AzSheetSurface supplies the surface,
+    // the 28px sheetTop radius and the bottom safe-area; the old local
+    // backgroundColor + 20px shape + Padding are deleted (I.8.1).
+    return AzamanSheet.showWhisper<bool>(
+      context,
+      builder: (ctx) => AzStaggeredColumn(
+        children: [
             Container(
               width: 60,
               height: 60,
@@ -202,8 +200,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

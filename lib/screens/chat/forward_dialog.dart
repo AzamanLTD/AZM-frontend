@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/services/message_action_service.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class ForwardDialog {
   /// Shows the forward dialog as a modal bottom sheet.
@@ -20,12 +21,18 @@ class ForwardDialog {
     required String messageId,
     required String fromContext,
   }) async {
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _ForwardSheet(
+    // Sheet grammar: PANEL. AzSheetGeometry.classify(isScrollable: true) —
+    // an unbounded friends+groups list behind a search field, which also
+    // drives its own height (it used to fake 0.7 of the screen). The old
+    // SizedBox(0.7 * height) and its hand-rolled header + handle are
+    // deleted: AzSheetSurface owns radius, surface and the grab handle, and
+    // the detents are the weight's own 45%/90%.
+    final result = await AzamanSheet.showPanel<bool>(
+      context,
+      builder: (context, scrollController) => _ForwardSheet(
         messageId: messageId,
         fromContext: fromContext,
+        scrollController: scrollController,
       ),
     );
     return result ?? false;
@@ -36,9 +43,15 @@ class _ForwardSheet extends StatefulWidget {
   final String messageId;
   final String fromContext;
 
+  /// The sheet's own ScrollController. A Panel builder must scroll through
+  /// this one — constructing a private ListView controller would silently
+  /// detach the drag from the detent.
+  final ScrollController scrollController;
+
   const _ForwardSheet({
     required this.messageId,
     required this.fromContext,
+    required this.scrollController,
   });
 
   @override
@@ -124,97 +137,119 @@ class _ForwardSheetState extends State<_ForwardSheet> {
             return name.contains(_searchQuery.toLowerCase());
           }).toList();
 
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.7,
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor,
-                    borderRadius: BorderRadius.circular(2),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Header — the drag handle is gone (the Panel weight draws it).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Column(
+            children: [
+              Text(
+                'Forward to…',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                decoration: InputDecoration(
+                  hintText: 'Search…',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-                const SizedBox(height: 12),
-                Text('Forward to…',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                  decoration: InputDecoration(
-                    hintText: 'Search…',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
-          // List
-          Expanded(
-            child: _forwarding
-                ? const Center(child: CircularProgressIndicator())
-                : _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView(
-                        children: [
-                          if (filteredFriends.isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Text('Friends',
-                                  style: Theme.of(context).textTheme.labelMedium),
+        // List — scrolls through the controller the Panel handed us.
+        Expanded(
+          child: _forwarding
+              ? const Center(child: CircularProgressIndicator())
+              : _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      controller: widget.scrollController,
+                      children: [
+                        if (filteredFriends.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              'Friends',
+                              style: Theme.of(context).textTheme.labelMedium,
                             ),
-                            ...filteredFriends.map((f) {
-                              final name = f['displayName'] ?? f['username'] ?? 'Unknown';
-                              final avatar = f['profilePictureUrl'];
-                              final friendshipId = f['friendshipId'] ?? f['id'];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                                  child: avatar == null ? Text(name[0].toUpperCase()) : null,
-                                ),
-                                title: Text(name),
-                                onTap: () => _forward('direct', friendshipId.toString(), name.toString()),
-                              );
-                            }),
-                          ],
-                          if (filteredGroups.isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Text('Groups',
-                                  style: Theme.of(context).textTheme.labelMedium),
-                            ),
-                            ...filteredGroups.map((g) {
-                              final name = g['name'] ?? 'Group';
-                              final groupId = g['id'];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                                  child: Icon(Icons.group, color: Theme.of(context).colorScheme.onSecondaryContainer),
-                                ),
-                                title: Text(name.toString()),
-                                onTap: () => _forward('group', groupId.toString(), name.toString()),
-                              );
-                            }),
-                          ],
-                          if (filteredFriends.isEmpty && filteredGroups.isEmpty)
-                            const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No conversations found'))),
+                          ),
+                          ...filteredFriends.map((f) {
+                            final name = f['displayName'] ??
+                                f['username'] ??
+                                'Unknown';
+                            final avatar = f['profilePictureUrl'];
+                            final friendshipId = f['friendshipId'] ?? f['id'];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage: avatar != null
+                                    ? NetworkImage(avatar)
+                                    : null,
+                                child: avatar == null
+                                    ? Text(name[0].toUpperCase())
+                                    : null,
+                              ),
+                              title: Text(name),
+                              onTap: () => _forward(
+                                'direct',
+                                friendshipId.toString(),
+                                name.toString(),
+                              ),
+                            );
+                          }),
                         ],
-                      ),
-          ),
-        ],
-      ),
+                        if (filteredGroups.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              'Groups',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                          ),
+                          ...filteredGroups.map((g) {
+                            final name = g['name'] ?? 'Group';
+                            final groupId = g['id'];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                child: Icon(
+                                  Icons.group,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSecondaryContainer,
+                                ),
+                              ),
+                              title: Text(name.toString()),
+                              onTap: () => _forward(
+                                'group',
+                                groupId.toString(),
+                                name.toString(),
+                              ),
+                            );
+                          }),
+                        ],
+                        if (filteredFriends.isEmpty && filteredGroups.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(40),
+                              child: Text('No conversations found'),
+                            ),
+                          ),
+                      ],
+                    ),
+        ),
+      ],
     );
   }
 }

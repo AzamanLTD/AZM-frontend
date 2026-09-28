@@ -13,32 +13,55 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
 import 'package:azaman/widgets/staggered_item.dart';
 
-
 String _humanLabel(String type) {
   switch (type) {
-    case "DEPOSIT_FIAT":             return "MoMo Deposit";
-    case "DEPOSIT_CRYPTO":           return "Crypto Deposit";
-    case "WITHDRAWAL_FIAT":          return "MoMo Withdrawal";
-    case "WITHDRAWAL_CRYPTO":        return "Crypto Withdrawal";
-    case "P2P_TRADE":                return "P2P Trade Payout";
-    case "INTERNAL_TRANSFER":        return "Transfer";
-    case "AZM_REWARD":               return "AZM Reward";
-    case "VAULT_DEPOSIT":            return "Vault Lock";
-    case "VAULT_RELEASE":            return "Vault Return";
-    case "SUSU_CONTRIBUTION":        return "Susu Contribution";
-    case "SUSU_PAYOUT":              return "Susu Payout";
-    case "SUSU_REFUND":              return "Susu Refund";
-    case "SMART_ROUTE_RUN":          return "Smart Route";
-    case "TICKET_ESCROW_FUND":       return "Escrow Funded";
-    case "TICKET_ESCROW_RELEASE":    return "Escrow Released";
-    case "TICKET_ESCROW_REFUND":     return "Escrow Refunded";
-    case "BUSINESS_INVOICE_PAYMENT": return "Invoice Payment";
+    case "DEPOSIT_FIAT":
+      return "MoMo Deposit";
+    case "DEPOSIT_CRYPTO":
+      return "Crypto Deposit";
+    case "WITHDRAWAL_FIAT":
+      return "MoMo Withdrawal";
+    case "WITHDRAWAL_CRYPTO":
+      return "Crypto Withdrawal";
+    case "P2P_TRADE":
+      return "P2P Trade Payout";
+    case "INTERNAL_TRANSFER":
+      return "Transfer";
+    case "AZM_REWARD":
+      return "AZM Reward";
+    case "VAULT_DEPOSIT":
+      return "Vault Lock";
+    case "VAULT_RELEASE":
+      return "Vault Return";
+    case "SUSU_CONTRIBUTION":
+      return "Susu Contribution";
+    case "SUSU_PAYOUT":
+      return "Susu Payout";
+    case "SUSU_REFUND":
+      return "Susu Refund";
+    case "SMART_ROUTE_RUN":
+      return "Smart Route";
+    case "TICKET_ESCROW_FUND":
+      return "Escrow Funded";
+    case "TICKET_ESCROW_RELEASE":
+      return "Escrow Released";
+    case "TICKET_ESCROW_REFUND":
+      return "Escrow Refunded";
+    case "BUSINESS_INVOICE_PAYMENT":
+      return "Invoice Payment";
     default:
       final words = type.split("_");
-      return words.map((w) => w.isEmpty ? "" : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(" ");
+      return words
+          .map(
+            (w) => w.isEmpty
+                ? ""
+                : w[0].toUpperCase() + w.substring(1).toLowerCase(),
+          )
+          .join(" ");
   }
 }
 
@@ -46,10 +69,12 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  ConsumerState<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
+  ConsumerState<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
 }
 
-class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScreen> {
+class _TransactionHistoryScreenState
+    extends ConsumerState<TransactionHistoryScreen> {
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = "";
   String? _expandedId;
@@ -58,7 +83,9 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    Future.microtask(() => ref.read(transactionHistoryProvider.notifier).loadMore());
+    Future.microtask(
+      () => ref.read(transactionHistoryProvider.notifier).loadMore(),
+    );
   }
 
   @override
@@ -89,7 +116,11 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         ),
         title: Text(
           'Transactions',
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
       ),
       body: Column(
@@ -102,9 +133,14 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: GestureDetector(
-                    onTap: () => ref.read(transactionHistoryProvider.notifier).setFilter(f),
+                    onTap: () => ref
+                        .read(transactionHistoryProvider.notifier)
+                        .setFilter(f),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: isActive ? colors.accent : colors.surface,
                         borderRadius: BorderRadius.circular(16),
@@ -134,9 +170,17 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               decoration: InputDecoration(
                 hintText: "Search transactions...",
                 hintStyle: TextStyle(color: colors.textTertiary),
-                prefixIcon: Icon(Icons.search, color: colors.textTertiary, size: 18),
-                filled: true, fillColor: colors.card,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: colors.textTertiary,
+                  size: 18,
+                ),
+                filled: true,
+                fillColor: colors.card,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
@@ -145,8 +189,8 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             child: state.error != null && state.items.isEmpty
                 ? _buildErrorState(colors, state.error!)
                 : state.isLoading && state.items.isEmpty
-                    ? _buildShimmer(colors)
-                    : _buildGroupedList(colors, state),
+                ? _buildShimmer(colors)
+                : _buildGroupedList(colors, state),
           ),
         ],
       ),
@@ -155,23 +199,37 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
   Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state) {
     final allTxns = state.items;
-    final filtered = _searchQuery.isEmpty ? allTxns : allTxns.where((t) {
-      final label = _humanLabel(t.rawType).toLowerCase();
-      final amt = t.amountUsdc.toString();
-      final id = t.id.toLowerCase();
-      return label.contains(_searchQuery) || amt.contains(_searchQuery) || id.contains(_searchQuery);
-    }).toList();
+    final filtered = _searchQuery.isEmpty
+        ? allTxns
+        : allTxns.where((t) {
+            final label = _humanLabel(t.rawType).toLowerCase();
+            final amt = t.amountUsdc.toString();
+            final id = t.id.toLowerCase();
+            return label.contains(_searchQuery) ||
+                amt.contains(_searchQuery) ||
+                id.contains(_searchQuery);
+          }).toList();
 
     if (filtered.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(HugeIconsStroke.transactionHistory, size: 48, color: colors.textTertiary),
+            Icon(
+              HugeIconsStroke.transactionHistory,
+              size: 48,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 12),
             Text(
-              _searchQuery.isEmpty ? 'No transactions yet' : 'No matching transactions',
-              style: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w500),
+              _searchQuery.isEmpty
+                  ? 'No transactions yet'
+                  : 'No matching transactions',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -192,163 +250,219 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         final items = grouped[header]!;
         return StaggeredItem(
           index: i,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-            child: Text(header, style: TextStyle(
-              color: colors.textTertiary, fontSize: 11,
-              fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-          ),
-          ...items.map((txn) {
-            final isExpanded = _expandedId == txn.id;
-            return GestureDetector(
-              onTap: () { setState(() { _expandedId = isExpanded ? null : txn.id; }); },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+                child: Text(
+                  header,
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
+              ),
+              ...items.map((txn) {
+                final isExpanded = _expandedId == txn.id;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _expandedId = isExpanded ? null : txn.id;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
                       children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: txn.category == 'WITHDRAWAL'
-                                ? colors.danger.withValues(alpha: 0.1)
-                                : txn.category == 'TRANSFER'
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: txn.category == 'WITHDRAWAL'
+                                    ? colors.danger.withValues(alpha: 0.1)
+                                    : txn.category == 'TRANSFER'
                                     ? colors.accent.withValues(alpha: 0.1)
                                     : colors.success.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            txn.category == 'WITHDRAWAL'
-                                ? HugeIconsSolid.arrowUp01
-                                : txn.category == 'TRANSFER'
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                txn.category == 'WITHDRAWAL'
+                                    ? HugeIconsSolid.arrowUp01
+                                    : txn.category == 'TRANSFER'
                                     ? HugeIconsSolid.arrowDataTransferHorizontal
                                     : HugeIconsSolid.arrowDown01,
-                            color: txn.category == 'WITHDRAWAL'
-                                ? colors.danger
-                                : txn.category == 'TRANSFER'
+                                color: txn.category == 'WITHDRAWAL'
+                                    ? colors.danger
+                                    : txn.category == 'TRANSFER'
                                     ? colors.accent
                                     : colors.success,
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _humanLabel(txn.rawType),
-                                style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${txn.provider.isNotEmpty ? txn.provider : 'Azaman'}  ·  GH₵ ${txn.amountGhs.toStringAsFixed(2)}',
-                                style: TextStyle(color: colors.textSecondary, fontSize: 11),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _relativeDate(txn.createdAt),
-                                style: TextStyle(color: colors.textTertiary, fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${txn.category == 'WITHDRAWAL' ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
-                              style: TextStyle(
-                                color: txn.category == 'WITHDRAWAL' ? colors.danger : colors.success,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                size: 16,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colors.success.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(5),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _humanLabel(txn.rawType),
+                                    style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${txn.provider.isNotEmpty ? txn.provider : 'Azaman'}  ·  GH₵ ${txn.amountGhs.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: colors.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _relativeDate(txn.createdAt),
+                                    style: TextStyle(
+                                      color: colors.textTertiary,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: Text(
-                                txn.status,
-                                style: TextStyle(
-                                  color: colors.success,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${txn.category == 'WITHDRAWAL' ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
+                                  style: TextStyle(
+                                    color: txn.category == 'WITHDRAWAL'
+                                        ? colors.danger
+                                        : colors.success,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 3),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.success.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    txn.status,
+                                    style: TextStyle(
+                                      color: colors.success,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    if (isExpanded) ...[
-                      const SizedBox(height: 12),
-                      Divider(color: colors.divider),
-                      _detailRow(colors, 'Reference', 'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}'),
-                      _detailRow(colors, 'Provider', txn.provider),
-                      if (txn.counterparty.isNotEmpty)
-                        _detailRow(colors, 'Counterparty', txn.counterparty),
-                      _detailRow(colors, 'GHS Equivalent', 'GH₵ ${txn.amountGhs.toStringAsFixed(2)}'),
-                      _detailRow(colors, 'Rate', txn.rateAtInitiation.toStringAsFixed(2)),
-                      _detailRow(colors, 'Settled', _formatDate(txn.createdAt)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showReceiptPopup(txn, colors),
-                              icon: const Icon(Icons.receipt, size: 16),
-                              label: const Text('Receipt', style: TextStyle(fontSize: 11)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colors.accent,
-                                side: BorderSide(color: colors.accent),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                            ),
+                        if (isExpanded) ...[
+                          const SizedBox(height: 12),
+                          Divider(color: colors.divider),
+                          _detailRow(
+                            colors,
+                            'Reference',
+                            'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}',
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _shareReceipt(txn),
-                              icon: const Icon(Icons.share, size: 16),
-                              label: const Text('Share', style: TextStyle(fontSize: 11)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colors.accent,
-                                side: BorderSide(color: colors.accent),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
+                          _detailRow(colors, 'Provider', txn.provider),
+                          if (txn.counterparty.isNotEmpty)
+                            _detailRow(
+                              colors,
+                              'Counterparty',
+                              txn.counterparty,
                             ),
+                          _detailRow(
+                            colors,
+                            'GHS Equivalent',
+                            'GH₵ ${txn.amountGhs.toStringAsFixed(2)}',
+                          ),
+                          _detailRow(
+                            colors,
+                            'Rate',
+                            txn.rateAtInitiation.toStringAsFixed(2),
+                          ),
+                          _detailRow(
+                            colors,
+                            'Settled',
+                            _formatDate(txn.createdAt),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showReceiptPopup(txn, colors),
+                                  icon: const Icon(Icons.receipt, size: 16),
+                                  label: const Text(
+                                    'Receipt',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: colors.accent,
+                                    side: BorderSide(color: colors.accent),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _shareReceipt(txn),
+                                  icon: const Icon(Icons.share, size: 16),
+                                  label: const Text(
+                                    'Share',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: colors.accent,
+                                    side: BorderSide(color: colors.accent),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
-          ],
-        ),
-      );
-    },
-  );
-}
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   String _dateHeader(DateTime dt) {
     final today = DateTime.now();
@@ -364,8 +478,18 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11)),
-          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(color: colors.textSecondary, fontSize: 11),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -381,11 +505,16 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
           Text(
             error,
             textAlign: TextAlign.center,
-            style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
-            onPressed: () => ref.read(transactionHistoryProvider.notifier).refresh(),
+            onPressed: () =>
+                ref.read(transactionHistoryProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Retry', style: TextStyle(fontSize: 13)),
             style: OutlinedButton.styleFrom(
@@ -421,7 +550,14 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
       ),
       child: Row(
         children: [
-          Container(width: 18, height: 18, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white)),
+          Container(
+            width: 18,
+            height: 18,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -440,43 +576,57 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
   }
 
   void _showReceiptPopup(TransactionRecord txn, AzamanColors colors) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    // NEW-B: Whisper weight, per classify() — a fixed receipt with four detail
+    // rows and two actions, not scrollable, well under the 45% ceiling. A
+    // receipt the user has to drag open is a receipt they never check, and
+    // this is the sheet a user reaches for when disputing a transaction, so
+    // it should be the fastest thing in the app to read.
+    AzamanSheet.showWhisper<void>(
+      context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        child: AzStaggeredColumn(
           children: [
-            Center(child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: colors.textTertiary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
-            )),
-            const SizedBox(height: 20),
-            Text('Azaman', style: TextStyle(color: colors.accent, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              'Azaman',
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: txn.category == 'WITHDRAWAL' ? colors.danger.withValues(alpha: 0.15) : colors.success.withValues(alpha: 0.15),
+                color: txn.category == 'WITHDRAWAL'
+                    ? colors.danger.withValues(alpha: 0.15)
+                    : colors.success.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 _humanLabel(txn.rawType),
                 style: TextStyle(
-                  color: txn.category == 'WITHDRAWAL' ? colors.danger : colors.success,
-                  fontSize: 11, fontWeight: FontWeight.bold,
+                  color: txn.category == 'WITHDRAWAL'
+                      ? colors.danger
+                      : colors.success,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            DualCurrencyText(usdc: txn.amountUsdc, ghsRate: txn.rateAtInitiation),
+            DualCurrencyText(
+              usdc: txn.amountUsdc,
+              ghsRate: txn.rateAtInitiation,
+            ),
             const SizedBox(height: 12),
             _detailRow(colors, 'Fee', '\$${txn.feeUsdc.toStringAsFixed(2)}'),
-            _detailRow(colors, 'Reference', 'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}'),
+            _detailRow(
+              colors,
+              'Reference',
+              'REF: ${txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id}',
+            ),
             _detailRow(colors, 'Date', _formatDate(txn.createdAt)),
             _detailRow(colors, 'Status', txn.status),
             const SizedBox(height: 20),
@@ -489,7 +639,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       _savePdf(txn);
                     },
                     icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Save PDF', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Save PDF',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
                       foregroundColor: Colors.white,
@@ -512,7 +665,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -522,37 +675,51 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
   Future<void> _savePdf(TransactionRecord txn) async {
     try {
       final pdfDoc = pw.Document();
-      pdfDoc.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context ctx) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text("AZAMAN", style: pw.TextStyle(
-              fontSize: 28, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 4),
-            pw.Text("Transaction Receipt",
-              style: const pw.TextStyle(fontSize: 14)),
-            pw.Divider(height: 32),
-            _pdfRow("Type",      _humanLabel(txn.rawType)),
-            _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
-            _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
-            _pdfRow("Status",    txn.status),
-            _pdfRow("Reference", txn.id),
-            _pdfRow("Date",      _formatDate(txn.createdAt)),
-            pw.SizedBox(height: 32),
-            pw.Text("Azaman Financial Platform  |  Ghana",
-              style: const pw.TextStyle(fontSize: 10)),
-          ],
+      pdfDoc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                "AZAMAN",
+                style: pw.TextStyle(
+                  fontSize: 28,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                "Transaction Receipt",
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.Divider(height: 32),
+              _pdfRow("Type", _humanLabel(txn.rawType)),
+              _pdfRow("Amount", "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
+              _pdfRow("Fee", "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
+              _pdfRow("Status", txn.status),
+              _pdfRow("Reference", txn.id),
+              _pdfRow("Date", _formatDate(txn.createdAt)),
+              pw.SizedBox(height: 32),
+              pw.Text(
+                "Azaman Financial Platform  |  Ghana",
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ],
+          ),
         ),
-      ));
-      final dir  = await getApplicationDocumentsDirectory();
-      final file = File("${dir.path}/azaman_receipt_${txn.id.substring(0,8)}.pdf");
+      );
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+        "${dir.path}/azaman_receipt_${txn.id.substring(0, 8)}.pdf",
+      );
       await file.writeAsBytes(await pdfDoc.save());
       await OpenFilex.open(file.path);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Could not save PDF: $e")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Could not save PDF: $e")));
       }
     }
   }
@@ -573,40 +740,53 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
   Future<void> _shareReceipt(TransactionRecord txn) async {
     try {
       final pdfDoc = pw.Document();
-      pdfDoc.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (ctx) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text("AZAMAN", style: pw.TextStyle(
-              fontSize: 28, fontWeight: pw.FontWeight.bold)),
-            pw.Text("Transaction Receipt",
-              style: const pw.TextStyle(fontSize: 14)),
-            pw.Divider(height: 32),
-            _pdfRow("Type",      _humanLabel(txn.rawType)),
-            _pdfRow("Amount",    "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
-            _pdfRow("Fee",       "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
-            _pdfRow("Status",    txn.status),
-            _pdfRow("Reference", txn.id),
-            _pdfRow("Date",      _formatDate(txn.createdAt)),
-            pw.SizedBox(height: 32),
-            pw.Text("Azaman Financial Platform  |  Ghana",
-              style: const pw.TextStyle(fontSize: 10)),
-          ],
+      pdfDoc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                "AZAMAN",
+                style: pw.TextStyle(
+                  fontSize: 28,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Text(
+                "Transaction Receipt",
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.Divider(height: 32),
+              _pdfRow("Type", _humanLabel(txn.rawType)),
+              _pdfRow("Amount", "${txn.amountUsdc.toStringAsFixed(2)} USDC"),
+              _pdfRow("Fee", "${txn.feeUsdc.toStringAsFixed(4)} USDC"),
+              _pdfRow("Status", txn.status),
+              _pdfRow("Reference", txn.id),
+              _pdfRow("Date", _formatDate(txn.createdAt)),
+              pw.SizedBox(height: 32),
+              pw.Text(
+                "Azaman Financial Platform  |  Ghana",
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ],
+          ),
         ),
-      ));
-      final bytes = await pdfDoc.save();
-      final dir  = await getTemporaryDirectory();
-      final file = File("${dir.path}/azaman_receipt_${txn.id.substring(0,8)}.pdf");
-      await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: "Azaman Transaction Receipt",
       );
+      final bytes = await pdfDoc.save();
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        "${dir.path}/azaman_receipt_${txn.id.substring(0, 8)}.pdf",
+      );
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: "Azaman Transaction Receipt");
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Share failed: $e")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Share failed: $e")));
       }
     }
   }

@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
-
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class Badge {
   final IconData icon;
   final String label;
   final Color color;
 
-  const Badge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
+  const Badge({required this.icon, required this.label, required this.color});
 }
 
 class PublicProfileModal extends ConsumerWidget {
@@ -21,12 +17,16 @@ class PublicProfileModal extends ConsumerWidget {
   final String joinedDate;
   final List<Badge> badges;
 
+  /// The Panel's own scroll controller, supplied by [show].
+  final ScrollController scrollController;
+
   const PublicProfileModal({
     super.key,
     required this.username,
     this.avatarUrl = '',
     required this.joinedDate,
     this.badges = const [],
+    required this.scrollController,
   });
 
   static Future<void> show(
@@ -36,62 +36,36 @@ class PublicProfileModal extends ConsumerWidget {
     required String joinedDate,
     List<Badge> badges = const [],
   }) {
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      builder: (_) => PublicProfileModal(
+    // NEW-B: Panel weight — scrollable, so classify() returns panel. The old
+    // bespoke detents (0.52/0.36/0.75) and the `barrierColor: Colors.black54`
+    // override are both deleted: the weight owns detents and scrim now, and a
+    // hand-picked black54 scrim on a panel is a different dim from every other
+    // panel in the app.
+    return AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) => PublicProfileModal(
         username: username,
         avatarUrl: avatarUrl,
         joinedDate: joinedDate,
         badges: badges,
+        scrollController: scrollController,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.52,
-        minChildSize: 0.36,
-        maxChildSize: 0.75,
-        expand: false,
-        builder: (context, scrollController) {
-          return SingleChildScrollView(
-            controller: scrollController,
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              children: [
-                _buildHandle(colors),
-                _buildHeader(colors),
-                _buildBadgeGrid(colors),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHandle(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 4),
-      child: Container(
-        width: 36,
-        height: 4,
-        decoration: BoxDecoration(
-          color: colors.textTertiary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(2),
-        ),
+    // NEW-B: the weight owns surface, radius, handle and safe-area, so the old
+    // Container, the inner DraggableScrollableSheet and _buildHandle all go.
+    return SingleChildScrollView(
+      controller: scrollController,
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          _buildHeader(ref.watch(themeProvider).colors),
+          _buildBadgeGrid(ref.watch(themeProvider).colors),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -106,7 +80,10 @@ class PublicProfileModal extends ConsumerWidget {
             height: 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2.5),
+              border: Border.all(
+                color: colors.accent.withValues(alpha: 0.3),
+                width: 2.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: colors.accent.withValues(alpha: 0.12),
@@ -193,10 +170,7 @@ class PublicProfileModal extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 'No badges earned yet',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colors.textTertiary,
-                ),
+                style: TextStyle(fontSize: 13, color: colors.textTertiary),
               ),
             ],
           ),
@@ -214,11 +188,7 @@ class PublicProfileModal extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.emoji_events_outlined,
-                size: 16,
-                color: colors.accent,
-              ),
+              Icon(Icons.emoji_events_outlined, size: 16, color: colors.accent),
               const SizedBox(width: 6),
               Text(
                 'Badges (${badges.length})',
@@ -269,11 +239,7 @@ class PublicProfileModal extends ConsumerWidget {
               color: badge.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              badge.icon,
-              size: 22,
-              color: badge.color,
-            ),
+            child: Icon(badge.icon, size: 22, color: badge.color),
           ),
           const SizedBox(height: 8),
           Padding(

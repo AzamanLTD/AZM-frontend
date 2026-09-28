@@ -11,10 +11,7 @@ class RetailCartLine {
     this.variants = const {},
   });
 
-  RetailCartLine copyWith({
-    int? quantity,
-    Map<String, String>? variants,
-  }) {
+  RetailCartLine copyWith({int? quantity, Map<String, String>? variants}) {
     return RetailCartLine(
       product: product,
       quantity: quantity ?? this.quantity,
@@ -68,9 +65,8 @@ class RetailCart {
     return RetailCart(
       lines: lines
           .map(
-            (line) => line.key == key
-                ? line.copyWith(quantity: quantity)
-                : line,
+            (line) =>
+                line.key == key ? line.copyWith(quantity: quantity) : line,
           )
           .toList(growable: false),
     );

@@ -5,17 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/admin/ai_operations_screen.dart';
-
+import 'package:azaman/widgets/azaman_sheet.dart';
 
 class AiCommandMenu extends ConsumerStatefulWidget {
-  const AiCommandMenu({super.key});
+  const AiCommandMenu({super.key, this.scrollController});
 
+  /// The sheet's own scroll controller, supplied by [show].
+  final ScrollController? scrollController;
+
+  // NEW-B: Panel weight — a capability list that grows as the admin API gains
+  // endpoints, so it is scrollable and wants detents rather than a whisper
+  // sized to whatever happens to be loaded right now.
+  //
+  // The list scrolls through the controller the sheet hands it. Without that
+  // the list would scroll inside the detent and dragging it would never move
+  // the panel, so the two would feel like separate surfaces.
   static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AiCommandMenu(),
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (_, scrollController) =>
+          AiCommandMenu(scrollController: scrollController),
     );
   }
 
@@ -33,9 +42,10 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
   @override
   void initState() {
     super.initState();
-    _pulseController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..repeat(reverse: true);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     _fetchCapabilities();
   }
 
@@ -59,24 +69,25 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
       } else {
         if (mounted) {
           setState(() {
-          _error = 'Failed to load capabilities';
-          _isLoading = false;
-        });
+            _error = 'Failed to load capabilities';
+            _isLoading = false;
+          });
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-        _error = 'Network error';
-        _isLoading = false;
-      });
+          _error = 'Network error';
+          _isLoading = false;
+        });
       }
     }
   }
 
   IconData _iconFor(String name) {
     final n = name.toLowerCase();
-    if (n.contains('cfo') || n.contains('financial')) return Icons.account_balance_outlined;
+    if (n.contains('cfo') || n.contains('financial'))
+      return Icons.account_balance_outlined;
     if (n.contains('dispute')) return Icons.gavel;
     if (n.contains('queue')) return Icons.playlist_add;
     if (n.contains('match')) return Icons.handshake_outlined;
@@ -111,8 +122,8 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
             child: _isLoading
                 ? _buildLoading(colors)
                 : _error != null
-                    ? _buildError(colors)
-                    : _buildCapabilitiesList(colors),
+                ? _buildError(colors)
+                : _buildCapabilitiesList(colors),
           ),
           SizedBox(height: bottomInset),
         ],
@@ -217,7 +228,11 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cloud_outlined, color: colors.danger.withValues(alpha: 0.5), size: 48),
+          Icon(
+            Icons.cloud_outlined,
+            color: colors.danger.withValues(alpha: 0.5),
+            size: 48,
+          ),
           const SizedBox(height: 12),
           Text(
             _error!,
@@ -251,7 +266,11 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.psychology_outlined, color: colors.textTertiary.withValues(alpha: 0.3), size: 48),
+            Icon(
+              Icons.psychology_outlined,
+              color: colors.textTertiary.withValues(alpha: 0.3),
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
               'No AI capabilities reported',
@@ -263,6 +282,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
     }
 
     return ListView.separated(
+      controller: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _capabilities.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -280,9 +300,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isActive
-                  ? color.withValues(alpha: 0.4)
-                  : colors.divider,
+              color: isActive ? color.withValues(alpha: 0.4) : colors.divider,
             ),
           ),
           child: Material(
@@ -336,7 +354,9 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
                                 width: 8,
                                 height: 8,
                                 decoration: BoxDecoration(
-                                  color: isActive ? colors.success : colors.textTertiary,
+                                  color: isActive
+                                      ? colors.success
+                                      : colors.textTertiary,
                                   shape: BoxShape.circle,
                                 ),
                               ),

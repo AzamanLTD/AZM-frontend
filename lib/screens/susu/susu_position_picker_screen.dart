@@ -13,9 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/susu/susu_wheel.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -37,32 +35,10 @@ class SusuPositionPicker extends ConsumerStatefulWidget {
   ConsumerState<SusuPositionPicker> createState() => _SusuPositionPickerState();
 }
 
-class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  int? _hoveredPosition;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
+class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final size = MediaQuery.of(context).size.width * 0.82;
-    final center = size / 2;
-    final radius = size / 2 - 30;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -78,76 +54,12 @@ class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker>
         child: Column(
           children: [
             const SizedBox(height: 24),
-            // Circular picker
             Center(
-              child: SizedBox(
-                width: size,
-                height: size,
-                child: Stack(
-                  children: [
-                    // Center circle
-                    Positioned(
-                      left: center - 40,
-                      top: center - 40,
-                      child: Container(
-                        width: 80, height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colors.surface,
-                          border: Border.all(color: colors.accent, width: 2),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(HugeIconsSolid.touchInteraction01, color: colors.accent, size: 24),
-                              const SizedBox(height: 2),
-                              Text('Pick', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ).animate().fadeIn().scale(),
-                    // Position dots
-                    ...List.generate(widget.totalPositions, (i) {
-                      final angle = (2 * 3.14159 * i / widget.totalPositions) - 3.14159 / 2;
-                      final x = center + radius * _cos(angle);
-                      final y = center + radius * _sin(angle);
-                      final isTaken = widget.members.any((m) => (m['position'] as int?) == i + 1);
-                      final isSelected = widget.selectedPosition == i + 1;
-                      final isHovered = _hoveredPosition == i + 1;
-                      final member = widget.members.cast<Map<String, dynamic>?>().firstWhere(
-                        (m) => (m?['position'] as int?) == i + 1,
-                        orElse: () => null,
-                      );
-
-                      return Positioned(
-                        left: x - 28,
-                        top: y - 28,
-                        child: GestureDetector(
-                          onTap: isTaken ? null : () {
-                            AzamanHaptics.confirm();
-                            widget.onPositionSelected(i + 1);
-                          },
-                          onTapDown: isTaken ? null : (_) {
-                            setState(() => _hoveredPosition = i + 1);
-                          },
-                          onTapCancel: () => setState(() => _hoveredPosition = null),
-                          onTapUp: (_) => setState(() => _hoveredPosition = null),
-                          child: _PositionDot(
-                            position: i + 1,
-                            isTaken: isTaken,
-                            isSelected: isSelected,
-                            isHovered: isHovered,
-                            member: member,
-                            colors: colors,
-                            pulseAnimation: _pulseController,
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+              child: SusuPositionWheel(
+                totalPositions: widget.totalPositions,
+                selectedPosition: widget.selectedPosition,
+                members: widget.members,
+                onPositionSelected: widget.onPositionSelected,
               ),
             ),
             const SizedBox(height: 16),
@@ -201,110 +113,6 @@ class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker>
       ],
     );
   }
-
-  double _cos(double angle) => _mathCos(angle);
-  double _sin(double angle) => _mathSin(angle);
-}
-
-// ── Position Dot ──────────────────────────────────────────────────────────────
-
-class _PositionDot extends StatelessWidget {
-  final int position;
-  final bool isTaken;
-  final bool isSelected;
-  final bool isHovered;
-  final Map<String, dynamic>? member;
-  final AzamanColors colors;
-  final Animation<double> pulseAnimation;
-
-  const _PositionDot({
-    required this.position,
-    required this.isTaken,
-    required this.isSelected,
-    required this.isHovered,
-    this.member,
-    required this.colors,
-    required this.pulseAnimation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color dotColor;
-    if (isSelected) {
-      dotColor = colors.accent;
-    } else if (isTaken) {
-      dotColor = colors.success;
-    } else {
-      dotColor = colors.textTertiary.withValues(alpha: 0.4);
-    }
-
-    final dotSize = isSelected || isHovered ? 56.0 : 48.0;
-
-    return AnimatedBuilder(
-      animation: pulseAnimation,
-      builder: (context, child) {
-        final scale = isSelected ? 1.0 + 0.05 * (0.5 - (pulseAnimation.value - 0.5).abs()) : 1.0;
-        return Transform.scale(scale: scale, child: child);
-      },
-      child: Container(
-        width: dotSize, height: dotSize,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: dotColor,
-          border: Border.all(
-            color: isSelected ? colors.accent : colors.border,
-            width: isSelected ? 3 : 1,
-          ),
-          boxShadow: isSelected ? [
-            BoxShadow(color: colors.accent.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2),
-          ] : null,
-        ),
-        child: Stack(
-          children: [
-            // Position number
-            Center(
-              child: Text(
-                '$position',
-                style: TextStyle(
-                  color: isTaken || isSelected ? Colors.white : colors.textTertiary,
-                  fontSize: 18, fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            // Member avatar (if taken)
-            if (isTaken && member != null)
-              Positioned(
-                right: 0, bottom: 0,
-                child: Container(
-                  width: 22, height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.surface,
-                    border: Border.all(color: colors.border, width: 1.5),
-                  ),
-                  child: member!['avatarUrl'] != null
-                      ? ClipOval(child: AzamanNetworkImage(imageUrl: member!['avatarUrl'], fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _initials()))
-                      : _initials(),
-                ),
-              ),
-            // Crown for position 1
-            if (position == 1)
-              const Positioned(
-                top: -8, left: 0, right: 0,
-                child: Icon(HugeIconsSolid.crown02, size: 16, color: Color(0xFFFFD700)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _initials() {
-    final name = member?['username']?.toString() ?? '?';
-    return Center(child: Text(name[0].toUpperCase(),
-        style: TextStyle(color: colors.textTertiary, fontSize: 10, fontWeight: FontWeight.w600)));
-  }
 }
 
 // ── Member Row ──────────────────────────────────────────────────────────────────
@@ -339,42 +147,4 @@ class _MemberRow extends StatelessWidget {
           : Icon(HugeIconsSolid.time02, color: colors.textTertiary, size: 22),
     );
   }
-}
-
-// ── Math helpers ────────────────────────────────────────────────────────────────
-double _mathCos(double angle) {
-  double x = 1.0;
-  for (int i = 0; i < 6; i++) {
-    x -= (angle * angle) / (2 * i + 2) / (2 * i + 1) * (i % 2 == 0 ? 1 : -1);
-  }
-  // Simpler: use dart:math
-  return _dartCos(angle);
-}
-
-double _mathSin(double angle) {
-  return _dartSin(angle);
-}
-
-double _dartCos(double angle) {
-  // Normalize angle to 0..2PI
-  double a = angle;
-  while (a < 0) {
-    a += 2 * 3.141592653589793;
-  }
-  while (a >= 2 * 3.141592653589793) {
-    a -= 2 * 3.141592653589793;
-  }
-  // Use Taylor series
-  double result = 1.0;
-  double term = 1.0;
-  for (int i = 1; i <= 10; i++) {
-    term *= -angle * angle / ((2 * i) * (2 * i - 1));
-    result += term;
-  }
-  return result;
-}
-
-double _dartSin(double angle) {
-  // sin(x) = cos(x - PI/2)
-  return _dartCos(angle - 3.141592653589793 / 2);
 }

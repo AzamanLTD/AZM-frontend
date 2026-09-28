@@ -18,6 +18,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 
 // Available stickers
@@ -482,19 +483,29 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
   }
 
   void _showFilterSheet(AzamanColors colors) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black87,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    // NEW-B: Whisper weight — a single-row, tap-to-pick strip with no commit
+    // row and a fixed 80px body, comfortably under the 45% ceiling. classify()
+    // agrees (not scrollable vertically, bounded height).
+    //
+    // The old call hardcoded `Colors.black87` for the surface and
+    // `Colors.white` / `Colors.white70` for the labels, so this sheet was the
+    // one place in the story editor that ignored the palette. The Whisper
+    // surface supplies surface, radius, safe-area and scrim; the labels now
+    // read `colors` like the rest of the screen.
+    AzamanSheet.showWhisper<void>(
+      context,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        child: AzStaggeredColumn(
           children: [
-            const Text('Filters', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(
+              'Filters',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 80,
@@ -530,7 +541,7 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                           Text(
                             filter.label,
                             style: TextStyle(
-                              color: isSelected ? colors.accent : Colors.white70,
+                              color: isSelected ? colors.accent : colors.textTertiary,
                               fontSize: 10,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             ),

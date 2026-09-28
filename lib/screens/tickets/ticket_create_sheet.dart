@@ -26,6 +26,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
 import 'package:azaman/services/ticket_service.dart';
+import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 // Supported currencies — shown as horizontal pill selectors.
@@ -134,41 +136,43 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
     }
   }
 
+  /// NEW-B: Panel weight.
+  ///
+  /// Classified as a panel (not a whisper) because the body is keyboard-bound
+  /// free text: a merchant memo can be 500 characters, and the CTA must stay
+  /// reachable while the keyboard is up. The commit row is pinned outside the
+  /// scroller for the same reason — a create button that scrolls away is a create
+  /// button nobody finds.
+  ///
+  /// The outer surface Container, its 28px top corners and its drag handle are
+  /// **deleted**, not ported: `AzSheetSurface` already supplies surface, the
+  /// `AzRadius.sheetTop` step and the handle. See §I.8.1.
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     return Padding(
+      // The panel detent must still clear the software keyboard, so the inset
+      // is applied to the whole sheet rather than to the scroller.
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-
-                // ── Header ─────────────────────────────────────────────────
-                _Header(colors: colors, peerName: widget.peerName),
-                const SizedBox(height: 24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Scrolling body ──────────────────────────────────────────
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: AzSpace.sm),
+                children: [
+            // ── Header ─────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _Header(colors: colors, peerName: widget.peerName),
+            ),
+            const SizedBox(height: 24),
 
                 // ── Deal title ─────────────────────────────────────────────
                 _FieldLabel(label: 'What is this deal about?', colors: colors),
@@ -197,103 +201,112 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                 ),
                 const SizedBox(height: 16),
 
-                // ── Amount ─────────────────────────────────────────────────
-                _FieldLabel(label: 'Amount', colors: colors),
-                const SizedBox(height: 6),
-                _AmountRow(
-                  colors: colors,
-                  amountCtrl: _amountCtrl,
-                  currency: _currency,
-                  onCurrencyChanged: (c) => setState(() => _currency = c),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Escrow toggle ──────────────────────────────────────────
-                _EscrowToggle(
-                  colors: colors,
-                  enabled: _enableEscrow,
-                  onChanged: (v) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _enableEscrow = v);
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // ── Memo ───────────────────────────────────────────────────
-                _FieldLabel(
-                    label: 'Terms / Notes  (optional)', colors: colors),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _memoCtrl,
-                  maxLength: 500,
-                  maxLines: 3,
-                  minLines: 2,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(color: colors.textPrimary),
-                  decoration: _inputDeco(colors,
-                      hint: 'Delivery timeline, conditions, or anything else…'),
-                ),
-                const SizedBox(height: 24),
-
-                // ── CTA ────────────────────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _submitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _enableEscrow
-                                    ? Icons.lock_outline_rounded
-                                    : Icons.receipt_long_outlined,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _enableEscrow
-                                    ? 'Create Escrow Deal'
-                                    : 'Create Ticket',
-                                style: const TextStyle(
-                                    fontSize: 15, fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
+                  // ── Amount ───────────────────────────────────────────────
+                  _FieldLabel(label: 'Amount', colors: colors),
+                  const SizedBox(height: 6),
+                  _AmountRow(
+                    colors: colors,
+                    amountCtrl: _amountCtrl,
+                    currency: _currency,
+                    onCurrencyChanged: (c) => setState(() => _currency = c),
                   ),
-                ),
+                  const SizedBox(height: 20),
 
-                // Small reassurance text
-                if (_enableEscrow) ...[
-                  const SizedBox(height: 10),
-                  Center(
-                    child: Text(
-                      '🔒 Funds are locked until both parties confirm.',
-                      style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500),
-                    ),
+                  // ── Escrow toggle ────────────────────────────────────────
+                  _EscrowToggle(
+                    colors: colors,
+                    enabled: _enableEscrow,
+                    onChanged: (v) {
+                      AzamanHaptics.toggle();
+                      setState(() => _enableEscrow = v);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Memo ─────────────────────────────────────────────────
+                  _FieldLabel(
+                      label: 'Terms / Notes  (optional)', colors: colors),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _memoCtrl,
+                    maxLength: 500,
+                    maxLines: 3,
+                    minLines: 2,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(color: colors.textPrimary),
+                    decoration: _inputDeco(colors,
+                        hint: 'Delivery timeline, conditions, or anything else…'),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
+
+            // ── Pinned commit row ─────────────────────────────────────────
+            // Pinned, not scrolled (§I.13.1): a create button that scrolls
+            // out of reach is a create button nobody finds. The keyboard
+            // inset applied above keeps it above the software keyboard.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AzRadius.brLg,
+                        ),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _enableEscrow
+                                      ? Icons.lock_outline_rounded
+                                      : Icons.receipt_long_outlined,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _enableEscrow
+                                      ? 'Create Escrow Deal'
+                                      : 'Create Ticket',
+                                  style: const TextStyle(
+                                      fontSize: 15, fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+
+                  // Small reassurance text
+                  if (_enableEscrow) ...[
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        '🔒 Funds are locked until both parties confirm.',
+                        style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

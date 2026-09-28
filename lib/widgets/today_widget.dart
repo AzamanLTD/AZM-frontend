@@ -29,6 +29,7 @@ import 'package:azaman/screens/trades_tab_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/routed_tab_surface.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 
 /// Wrap a tab-body widget that doesn't ship its own Scaffold/AppBar in a
@@ -340,132 +341,129 @@ class _PendingWithdrawalsSheet {
     List<WithdrawalSummary> items,
     AzamanColors colors,
   ) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+    // NEW-B: Panel weight. `AzSheetGeometry.classify(isScrollable: true)`
+    // — the list is unbounded (one row per pending withdrawal), so it
+    // cannot use Whisper. The body scrolls through the sheet's own
+    // controller, and the handle/detent come from the weight.
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (ctx, scrollController) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pending Withdrawals',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  'Pending Withdrawals',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                items.isEmpty
+                    ? 'No withdrawals waiting on settlement.'
+                    : '${items.length} request${items.length == 1 ? '' : 's'} waiting on settlement.',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  items.isEmpty
-                      ? 'No withdrawals waiting on settlement.'
-                      : '${items.length} request${items.length == 1 ? '' : 's'} waiting on settlement.',
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 12,
-                  ),
+              ),
+              const SizedBox(height: 16),
+              // Scrolls through the controller the Panel hands us, so a drag
+              // on the list and a drag on the detent are the same gesture.
+              Flexible(
+                child: ListView.separated(
+                  controller: scrollController,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _row(items[i], colors),
                 ),
-                const SizedBox(height: 16),
-                if (items.isNotEmpty)
-                  ...items.map(
-                    (w) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colors.divider),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: colors.warning.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              Icons.send_outlined,
-                              color: colors.warning,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  // Phase H review pass: backend has no
-                                  // `currency` column on Withdrawal —
-                                  // payoutMethod (e.g. BINANCE_ID, MOMO_GHS)
-                                  // is the closest semantic equivalent and
-                                  // is what users care about anyway.
-                                  '${w.amount.toStringAsFixed(2)}'
-                                  '  ${w.payoutMethod.replaceAll('_', ' ')}',
-                                  style: TextStyle(
-                                    color: colors.textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _relative(w.createdAt),
-                                  style: TextStyle(
-                                    color: colors.textTertiary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: colors.warning.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              w.status.toUpperCase(),
-                              style: TextStyle(
-                                color: colors.warning,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  static Widget _row(WithdrawalSummary w, AzamanColors colors) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colors.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.send_outlined,
+              color: colors.warning,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  // Phase H review pass: backend has no
+                  // `currency` column on Withdrawal —
+                  // payoutMethod (e.g. BINANCE_ID, MOMO_GHS)
+                  // is the closest semantic equivalent and
+                  // is what users care about anyway.
+                  '${w.amount.toStringAsFixed(2)}'
+                  '  ${w.payoutMethod.replaceAll('_', ' ')}',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _relative(w.createdAt),
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: colors.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              w.status.toUpperCase(),
+              style: TextStyle(
+                color: colors.warning,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
