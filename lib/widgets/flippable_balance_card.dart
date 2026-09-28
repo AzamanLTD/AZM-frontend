@@ -26,6 +26,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
