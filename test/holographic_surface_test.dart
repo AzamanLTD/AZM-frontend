@@ -77,6 +77,14 @@ void main() {
 
   testWidgets('reduced motion makes it fully static', (tester) async {
     await tester.pumpWidget(_host(reduceMotion: true));
-    expect(find.byType(Listener), findsNothing);
+    // Scoped to the surface itself: the framework injects its own Listeners
+    // (ScrollBehavior etc.), so a global findsNothing would be too broad.
+    expect(
+      find.descendant(
+        of: find.byType(HolographicSurface),
+        matching: find.byType(Listener),
+      ),
+      findsNothing,
+    );
   });
 }
