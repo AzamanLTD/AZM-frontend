@@ -1,285 +1,294 @@
+// =============================================================================
+// HOLOGRAM BALANCE CARD — the front face, on the hero substrate
+//
+// The app's most-seen surface, now rendered on HolographicSurface (TASK-009c):
+// a fixed iridescent material whose specular band follows the pointer. The
+// figure rolls per-digit via OdometerNumber (TASK-009b), and a rate or balance
+// change surfaces as a delta chip that fades in above the figure and out after
+// ~1.8s — the number itself never moves.
+//
+// Existing behaviours preserved on top of the rebuild (spec-silent, see the
+// 009d sign-off): the DisplayCurrency toggle (GHS-first vs USDC-first), the
+// oracle rate line with RateRefreshIndicator, the truncated wallet-id line,
+// and the balance-visibility mask driven by balanceVisibleProvider.
+// =============================================================================
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/widgets/animated_number.dart';
+import 'package:azaman/theme/az_radius.dart';
+import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/widgets/holographic_surface.dart';
+import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
-
-class HologramBalanceCard extends ConsumerWidget {
+class HologramBalanceCard extends ConsumerStatefulWidget {
   const HologramBalanceCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    final balanceData = ref.watch(balanceDataProvider);
-    final user = ref.watch(authProvider).user;
+  ConsumerState<HologramBalanceCard> createState() =>
+      _HologramBalanceCardState();
+}
 
-    final totalUsdc = balanceData.totalBalance;
+class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
+  /// The primary figure as of the previous build. Compared against the new one
+  /// to derive the delta chip — a change is only interesting if we know what
+  /// the value was a moment ago.
+  double? _lastValue;
+
+  /// Which currency was primary at the last track. A currency-toggle changes
+  /// the figure's *meaning*, not its *value* — switching must re-baseline
+  /// silently instead of firing a bogus "+GH₵ …" chip.
+  bool? _lastGhsFirst;
+
+  /// The signed change to display, or null when there is nothing to show.
+  double? _delta;
+
+  /// Clears [_delta] after it has been on screen long enough to read.
+  Timer? _deltaTimer;
+
+  @override
+  void dispose() {
+    _deltaTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Called during build (before the figure is painted) so the delta is always
+  /// computed from the freshest value. Deliberately NOT in `didUpdateWidget`:
+  /// the value comes from a provider, so there is no widget-level update hook.
+  void _trackDelta(double value, {required bool ghsFirst}) {
+    if (_lastGhsFirst != ghsFirst) {
+      // Currency switched (or first paint) — re-baseline without a chip. The
+      // mount animation belongs to the screen's entrance choreography.
+      _lastValue = value;
+      _lastGhsFirst = ghsFirst;
+      if (_delta != null) {
+        _delta = null;
+        _deltaTimer?.cancel();
+      }
+      return;
+    }
+    final previous = _lastValue;
+    if (previous == null || previous == value) {
+      _lastValue = value;
+      return;
+    }
+
+    _lastValue = value;
+    final change = value - previous;
+
+    // A change below half a pesewa is rounding noise, not information. Showing
+    // a chip for it would make the card twitch on every refresh.
+    if (change.abs() < 0.005) return;
+
+    _delta = change;
+    _deltaTimer?.cancel();
+    _deltaTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) setState(() => _delta = null);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+    final balance = ref.watch(balanceDataProvider);
+    final isVisible = ref.watch(balanceVisibleProvider);
+    final rate = ref.watch(oracleRateProvider);
+    final user = ref.watch(authProvider).user;
+    final ghsFirst = ref.watch(currencyProvider) == DisplayCurrency.ghs;
+
+    final ghsValue = balance.availableBalance * rate;
+    final primaryValue = ghsFirst ? ghsValue : balance.availableBalance;
+    final primaryLabel =
+        ghsFirst ? AzMoney.ghs(primaryValue) : AzMoney.usdc(primaryValue);
+    final secondaryLabel = ghsFirst
+        ? AzMoney.usdc(balance.availableBalance)
+        : AzMoney.ghs(ghsValue);
+    final secondaryMask =
+        '•••• ${ghsFirst ? AzMoney.usdcSymbol : AzMoney.ghsSymbol}';
+
+    // Derived during build so the chip always reflects the freshest value.
+    // `_trackDelta` schedules a timer but never calls setState synchronously,
+    // so this is safe to run inside build.
+    _trackDelta(primaryValue, ghsFirst: ghsFirst);
+    final delta = _delta;
+
     final uid = user?.id ?? '';
     final truncatedId = uid.length > 6
         ? '\u00b7\u00b7 ${uid.substring(uid.length - 4)}'
         : uid;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 158),
-      decoration: BoxDecoration(
-        color: colors.softSurface,
-        borderRadius: BorderRadius.circular(22),
+    return HolographicSurface(
+      // `card` is the material's base colour; `accent` drives the iridescence and
+      // the specular band. This is the ONE full-intensity holographic surface on
+      // Home — every other surface is Level 2 or 3. Premium is scarcity.
+      base: colors.card,
+      tint: colors.accent,
+      borderRadius: AzRadius.xl,
+      padding: const EdgeInsets.fromLTRB(
+        AzSpace.xl,
+        AzSpace.lg,
+        AzSpace.xl,
+        AzSpace.lg,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // ── Header: label + visibility state ──────────────────────────
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent.withValues(alpha: 0.14),
+              Icon(HugeIconsSolid.wallet01, size: 14, color: colors.textTertiary),
+              const SizedBox(width: AzSpace.sm),
+              Text(
+                'AVAILABLE',
+                style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+              ),
+              const Spacer(),
+              if (isVisible)
+                Text(
+                  'USDC',
+                  style: AzText.caption.copyWith(color: colors.textTertiary),
+                )
+              else
+                Icon(
+                  HugeIconsSolid.viewOff,
+                  size: 13,
+                  color: colors.textTertiary,
                 ),
-                child: Text(
-                  '\$',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+            ],
+          ),
+
+          // ── The figure ────────────────────────────────────────────────
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The wallet id — the user's own account fingerprint, carried
+              // over from the previous card so the rebuild loses no information.
+              if (truncatedId.isNotEmpty) ...[
+                Text(
+                  truncatedId,
+                  style: AzText.label.copyWith(color: colors.textSecondary),
+                ),
+                const SizedBox(height: AzSpace.xs),
+              ],
+
+              // The delta chip sits ABOVE the figure and fades in/out, so the
+              // number itself never moves to make room for it.
+              SizedBox(
+                height: 18,
+                child: AnimatedOpacity(
+                  opacity: delta == null ? 0.0 : 1.0,
+                  duration: MotionTokens.control,
+                  curve: MotionTokens.enter,
+                  child: AnimatedSlide(
+                    offset: delta == null
+                        ? const Offset(0, 0.25)
+                        : Offset.zero,
+                    duration: MotionTokens.control,
+                    curve: MotionTokens.enter,
+                    child: delta == null
+                        ? const SizedBox.shrink()
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                delta >= 0
+                                    ? HugeIconsSolid.arrowUp01
+                                    : HugeIconsSolid.arrowDown01,
+                                size: 12,
+                                color: delta >= 0 ? colors.success : colors.danger,
+                              ),
+                              const SizedBox(width: AzSpace.xxs),
+                              Text(
+                                AzMoney.delta(
+                                  delta,
+                                  symbol: ghsFirst
+                                      ? AzMoney.ghsSymbol
+                                      : AzMoney.usdcSymbol,
+                                ),
+                                style: AzText.delta(
+                                  delta >= 0 ? colors.success : colors.danger,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ),
-              const SizedBox(width: 11),
-              Text(
-                'USDC',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
+
+              if (isVisible)
+                // OdometerNumber rolls ONLY the digits that changed. Tabular
+                // figures (inside AzText.money) are required — without them the
+                // figure shifts sideways mid-roll.
+                OdometerNumber(
+                  value: primaryLabel,
+                  style: AzText.money(
+                    colors.textPrimary,
+                    size: AzText.sizeHero,
+                  ),
+                  semanticsLabel: '$primaryLabel available',
+                )
+              else
+                Text(
+                  '••••••',
+                  style: AzText.money(
+                    colors.textPrimary,
+                    size: AzText.sizeHero,
+                  ),
                 ),
+
+              const SizedBox(height: AzSpace.xs),
+
+              // Secondary figure: the other side of the pair, so the user
+              // always knows what they actually hold.
+              Text(
+                isVisible ? secondaryLabel : secondaryMask,
+                style: AzText.bodyS.copyWith(color: colors.textSecondary),
+              ),
+
+              const SizedBox(height: AzSpace.xs),
+
+              // The live oracle rate + its refresh affordance, carried over
+              // from the previous card.
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: colors.success,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      '1 USDC = GH₵ ${rate.toStringAsFixed(2)}',
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          AzText.caption.copyWith(color: colors.textTertiary),
+                    ),
+                  ),
+                  const SizedBox(width: AzSpace.sm),
+                  const RateRefreshIndicator(),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          if (truncatedId.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 14,
-                  color: colors.textTertiary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  truncatedId,
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
-          Consumer(
-            builder: (context, ref, _) {
-              final isVisible = ref.watch(balanceVisibleProvider);
-              final rate = ref.watch(oracleRateProvider);
-              final ghsVal = totalUsdc * rate;
-              final currency = ref.watch(currencyProvider);
-              final ghsFirst = currency == DisplayCurrency.ghs;
-              String fmtGhs(double v) {
-                final parts = v.toStringAsFixed(2).split('.');
-                final intPart = parts[0];
-                final buf = StringBuffer();
-                for (int i = 0; i < intPart.length; i++) {
-                  if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
-                  buf.write(intPart[i]);
-                }
-                return '$buf.${parts[1]}';
-              }
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                isVisible
-                    ? AnimatedNumber(
-                        value: ghsFirst ? ghsVal : totalUsdc,
-                        formatter: (v) => ghsFirst
-                            ? 'GH₵ ${fmtGhs(v)}'
-                            : '${v.toStringAsFixed(2)} USDC',
-                        duration: const Duration(milliseconds: 600),
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      )
-                    : Text('••••••',
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                const SizedBox(height: 2),
-                if (isVisible)
-                  Text(
-                    ghsFirst ? '${totalUsdc.toStringAsFixed(2)} USDC' : 'GH₵ ${fmtGhs(ghsVal)}',
-                    style: TextStyle(
-                      color: colors.textSecondary.withValues(alpha: 0.75),
-                      fontSize: 13,
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: colors.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        "1 USDC = GH₵ ${rate.toStringAsFixed(2)}",
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const RateRefreshIndicator(),
-                  ],
-                ),
-              ]);
-            },
-          ),
         ],
       ),
-    ).animate().fadeIn(duration: 380.ms, curve: Curves.easeOut).slideY(
-          begin: 0.04,
-          end: 0,
-          curve: Curves.easeOutCubic,
-        );
-  }
-}
-
-class _BalanceNumber extends StatefulWidget {
-  final double value;
-  final bool isVisible;
-  final AzamanColors colors;
-
-  const _BalanceNumber({
-    required this.value,
-    required this.isVisible,
-    required this.colors,
-  });
-
-  @override
-  State<_BalanceNumber> createState() => _BalanceNumberState();
-}
-
-class _BalanceNumberState extends State<_BalanceNumber>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-  double _from = 0;
-  double _to = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _from = 0;
-    _to = widget.value;
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
     );
-    _anim = Tween<double>(begin: _from, end: _to)
-        .chain(CurveTween(curve: Curves.easeOutQuint))
-        .animate(_ctrl);
-    _ctrl.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant _BalanceNumber oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value) {
-      _from = _anim.value;
-      _to = widget.value;
-      _anim = Tween<double>(begin: _from, end: _to)
-          .chain(CurveTween(curve: Curves.easeOutQuint))
-          .animate(_ctrl);
-      _ctrl
-        ..reset()
-        ..forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (context, _) {
-        final v = _anim.value;
-        final text = widget.isVisible
-            ? _formatNumber(v)
-            : '\u2022\u2022\u2022\u2022\u2022\u2022';
-
-        return SizedBox(
-          width: double.infinity,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              text,
-              style: TextStyle(
-                color: widget.colors.textPrimary,
-                fontSize: 33,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _formatNumber(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(2)}M';
-    }
-    final parts = value.toStringAsFixed(2).split('.');
-    final intPart = parts[0];
-    final decPart = parts.length > 1 ? parts[1] : '00';
-    final buffer = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
-      buffer.write(intPart[i]);
-    }
-    return '$buffer.$decPart';
   }
 }
