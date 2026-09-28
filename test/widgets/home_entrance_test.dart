@@ -83,11 +83,14 @@ Future<void> _pumpHome(
 Iterable<Element> _ancestorsWithinHome(WidgetTester tester, Finder anchor) {
   final home = find.byType(AzamanHomePage).evaluate().first;
   final elements = <Element>[];
-  Element? e = anchor.evaluate().first.parent;
-  while (e != null && e != home) {
-    elements.add(e);
-    e = e.parent;
-  }
+  anchor
+      .evaluate()
+      .first
+      .visitAncestorElements((e) {
+        if (e == home) return false;
+        elements.add(e);
+        return true;
+      });
   return elements;
 }
 
