@@ -76,21 +76,34 @@ Future<void> _pumpHome(
   await tester.pump();
 }
 
+/// Walks up from [anchor] to the home page element — and no further. The
+/// enclosing route's own transition (SlideTransitions at rest, a dismissed
+/// FadeTransition at 0.0) is an ancestor of everything on the page; these
+/// helpers must not reach past the page into it.
+Iterable<Element> _ancestorsWithinHome(WidgetTester tester, Finder anchor) {
+  final home = find.byType(AzamanHomePage).evaluate().first;
+  final elements = <Element>[];
+  Element? e = anchor.evaluate().first.parent;
+  while (e != null && e != home) {
+    elements.add(e);
+    e = e.parent;
+  }
+  return elements;
+}
+
 /// The FadeTransition ancestors of [anchor] (the block's entrance fade —
 /// plus any widget-internal ones the anchor nests in).
 List<FadeTransition> _ancestorFades(WidgetTester tester, Finder anchor) {
-  return find
-      .ancestor(of: anchor, matching: find.byType(FadeTransition))
-      .evaluate()
+  return _ancestorsWithinHome(tester, anchor)
+      .where((e) => e.widget is FadeTransition)
       .map((e) => e.widget as FadeTransition)
       .toList();
 }
 
 /// The SlideTransition ancestors of [anchor] — the block's entrance slide.
 List<SlideTransition> _ancestorSlides(WidgetTester tester, Finder anchor) {
-  return find
-      .ancestor(of: anchor, matching: find.byType(SlideTransition))
-      .evaluate()
+  return _ancestorsWithinHome(tester, anchor)
+      .where((e) => e.widget is SlideTransition)
       .map((e) => e.widget as SlideTransition)
       .toList();
 }
@@ -99,9 +112,8 @@ List<SlideTransition> _ancestorSlides(WidgetTester tester, Finder anchor) {
 /// (flutter_animate's scale effect renders as Transform.scale; the avatar
 /// pop-in would be a 0.8 scale on the first frames).
 bool _hasNonIdentityScale(WidgetTester tester, Finder anchor) {
-  return find
-      .ancestor(of: anchor, matching: find.byType(Transform))
-      .evaluate()
+  return _ancestorsWithinHome(tester, anchor)
+      .where((e) => e.widget is Transform)
       .any((e) =>
           ((e.widget as Transform).transform.getMaxScaleOnAxis() - 1).abs() >
           0.01);
