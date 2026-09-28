@@ -5,7 +5,9 @@
 // a fixed iridescent material whose specular band follows the pointer. The
 // figure rolls per-digit via OdometerNumber (TASK-009b), and a rate or balance
 // change surfaces as a delta chip that fades in above the figure and out after
-// ~1.8s — the number itself never moves.
+// ~1.8s — the number itself never moves. The chip obeys the visibility mask:
+// while the balance is hidden it is not rendered, so a rate or balance refresh
+// cannot leak how much the balance just changed.
 //
 // Existing behaviours preserved on top of the rebuild (spec-silent, see the
 // 009d sign-off): the DisplayCurrency toggle (GHS-first vs USDC-first), the
@@ -121,7 +123,20 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
     // `_trackDelta` schedules a timer but never calls setState synchronously,
     // so this is safe to run inside build.
     _trackDelta(primaryValue, ghsFirst: ghsFirst);
-    final delta = _delta;
+
+    // The chip announces a change in the balance, so it must obey the same
+    // visibility mask as the figure itself — a hidden balance must not leak
+    // how much it just moved. Tracking continues while hidden (the baseline
+    // stays honest); only the rendering is suppressed.
+    final chipDelta = isVisible ? _delta : null;
+
+    // Reduced motion: the chip appears without sliding. `accessibleDuration`
+    // collapses to zero, and a zero-duration AnimatedSlide is an instant
+    // position change — nothing moves.
+    final chipMotion = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.control,
+    );
 
     final uid = user?.id ?? '';
     final truncatedId = uid.length > 6
@@ -189,37 +204,37 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
               SizedBox(
                 height: 18,
                 child: AnimatedOpacity(
-                  opacity: delta == null ? 0.0 : 1.0,
-                  duration: MotionTokens.control,
+                  opacity: chipDelta == null ? 0.0 : 1.0,
+                  duration: chipMotion,
                   curve: MotionTokens.enter,
                   child: AnimatedSlide(
-                    offset: delta == null
+                    offset: chipDelta == null
                         ? const Offset(0, 0.25)
                         : Offset.zero,
-                    duration: MotionTokens.control,
+                    duration: chipMotion,
                     curve: MotionTokens.enter,
-                    child: delta == null
+                    child: chipDelta == null
                         ? const SizedBox.shrink()
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                delta >= 0
+                                chipDelta >= 0
                                     ? HugeIconsSolid.arrowUp01
                                     : HugeIconsSolid.arrowDown01,
                                 size: 12,
-                                color: delta >= 0 ? colors.success : colors.danger,
+                                color: chipDelta >= 0 ? colors.success : colors.danger,
                               ),
                               const SizedBox(width: AzSpace.xxs),
                               Text(
                                 AzMoney.delta(
-                                  delta,
+                                  chipDelta,
                                   symbol: ghsFirst
                                       ? AzMoney.ghsSymbol
                                       : AzMoney.usdcSymbol,
                                 ),
                                 style: AzText.delta(
-                                  delta >= 0 ? colors.success : colors.danger,
+                                  chipDelta >= 0 ? colors.success : colors.danger,
                                 ),
                               ),
                             ],

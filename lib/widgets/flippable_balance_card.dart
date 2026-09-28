@@ -85,6 +85,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
     // A flip is a deliberate reveal of the user's own money — a selection, not
     // a navigation. `selection` (selectionClick) is the right sensation.
     AzamanHaptics.selection();
+    // Reduced motion: the flip lands on the very first frame instead of
+    // animating. The duration is read only when a transition starts, so
+    // setting it here covers both flip directions (and re-checking each toggle
+    // catches the setting changing while the card is alive).
+    _ctrl.duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : MotionTokens.spatial;
     if (_isBack) {
       _ctrl.reverse();
     } else {
@@ -164,7 +171,9 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
     // Watched here in the state (not in `_BackFace`) so the provider stays
     // alive for the card's lifetime: flipping back and forth does not
     // re-fetch, matching the F-023 cache semantics of `_fetchExtras`.
-    final susuRows = ref.watch(susuListProvider).valueOrNull;
+    final susuAsync = ref.watch(susuListProvider);
+    final susuKnown = susuAsync.hasValue;
+    final susuRows = susuAsync.valueOrNull;
     var susuCommitted = 0.0;
     if (susuRows != null) {
       for (final s in susuRows) {
@@ -223,6 +232,7 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                       vaultLocked: _vaultLocked,
                       savingsLocked: _savingsLocked,
                       susuLocked: susuCommitted,
+                      susuKnown: susuKnown,
                     ),
                   )
                 : const HologramBalanceCard(),
@@ -241,10 +251,17 @@ class _BackFace extends ConsumerWidget {
   final double savingsLocked;
   final double susuLocked;
 
+  /// Whether [susuLocked] reflects real data. While the susu list is loading
+  /// (or its fetch failed) the row must not assert a committed amount it does
+  /// not know — it renders a dash instead of a zero, so "unknown" can never be
+  /// mistaken for "nothing".
+  final bool susuKnown;
+
   const _BackFace({
     required this.vaultLocked,
     required this.savingsLocked,
     required this.susuLocked,
+    required this.susuKnown,
   });
 
   @override
@@ -309,6 +326,7 @@ class _BackFace extends ConsumerWidget {
         suffix: 'USDC',
         color: colors.warning,
         icon: HugeIconsSolid.userGroup,
+        known: susuKnown,
       ),
       _BalanceRow(
         label: 'AZM',
@@ -435,6 +453,10 @@ class _BalanceRow {
   final IconData icon;
   final bool countsTowardRail;
 
+  /// False while the value's source has no data yet — the cell renders a dash
+  /// instead of a figure so an unavailable amount is never read as zero.
+  final bool known;
+
   const _BalanceRow({
     required this.label,
     required this.value,
@@ -442,6 +464,7 @@ class _BalanceRow {
     required this.color,
     required this.icon,
     this.countsTowardRail = true,
+    this.known = true,
   });
 }
 
@@ -492,13 +515,17 @@ class _BalanceCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Unknown data renders as a dash, not a zero: a figure the source has not
+    // delivered yet must never read as "you have nothing here".
+    final known = row.known;
+    final hasValue = known && row.value > 0;
     return Row(
       children: [
         Container(
           width: 6,
           height: 6,
           decoration: BoxDecoration(
-            color: row.value > 0
+            color: hasValue
                 ? row.color
                 : colors.textTertiary.withValues(alpha: 0.35),
             shape: BoxShape.circle,
@@ -517,13 +544,22 @@ class _BalanceCell extends StatelessWidget {
         ),
         const SizedBox(width: AzSpace.xs),
         // `AzMoney.amount` + tabular figures: every figure occupies the same
-        // width, so the column of amounts aligns down the card.
-        Text(
-          AzMoney.amount(row.value),
-          style: AzText.bodyS.copyWith(
-            color: row.value > 0 ? colors.textPrimary : colors.textTertiary,
-            fontWeight: FontWeight.w700,
-            fontFeatures: AzText.tabular,
+        // width, so the column of amounts aligns down the card. The amount is
+        // also `Flexible` + `FittedBox`, mirroring OdometerNumber's guard: a
+        // huge balance (`AzMoney.amount` never compacts) under a large text
+        // scale must scale down rather than overflow the fixed cell.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              known ? AzMoney.amount(row.value) : '—',
+              style: AzText.bodyS.copyWith(
+                color: hasValue ? colors.textPrimary : colors.textTertiary,
+                fontWeight: FontWeight.w700,
+                fontFeatures: AzText.tabular,
+              ),
+            ),
           ),
         ),
       ],
