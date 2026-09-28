@@ -267,6 +267,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
     final page = _pages[i] ?? _pageFor(i);
+    // TASK-010: compression tracks the CURRENT page's offset. The incoming
+    // page starts at its top, so the pill must start at rest — otherwise a
+    // compressed state from the outgoing page would linger until the new page
+    // scrolls.
+    if (navScrollCompression.value != 0) navScrollCompression.value = 0;
     final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final midTransition = _displayedIndex != _selectedIndex;
 
@@ -465,46 +470,37 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(selectedIndex: _selectedIndex, onItemSelected: _onNavItemSelected),
-      // F-0xx / TASK-010: the nav pill compresses while the page scrolls. One
-      // listener above the whole shell means every scrollable page feeds the
-      // same notifier without threading a controller through each one.
+      // TASK-010: the nav pill compresses while the page scrolls. ONE
+      // listener above the whole shell catches every ScrollNotification
+      // bubbled from every scrollable in every page, so no page needs a
+      // scroll controller threaded through it. All of the policy (vertical
+      // axis guard, pull-to-refresh overscroll guard, 10-step quantisation)
+      // lives in `NavScrollCompression.applyTo`, which is unit-tested in
+      // test/widgets/nav_scroll_compression_test.dart.
+      //
+      // The value tracks the page's ABSOLUTE offset, so stopping mid-page
+      // keeps the pill compressed (it does not pop back on ScrollEnd) and
+      // returning to the top restores it. Reduced motion is honoured by the
+      // reader in the nav, not here.
       body: NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          if (n is ScrollUpdateNotification) {
-            final reduce = MediaQuery.disableAnimationsOf(context);
-            if (reduce) return false;
-            final next = (navScrollCompression.value +
-                    NavScrollCompression.fromDelta(n.scrollDelta ?? 0.0))
-                .clamp(0.0, 1.0)
-                .toDouble();
-            if ((next - navScrollCompression.value).abs() > 0.001) {
-              navScrollCompression.value = next;
-            }
-            return false;
-          }
-          if (n is ScrollEndNotification || n is OverscrollNotification) {
-            if (navScrollCompression.value != 0) navScrollCompression.value = 0;
-            return false;
-          }
-          return false;
-        },
+        onNotification: NavScrollCompression.applyTo,
         child: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _transitionCtrl,
-            builder: (context, child) => Stack(
-              fit: StackFit.expand,
-              children: [
-                for (var index = 0; index < _pages.length; index++)
-                  if (_pages[index] != null && index != _selectedIndex)
-                    _buildOutgoing(index),
-                if (_pages[_selectedIndex] != null) _buildIncoming(_selectedIndex),
-              ],
+          children: [
+            AnimatedBuilder(
+              animation: _transitionCtrl,
+              builder: (context, child) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  for (var index = 0; index < _pages.length; index++)
+                    if (_pages[index] != null && index != _selectedIndex)
+                      _buildOutgoing(index),
+                  if (_pages[_selectedIndex] != null) _buildIncoming(_selectedIndex),
+                ],
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
-          ),
-          if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
-          DrawerPeekHint(onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer()),
+            if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
+            DrawerPeekHint(onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer()),
           ],
         ),
       ),
