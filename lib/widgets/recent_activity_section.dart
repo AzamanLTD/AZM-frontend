@@ -56,14 +56,20 @@ class RecentActivitySection extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text('Recent Activity',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: colors.textPrimary,
-                  letterSpacing: -0.3,
-                )),
-              const Spacer(),
+              // Flexible: at accessibility text scales (or wide test-harness
+              // font metrics) the title would otherwise overflow the row.
+              Flexible(
+                child: Text('Recent Activity',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: colors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1),
+              ),
+              const SizedBox(width: 12),
               ScaleTap(
                 onTap: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) => const AccountActivityScreen())),

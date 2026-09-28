@@ -179,8 +179,13 @@ void main() {
         reason: 'home should still be entering at the first frame');
 
     // t=550ms: the last block lands at 460ms. Every block must be fully
-    // painted…
-    await tester.pump(const Duration(milliseconds: 550));
+    // painted. flutter_animate starts each block from a delayed future and
+    // its controller only advances one tick per frame, so the entrance
+    // needs stepped frames — a single 550ms jump would land on the
+    // controller's first tick (value 0) and falsely report a stuck fade.
+    for (var t = 0; t < 550; t += 50) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     for (final anchor in _anchors) {
       final chain = _ancestorsWithinHome(tester, anchor)
           .map((e) => e.widget is FadeTransition
