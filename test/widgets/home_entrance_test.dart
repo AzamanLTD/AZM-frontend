@@ -66,7 +66,10 @@ Future<void> _pumpHome(
 }) async {
   SharedPreferences.setMockInitialValues(
       {'has_seen_flippable_card_hint': true});
-  await _loadFonts();
+  // `runAsync` is required: reading the font file is real async I/O, which
+  // the fake-async zone never completes on its own (it hangs the test) — the
+  // golden harness documents the same constraint.
+  await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
   final container = ProviderContainer(
     overrides: [
