@@ -22,13 +22,18 @@
 // pair so the hero card renders deterministically. The network-facing
 // summary fetch fails fast in tests, so the sections below the rail render
 // in their idle states — nothing to settle but the entrance.
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
+import 'package:flutter/foundation.dart' show FontLoader, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +43,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _surfaceSize = Size(400, 900);
 
+/// Loads the bundled Inter face once per process — the same pattern the
+/// golden harness documents on `matchesGoldenFile` (see
+/// test/goldens/golden_harness.dart); inlined so this suite does not depend
+/// on the golden harness's churn.
+bool _fontsLoaded = false;
+Future<void> _loadFonts() async {
+  if (_fontsLoaded) return;
+  final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
+  final loader = FontLoader('Inter')
+    ..addFont(Future<ByteData>.value(
+        ByteData.view(Uint8List.fromList(bytes).buffer)));
+  await loader.load();
+  _fontsLoaded = true;
+}
+
 /// Seeds the first-time tap hint as seen (it pulses on a repeating
 /// controller — real UX, but not part of the entrance) and pumps Home.
 Future<void> _pumpHome(
@@ -46,6 +66,7 @@ Future<void> _pumpHome(
 }) async {
   SharedPreferences.setMockInitialValues(
       {'has_seen_flippable_card_hint': true});
+  await _loadFonts();
   await tester.binding.setSurfaceSize(_surfaceSize);
   final container = ProviderContainer(
     overrides: [
@@ -63,6 +84,10 @@ Future<void> _pumpHome(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
+        // The app's own theme (Inter, the bundled face) — the default test
+        // font renders every glyph as a fixed-width square, which overflows
+        // and fails layout on screens it actually fits.
+        theme: ThemeProvider.getThemeData(AzamanTheme.light),
         home: MediaQuery(
           data: MediaQueryData(size: _surfaceSize)
               .copyWith(disableAnimations: reduceMotion),
@@ -154,6 +179,12 @@ void main() {
     // painted…
     await tester.pump(const Duration(milliseconds: 550));
     for (final anchor in _anchors) {
+      final chain = _ancestorsWithinHome(tester, anchor)
+          .map((e) => e.widget is FadeTransition
+              ? 'Fade(${(e.widget as FadeTransition).opacity.value})'
+              : e.widget.runtimeType.toString())
+          .join(' > ');
+      debugPrint('ANCHOR CHAIN: $chain');
       for (final fade in _ancestorFades(tester, anchor)) {
         expect(fade.opacity.value, greaterThan(0.999),
             reason: 'a fade is still running on $anchor at 550ms');
