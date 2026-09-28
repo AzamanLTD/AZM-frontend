@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +23,8 @@ import 'package:azaman/screens/transaction_history_screen.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/theme/az_tokens.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/live_market_section.dart';
@@ -52,7 +53,10 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
   }
 
   Future<void> _onRefresh() async {
-    AzamanHaptics.nav();
+    // A refresh is a "re-check the world" action, not a navigation. The
+    // threshold tick is the same sensation the pull gesture armed with, so the
+    // release feels like the gesture completing rather than a new event.
+    AzamanHaptics.threshold();
     final summaryFuture = ref.read(homeSummaryProvider.notifier).refresh();
     final auth = ref.read(authProvider);
     if (auth.user?.id != null) {
@@ -78,38 +82,150 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
             physics: const AlwaysScrollableScrollPhysics(
               parent: ClampingScrollPhysics(),
             ),
-            padding: const EdgeInsets.only(bottom: 120),
+            // Clears the floating 62px nav pill + its 16px gutter + breathing
+            // room. See AzSpace.navClearance — if the nav pill height changes,
+            // this value must change with it, and it must change in ONE place.
+            padding: AzSpace.navClearance,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                // ── ENTRANCE CHOREOGRAPHY ─────────────────────────────────
+                // One place defines how Home arrives. Every delay comes from
+                // MotionTokens.staggerDelay, so Home shares a tempo with the
+                // rest of the app instead of hardcoding 100/200/300/400/500/600.
+                //
+                // Two rules are load-bearing here:
+                //
+                // 1. TOTAL TIME. The previous entrance did not finish until
+                //    1000ms (last delay 600 + duration 400). The new
+                //    choreography finishes at staggerDelay(6) + standard =
+                //    240 + 220 = 460ms — less than half the time.
+                //
+                // 2. DIRECTION. A strict top-to-bottom stagger reads as a
+                //    queue draining ("loading"). This one is composed like a
+                //    camera move: the header and title arrive from the LEFT,
+                //    the rail from the RIGHT, and the list rises from BELOW.
+                //    The eye is led, not queued.
+                const SizedBox(height: AzSpace.sm),
 
-                const _GreetingHeader().animate().fadeIn(duration: 320.ms),
+                // Block 0 — header, arrives from the left.
+                const _GreetingHeader()
+                    .animate()
+                    .fadeIn(
+                      duration: MotionTokens.control,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideX(begin: -0.04, end: 0, curve: MotionTokens.enter),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: AzSpace.lg),
 
-                const _GreetingTitle().animate().fadeIn(delay: 100.ms, duration: 360.ms).slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 360.ms),
+                // Block 1 — greeting title, follows the header.
+                const _GreetingTitle()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(1),
+                      duration: MotionTokens.control,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideX(
+                      begin: -0.04,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(1),
+                      curve: MotionTokens.enter,
+                    ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: AzSpace.lg),
 
-                const _ActionPills().animate().fadeIn(delay: 200.ms, duration: 350.ms).slideY(begin: 0.15, end: 0, delay: 200.ms, duration: 350.ms),
+                // Block 2 — action pills, rise into place.
+                const _ActionPills()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(2),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideY(
+                      begin: 0.12,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(2),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: AzSpace.xl),
 
-                const _BalanceCardsScroll().animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.15, end: 0, delay: 300.ms, duration: 400.ms),
+                // Block 3 — the rail, arrives from the RIGHT. This is the one
+                // block that travels opposite the others, so the deck feels
+                // slid into view rather than dropped in.
+                const _BalanceCardsScroll()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(3),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideX(
+                      begin: 0.06,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(3),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: AzSpace.xxl),
 
-                const _SusuShortcutCard().animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 400.ms, duration: 400.ms),
+                // Block 4 — susu shortcut.
+                const _SusuShortcutCard()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(4),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideY(
+                      begin: 0.06,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(4),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: AzSpace.xxl),
 
-                const RecentActivitySection().animate().fadeIn(delay: 500.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 500.ms, duration: 400.ms),
+                // Block 5 — recent activity.
+                const RecentActivitySection()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(5),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideY(
+                      begin: 0.06,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(5),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: AzSpace.xxl),
 
-                const LiveMarketSection().animate().fadeIn(delay: 600.ms, duration: 400.ms).slideY(begin: 0.1, end: 0, delay: 600.ms, duration: 400.ms),
-
+                // Block 6 — live market. Last to arrive; the page is fully
+                // painted at staggerDelay(6) + standard = 240 + 220 = 460ms.
+                const LiveMarketSection()
+                    .animate()
+                    .fadeIn(
+                      delay: MotionTokens.staggerDelay(6),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    )
+                    .slideY(
+                      begin: 0.06,
+                      end: 0,
+                      delay: MotionTokens.staggerDelay(6),
+                      duration: MotionTokens.standard,
+                      curve: MotionTokens.enter,
+                    ),
               ],
             ),
           ),
@@ -198,7 +314,7 @@ class _GreetingHeader extends ConsumerWidget {
               ),
             ),
           ),
-          ).animate().fadeIn(duration: 300.ms).scale(
+          ).animate().scale(
                 begin: const Offset(0.8, 0.8),
                 end: const Offset(1, 1),
                 duration: 300.ms,
@@ -223,14 +339,7 @@ class _GreetingHeader extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success)
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scale(
-                        begin: const Offset(1, 1),
-                        end: const Offset(1.1, 1.1),
-                        duration: 800.ms,
-                        curve: Curves.easeInOut,
-                      ),
+                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
                   const SizedBox(width: 5),
                   Text(
                     (user?.azmBalance ?? 0) > 0
@@ -285,7 +394,7 @@ class _GreetingHeader extends ConsumerWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 320.ms, curve: Curves.easeOut);
+    );
   }
 
   String _initials(String name) {
@@ -310,23 +419,14 @@ class _GreetingTitle extends ConsumerWidget {
     final heading = username.isEmpty ? 'Welcome back' : 'Hi, $username';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
       child: Text(
         heading,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 27,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.5,
-        ),
+        style: AzText.display.copyWith(color: colors.textPrimary),
       ),
-    ).animate().fadeIn(duration: 360.ms, curve: Curves.easeOut).slideY(
-          begin: 0.1,
-          end: 0,
-          curve: Curves.easeOutCubic,
-        );
+    );
   }
 }
 
@@ -343,14 +443,16 @@ class _ActionPills extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
+    // Icon family: hugeicons_pro, matching the bottom nav. These four names
+    // are verified in-repo (`rg -o "HugeIcons(Solid|Stroke)\.[A-Za-z0-9_]+" lib`).
     final pills = [
-      _PillData(label: "Add Money", icon: Icons.add,
+      _PillData(label: "Add Money", icon: HugeIconsSolid.plusSign,
         onTap: () => pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat))),
-      _PillData(label: "Send", icon: Icons.send_outlined,
+      _PillData(label: "Send", icon: HugeIconsSolid.moneySend01,
         onTap: () => pushWithVerticalTransition(context, const SendMoneyScreen())),
-      _PillData(label: "Withdraw", icon: Icons.account_balance_outlined,
+      _PillData(label: "Withdraw", icon: HugeIconsSolid.bank,
         onTap: () => pushWithVerticalTransition(context, const WithdrawalScreen())),
-      _PillData(label: "History", icon: Icons.history,
+      _PillData(label: "History", icon: HugeIconsStroke.transactionHistory,
         onTap: () => pushWithVerticalTransition(context, const TransactionHistoryScreen())),
     ];
     return SingleChildScrollView(
@@ -365,13 +467,17 @@ class _ActionPills extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 12),
             child: _buildPill(context, colors, p)
                 .animate()
-                .fadeIn(delay: (i * 80).ms, duration: 300.ms)
+                .fadeIn(
+                  delay: MotionTokens.staggerDelay(i),
+                  duration: MotionTokens.control,
+                  curve: MotionTokens.decelerate,
+                )
                 .slideY(
-                  begin: 0.2,
+                  begin: 0.18,
                   end: 0,
-                  delay: (i * 80).ms,
-                  duration: 300.ms,
-                  curve: Curves.easeOutCubic,
+                  delay: MotionTokens.staggerDelay(i),
+                  duration: MotionTokens.control,
+                  curve: MotionTokens.enter,
                 ),
           );
         }).toList(),
@@ -381,7 +487,7 @@ class _ActionPills extends ConsumerWidget {
 
   Widget _buildPill(BuildContext context, AzamanColors colors, _PillData pill) {
     return ScaleTap(
-      onTap: () { HapticFeedback.lightImpact(); pill.onTap(); },
+      onTap: () { AzamanHaptics.nav(); pill.onTap(); },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -398,11 +504,6 @@ class _ActionPills extends ConsumerWidget {
                 child: Icon(pill.icon, size: 22, color: colors.accent),
               ),
             ),
-          )
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .shimmer(
-            duration: 2000.ms,
-            color: colors.accent.withValues(alpha: 0.1),
           ),
           const SizedBox(height: 6),
           Text(
@@ -427,82 +528,47 @@ class _BalanceCardsScroll extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     final screenWidth = MediaQuery.sizeOf(context).width;
 
+    // A deck, not a mixed grid.
+    //
+    // Before: widths 0.76 / 0.38 / 0.38. Because card 1 was twice as wide as
+    // cards 2 and 3, card 2 sat half-off the screen edge on a fresh load, which
+    // the eye reads as a layout bug. The content was also mixed-weight: a full
+    // balance card beside two small shortcut tiles.
+    //
+    // After: every card is the same width, so exactly one card is hero and the
+    // next PEEKS by a consistent 12% of the viewport. The peek is the
+    // affordance that says "there is more to the right" — it must be
+    // deliberate, not accidental.
+    //
+    // `clipBehavior: Clip.none` lets each card's ambient shadow bleed into the
+    // screen gutter, so the hero card appears to sit ABOVE the page rather than
+    // inside a letterbox. This is the screen's one full-bleed moment. If any
+    // artefact appears while scrolling, set it back to `Clip.hardEdge` — the
+    // shadow will simply be tighter and nothing else changes.
+    const double deckCardWidthFactor = 0.88;
+    const double deckGutter = AzSpace.md;
+
     return SizedBox(
       height: 180,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
         physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
         children: [
           SizedBox(
-            width: screenWidth * 0.76,
+            width: screenWidth * deckCardWidthFactor,
             child: const TapHintOverlay(
               hintKey: 'has_seen_flippable_card_hint',
               child: FlippableBalanceCard(),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: deckGutter),
           SizedBox(
-            width: screenWidth * 0.38,
-            child: _NewWalletCard(colors: colors),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: screenWidth * 0.38,
+            width: screenWidth * deckCardWidthFactor,
             child: _MarketplaceShortcutCard(colors: colors),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _NewWalletCard extends StatelessWidget {
-  final AzamanColors colors;
-  const _NewWalletCard({required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        HapticFeedback.lightImpact();
-        pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.softSurface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 1.2),
-        ),
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42, height: 42,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withValues(alpha: 0.12),
-              ),
-              child: Icon(Icons.add, size: 20, color: colors.accent),
-            ),
-            const Spacer(),
-            Text("Fund",
-              style: TextStyle(color: colors.textPrimary, fontSize: 16,
-                fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text("Deposit GHC\nor crypto",
-              style: TextStyle(color: colors.textTertiary, fontSize: 11, height: 1.3)),
-          ],
-        ),
-      )
-      .animate(onPlay: (c) => c.repeat(reverse: true))
-      .shimmer(
-        duration: 3000.ms,
-        color: colors.accent.withValues(alpha: 0.05),
       ),
     );
   }
@@ -517,7 +583,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
-        HapticFeedback.lightImpact();
+        AzamanHaptics.nav();
         pushWithVerticalTransition(context, const MarketplaceHomeScreen());
       },
       child: Container(
@@ -548,7 +614,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.15),
               ),
-              child: const Icon(Icons.storefront_rounded,
+              child: const Icon(HugeIconsSolid.store01,
                   size: 20, color: Colors.white),
             ),
             const Spacer(),
@@ -561,10 +627,7 @@ class _MarketplaceShortcutCard extends ConsumerWidget {
           ],
         ),
       ),
-    )
-    .animate()
-    .fadeIn(delay: 200.ms, duration: 400.ms)
-    .slideX(begin: 0.2, end: 0, delay: 200.ms, duration: 400.ms, curve: Curves.easeOutCubic);
+    );
   }
 }
 
@@ -588,7 +651,7 @@ class _SusuShortcutCard extends ConsumerWidget {
 
         return GestureDetector(
           onTap: () {
-            HapticFeedback.lightImpact();
+            AzamanHaptics.nav();
             context.push("/susu/${next.id}");
           },
           child: PremiumGlassContainer(
@@ -640,20 +703,17 @@ class _SusuShortcutCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '\$${contributionUsdc.toStringAsFixed(2)} / cycle',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: colors.accent),
+                        '${AzMoney.usdc(contributionUsdc)} / cycle',
+                        style: AzText.title.copyWith(color: colors.textPrimary),
                       ),
                     ],
                   ),
                 ),
                 // Arrow
-                Icon(Icons.chevron_right_rounded, size: 24, color: colors.textTertiary),
+                Icon(HugeIconsSolid.arrowRight01, size: 24, color: colors.textTertiary),
               ],
             ),
-          )
-          .animate()
-          .fadeIn(delay: 300.ms, duration: 400.ms)
-          .slideY(begin: 0.1, end: 0, delay: 300.ms, duration: 400.ms, curve: Curves.easeOutCubic),
+          ),
         );
       },
     );
