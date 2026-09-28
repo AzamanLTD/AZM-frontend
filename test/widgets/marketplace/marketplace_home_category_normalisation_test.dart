@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/services/business_service.dart';
 
-/// TASK-011 permanent guard: `MarketplaceHomeScreen(initialCategory:)` is the
-/// TASK-010b entry contract. It must accept a wire, normalise it through the
-/// launch allowlist, and establish the search's starting category — while a
-/// null / unknown wire opens the marketplace unfiltered.
+/// TASK-011 permanent guard, part 2: the launch-wire NORMALISATION contract.
+/// The full home-screen pump is memory-heavy, so these live in their own file
+/// (each test file runs in its own tester process).
 
 class _RecordingSearchNotifier extends BusinessSearchNotifier {
   _RecordingSearchNotifier() : super(BusinessService());
@@ -49,35 +48,24 @@ Future<_RecordingSearchNotifier> _pumpHome(
 }
 
 void main() {
-  testWidgets('initialCategory seeds the starting search category', (
+  testWidgets('initialCategory normalises case and surrounding whitespace', (
     tester,
   ) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'retail');
-    expect(notifier.searchedCategories, ['RETAIL']);
-  });
-
-  testWidgets('initialCategory accepts FOOD_BEVERAGE', (tester) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'FOOD_BEVERAGE');
-    expect(notifier.searchedCategories, ['FOOD_BEVERAGE']);
-  });
-
-  testWidgets('initialCategory accepts LOGISTICS', (tester) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'LOGISTICS');
-    expect(notifier.searchedCategories, ['LOGISTICS']);
-  });
-
-  testWidgets('initialCategory accepts HOSPITALITY', (tester) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'HOSPITALITY');
+    final notifier = await _pumpHome(tester, initialCategory: '  Hospitality ');
     expect(notifier.searchedCategories, ['HOSPITALITY']);
   });
 
-  testWidgets('initialCategory accepts REAL_ESTATE', (tester) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'REAL_ESTATE');
+  testWidgets('mixed-case launch wires still resolve to their wire', (
+    tester,
+  ) async {
+    final notifier = await _pumpHome(tester, initialCategory: 'Real_Estate');
     expect(notifier.searchedCategories, ['REAL_ESTATE']);
   });
 
-  testWidgets('null initialCategory opens unfiltered', (tester) async {
-    final notifier = await _pumpHome(tester);
+  testWidgets('an unknown value never maps to a nearby category', (
+    tester,
+  ) async {
+    final notifier = await _pumpHome(tester, initialCategory: 'GROCERY');
     expect(notifier.searchedCategories, [null]);
   });
 }
