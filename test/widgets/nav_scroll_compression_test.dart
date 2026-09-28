@@ -26,6 +26,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/providers/chat_provider.dart';
+import 'package:azaman/providers/notification_provider.dart';
+import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 
 FixedScrollMetrics _metrics(
@@ -56,6 +59,14 @@ ScrollUpdateNotification _scroll(
 
 Widget _host(Widget child, {bool reduceMotion = false}) {
   return ProviderScope(
+    // The badge providers' real bodies are async and hit the API; in a test
+    // they resolve after the container is disposed. Pin them to inert values
+    // so the nav under test never leaves the container's lifetime.
+    overrides: [
+      totalUnreadChatCountProvider.overrideWith((ref) async => 0),
+      activeTradeCountProvider.overrideWith((ref) async => 0),
+      unreadCountProvider.overrideWith((ref) => 0),
+    ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, navigatorChild) => MediaQuery(
