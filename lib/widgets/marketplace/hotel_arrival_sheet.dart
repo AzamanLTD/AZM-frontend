@@ -25,6 +25,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/widgets/liquid/liquid_engine.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -297,7 +298,9 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
             child: AnimatedBuilder(
               animation: _card,
               builder: (context, child) {
-                final pop = Curves.easeOutBack.transform(_card.value);
+                // The named key-card materialisation primitive from the liquid engine —
+// the planning source specifies kPopSpring here, not a substituted curve.
+final pop = kPopSpring.transform(_card.value);
                 return Opacity(
                   opacity: _card.value.clamp(0.0, 1.0).toDouble(),
                   child:

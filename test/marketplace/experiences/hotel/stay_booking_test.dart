@@ -77,6 +77,39 @@ void main() {
     });
   });
 
+  testWidgets('StayDateRibbon one-night extension fires exactly one tick',
+      (tester) async {
+    final ranges = <DateTimeRange>[];
+    var thresholds = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            child: StayDateRibbon(
+              firstDay: DateTime(2026, 9, 25),
+              nightlyRate: 100,
+              onRangeChanged: ranges.add,
+              onNightAdded: () => thresholds++,
+              colors: _colors,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // A single 56px pointer update crosses exactly ONE new date cell:
+    // the extension from one night (end Sep 29) to two nights (end Sep 30)
+    // must fire the threshold haptic exactly once.
+    await tester.drag(find.text('28'), const Offset(56, 0));
+    await tester.pump();
+
+    expect(ranges, isNotEmpty);
+    expect(ranges.last.start, DateTime(2026, 9, 28));
+    expect(ranges.last.end, DateTime(2026, 9, 30));
+    expect(thresholds, 1);
+  });
+
   testWidgets('StayDateRibbon drag extends the stay and ticks per night',
       (tester) async {
     final ranges = <DateTimeRange>[];
