@@ -137,7 +137,15 @@ const double _kDotPad = 5.0;
 Widget _twelveOClockIndicator(AzamanColors colors) {
   return Align(
     alignment: Alignment.topCenter,
-    child: Icon(Icons.arrow_drop_down, color: colors.accent, size: 22),
+    // TASK-017: keyed so the acceptance test can MEASURE (not assume) that
+    // the indicator sits at the wheel's top edge, horizontally centred.
+    // The key sits on the Icon, not the Align: the Align expands to fill
+    // the wheel, so its rect is the wheel's rect and cannot prove
+    // placement — the indicator element itself is what must be measured.
+    child: Icon(Icons.arrow_drop_down,
+        key: const ValueKey('susu-12-oclock-indicator'),
+        color: colors.accent,
+        size: 22),
   );
 }
 
@@ -627,6 +635,15 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
   Offset? _dragStartPoint;
   double _wheelRadius = 100.0;
 
+  // TASK-017 selection-commit contract: the last slot committed by ONE user
+  // selection flow. A duplicate gesture resolving to the SAME already-
+  // committed slot (re-tap, or the hub naming the slot just committed) is a
+  // no-op: no callback, no haptic, no spring re-run. The guard is per-slot,
+  // not a one-shot latch — committing a DIFFERENT free slot afterwards is a
+  // new selection and fires once. Resynced when the externally supplied
+  // selectedPosition changes so the contract never contradicts the host.
+  int? _lastCommittedSlot;
+
   Set<int> get _taken => widget.members
       .map((m) => m['position'] as int?)
       .whereType<int>()
@@ -642,6 +659,16 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
       upperBound: 1000.0,
       value: 0.0,
     );
+  }
+
+  @override
+  void didUpdateWidget(SusuPositionWheel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Resync the exactly-once guard when the host supplies a new external
+    // selection: that change is authoritative, not a duplicate gesture.
+    if (widget.selectedPosition != oldWidget.selectedPosition) {
+      _lastCommittedSlot = widget.selectedPosition;
+    }
   }
 
   @override
@@ -687,6 +714,8 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
 
   void _selectSlot(int slot) {
     if (_taken.contains(slot)) return;
+    if (_lastCommittedSlot == slot) return; // exactly-once: already committed
+    _lastCommittedSlot = slot;
     AzamanHaptics.confirm();
     widget.onPositionSelected(slot);
     final target = susuSnapRotation(_rot.value, slot, widget.totalPositions);
