@@ -276,3 +276,52 @@ class RestaurantTray {
     );
   }
 }
+
+/// Canonical TASK-013 effective unit price for one configured restaurant
+/// dish build (name-based selections, as carried on the wire to the
+/// backend):
+///
+/// - base resolves `RestaurantDish.price ?? fallbackPrice`
+///   (`fallbackPrice` is the catalog `BusinessProduct.priceUsdc`);
+/// - the selected size and option deltas are then applied.
+///
+/// Fail-closed: a non-finite or non-positive base — or a non-finite /
+/// non-positive effective total — yields `null`, and callers must not
+/// create a payable line or display a price for it. The detail surface and
+/// build sheet resolve the same rule from option-ID selections, so every
+/// customer-facing surface and the cart mutation agree for the same
+/// product + selection.
+double? restaurantEffectiveUnitPrice({
+  required RestaurantDish dish,
+  required double fallbackPrice,
+  Map<String, String> selections = const {},
+}) {
+  final basePrice = dish.price ?? fallbackPrice;
+  if (!basePrice.isFinite || basePrice <= 0) return null;
+  var total = basePrice;
+  final size = selections['size'];
+  if (size != null && size.isNotEmpty) {
+    for (final variant in dish.variants) {
+      if (variant.name == size) {
+        total += variant.priceDelta;
+        break;
+      }
+    }
+  }
+  for (final group in dish.optionGroups) {
+    final raw = selections[group.name];
+    if (raw == null || raw.isEmpty) continue;
+    final selected = raw
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet();
+    for (final option in group.options) {
+      if (selected.contains(option.name)) {
+        total += option.priceDelta;
+      }
+    }
+  }
+  if (!total.isFinite || total <= 0) return null;
+  return total;
+}

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
+import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/restaurant_native_menu_journey.dart';
@@ -60,6 +61,9 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
   final bool showOptions;
   final bool showQuantity;
   final String? dineInContext;
+  final RestaurantOrderMode orderMode;
+  final ValueChanged<RestaurantOrderMode>? onOrderModeChanged;
+  final bool dineInAvailable;
   final MarketplaceDetailPresentation detailPresentation;
 
   const RestaurantMenuJourneyAdapter({
@@ -75,6 +79,9 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
     this.showOptions = true,
     this.showQuantity = true,
     this.dineInContext,
+    this.orderMode = RestaurantOrderMode.takeaway,
+    this.onOrderModeChanged,
+    this.dineInAvailable = true,
     this.detailPresentation = MarketplaceDetailPresentation.dishDossier,
   });
 
@@ -91,6 +98,9 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
         showOptions: showOptions || restaurantRequiresVisibleOptions(dishesById.values),
         showQuantity: showQuantity,
         dineInContext: dineInContext,
+        orderMode: orderMode,
+        onOrderModeChanged: onOrderModeChanged,
+        dineInAvailable: dineInAvailable,
         detailPresentation: detailPresentation,
       );
 }

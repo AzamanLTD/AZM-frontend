@@ -136,7 +136,9 @@ void main() {
 
     expect(cart.state.itemCount, 1);
     expect(cart.state.businessProfileId, business.id);
-    expect(find.text('Open order tray'), findsOneWidget);
+    // TASK-013: the FloatingCartBar text probe became the RestaurantTrayRail
+    // collapsed pill, which shows count + subtotal instead of a label.
+    expect(find.byKey(const ValueKey('restaurant-tray-rail-collapsed')), findsOneWidget);
     expect(find.text('Jollof Rice added to your order tray.'), findsOneWidget);
   });
 
