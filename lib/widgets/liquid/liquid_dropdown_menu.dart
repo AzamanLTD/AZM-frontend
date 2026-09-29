@@ -8,10 +8,14 @@ class LiquidDropdownItem {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const LiquidDropdownItem({required this.icon, required this.label, required this.onTap});
+  const LiquidDropdownItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 }
 
-const double _rowHeight = 48;      // ≥ 44 dp tap target
+const double _rowHeight = 48; // ≥ 44 dp tap target
 const double _panelPad = 8;
 const double _panelRadius = 20;
 const double _panelWidth = 200;
@@ -47,7 +51,8 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
   OverlayEntry? _entry;
   LiquidPhase _phase = LiquidPhase.closed;
 
-  bool get _isOpen => _phase == LiquidPhase.open || _phase == LiquidPhase.opening;
+  bool get _isOpen =>
+      _phase == LiquidPhase.open || _phase == LiquidPhase.opening;
 
   @override
   void dispose() {
@@ -70,7 +75,10 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
 
     final placement = solvePanel(
       anchor: anchor,
-      panel: Size(_panelWidth, widget.items.length * _rowHeight + _panelPad * 2),
+      panel: Size(
+        _panelWidth,
+        widget.items.length * _rowHeight + _panelPad * 2,
+      ),
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
       direction: dir,
       gap: _panelGap,
@@ -104,7 +112,8 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
   void _close() {
     if (!_isOpen) return;
     setState(() => _phase = LiquidPhase.closing);
-    AzamanHaptics.confirm();
+    // F-051: no haptic on close — the row's onTap already fired the single
+    // confirm for a pick, and dismissal is silent.
     _c.reverse().whenComplete(() {
       _entry?.remove();
       _entry = null;
@@ -115,7 +124,9 @@ class _LiquidDropdownMenuState extends State<LiquidDropdownMenu>
   @override
   Widget build(BuildContext context) {
     final c = widget.colors;
-    final side = widget.size < kLiquidMinTapTarget ? kLiquidMinTapTarget : widget.size;
+    final side = widget.size < kLiquidMinTapTarget
+        ? kLiquidMinTapTarget
+        : widget.size;
 
     return CompositedTransformTarget(
       link: _link,
@@ -184,42 +195,44 @@ class _LiquidPanelOverlay extends StatelessWidget {
     final gooBounds = rect.expandToInclude(anchor).inflate(64);
     final gooFollow = gooBounds.topLeft - anchor.topLeft;
 
-    return Stack(children: [
-      Positioned.fill(
-        child: ExcludeSemantics(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onClose,
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: controller,
-                curve: const Interval(0, 0.2, curve: Curves.easeOut),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ExcludeSemantics(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onClose,
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: controller,
+                  curve: const Interval(0, 0.2, curve: Curves.easeOut),
+                ),
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.18)),
               ),
-              child: ColoredBox(color: Colors.black.withValues(alpha: 0.18)),
             ),
           ),
         ),
-      ),
-      CompositedTransformFollower(
-        link: link,
-        showWhenUnlinked: false,
-        offset: gooFollow,
-        child: SizedBox(
-          width: gooBounds.width,
-          height: gooBounds.height,
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: controller,
-                  builder: (_, __) => CustomPaint(
-                    painter: _PanelGooPainter(
-                      t: reduced ? 1 : controller.value,
-                      origin: gooBounds.topLeft,
-                      anchor: anchor,
-                      panel: rect,
-                      body: colors.card,
-                      rim: colors.divider,
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          offset: gooFollow,
+          child: SizedBox(
+            width: gooBounds.width,
+            height: gooBounds.height,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: controller,
+                    builder: (_, __) => CustomPaint(
+                      painter: _PanelGooPainter(
+                        t: reduced ? 1 : controller.value,
+                        origin: gooBounds.topLeft,
+                        anchor: anchor,
+                        panel: rect,
+                        body: colors.card,
+                        rim: colors.divider,
+                      ),
                     ),
                   ),
                 ),
@@ -227,85 +240,98 @@ class _LiquidPanelOverlay extends StatelessWidget {
             ),
           ),
         ),
-      ),
-      CompositedTransformFollower(
-        link: link,
-        showWhenUnlinked: false,
-        offset: follow,
-        child: SizedBox(
-          width: rect.width,
-          height: rect.height,
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (_, child) {
-              final t = reduced ? 1.0 : controller.value;
-              final body = kHouseSpring.transform(Curves.easeOut.transform(t.clamp(0, 1)));
-              final scale = _panelRestScale + (1 - _panelRestScale) * body;
-              return Transform(
-                alignment: Alignment.topLeft,
-                transform: Matrix4.identity()
-                  ..translate(placement.origin.dx, placement.origin.dy)
-                  ..scale(scale, scale)
-                  ..translate(-placement.origin.dx, -placement.origin.dy),
-                child: LiquidReveal(
-                  opacity: ((t - 0.18) / 0.25).clamp(0.0, 1.0),
-                  child: child!,
-                ),
-              );
-            },
-            child: Material(
-              type: MaterialType.transparency,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: _panelPad),
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                itemBuilder: (_, i) => _Row(
-                  item: items[i],
-                  index: placement.above ? items.length - 1 - i : i,
-                  position: i,
-                  total: items.length,
-                  controller: controller,
-                  colors: colors,
-                  reduced: reduced,
-                  onClose: onClose,
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          offset: follow,
+          child: SizedBox(
+            width: rect.width,
+            height: rect.height,
+            child: AnimatedBuilder(
+              animation: controller,
+              builder: (_, child) {
+                final t = reduced ? 1.0 : controller.value;
+                final body = kHouseSpring.transform(
+                  Curves.easeOut.transform(t.clamp(0, 1)),
+                );
+                final scale = _panelRestScale + (1 - _panelRestScale) * body;
+                return Transform(
+                  alignment: Alignment.topLeft,
+                  transform: Matrix4.identity()
+                    ..translate(placement.origin.dx, placement.origin.dy)
+                    ..scale(scale, scale)
+                    ..translate(-placement.origin.dx, -placement.origin.dy),
+                  child: LiquidReveal(
+                    opacity: ((t - 0.18) / 0.25).clamp(0.0, 1.0),
+                    child: child!,
+                  ),
+                );
+              },
+              child: Material(
+                type: MaterialType.transparency,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: _panelPad),
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (_, i) => _Row(
+                    item: items[i],
+                    index: placement.above ? items.length - 1 - i : i,
+                    position: i,
+                    total: items.length,
+                    controller: controller,
+                    colors: colors,
+                    reduced: reduced,
+                    onClose: onClose,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      CompositedTransformFollower(
-        link: link,
-        showWhenUnlinked: false,
-        offset: Offset.zero,
-        child: SizedBox(
-          width: anchor.width,
-          height: anchor.height,
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (_, __) {
-              final t = reduced ? 1.0 : controller.value;
-              final side = anchor.width;
-              return Center(
-                child: Transform.rotate(
-                  angle: t * 0.785398,
-                  child: Container(
-                    width: side - 4,
-                    height: side - 4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color.lerp(colors.surface, colors.accentSurface, t),
-                      border: Border.all(color: colors.textPrimary, width: 1.5),
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          offset: Offset.zero,
+          child: SizedBox(
+            width: anchor.width,
+            height: anchor.height,
+            child: AnimatedBuilder(
+              animation: controller,
+              builder: (_, __) {
+                final t = reduced ? 1.0 : controller.value;
+                final side = anchor.width;
+                return Center(
+                  child: Transform.rotate(
+                    angle: t * 0.785398,
+                    child: Container(
+                      width: side - 4,
+                      height: side - 4,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color.lerp(
+                          colors.surface,
+                          colors.accentSurface,
+                          t,
+                        ),
+                        border: Border.all(
+                          color: colors.textPrimary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        color: colors.textPrimary,
+                        size: 22,
+                      ),
                     ),
-                    child: Icon(Icons.add, color: colors.textPrimary, size: 22),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -357,25 +383,27 @@ class _Row extends StatelessWidget {
             },
             child: SizedBox(
               height: _rowHeight,
-              child: Row(children: [
-                const SizedBox(width: 16),
-                Icon(item.icon, size: 20, color: colors.textPrimary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.none,
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Icon(item.icon, size: 20, color: colors.textPrimary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-              ]),
+                  const SizedBox(width: 12),
+                ],
+              ),
             ),
           ),
         ),
@@ -404,7 +432,8 @@ class _PanelGooPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (t <= 0.001) return;
 
-    final flight = (t / 0.55).clamp(0.0, 1.0) * (1 - ((t - 0.6) / 0.4).clamp(0.0, 1.0));
+    final flight =
+        (t / 0.55).clamp(0.0, 1.0) * (1 - ((t - 0.6) / 0.4).clamp(0.0, 1.0));
     final sigma = kGooBlurRest + (kGooBlurActive - kGooBlurRest) * flight;
 
     final grow = kHouseSpring.transform(Curves.easeOut.transform(t));
@@ -426,12 +455,19 @@ class _PanelGooPainter extends CustomPainter {
       body: body,
       rim: rim,
       shapes: (c, paint) {
-        c.drawCircle(localAnchor.center, localAnchor.width / 2 * (1 + 0.12 * flight), paint);
+        c.drawCircle(
+          localAnchor.center,
+          localAnchor.width / 2 * (1 + 0.12 * flight),
+          paint,
+        );
         drawNeck(
           c,
           paint,
           from: localAnchor.center,
-          to: Offset(scaled.center.dx, panel.top < anchor.top ? scaled.bottom : scaled.top),
+          to: Offset(
+            scaled.center.dx,
+            panel.top < anchor.top ? scaled.bottom : scaled.top,
+          ),
           baseRadius: localAnchor.width * 0.34,
           t: (t / 0.5).clamp(0.0, 1.0),
           tension: flight,

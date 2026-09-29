@@ -22,6 +22,7 @@ import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
+import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/router/app_router.dart';
@@ -37,13 +38,11 @@ import 'package:azaman/services/webrtc_service.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/services/startup_coordinator.dart';
 import 'package:azaman/config.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
-import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -70,8 +69,10 @@ class P2POrder {
   });
 }
 
-ValueNotifier<List<P2POrder>> openTransactionsNotifier = ValueNotifier<List<P2POrder>>([]);
-ValueNotifier<List<P2POrder>> completedTransactionsNotifier = ValueNotifier<List<P2POrder>>([]);
+ValueNotifier<List<P2POrder>> openTransactionsNotifier =
+    ValueNotifier<List<P2POrder>>([]);
+ValueNotifier<List<P2POrder>> completedTransactionsNotifier =
+    ValueNotifier<List<P2POrder>>([]);
 
 const storage = FlutterSecureStorage();
 
@@ -84,29 +85,39 @@ Future<void> syncTradeHistory() async {
     final List historyData = data['history'];
 
     completedTransactionsNotifier.value = historyData
-        .where((item) => item['status'] == 'COMPLETED' || item['status'] == 'CANCELLED')
-        .map((item) => P2POrder(
-              id: item['id'].toString(),
-              coin: item['crypto'] ?? 'USDT',
-              rate: 0.0,
-              totalAmount: (item['amountCrypto'] as num).toDouble(),
-              paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
-              timestamp: DateTime.parse(item['completedAt'] ?? item['createdAt']),
-              status: item['status'] ?? 'COMPLETED',
-            ))
+        .where(
+          (item) =>
+              item['status'] == 'COMPLETED' || item['status'] == 'CANCELLED',
+        )
+        .map(
+          (item) => P2POrder(
+            id: item['id'].toString(),
+            coin: item['crypto'] ?? 'USDT',
+            rate: 0.0,
+            totalAmount: (item['amountCrypto'] as num).toDouble(),
+            paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
+            timestamp: DateTime.parse(item['completedAt'] ?? item['createdAt']),
+            status: item['status'] ?? 'COMPLETED',
+          ),
+        )
         .toList();
 
     openTransactionsNotifier.value = historyData
-        .where((item) => item['status'] != 'COMPLETED' && item['status'] != 'CANCELLED')
-        .map((item) => P2POrder(
-              id: item['id'].toString(),
-              coin: item['crypto'] ?? 'USDT',
-              rate: 0.0,
-              totalAmount: (item['amountCrypto'] as num).toDouble(),
-              paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
-              timestamp: DateTime.parse(item['createdAt']),
-              status: item['status'] ?? 'PENDING',
-            ))
+        .where(
+          (item) =>
+              item['status'] != 'COMPLETED' && item['status'] != 'CANCELLED',
+        )
+        .map(
+          (item) => P2POrder(
+            id: item['id'].toString(),
+            coin: item['crypto'] ?? 'USDT',
+            rate: 0.0,
+            totalAmount: (item['amountCrypto'] as num).toDouble(),
+            paymentMethod: item['paymentMethod'] ?? 'Bank Transfer',
+            timestamp: DateTime.parse(item['createdAt']),
+            status: item['status'] ?? 'PENDING',
+          ),
+        )
         .toList();
   } catch (e) {
     debugPrint('Error syncing trade history: $e');
@@ -118,16 +129,13 @@ void main() async {
   StartupCoordinator.registerBackgroundMessageHandler();
 
   if (AppConfig.sentryEnabled) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = AppConfig.sentryDsn;
-        options.release = AppConfig.appVersion;
-        options.environment = AppConfig.environment;
-        options.tracesSampleRate = AppConfig.isProduction ? 0.2 : 1.0;
-        options.sendDefaultPii = false;
-      },
-      appRunner: _bootstrap,
-    );
+    await SentryFlutter.init((options) {
+      options.dsn = AppConfig.sentryDsn;
+      options.release = AppConfig.appVersion;
+      options.environment = AppConfig.environment;
+      options.tracesSampleRate = AppConfig.isProduction ? 0.2 : 1.0;
+      options.sendDefaultPii = false;
+    }, appRunner: _bootstrap);
   } else {
     await _bootstrap();
   }
@@ -140,10 +148,12 @@ Future<void> _bootstrap() async {
     _lastFrameworkError.value = details.exception;
   };
 
-  Isolate.current.addErrorListener(RawReceivePort((dynamic data) {
-    final list = data as List;
-    debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
-  }).sendPort);
+  Isolate.current.addErrorListener(
+    RawReceivePort((dynamic data) {
+      final list = data as List;
+      debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
+    }).sendPort,
+  );
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return const Material(
@@ -156,9 +166,19 @@ Future<void> _bootstrap() async {
             children: [
               Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
               SizedBox(height: 16),
-              Text('Something went wrong', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Something went wrong',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               SizedBox(height: 8),
-              Text('Pull down to refresh, or restart the app.', style: TextStyle(color: Colors.white54, fontSize: 13)),
+              Text(
+                'Pull down to refresh, or restart the app.',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             ],
           ),
         ),
@@ -167,11 +187,13 @@ Future<void> _bootstrap() async {
   };
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarContrastEnforced: false,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
 
   runZonedGuarded<Future<void>>(
     () async {
@@ -190,16 +212,22 @@ class AzamanApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeData = ref.watch(theme_pkg.themeProvider.select((t) => t.themeData));
+    final themeData = ref.watch(
+      theme_pkg.themeProvider.select((t) => t.themeData),
+    );
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: colors.isDark
+            ? Brightness.light
+            : Brightness.dark,
         statusBarBrightness: colors.isDark ? Brightness.dark : Brightness.light,
         systemNavigationBarColor: colors.surface,
-        systemNavigationBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: colors.isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: MaterialApp.router(
         title: 'Azaman P2P',
@@ -207,7 +235,9 @@ class AzamanApp extends ConsumerWidget {
         theme: themeData,
         routerConfig: appRouter,
         builder: (context, child) => ThemedAppBackdrop(
-          child: AzamanConnectivityBanner(child: child ?? const SizedBox.shrink()),
+          child: AzamanConnectivityBanner(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );
@@ -248,7 +278,7 @@ const int kMarketTabIndex = 3;
 /// labelled distinctly. Icons follow F-035 (only Hugeicons names verified
 /// in-repo).
 const List<({String wire, String label, IconData icon, String subtitle})>
-    kVerticalLauncherEntries = [
+kVerticalLauncherEntries = [
   (
     wire: 'FOOD_BEVERAGE',
     label: 'Restaurants',
@@ -308,8 +338,10 @@ bool openVerticalLauncherForTab(
       onLaunch: (wire) {
         // Close the launcher exactly once: pop the SHEET route with its own
         // context, then navigate with the still-mounted shell context.
+        // (TASK-018/F-051: navigation() removed — the launcher's satellite
+        // already fired the pick's single confirm(); two haptics per pick is
+        // the double-fire class this task removes.)
         Navigator.pop(sheetContext);
-        AzamanHaptics.navigation();
         selectTab(kMarketTabIndex);
         Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -322,12 +354,13 @@ bool openVerticalLauncherForTab(
   return true;
 }
 
-/// The launcher's Panel body: a pinned "Explore the market" header + the five
-/// target rows in the sheet's own scrollable, so a drag on the rows and a drag
-/// on the detent are the same gesture (I.3.4). The sheet surface (colour,
-/// scrim, blur, handle, safe-area, detents) is owned by `AzSheetSurface`; this
-/// widget owns no animation of its own, so reduced motion needs no task-owned
-/// collapse path — the rows are fully rendered on the sheet's first frame.
+/// The launcher's Panel body: a pinned "Explore the market" header + the
+/// radial vertical launcher (TASK-018). Satellites burst from the body's
+/// centre with the shared liquid vocabulary — kPopSpring launch, goo-rim
+/// merging, one confirm() haptic per pick. The sheet surface
+/// (colour, scrim, blur, handle, safe-area, detents) is owned by
+/// `AzSheetSurface`; the burst is fixed-height, and the sheet surface owns
+/// the detent drag.
 class VerticalLauncherSheet extends ConsumerWidget {
   const VerticalLauncherSheet({
     super.key,
@@ -350,7 +383,12 @@ class VerticalLauncherSheet extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.sm, AzSpace.lg, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AzSpace.lg,
+            AzSpace.sm,
+            AzSpace.lg,
+            0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -366,97 +404,31 @@ class VerticalLauncherSheet extends ConsumerWidget {
             ],
           ),
         ),
+        // TASK-018: the radial burst replaces the five-row list. The launcher
+        // solves its own satellite geometry inside this box (bounded
+        // constraints are part of its contract) and fires exactly one
+        // confirm() haptic per pick — no extra haptic here or in the entry
+        // point (3e). scrollController stays in the constructor
+        // contract (AzamanSheet.showPanel provides it); the fixed-height
+        // burst needs no scrollable, and the sheet surface still owns the
+        // detent drag.
         Flexible(
-          child: ListView(
-            controller: scrollController,
-            // Five fixed rows: materialise them all eagerly so every target
-            // is in the tree (and findable by semantics) from the first
-            // frame, at every viewport size — the list only ever scrolls on
-            // viewports shorter than the content.
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.xs, AzSpace.lg, AzSpace.md),
-            children: [
-              for (final entry in kVerticalLauncherEntries)
-                _VerticalLauncherRow(
-                  colors: colors,
-                  entry: entry,
-                  onLaunch: onLaunch,
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _VerticalLauncherRow extends StatelessWidget {
-  const _VerticalLauncherRow({
-    required this.colors,
-    required this.entry,
-    required this.onLaunch,
-  });
-
-  final theme_pkg.AzamanColors colors;
-  final ({String wire, String label, IconData icon, String subtitle}) entry;
-  final void Function(String wire) onLaunch;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: ValueKey('vertical_launcher_${entry.wire}'),
-      padding: const EdgeInsets.symmetric(vertical: AzSpace.xxs),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: AzRadius.brLg,
-          onTap: () => onLaunch(entry.wire),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AzSpace.sm,
-              vertical: AzSpace.md,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.accentSurface,
-                    borderRadius: AzRadius.brMd,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 190),
+            child: LiquidLauncher(
+              semanticLabel: 'Market verticals',
+              items: [
+                for (final entry in kVerticalLauncherEntries)
+                  LiquidLauncherItem(
+                    icon: entry.icon,
+                    label: entry.label,
+                    onTap: () => onLaunch(entry.wire),
                   ),
-                  child: Icon(entry.icon, size: 20, color: colors.accent),
-                ),
-                const SizedBox(width: AzSpace.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.label,
-                        style: AzText.title.copyWith(
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        entry.subtitle,
-                        style: AzText.bodyS.copyWith(
-                          color: colors.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  HugeIconsSolid.arrowRight01,
-                  size: 16,
-                  color: colors.textTertiary,
-                ),
               ],
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -467,7 +439,8 @@ class MainWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProviderStateMixin {
+class _MainWrapperState extends ConsumerState<MainWrapper>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -479,12 +452,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _pages = [
-      const AzamanHomePage(),
-      null,
-      null,
-      null,
-    ];
+    _pages = [const AzamanHomePage(), null, null, null];
 
     _transitionCtrl = AnimationController(
       vsync: this,
@@ -525,7 +493,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     // compressed state from the outgoing page would linger until the new page
     // scrolls.
     if (navScrollCompression.value != 0) navScrollCompression.value = 0;
-    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final midTransition = _displayedIndex != _selectedIndex;
 
     setState(() {
@@ -553,10 +522,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
     }
     final d = _transitionDirection;
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: Offset(0.06 * d, 0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.symmetric)),
+      position: Tween<Offset>(begin: Offset(0.06 * d, 0), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _transitionCtrl,
+              curve: MotionTokens.symmetric,
+            ),
+          ),
       child: FadeTransition(
         opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
           CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.enter),
@@ -665,7 +637,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
       body: body,
       onTap: action.isEmpty
           ? null
-          : () => handleNotificationTap(action: action, actionPayload: actionPayload),
+          : () => handleNotificationTap(
+              action: action,
+              actionPayload: actionPayload,
+            ),
     );
   }
 
@@ -759,13 +734,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with SingleTickerProv
                   for (var index = 0; index < _pages.length; index++)
                     if (_pages[index] != null && index != _selectedIndex)
                       _buildOutgoing(index),
-                  if (_pages[_selectedIndex] != null) _buildIncoming(_selectedIndex),
+                  if (_pages[_selectedIndex] != null)
+                    _buildIncoming(_selectedIndex),
                 ],
               ),
               child: const SizedBox.expand(),
             ),
-            if (_displayedIndex == 2 && ref.watch(settings_pkg.settingsProvider).vendorTagEnabled) const VendorPullTab(),
-            DrawerPeekHint(onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer()),
+            if (_displayedIndex == 2 &&
+                ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
+              const VendorPullTab(),
+            DrawerPeekHint(
+              onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
+            ),
           ],
         ),
       ),

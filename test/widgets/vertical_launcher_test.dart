@@ -140,10 +140,14 @@ Future<_RouteRecorder> _pumpHarness(
 final _sheetFinder = find.text('Explore the market');
 final _sheetRouteFinder = find.byType(DraggableScrollableSheet);
 
-/// Settle the panel's entrance without pumpAndSettle: the launcher must not
-/// depend on every animation in the tree having settled.
-Future<void> _settleEntrance(WidgetTester tester) =>
-    tester.pump(const Duration(milliseconds: 350));
+/// Settle the panel's entrance, then the TASK-018 radial burst (one-shot
+/// 660ms controller — pumpAndSettle terminates). The launcher must not
+/// depend on any OTHER animation in the tree having settled; the burst is
+/// its own.
+Future<void> _settleEntrance(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() {
@@ -222,25 +226,27 @@ void main() {
       await _pumpHarness(tester, notifier: _RecordingSearchNotifier());
       await _settleEntrance(tester);
 
-      // Every wire's row exists (shrinkWrap keeps all rows materialised).
+      // Every wire's satellite exists (TASK-018: the burst materialises all
+      // five targets — nothing is virtualised).
       for (final entry in kVerticalLauncherEntries) {
-        expect(
-          find.byKey(Key('vertical_launcher_${entry.wire}')),
-          findsOneWidget,
-        );
+        expect(find.text(entry.label), findsOneWidget);
       }
       // Dial order: Restaurants, Hotels, Transit, Retail — plus the
-      // model-canonical HOSPITALITY wire last.
+      // model-canonical HOSPITALITY wire last. The burst preserves host
+      // order vertically: items.first is the TOP satellite.
       final dy = <String, double>{};
       for (final entry in kVerticalLauncherEntries) {
-        dy[entry.wire] = tester
-            .getTopLeft(find.byKey(Key('vertical_launcher_${entry.wire}')))
-            .dy;
+        dy[entry.wire] = tester.getTopLeft(find.text(entry.label)).dy;
       }
-      expect(dy['FOOD_BEVERAGE']! < dy['REAL_ESTATE']!, isTrue);
-      expect(dy['REAL_ESTATE']! < dy['LOGISTICS']!, isTrue);
-      expect(dy['LOGISTICS']! < dy['RETAIL']!, isTrue);
-      expect(dy['RETAIL']! < dy['HOSPITALITY']!, isTrue);
+      // The safe-area clamp may collapse neighbouring tiers (a 190px host
+      // boxes the fan into three bands: two top, one middle, two bottom),
+      // so the chain is monotone, not strict — but the ENDS stay strict:
+      // items.first topmost, items.last bottommost.
+      expect(dy['FOOD_BEVERAGE']! <= dy['REAL_ESTATE']!, isTrue);
+      expect(dy['REAL_ESTATE']! <= dy['LOGISTICS']!, isTrue);
+      expect(dy['LOGISTICS']! <= dy['RETAIL']!, isTrue);
+      expect(dy['RETAIL']! <= dy['HOSPITALITY']!, isTrue);
+      expect(dy['FOOD_BEVERAGE']! < dy['HOSPITALITY']!, isTrue);
     });
 
     test('the wire list is exactly the guarded allowlist — never null, blank '
@@ -392,25 +398,27 @@ void main() {
         notifier: _RecordingSearchNotifier(),
         reduceMotion: true,
       );
-      // No settle: the launcher owns no animation, so nothing may be
-      // mid-flight — every target must already exist on the first frame.
+      // The TASK-018 burst solves its fan in a post-frame callback, so the
+      // satellites exist from the first frame AFTER the solve (two pumps);
+      // under reduced motion they render at their settled positions — no
+      // launch animation is observable.
+      await tester.pump();
+      await tester.pump();
       for (final entry in kVerticalLauncherEntries) {
-        expect(
-          find.byKey(Key('vertical_launcher_${entry.wire}')),
-          findsOneWidget,
-        );
         expect(find.text(entry.label), findsOneWidget);
       }
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('bounded on a small viewport with a bottom inset — the sheet '
         'stays on screen and every target is reachable', (tester) async {
       const size = Size(360, 480);
+      const inset = EdgeInsets.only(bottom: 40);
       await _pumpHarness(
         tester,
         notifier: _RecordingSearchNotifier(),
         size: size,
-        mediaPadding: const EdgeInsets.only(bottom: 40),
+        mediaPadding: inset,
       );
       await _settleEntrance(tester);
 
@@ -419,21 +427,14 @@ void main() {
       expect(sheetRect.top, greaterThanOrEqualTo(0));
       expect(sheetRect.bottom, lessThanOrEqualTo(size.height));
 
-      // All five targets exist and the last one is reachable by scrolling
-      // the sheet's own scrollable (I.10.1: scope to the sheet, not the last
-      // Scrollable on screen).
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('vertical_launcher_HOSPITALITY')),
-        120,
-        scrollable: find.descendant(
-          of: _sheetRouteFinder,
-          matching: find.byType(Scrollable),
-        ),
-      );
-      expect(
-        find.byKey(const Key('vertical_launcher_HOSPITALITY')),
-        findsOneWidget,
-      );
+      // TASK-018: the burst is fixed-height and non-scrollable — every
+      // target is materialised, so reachability is a bounds assertion, not
+      // a scroll: each satellite must sit inside the visible area.
+      for (final entry in kVerticalLauncherEntries) {
+        final rect = tester.getRect(find.text(entry.label));
+        expect(rect.top, greaterThanOrEqualTo(0));
+        expect(rect.bottom, lessThanOrEqualTo(size.height - inset.bottom));
+      }
     });
   });
 }
