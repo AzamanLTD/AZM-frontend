@@ -259,6 +259,106 @@ void main() {
       await tester.pumpAndSettle();
       expect(picks, [2]);
     });
+
+    // ── TASK-017 hardening: Visual acceptance item 0 — the 12-o'clock
+    // indicator is MEASURED at the top of the wheel, not assumed via Align.
+    testWidgets('12-o-clock indicator is geometrically at the top of the '
+        'wheel', (tester) async {
+      await tester.pumpWidget(host(pickerWheel(
+        totalPositions: 4,
+        onPositionSelected: (_) {},
+      )));
+      await tester.pump();
+      final wheel =
+          tester.getRect(find.byKey(const ValueKey('susu-position-wheel')));
+      final ind = tester
+          .getRect(find.byKey(const ValueKey('susu-12-oclock-indicator')));
+      // Horizontally centred on the wheel…
+      expect((ind.center.dx - wheel.center.dx).abs(), lessThan(1.0));
+      // …hugging the wheel's top edge…
+      expect(ind.top, lessThanOrEqualTo(wheel.top + 4.0));
+      // …entirely above the wheel's centre line.
+      expect(ind.bottom, lessThan(wheel.center.dy));
+    });
+
+    // ── TASK-017 selection-commit contract: onPositionSelected fires
+    // exactly once per user selection flow (4 permanent regressions).
+
+    testWidgets('tap a free slot then tap the hub naming that same slot — '
+        'exactly one callback', (tester) async {
+      final picks = <int>[];
+      await tester.pumpWidget(host(pickerWheel(
+        totalPositions: 4,
+        members: const [
+          {'position': 1, 'username': 'Ama'},
+        ],
+        onPositionSelected: picks.add,
+      )));
+      await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
+      await tester.pumpAndSettle(); // one-shot spring lands slot 3 at 12
+      expect(picks, [3]);
+      expect(find.text('Pick slot 3'), findsOneWidget);
+      // The hub now names the ALREADY-COMMITTED slot: a no-op, not a second
+      // callback.
+      await tester.tap(find.byKey(const ValueKey('susu-position-hub')));
+      await tester.pumpAndSettle();
+      expect(picks, [3]);
+    });
+
+    testWidgets('re-tapping the same committed slot is a no-op',
+        (tester) async {
+      final picks = <int>[];
+      await tester.pumpWidget(host(pickerWheel(
+        totalPositions: 4,
+        members: const [
+          {'position': 1, 'username': 'Ama'},
+        ],
+        onPositionSelected: picks.add,
+      )));
+      await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
+      await tester.pumpAndSettle();
+      expect(picks, [3]);
+      await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
+      await tester.pumpAndSettle();
+      expect(picks, [3]);
+    });
+
+    testWidgets('selecting a different free slot afterwards commits once '
+        'again — the guard is per-slot, not a latch', (tester) async {
+      final picks = <int>[];
+      await tester.pumpWidget(host(pickerWheel(
+        totalPositions: 4,
+        members: const [
+          {'position': 1, 'username': 'Ama'},
+        ],
+        onPositionSelected: picks.add,
+      )));
+      await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('susu-position-slot-2')));
+      await tester.pumpAndSettle();
+      expect(picks, [3, 2]);
+    });
+
+    testWidgets('a fully-taken wheel disables the hub (reads Spin) and '
+        'tapping it fires zero callbacks', (tester) async {
+      final picks = <int>[];
+      await tester.pumpWidget(host(pickerWheel(
+        totalPositions: 4,
+        members: const [
+          {'position': 1, 'username': 'Ama'},
+          {'position': 2, 'username': 'Kojo'},
+          {'position': 3, 'username': 'Esi'},
+          {'position': 4, 'username': 'Yaa'},
+        ],
+        onPositionSelected: picks.add,
+      )));
+      await tester.pump();
+      expect(find.text('Spin'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('susu-position-hub')));
+      await tester.pumpAndSettle();
+      expect(picks, isEmpty);
+    });
   });
 }
 
