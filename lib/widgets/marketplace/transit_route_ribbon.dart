@@ -69,6 +69,12 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
   // Nullable until didChangeDependencies resolves the accessibility-aware
   // duration (corrigendum 2.1 — never read MediaQuery from initState).
   AnimationController? _flowController;
+
+  // ONE animation object for the controller's lifetime — created alongside
+  // the controller, never rebuilt per build(). The painter listens to this
+  // animation as its repaint listenable, so every tick repaints the path
+  // without rebuilding the widget tree (corrigendum 3.1).
+  CurvedAnimation? _flowAnimation;
   String? _expandedTripId;
 
   @override
@@ -84,6 +90,10 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
       final controller = AnimationController(duration: duration, vsync: this)
         ..forward();
       _flowController = controller;
+      _flowAnimation = CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeOut,
+      );
     } else if (existing.duration != duration) {
       // Dependency changed: update the duration, do NOT replay the sweep.
       existing.duration = duration;
@@ -92,6 +102,7 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
 
   @override
   void dispose() {
+    _flowAnimation?.dispose();
     _flowController?.dispose();
     super.dispose();
   }
@@ -102,6 +113,15 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
     setState(() {
       _expandedTripId = _expandedTripId == trip.id ? null : trip.id;
     });
+  }
+
+  /// Hit-box width: 64dp when there is room, clamped to the uniform
+  /// spacing between node centres otherwise so adjacent boxes never
+  /// overlap and steal each other's taps.
+  double _hitWidth(List<Offset> nodes) {
+    if (nodes.length < 2) return 64;
+    final spacing = (nodes[1].dx - nodes[0].dx).abs();
+    return math.min(64.0, spacing);
   }
 
   TransitTrip? get _expandedTrip {
@@ -141,23 +161,28 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
                 children: [
                   Positioned.fill(
                     child: CustomPaint(
-                      painter: _RibbonPathPainter(
+                      // The painter receives the animation itself (never a
+                      // value sampled at build time) and subscribes through
+                      // its repaint listenable — so the dash sweep is
+                      // genuinely driven by the controller's ticks.
+                      painter: TransitRibbonPathPainter(
                         nodes: nodes,
                         color: colors.accent,
-                        dashFlow: flowController == null
-                            ? 1.0
-                            : CurvedAnimation(
-                                parent: flowController,
-                                curve: Curves.easeOut,
-                              ).value,
+                        flow: flowController == null ? null : _flowAnimation,
                       ),
                     ),
                   ),
+                  // Hit-target robustness: the fixed 64dp hit box overlaps
+                  // when adjacent node centres sit closer than 64dp (e.g.
+                  // six trips on a 360dp screen — 58dp spacing). Shrink to
+                  // the available spacing so every departure stays
+                  // reachable with unambiguous taps (corrigendum 3.5).
                   for (int i = 0; i < widget.trips.length; i++)
                     Positioned(
-                      left: nodes[i].dx - 32,
+                      key: ValueKey('ribbon-node-${widget.trips[i].id}'),
+                      left: nodes[i].dx - _hitWidth(nodes) / 2,
                       top: nodes[i].dy - 24,
-                      width: 64,
+                      width: _hitWidth(nodes),
                       height: 76,
                       child: _RibbonNode(
                         trip: widget.trips[i],
@@ -191,16 +216,21 @@ class _TransitRouteRibbonState extends State<TransitRouteRibbon>
   }
 }
 
-class _RibbonPathPainter extends CustomPainter {
+/// Public for the driven-animation regression: the guard reads the live
+/// dash-flow value off the painter installed in the render tree.
+class TransitRibbonPathPainter extends CustomPainter {
   final List<Offset> nodes;
   final Color color;
-  final double dashFlow; // 0..1 entrance sweep
+  final Animation<double>? flow; // 0..1 entrance sweep (null = settled)
 
-  const _RibbonPathPainter({
+  TransitRibbonPathPainter({
     required this.nodes,
     required this.color,
-    required this.dashFlow,
-  });
+    this.flow,
+  }) : super(repaint: flow);
+
+  /// The current sweep position, read fresh on every repaint.
+  double get dashFlow => flow?.value ?? 1.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -226,6 +256,7 @@ class _RibbonPathPainter extends CustomPainter {
     canvas.drawPath(path, track);
 
     // Flowing dashes — the "headlight" sweep, once on entrance
+    final dashFlow = this.dashFlow;
     final dashPaint = Paint()
       ..color = color.withValues(alpha: 0.55)
       ..style = PaintingStyle.stroke
@@ -248,10 +279,14 @@ class _RibbonPathPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RibbonPathPainter oldDelegate) {
-    return oldDelegate.dashFlow != dashFlow ||
-        oldDelegate.nodes != nodes ||
-        oldDelegate.color != color;
+  bool shouldRepaint(TransitRibbonPathPainter oldDelegate) {
+    // Tick-driven dashFlow changes arrive through the repaint listenable,
+    // not through a rebuild — so dashFlow is deliberately NOT compared
+    // here; comparing it would both miss the point (the painter is only
+    // re-created on rebuild, not per tick) and mask identity changes.
+    return oldDelegate.nodes != nodes ||
+        oldDelegate.color != color ||
+        oldDelegate.flow != flow;
   }
 }
 

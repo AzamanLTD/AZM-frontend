@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/marketplace/experiences/transit/demo_transit_hold_gateway.dart';
 import 'package:azaman/marketplace/experiences/transit/transit_boarding.dart';
-import 'package:azaman/marketplace/experiences/transit/transit_experience.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/transit_boarding_pass.dart';
 import 'package:azaman/widgets/seat_selector/transit_hold_ring.dart';
@@ -29,10 +28,15 @@ class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
   /// gateway when the backend hold endpoint exists.
   final TransitHoldGateway? holdGateway;
 
+  /// Injectable clock for the hold countdown ring (tests). Defaults to the
+  /// wall clock.
+  final DateTime Function()? holdClock;
+
   const TransitSeatSelectionScreen({
     super.key,
     required this.tripId,
     this.holdGateway,
+    this.holdClock,
   });
 
   @override
@@ -50,6 +54,11 @@ class _TransitSeatSelectionScreenState
   /// Selection generation token (corrigendum §7): a hold result from an
   /// older selection must never replace the hold of a newer selection.
   int _holdGeneration = 0;
+
+  /// The generation the currently displayed hold belongs to. The ring's
+  /// expiry closure captures this, so a stale ring can never clear a
+  /// newer selection.
+  int? _activeHoldGeneration;
 
   @override
   void initState() {
@@ -82,6 +91,10 @@ class _TransitSeatSelectionScreenState
       final total = result.totalFare;
 
       ref.invalidate(seatAvailabilityProvider(widget.tripId));
+      // Invalidate every outstanding hold generation BEFORE clearing state,
+      // so any in-flight hold result (and its expiry) is dead on arrival.
+      ++_holdGeneration;
+      _activeHoldGeneration = null;
       ref.read(selectedSeatsProvider.notifier).state = <String>{};
       _seatController.clearSelection();
       _activeHold = null;
@@ -136,10 +149,15 @@ class _TransitSeatSelectionScreenState
       final current = ref.read(selectedSeatsProvider);
       if (current.length != next.length || !current.every(next.contains)) {
         ref.read(selectedSeatsProvider.notifier).state = next;
-        if (next.isEmpty) {
-          setState(() => _activeHold = null);
-        } else {
-          _placeHold(next);
+        // Every selection transition — including clearing to empty —
+        // invalidates the previous generation, and the currently
+        // displayed hold drops immediately. A hold belongs to exactly
+        // one selection generation (corrigendum §7).
+        final generation = ++_holdGeneration;
+        setState(() => _activeHold = null);
+        _activeHoldGeneration = null;
+        if (next.isNotEmpty) {
+          _placeHold(next, generation);
         }
       }
       _passengerNames.removeWhere((id, controller) {
@@ -154,8 +172,7 @@ class _TransitSeatSelectionScreenState
   /// blocks selection — the user retries by changing the selection.
   /// The generation token ensures a stale async result can never re-arm
   /// the ring for a selection the user has already replaced (§7).
-  Future<void> _placeHold(Set<String> selected) async {
-    final generation = ++_holdGeneration;
+  Future<void> _placeHold(Set<String> selected, int generation) async {
     final trip = ref.read(tripDetailProvider(widget.tripId)).valueOrNull;
     if (trip == null) return;
 
@@ -167,9 +184,14 @@ class _TransitSeatSelectionScreenState
           seatIds: selected.toList(growable: false),
         ),
       );
+      // Only the still-current generation may mutate the displayed hold:
+      // the user has not changed anything since this hold was placed.
       if (!mounted || generation != _holdGeneration) return;
       setState(() {
         _activeHold = result is TransitHoldSuccess ? result : null;
+        _activeHoldGeneration = result is TransitHoldSuccess
+            ? generation
+            : null;
       });
       if (result is TransitHoldFailure) {
         final colors = ref.read(themeProvider.select((t) => t.colors));
@@ -187,8 +209,13 @@ class _TransitSeatSelectionScreenState
   }
 
   /// The hold ring reached zero: warn, release the selection, explain.
-  void _onHoldExpired() {
-    if (!mounted || _activeHold == null) return;
+  ///
+  /// Generation-scoped: an old ring's expiry callback returns immediately
+  /// unless its generation is still the active one — a stale expiry can
+  /// never clear a newer selection (corrigendum §7).
+  void _onHoldExpired(int expectedGeneration) {
+    if (!mounted || expectedGeneration != _holdGeneration) return;
+    if (_activeHold == null) return;
     AzamanHaptics.warning();
     setState(() => _activeHold = null);
     ref.read(selectedSeatsProvider.notifier).state = <String>{};
@@ -307,6 +334,12 @@ class _TransitSeatSelectionScreenState
     final selected = ref.watch(selectedSeatsProvider);
     final booking = ref.watch(bookingActionProvider);
 
+    // Snapshot the hold generation for THIS build. The dock's expiry
+    // closure must capture the generation of the hold it displays by
+    // VALUE: reading the field at invocation time would let a stale
+    // ring's callback clear a newer selection's hold (corrigendum §7).
+    final holdGenerationAtBuild = _activeHoldGeneration;
+
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -374,7 +407,10 @@ class _TransitSeatSelectionScreenState
                   onNames: () => _editPassengerNames(selected, colors),
                   onBook: _bookSeats,
                   holdExpiresAt: _activeHold?.expiresAt,
-                  onHoldExpired: _onHoldExpired,
+                  holdClock: widget.holdClock,
+                  onHoldExpired: holdGenerationAtBuild == null
+                      ? null
+                      : () => _onHoldExpired(holdGenerationAtBuild),
                 ),
             ],
           );
@@ -501,6 +537,7 @@ class _BookingDock extends StatelessWidget {
   final VoidCallback onBook;
   final DateTime? holdExpiresAt;
   final VoidCallback? onHoldExpired;
+  final DateTime Function()? holdClock;
 
   const _BookingDock({
     required this.selected,
@@ -511,6 +548,7 @@ class _BookingDock extends StatelessWidget {
     required this.onBook,
     this.holdExpiresAt,
     this.onHoldExpired,
+    this.holdClock,
   });
 
   @override
@@ -565,6 +603,7 @@ class _BookingDock extends StatelessWidget {
                       warningColor: colors.warning,
                       dangerColor: colors.danger,
                       trackColor: colors.divider,
+                      clock: holdClock,
                       onExpired: onHoldExpired,
                     ),
                     const SizedBox(width: 10),

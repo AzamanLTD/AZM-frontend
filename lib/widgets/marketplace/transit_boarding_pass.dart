@@ -40,8 +40,9 @@ const _inkMuted = Color(0xFF8B7A5A);
 const _seam = Color(0xFFE8DCC4);
 
 /// Stable integer seed for the decorative barcode. [String.hashCode] is NOT
-/// stable across runs — never use it for a deterministic visual.
-int _stableSeed(String id) =>
+/// stable across runs — never use it for a deterministic visual. Public so
+/// the deterministic-seed regression can pin the exact fold.
+int transitBarcodeSeed(String id) =>
     id.codeUnits.fold<int>(7, (sum, unit) => sum * 31 + unit);
 
 class TransitBoardingPassCard extends StatefulWidget {
@@ -221,7 +222,7 @@ class _TransitBoardingPassCardState extends State<TransitBoardingPassCard>
                         height: 34,
                         child: CustomPaint(
                           painter: _BarcodePainter(
-                            seed: _stableSeed(pass.bookingId),
+                            seed: transitBarcodeSeed(pass.bookingId),
                           ),
                         ),
                       ),
