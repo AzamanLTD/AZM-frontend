@@ -30,8 +30,9 @@ class TransitSeatPreview extends ConsumerWidget {
       loading: () => _loading(),
       error: (error, stack) => _fallback(),
       data: (items) {
-        final scheduled = items.where((trip) => trip.status == TripStatus.scheduled).toList()
-          ..sort((a, b) => a.departureAt.compareTo(b.departureAt));
+        final scheduled =
+            items.where((trip) => trip.status == TripStatus.scheduled).toList()
+              ..sort((a, b) => a.departureAt.compareTo(b.departureAt));
         if (scheduled.isEmpty) return _fallback();
         return _TripPreview(
           trip: scheduled.first,
@@ -136,9 +137,8 @@ class _TripPreview extends ConsumerWidget {
         SizedBox(
           height: 280,
           child: seats.when(
-            loading: () => Center(
-              child: CircularProgressIndicator(color: colors.accent),
-            ),
+            loading: () =>
+                Center(child: CircularProgressIndicator(color: colors.accent)),
             error: (error, stack) => Center(
               child: Text(
                 'Seat map unavailable right now.',
@@ -173,6 +173,7 @@ class _TripPreview extends ConsumerWidget {
                       showMinimap: false,
                       showLegend: false,
                       showCheckoutDock: false,
+                      cabinLighting: const CabinLighting(),
                     ),
                   ),
                 ),
@@ -200,10 +201,7 @@ class _TripJourneySummary extends StatelessWidget {
   final TransitTrip trip;
   final AzamanColors colors;
 
-  const _TripJourneySummary({
-    required this.trip,
-    required this.colors,
-  });
+  const _TripJourneySummary({required this.trip, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -276,8 +274,11 @@ class _TripJourneySummary extends StatelessWidget {
           const SizedBox(height: 9),
           Row(
             children: [
-              Icon(Icons.directions_bus_outlined,
-                  size: 15, color: colors.textTertiary),
+              Icon(
+                Icons.directions_bus_outlined,
+                size: 15,
+                color: colors.textTertiary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(

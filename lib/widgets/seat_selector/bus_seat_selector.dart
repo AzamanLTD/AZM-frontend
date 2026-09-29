@@ -18,16 +18,18 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart' as booking;
+import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 
 import 'seat_layout_models.dart';
 import 'seat_geometry_solver.dart';
 import 'seat_canvas_painter.dart';
 import 'seat_selector_controller.dart';
 export 'seat_selector_controller.dart' show SeatSelectorController;
+export 'seat_canvas_painter.dart' show CabinLighting;
 import 'seat_semantics_overlay.dart';
 
 /// The main seat selector widget.
@@ -77,6 +79,9 @@ class BusSeatSelector extends StatefulWidget {
   /// Whether booking is in progress (disables the Book button).
   final bool isBooking;
 
+  /// Cabin lighting overlay; null keeps legacy rendering.
+  final CabinLighting? cabinLighting;
+
   const BusSeatSelector({
     super.key,
     required this.layout,
@@ -97,6 +102,7 @@ class BusSeatSelector extends StatefulWidget {
     this.showCheckoutDock = true,
     this.onBook,
     this.isBooking = false,
+    this.cabinLighting,
   });
 
   @override
@@ -127,12 +133,21 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   double _autoFitScale = 1.0;
   double _currentZoomScale = 1.0;
 
+  // One-shot controller for the vertical deck-slice transition.
+  late final AnimationController _deckSliceController;
+  late Animation<double> _deckSliceAnimation;
+
+  /// Direction of the incoming deck: negative = entering from above.
+  double _deckSliceOffset = 1.0;
+  int? _previousDeck;
+  bool _deckSliceReady = false;
+
   @override
   void initState() {
     super.initState();
 
-    _controller = widget.controller ??
-        SeatSelectorController(selectionLimit: 0);
+    _controller =
+        widget.controller ?? SeatSelectorController(selectionLimit: 0);
 
     // Pulse animation for selected-seat rings
     _pulseController = AnimationController(
@@ -161,6 +176,33 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced-motion reads MediaQuery, so the slice controller's duration
+    // is resolved here — never from initState (corrigendum 2.2).
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      const Duration(milliseconds: 420),
+    );
+    if (!_deckSliceReady) {
+      _deckSliceReady = true;
+      // One-shot; pinned at 1.0 when idle so the canvas renders
+      // un-transformed between deck changes.
+      _deckSliceController = AnimationController(
+        duration: duration,
+        vsync: this,
+      )..value = 1.0;
+      _deckSliceAnimation = CurvedAnimation(
+        parent: _deckSliceController,
+        curve: MotionTokens.enter,
+      );
+    } else if (_deckSliceController.duration != duration) {
+      // Dependency change updates the duration without replaying the slice.
+      _deckSliceController.duration = duration;
+    }
+  }
+
+  @override
   void didUpdateWidget(BusSeatSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.layout != oldWidget.layout && widget.layout != null) {
@@ -174,6 +216,15 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   void _onControllerChanged() {
+    final currentDeck = _controller.currentDeck;
+    final previousDeck = _previousDeck;
+    if (previousDeck != null && currentDeck != previousDeck) {
+      // Entering from above when moving to an upper (lower-index) deck.
+      _deckSliceOffset = currentDeck < previousDeck ? -1.0 : 1.0;
+      _deckSliceController.forward(from: 0);
+    }
+    _previousDeck = currentDeck;
+
     final currentTotal = _controller.totalFare;
     if (currentTotal != _previousTotal) {
       // The TweenAnimationBuilder in the checkout dock handles the visual
@@ -188,7 +239,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     _iconsLoading = true;
 
     try {
-      final available = await _decodeSvg('assets/icons/seats/seat_available.svg');
+      final available = await _decodeSvg(
+        'assets/icons/seats/seat_available.svg',
+      );
       final selected = await _decodeSvg('assets/icons/seats/seat_selected.svg');
       final occupied = await _decodeSvg('assets/icons/seats/seat_occupied.svg');
       final blocked = await _decodeSvg('assets/icons/seats/seat_blocked.svg');
@@ -212,10 +265,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
   Future<ui.Picture?> _decodeSvg(String assetPath) async {
     try {
-      final svg = await vg.loadPicture(
-        SvgAssetLoader(assetPath),
-        null,
-      );
+      final svg = await vg.loadPicture(SvgAssetLoader(assetPath), null);
       return svg.picture;
     } catch (e) {
       debugPrint('Failed to decode $assetPath: $e');
@@ -259,9 +309,11 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     _currentZoomScale = clampedScale;
 
     // Center the bounds in the viewport
-    final offsetX = (viewportSize.width - bounds.width * clampedScale) / 2 -
+    final offsetX =
+        (viewportSize.width - bounds.width * clampedScale) / 2 -
         bounds.left * clampedScale;
-    final offsetY = (viewportSize.height - bounds.height * clampedScale) / 2 -
+    final offsetY =
+        (viewportSize.height - bounds.height * clampedScale) / 2 -
         bounds.top * clampedScale;
 
     // ignore: deprecated_member_use
@@ -285,10 +337,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
     final tween = Matrix4Tween(begin: from, end: to);
     _fitAnimation = tween.animate(
-      CurvedAnimation(
-        parent: _fitController,
-        curve: Curves.easeOutBack,
-      ),
+      CurvedAnimation(parent: _fitController, curve: Curves.easeOutBack),
     );
 
     _fitController.removeListener(_applyFitAnimation);
@@ -304,9 +353,17 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   void _onSeatTap(String seatId) {
+    final wasSelected = _controller.selectedSeats.contains(seatId);
     final success = _controller.toggleSeat(seatId);
     if (success) {
-      HapticFeedback.selectionClick();
+      if (wasSelected) {
+        // Deselect: a soft click, not a rung of the ascending ladder.
+        AzamanHaptics.selection();
+      } else {
+        // The tapped seat is now the last of the selection; the 0-based
+        // index drives TASK-006's rising-intensity ladder.
+        AzamanHaptics.seatSelected(_controller.selectedSeats.length - 1);
+      }
 
       // Animate viewport to center on the tapped seat
       final geometry = _controller.geometry;
@@ -350,6 +407,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     _fitController.removeListener(_applyFitAnimation);
     _fitController.dispose();
     _pulseController.dispose();
+    if (_deckSliceReady) {
+      _deckSliceController.dispose();
+    }
     _controller.removeListener(_onControllerChanged);
     // Only dispose if we created it internally
     if (widget.controller == null) {
@@ -381,53 +441,81 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
         Expanded(
           child: Stack(
             children: [
-              // InteractiveViewer with canvas
-              InteractiveViewer(
-                transformationController: _controller.transformController,
-                constrained: false,
-                minScale: 0.8,
-                maxScale: 3.0,
-                boundaryMargin: const EdgeInsets.all(80),
-                onInteractionUpdate: (details) {
-                  _currentZoomScale =
-                      _controller.transformController.value.getMaxScaleOnAxis();
-                  setState(() {});
+              // Vertical deck slice: the canvas (not the floating minimap)
+              // enters as a slice with perspective when the deck changes.
+              // AnimatedSwitcher is deliberately NOT used here — two live
+              // InteractiveViewers would share one TransformationController
+              // and trip the framework's "already attached" assertion.
+              AnimatedBuilder(
+                animation: _deckSliceAnimation,
+                builder: (context, child) {
+                  final t = _deckSliceAnimation.value;
+                  if (t >= 1.0) return child!;
+                  return Opacity(
+                    opacity: 0.45 + 0.55 * t,
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0012) // perspective
+                        ..rotateX(_deckSliceOffset * 0.10 * (1 - t)),
+                      child: FractionalTranslation(
+                        translation: Offset(
+                          0,
+                          _deckSliceOffset * 0.12 * (1 - t),
+                        ),
+                        child: child,
+                      ),
+                    ),
+                  );
                 },
-                child: SizedBox(
-                  width: geometry.totalBounds.width,
-                  height: geometry.totalBounds.height,
-                  child: Stack(
-                    children: [
-                      // Canvas painter
-                      CustomPaint(
-                        size: Size(
-                          geometry.totalBounds.width,
-                          geometry.totalBounds.height,
+                child: InteractiveViewer(
+                  transformationController: _controller.transformController,
+                  constrained: false,
+                  minScale: 0.8,
+                  maxScale: 3.0,
+                  boundaryMargin: const EdgeInsets.all(80),
+                  onInteractionUpdate: (details) {
+                    _currentZoomScale = _controller.transformController.value
+                        .getMaxScaleOnAxis();
+                    setState(() {});
+                  },
+                  child: SizedBox(
+                    width: geometry.totalBounds.width,
+                    height: geometry.totalBounds.height,
+                    child: Stack(
+                      children: [
+                        // Canvas painter
+                        CustomPaint(
+                          size: Size(
+                            geometry.totalBounds.width,
+                            geometry.totalBounds.height,
+                          ),
+                          painter: SeatCanvasPainter(
+                            geometry: geometry,
+                            iconCache: _iconCache ?? const SeatIconCache(),
+                            selectedSeats: _controller.selectedSeats,
+                            hullStyle: hullStyle,
+                            accentColor: widget.accentColor,
+                            selectionPulse: _pulseAnimation.value,
+                            currentDeck: _controller.currentDeck,
+                            cabinLighting: widget.cabinLighting,
+                            repaint: Listenable.merge([
+                              _controller,
+                              _pulseAnimation,
+                            ]),
+                          ),
                         ),
-                        painter: SeatCanvasPainter(
+                        // Semantics overlay
+                        SeatSemanticsOverlay(
                           geometry: geometry,
-                          iconCache: _iconCache ?? const SeatIconCache(),
                           selectedSeats: _controller.selectedSeats,
-                          hullStyle: hullStyle,
-                          accentColor: widget.accentColor,
-                          selectionPulse: _pulseAnimation.value,
                           currentDeck: _controller.currentDeck,
-                          repaint: Listenable.merge([
-                            _controller,
-                            _pulseAnimation,
-                          ]),
+                          onSeatTap: _onSeatTap,
+                          viewportWidth: geometry.totalBounds.width,
+                          viewportHeight: geometry.totalBounds.height,
                         ),
-                      ),
-                      // Semantics overlay
-                      SeatSemanticsOverlay(
-                        geometry: geometry,
-                        selectedSeats: _controller.selectedSeats,
-                        currentDeck: _controller.currentDeck,
-                        onSeatTap: _onSeatTap,
-                        viewportWidth: geometry.totalBounds.width,
-                        viewportHeight: geometry.totalBounds.height,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -489,14 +577,17 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: GestureDetector(
-                onTap: () => _controller.setDeck(deck.deckIndex),
+                onTap: () {
+                  AzamanHaptics.selection();
+                  _controller.setDeck(deck.deckIndex);
+                },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? widget.accentColor
-                        : widget.cardColor,
+                    color: isSelected ? widget.accentColor : widget.cardColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -520,12 +611,12 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
   Widget _buildMinimap(ComputedGeometry geometry, HullStyle hullStyle) {
     // Guard against degenerate layouts (zero seats, empty bounds)
-    if (geometry.totalBounds.isEmpty ||
-        geometry.totalBounds.height == 0) {
+    if (geometry.totalBounds.isEmpty || geometry.totalBounds.height == 0) {
       return const SizedBox.shrink();
     }
     const minimapSize = 80.0;
-    final aspectRatio = geometry.totalBounds.width / geometry.totalBounds.height;
+    final aspectRatio =
+        geometry.totalBounds.width / geometry.totalBounds.height;
     const minimapWidth = minimapSize;
     final minimapHeight = minimapSize / aspectRatio;
 
@@ -557,8 +648,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 
   Widget _buildLegend() {
-    final hasTiers =
-        widget.layout!.allSeats.any((s) => s.tier != SeatTier.standard);
+    final hasTiers = widget.layout!.allSeats.any(
+      (s) => s.tier != SeatTier.standard,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -568,15 +660,17 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
         spacing: 20,
         runSpacing: 8,
         children: [
-          _legendItem('assets/icons/seats/seat_available.svg',
-              hasTiers ? 'Standard' : 'Available'),
+          _legendItem(
+            'assets/icons/seats/seat_available.svg',
+            hasTiers ? 'Standard' : 'Available',
+          ),
           _legendItem('assets/icons/seats/seat_selected.svg', 'Selected'),
           _legendItem('assets/icons/seats/seat_occupied.svg', 'Occupied'),
-          if (widget.layout!.allSeats
-              .any((s) => s.status == SeatBookStatus.blocked))
+          if (widget.layout!.allSeats.any(
+            (s) => s.status == SeatBookStatus.blocked,
+          ))
             _legendItem('assets/icons/seats/seat_blocked.svg', 'Blocked'),
-          if (hasTiers)
-            _legendItem('assets/icons/seats/seat_vip.svg', 'VIP'),
+          if (hasTiers) _legendItem('assets/icons/seats/seat_vip.svg', 'VIP'),
         ],
       ),
     );
@@ -604,9 +698,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         color: widget.surfaceColor,
-        border: Border(
-          top: BorderSide(color: widget.dividerColor, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: widget.dividerColor, width: 0.5)),
       ),
       child: SafeArea(
         child: Row(
@@ -617,10 +709,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
               children: [
                 Text(
                   '${checkout.selectedSeats.length} seat${checkout.selectedSeats.length == 1 ? "" : "s"}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: widget.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: widget.textTertiary),
                 ),
                 // Animated total — TweenAnimationBuilder for digit-roll
                 TweenAnimationBuilder<double>(
@@ -647,13 +736,17 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
             const Spacer(),
             GestureDetector(
               onTap: (hasSelection && !widget.isBooking)
-                  ? () => widget.onBook
-                      ?.call(checkout.selectedSeats, checkout.totalFare)
+                  ? () => widget.onBook?.call(
+                      checkout.selectedSeats,
+                      checkout.totalFare,
+                    )
                   : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: hasSelection ? widget.accentColor : widget.cardColor,
                   borderRadius: BorderRadius.circular(14),
@@ -740,24 +833,22 @@ VehicleLayout vehicleLayoutFromSeats({
         booking.SeatTier.vip => SeatTier.vip,
       };
 
-      row.add(GridSlot(
-        type: SlotType.seat,
-        row: s.row - 1, // 0-indexed
-        col: colIdx + (colIdx >= halfLen ? 1 : 0), // +1 to skip aisle column
-        seatId: s.seatId,
-        seatLabel: s.seatId,
-        tier: tier,
-        status: bookStatus,
-        fare: s.fare,
-      ));
+      row.add(
+        GridSlot(
+          type: SlotType.seat,
+          row: s.row - 1, // 0-indexed
+          col: colIdx + (colIdx >= halfLen ? 1 : 0), // +1 to skip aisle column
+          seatId: s.seatId,
+          seatLabel: s.seatId,
+          tier: tier,
+          status: bookStatus,
+          fare: s.fare,
+        ),
+      );
 
       // Insert aisle slot after the first half of seats
       if (colIdx == halfLen - 1 && rowSeats.length > 2) {
-        row.add(GridSlot(
-          type: SlotType.aisle,
-          row: s.row - 1,
-          col: halfLen,
-        ));
+        row.add(GridSlot(type: SlotType.aisle, row: s.row - 1, col: halfLen));
       }
     }
 
@@ -769,8 +860,6 @@ VehicleLayout vehicleLayoutFromSeats({
     vehicleType: vehicleType,
     vehicleMake: vehicleMake,
     vehicleModel: vehicleModel,
-    decks: [
-      Deck(deckIndex: 0, grid: grid),
-    ],
+    decks: [Deck(deckIndex: 0, grid: grid)],
   );
 }

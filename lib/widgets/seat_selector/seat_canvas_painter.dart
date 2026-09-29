@@ -67,6 +67,17 @@ class HullStyle {
   });
 }
 
+/// Cabin lighting overlay — §7.3 "lit cabin": an aisle-centred light pool,
+/// end vignettes, a bloom behind selected seats and co-passenger dots on
+/// booked seats. Purely additive: when [SeatCanvasPainter.cabinLighting] is
+/// null the painter renders byte-identically to the legacy behaviour.
+class CabinLighting {
+  /// 0.0 = off, 1.0 = full strength. All derived alphas scale by this.
+  final double intensity;
+
+  const CabinLighting({this.intensity = 1.0});
+}
+
 /// The painter — takes precomputed geometry + cached icons + selection state.
 class SeatCanvasPainter extends CustomPainter {
   final ComputedGeometry geometry;
@@ -75,6 +86,9 @@ class SeatCanvasPainter extends CustomPainter {
   final HullStyle hullStyle;
   final Color accentColor;
   final Color vipBadgeColor;
+
+  /// Cabin lighting overlay; null = legacy rendering (byte-identical).
+  final CabinLighting? cabinLighting;
 
   /// Pulse value for the selected-seat ring animation (0.0–1.0).
   /// Driven by an AnimationController in the parent, passed via repaint.
@@ -90,6 +104,7 @@ class SeatCanvasPainter extends CustomPainter {
     required this.hullStyle,
     required this.accentColor,
     this.vipBadgeColor = const Color(0xFFF59E0B),
+    this.cabinLighting,
     this.selectionPulse = 0.0,
     this.currentDeck = 0,
     super.repaint,
@@ -99,6 +114,11 @@ class SeatCanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // ── 1. Draw vehicle hull ──────────────────────────────────────────
     _drawHull(canvas, size);
+
+    // ── 1b. Cabin lighting (optional overlay) ──────────────────────────
+    if (cabinLighting != null) {
+      _drawCabinLighting(canvas, size);
+    }
 
     // ── 2. Draw deck separator if multi-deck ──────────────────────────
     if (geometry.layout.isMultiDeck) {
@@ -112,6 +132,11 @@ class SeatCanvasPainter extends CustomPainter {
       if (!slotRect.slot.isSeat) continue;
 
       final isSelected = selectedSeats.contains(slotRect.slot.seatId);
+
+      // ── Selection bloom (cabin lighting only) ────────────────────────
+      if (cabinLighting != null && isSelected) {
+        _drawSelectionBloom(canvas, slotRect.visualRect);
+      }
 
       // Draw seat icon
       final picture = iconCache.pictureFor(
@@ -132,6 +157,14 @@ class SeatCanvasPainter extends CustomPainter {
       // ── VIP badge overlay (top-left corner) ──────────────────────────
       if (slotRect.slot.tier == SeatTier.vip) {
         _drawVipBadge(canvas, slotRect.visualRect);
+      }
+
+      // ── Co-passenger dot (cabin lighting only, booked seats) ─────────
+      final seatId = slotRect.slot.seatId;
+      if (cabinLighting != null &&
+          seatId != null &&
+          slotRect.slot.status == SeatBookStatus.booked) {
+        _drawAvatarDot(canvas, slotRect.visualRect, seatId);
       }
 
       // ── Selection accent ring ───────────────────────────────────────
@@ -309,6 +342,102 @@ class SeatCanvasPainter extends CustomPainter {
     );
   }
 
+  void _drawCabinLighting(Canvas canvas, Size size) {
+    final bounds = geometry.totalBounds;
+    final light = cabinLighting!;
+    if (light.intensity <= 0) return;
+
+    canvas.save();
+    canvas.clipRRect(RRect.fromRectAndRadius(
+      bounds,
+      Radius.circular(hullStyle.borderRadius),
+    ));
+
+    // Aisle-centred light pool — the aisle is the vehicle's horizontal
+    // centre, so a radial pool centred on the hull middle reads as cabin
+    // light regardless of the layout's column geometry.
+    final center = bounds.center;
+    final radius = math.max(bounds.width, bounds.height) * 0.55;
+    final lightPaint = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        radius,
+        [
+          const Color(0xFFFFFFFF).withValues(alpha: 0.10 * light.intensity),
+          const Color(0xFFFFFFFF).withValues(alpha: 0.0),
+        ],
+      );
+    canvas.drawRect(bounds, lightPaint);
+
+    // End vignettes — the cabin darkens toward the windshield and rear.
+    final vignetteWidth = bounds.width * 0.22;
+    final frontPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        bounds.topLeft,
+        bounds.topLeft + Offset(vignetteWidth, 0),
+        [
+          const Color(0xFF000000).withValues(alpha: 0.12 * light.intensity),
+          const Color(0xFF000000).withValues(alpha: 0.0),
+        ],
+      );
+    canvas.drawRect(
+      Rect.fromLTRB(
+        bounds.left,
+        bounds.top,
+        bounds.left + vignetteWidth,
+        bounds.bottom,
+      ),
+      frontPaint,
+    );
+
+    final rearPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        bounds.topRight,
+        bounds.topRight - Offset(vignetteWidth, 0),
+        [
+          const Color(0xFF000000).withValues(alpha: 0.12 * light.intensity),
+          const Color(0xFF000000).withValues(alpha: 0.0),
+        ],
+      );
+    canvas.drawRect(
+      Rect.fromLTRB(
+        bounds.right - vignetteWidth,
+        bounds.top,
+        bounds.right,
+        bounds.bottom,
+      ),
+      rearPaint,
+    );
+
+    canvas.restore();
+  }
+
+  void _drawSelectionBloom(Canvas canvas, Rect seatRect) {
+    final bloom = Paint()
+      ..color = accentColor.withValues(alpha: 0.16 * cabinLighting!.intensity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(seatRect.center, seatRect.width * 0.85, bloom);
+  }
+
+  /// Deterministic decorative co-passenger dot on booked seats. The booking
+  /// model carries no occupant data (see Findings F-043), so the position
+  /// varies by a stable hash of the seat id — never by frame randomness.
+  void _drawAvatarDot(Canvas canvas, Rect seatRect, String seatId) {
+    final hash = seatId.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
+    final slot = hash % 3; // bottom-left, bottom-centre, bottom-right
+    final dx = seatRect.left + 5 + slot * (seatRect.width - 10) / 2;
+    final dy = seatRect.bottom - 5;
+
+    final dot = Paint()..color = const Color(0xB3FFFFFF);
+    canvas.drawCircle(Offset(dx, dy), 3.2, dot);
+
+    final rim = Paint()
+      ..color = const Color(0x33000000)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+    canvas.drawCircle(Offset(dx, dy), 3.2, rim);
+  }
+
   void _drawFallbackSeat(Canvas canvas, Rect rect, GridSlot slot, bool isSelected) {
     // Simple colored rect fallback when SVG picture isn't decoded yet
     Color color;
@@ -338,7 +467,8 @@ class SeatCanvasPainter extends CustomPainter {
     return oldDelegate.selectedSeats != selectedSeats ||
         oldDelegate.selectionPulse != selectionPulse ||
         oldDelegate.currentDeck != currentDeck ||
-        oldDelegate.geometry != geometry;
+        oldDelegate.geometry != geometry ||
+        oldDelegate.cabinLighting != cabinLighting;
   }
 }
 
