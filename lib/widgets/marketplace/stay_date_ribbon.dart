@@ -166,7 +166,12 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
     final newEnd = cell > start ? cell + 1 : start + 1;
     final oldEnd = _dragEnd ?? start + 1;
     _dragEnd = newEnd;
-    if (newEnd > oldEnd) widget.onNightAdded?.call();
+    // One callback per newly added night: a single pointer update can cross
+    // several date cells (oldEnd 4 -> newEnd 7 fires three times). Removing
+    // nights (dragging left) never fires.
+    for (var night = oldEnd; night < newEnd; night++) {
+      widget.onNightAdded?.call();
+    }
     _emit();
     // Auto-advance the window when the finger nears the right edge.
     if (_scroll.hasClients && details.localPosition.dx > width - 48) {

@@ -103,13 +103,24 @@ void main() {
     // 96px strip, so the drag anchors on cell 3's rendered day text instead
     // (its centre is the cell centre: Sep 28) and extends two cells right
     // (end-exclusive cell 6 = Oct 1).
+    // One pointer update crosses exactly two newly added nights
+    // (end-exclusive cell 4 -> cell 6), so the threshold haptic must fire
+    // exactly twice - once per night, never once per pointer update.
     await tester.drag(find.text('28'), const Offset(112, 0));
     await tester.pump();
 
     expect(ranges, isNotEmpty);
     expect(ranges.last.start, DateTime(2026, 9, 28));
     expect(ranges.last.end, DateTime(2026, 10, 1));
-    expect(thresholds, greaterThanOrEqualTo(1));
+    expect(thresholds, 2);
+
+    // Dragging left removes nights and must stay silent: no haptics for
+    // removal, and the range shrinks back to a one-night stay.
+    await tester.drag(find.text('28'), const Offset(-112, 0));
+    await tester.pump();
+
+    expect(ranges.last.end, DateTime(2026, 9, 29));
+    expect(thresholds, 2);
   });
 
   testWidgets('StayDateRibbon tap sets a one-night stay', (tester) async {
