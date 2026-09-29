@@ -470,12 +470,19 @@ void main() {
       ),
     );
     await tester.pump();
+
+    // The menu row fails closed with the explicit unavailable state before
+    // the dish is ever opened — never a 0.00 substitute.
+    expect(find.text('Price unavailable'), findsOneWidget);
+    expect(find.text('0.00 USDC'), findsNothing);
+
     await _openDish(tester);
 
     // Fail closed: the detail shows an explicit unavailable state and never
     // renders 0.00 as a substitute for an unknown price. Both the price row
-    // and the Add label carry the unavailable state.
-    expect(find.text('Price unavailable'), findsNWidgets(2));
+    // and the Add label carry the unavailable state, and the menu row behind
+    // the sheet keeps its own unavailable label (3 in total).
+    expect(find.text('Price unavailable'), findsNWidgets(3));
     expect(find.textContaining('Add to tray'), findsNothing);
     // The Add button itself is disabled while the price is unknown.
     expect(
@@ -543,6 +550,14 @@ void main() {
       ),
     );
     await tester.pump();
+
+    // Menu row (initial state, empty selections): the configurable dish must
+    // show 'From 10.50 USDC' — the dish price via the canonical precedence
+    // rule — never the bare catalog price 12.00.
+    expect(find.text('From 10.50 USDC'), findsOneWidget);
+    expect(find.text('From 12.00 USDC'), findsNothing);
+    expect(find.text('0.00 USDC'), findsNothing);
+
     await _openDish(tester);
 
     // Detail shows the storefront dish price (10.50), not the bare catalog

@@ -267,6 +267,14 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   Widget _dishRow(BusinessProduct product) {
     final dish = _dishFor(product);
     final configurable = dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty;
+    // TASK-013 financial consistency: the menu row resolves the same canonical
+    // effective unit price (RestaurantDish.price ?? BusinessProduct.priceUsdc)
+    // that the detail surface, build sheet, paper rip, and cart use. Unknown
+    // prices fail closed here too — never a 0.00 substitute.
+    final effectiveMenuPrice = restaurantEffectiveUnitPrice(
+      dish: dish,
+      fallbackPrice: product.priceUsdc,
+    );
     return Semantics(
       button: true,
       label: '${product.name}${configurable ? ', customizable' : ''}',
@@ -297,7 +305,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                     if (product.description != null && product.description!.isNotEmpty)
                       Padding(padding: const EdgeInsets.only(top: 2), child: Text(product.description!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF8B7A5A), fontSize: 10.5))),
                     const SizedBox(height: 3),
-                    Text(configurable ? 'From ${product.priceUsdc.toStringAsFixed(2)} USDC' : '${product.priceUsdc.toStringAsFixed(2)} USDC', style: const TextStyle(color: Color(0xFFB8860B), fontSize: 11.5, fontWeight: FontWeight.w800)),
+                    Text(effectiveMenuPrice == null ? 'Price unavailable' : configurable ? 'From ${effectiveMenuPrice.toStringAsFixed(2)} USDC' : '${effectiveMenuPrice.toStringAsFixed(2)} USDC', style: const TextStyle(color: Color(0xFFB8860B), fontSize: 11.5, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
