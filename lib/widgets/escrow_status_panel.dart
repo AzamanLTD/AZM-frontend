@@ -22,6 +22,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
+import 'package:azaman/widgets/escrow_vault_rail.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class EscrowStatusPanel extends ConsumerStatefulWidget {
@@ -513,6 +514,12 @@ class _ExpandedBody extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Divider(color: colors.divider, height: 1),
+          const SizedBox(height: 12),
+          EscrowVaultRail(
+            escrow: escrow,
+            currentUserId: currentUserId,
+            isLoading: false,
+          ),
           const SizedBox(height: 12),
           _row('Amount', '${escrow.amountUsdc.toStringAsFixed(2)} USDC'),
           const SizedBox(height: 6),
