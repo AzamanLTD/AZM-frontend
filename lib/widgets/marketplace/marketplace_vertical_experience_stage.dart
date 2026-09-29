@@ -190,6 +190,20 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         dishesById: restaurantDishesById,
         colors: colors,
         onAddToTray: (product, selections, quantity) {
+          // Presentation only (TASK-013 financial-consistency
+          // correction): resolve the SAME canonical effective unit price
+          // the cart mutation uses, so the rip never contradicts the
+          // build/detail price. Financial authority stays in the
+          // business layer; an unknown price renders an explicit
+          // unavailable state, never a 0.00 substitute.
+          final dish = restaurantDishesById[product.id];
+          final effectiveUnit = dish == null
+              ? (product.priceUsdc.isFinite && product.priceUsdc > 0 ? product.priceUsdc : null)
+              : restaurantEffectiveUnitPrice(
+                  dish: dish,
+                  fallbackPrice: product.priceUsdc,
+                  selections: selections,
+                );
           unawaited(onCommit(
             () {
               if (onAddToTray != null) {
@@ -199,7 +213,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
               }
             },
             label: product.name,
-            subtitle: '${quantity} × ${product.priceUsdc.toStringAsFixed(2)} USDC',
+            subtitle: effectiveUnit == null ? 'Price unavailable' : '$quantity × ${effectiveUnit.toStringAsFixed(2)} USDC',
           ));
         },
         showGallery: blueprint.showGallery,

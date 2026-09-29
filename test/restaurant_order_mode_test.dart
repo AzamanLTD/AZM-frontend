@@ -12,6 +12,7 @@ import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/widgets/book/flip_book.dart';
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
+import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
 import 'package:azaman/widgets/marketplace/restaurant_order_mode_switch.dart';
 import 'package:azaman/widgets/marketplace/restaurant_tray_rail.dart';
 
@@ -486,6 +487,118 @@ void main() {
 
     // A disabled Add cannot reach the cart.
     expect(cart.state.itemCount, 0);
+  });
+
+  testWidgets('dish-price precedence keeps one price across build, detail, rip, and cart',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cart = CartNotifier();
+    final business = _business();
+    // Deliberately different sources: the catalog product says 12.00 while
+    // the storefront dish says 10.50 — only the canonical rule (dish price
+    // first, catalog as fallback) produces a consistent journey.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cartProvider.overrideWith((ref) => cart),
+          storefrontExperienceProvider(business.id).overrideWith(
+            (ref) async => _experience(),
+          ),
+          storefrontProductsProvider(business.id).overrideWith(
+            (ref) async => <String, dynamic>{
+              'products': <dynamic>[
+                <String, dynamic>{
+                  'id': 'dish-1',
+                  'name': 'Jollof Rice',
+                  'priceUsdc': 10.5,
+                  'modifierGroups': <dynamic>[
+                    <String, dynamic>{
+                      'id': 'extras',
+                      'name': 'Extras',
+                      'required': false,
+                      'options': <dynamic>[
+                        <String, dynamic>{
+                          'id': 'opt-cheese',
+                          'name': 'Extra cheese',
+                          'priceDelta': 1.5,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: BusinessBookTab(
+              business: business,
+              colors: _colors,
+              onOrderProduct: (_) => fail('legacy ticket path should not run'),
+              menuSections: [_section()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await _openDish(tester);
+
+    // Detail shows the storefront dish price (10.50), not the bare catalog
+    // price (12.00), before any modifier is selected.
+    expect(find.text('10.50 USDC'), findsOneWidget);
+
+    await tester.tap(find.text('Build your dish'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Extra cheese'));
+    await tester.pump();
+    // Build sheet total: dish price 10.50 + 1.50 delta = 12.00.
+    expect(find.text('Done · 12.00 USDC'), findsOneWidget);
+
+    await tester.tap(find.text('Done · 12.00 USDC'));
+    await tester.pumpAndSettle();
+
+    // Detail Add total equals the build sheet total.
+    expect(find.text('Add to tray · 12.00'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Add to tray').first);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // The cart mutation starts from the SAME effective base price
+    // (RestaurantDish.price ?? BusinessProduct.priceUsdc): 10.50 + 1.50
+    // = 12.00 — not catalog 12.00 + 1.50 = 13.50.
+    expect(cart.state.itemCount, 1);
+    expect(cart.state.items.single.unitPrice, 12.0);
+    expect(cart.state.items.single.variants['Extras'], 'Extra cheese');
+
+    // The paper-rip subtitle is canvas-painted (not findable as a Text
+    // widget), so pin its exact source value: the stage resolves the
+    // subtitle from the same shared fail-closed helper the cart mutation
+    // uses. Same inputs -> same presentation amount as the cart line.
+    const dish = RestaurantDish(
+      id: 'dish-1',
+      name: 'Jollof Rice',
+      price: 10.5,
+      variants: [],
+      optionGroups: [
+        RestaurantOptionGroup(
+          id: 'extras',
+          name: 'Extras',
+          options: [
+            RestaurantOption(id: 'opt-cheese', name: 'Extra cheese', priceDelta: 1.5),
+          ],
+        ),
+      ],
+    );
+    final ripSubtitleUnitPrice = restaurantEffectiveUnitPrice(
+      dish: dish,
+      fallbackPrice: _section().products.single.priceUsdc,
+      selections: const {'Extras': 'Extra cheese'},
+    );
+    expect(ripSubtitleUnitPrice, cart.state.items.single.unitPrice);
+    expect(ripSubtitleUnitPrice, 12.0);
   });
 
   testWidgets('second paper-rip commit still fires the commit action exactly once',

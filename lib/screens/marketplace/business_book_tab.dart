@@ -69,20 +69,25 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
     return result;
   }
 
-  double _selectedUnitPrice(BusinessProduct product, RestaurantDish dish, Map<String, String> selections) {
-    var total = product.priceUsdc;
-    final size = selections['size'];
-    if (size != null && size.isNotEmpty) {
-      final variant = dish.variants.where((item) => item.name == size).firstOrNull;
-      if (variant != null) total += variant.priceDelta;
-    }
-    for (final group in dish.optionGroups) {
-      final raw = selections[group.name];
-      if (raw == null || raw.isEmpty) continue;
-      final selected = raw.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toSet();
-      for (final option in group.options.where((item) => selected.contains(item.name))) total += option.priceDelta;
-    }
-    return total;
+  /// Canonical TASK-013 cart unit price (TASK-013 financial-consistency
+  /// correction): the mutation starts from the SAME effective base price as
+  /// the detail surface and build sheet — `RestaurantDish.price ??
+  /// BusinessProduct.priceUsdc` — then applies the selected variant and
+  /// modifier deltas. Fail-closed: a null result must never create a
+  /// payable cart line.
+  double? _selectedUnitPrice(BusinessProduct product, RestaurantDish dish, Map<String, String> selections) {
+    return restaurantEffectiveUnitPrice(
+      dish: dish,
+      fallbackPrice: product.priceUsdc,
+      selections: selections,
+    );
+  }
+
+  /// Fail-closed catalog fallback for products without a storefront dish
+  /// configuration: a non-finite or non-positive catalog price is unknown,
+  /// not 0.00, and must not create a payable line.
+  double? _catalogUnitPrice(BusinessProduct product) {
+    return product.priceUsdc.isFinite && product.priceUsdc > 0 ? product.priceUsdc : null;
   }
 
   Widget _stage(Map<String, dynamic>? experience, BuildContext context, Map<String, RestaurantDish> dishesById) {
@@ -112,14 +117,20 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
         return;
       }
       final dish = dishesById[product.id];
-      final adjustedUnitPrice = dish == null ? product.priceUsdc : _selectedUnitPrice(product, dish, selections);
+      final effectiveUnitPrice = dish == null ? _catalogUnitPrice(product) : _selectedUnitPrice(product, dish, selections);
+      if (effectiveUnitPrice == null) {
+        // Fail closed: no payable cart line for an unknown price.
+        AzamanHaptics.warn();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No price available for ${product.name} — nothing was added to the tray.')));
+        return;
+      }
       _addToRestaurantTray(
         context,
         product,
         experiencePreset: blueprint.preset,
         selections: selections,
         quantity: quantity,
-        unitPrice: adjustedUnitPrice,
+        unitPrice: effectiveUnitPrice,
         notes: _orderMode.cartNote,
       );
     }
