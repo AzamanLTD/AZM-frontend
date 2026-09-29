@@ -15,6 +15,18 @@ import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
 import 'package:azaman/widgets/marketplace/restaurant_order_mode_switch.dart';
 
+/// Modifier selections for one restaurant dish build (TASK-013 audit
+/// hardening: make the ID/name boundary explicit).
+///
+/// Invariant:
+/// - map key = `RestaurantOptionGroup.id`;
+/// - each set contains `RestaurantOption.id`s — never option *names*;
+/// - ID -> option-name translation happens ONLY at the commit boundary
+///   (`_RestaurantNativeMenuJourneyState._commit`), because the backend
+///   storefront configuration validation/pricing consumes option NAMES
+///   on the wire.
+typedef SelectedOptionIdsForGroup = Map<String, Set<String>>;
+
 class RestaurantNativeMenuJourney extends StatefulWidget {
   final String businessName;
   final List<CatalogSection> sections;
@@ -71,7 +83,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   BusinessProduct? _product;
   RestaurantDish? _dish;
   String? _size;
-  final Map<String, Set<String>> _options = {};
+  final SelectedOptionIdsForGroup _options = {};
   int _quantity = 1;
   bool _committing = false;
 
@@ -131,19 +143,15 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
         Column(
           children: [
             if (widget.onOrderModeChanged != null)
-              Builder(builder: (context) {
-                final onOrderModeChanged = widget.onOrderModeChanged;
-                if (onOrderModeChanged == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                  child: RestaurantOrderModeSwitch(
-                    selected: widget.orderMode,
-                    onChanged: onOrderModeChanged,
-                    colors: widget.colors,
-                    dineInEnabled: widget.dineInAvailable,
-                  ),
-                );
-              }),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: RestaurantOrderModeSwitch(
+                  selected: widget.orderMode,
+                  onChanged: widget.onOrderModeChanged!,
+                  colors: widget.colors,
+                  dineInEnabled: widget.dineInAvailable,
+                ),
+              ),
             if (widget.orderMode == RestaurantOrderMode.dineIn && widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
@@ -314,7 +322,8 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
 
   Widget _detailBody(BusinessProduct product, RestaurantDish dish) {
     final canAdd = _canAdd(product, dish);
-    final unit = _unitPrice(dish);
+    final unit = _unitPrice(dish, product);
+    final priceUnavailable = unit == null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -340,9 +349,9 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                   ])),
                 if (widget.showOptions && (dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty)) _buildSheetLauncher(dish),
                 const SizedBox(height: 15),
-                Row(children: [Expanded(child: Text('${unit.toStringAsFixed(2)} USDC', style: TextStyle(color: widget.colors.accent, fontSize: 18, fontWeight: FontWeight.w900))), if (widget.showQuantity) _quantityControl()]),
+                Row(children: [Expanded(child: priceUnavailable ? Text('Price unavailable', style: TextStyle(color: widget.colors.textTertiary, fontSize: 15, fontWeight: FontWeight.w800)) : Text('${unit.toStringAsFixed(2)} USDC', style: TextStyle(color: widget.colors.accent, fontSize: 18, fontWeight: FontWeight.w900))), if (widget.showQuantity) _quantityControl()]),
                 const SizedBox(height: 13),
-                SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: canAdd && !_committing ? _commit : null, icon: Icon(canAdd ? Icons.add_shopping_cart_rounded : Icons.info_outline_rounded), label: Text(canAdd ? 'Add to tray · ${(unit * _quantity).toStringAsFixed(2)}' : (product.isActive ? 'Choose required options' : 'Unavailable')))),
+                SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: canAdd && !priceUnavailable && !_committing ? _commit : null, icon: Icon(canAdd && !priceUnavailable ? Icons.add_shopping_cart_rounded : Icons.info_outline_rounded), label: Text(_addLabel(product, canAdd, unit)))),
               ],
             ),
           ),
@@ -352,6 +361,15 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   }
 
   Widget _chip(String label) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: widget.colors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)));
+
+  /// Fail-closed Add label: a missing/invalid effective price renders an
+  /// explicit unavailable state — never a misleading 0.00 total.
+  String _addLabel(BusinessProduct product, bool canAdd, double? unit) {
+    if (!product.isActive) return 'Unavailable';
+    if (unit == null) return 'Price unavailable';
+    if (!canAdd) return 'Choose required options';
+    return 'Add to tray · ${(unit * _quantity).toStringAsFixed(2)}';
+  }
 
   Widget _buildSheetLauncher(RestaurantDish dish) {
     final progress = restaurantBuildProgress(
@@ -452,8 +470,19 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     );
   }
 
-  double _unitPrice(RestaurantDish dish) {
-    var total = dish.price ?? 0;
+  /// Fail-closed detail pricing (TASK-013 audit correction): the effective
+  /// base price resolves `RestaurantDish.price ?? BusinessProduct.priceUsdc`.
+  /// An unavailable, non-finite, or non-positive base price — or a
+  /// non-finite / non-positive effective total after variant and option
+  /// deltas — yields `null`. The detail must never substitute 0.00 for an
+  /// unknown price, and Add must stay disabled while the price is unknown.
+  double? _unitPrice(RestaurantDish dish, BusinessProduct product) {
+    // BusinessProduct.priceUsdc is non-nullable, so the effective base price
+    // is unknown only when it resolves non-finite or <= 0 (unconfigured
+    // catalog price) — both fail closed below.
+    final basePrice = dish.price ?? product.priceUsdc;
+    if (!basePrice.isFinite || basePrice <= 0) return null;
+    var total = basePrice;
     for (final variant in dish.variants) {
       if (variant.name == _size) total += variant.priceDelta;
     }
@@ -463,6 +492,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
         if (chosen.contains(option.id)) total += option.priceDelta;
       }
     }
+    if (!total.isFinite || total <= 0) return null;
     return total;
   }
 
@@ -613,8 +643,8 @@ class _RestaurantBuildSheet extends StatefulWidget {
   final AzamanColors colors;
   final ScrollController scrollController;
   final String? initialSize;
-  final Map<String, Set<String>> initialOptions;
-  final void Function(String? size, Map<String, Set<String>> options) onDone;
+  final SelectedOptionIdsForGroup initialOptions;
+  final void Function(String? size, SelectedOptionIdsForGroup options) onDone;
 
   const _RestaurantBuildSheet({
     required this.dish,
@@ -632,13 +662,13 @@ class _RestaurantBuildSheet extends StatefulWidget {
 
 class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
   late String? _size = widget.initialSize;
-  late final Map<String, Set<String>> _options = {
+  late final SelectedOptionIdsForGroup _options = {
     for (final entry in widget.initialOptions.entries) entry.key: Set<String>.from(entry.value),
   };
 
   double? _unitPrice() {
     final basePrice = widget.dish.price ?? widget.basePrice;
-    if (basePrice == null) return null;
+    if (basePrice == null || !basePrice.isFinite || basePrice <= 0) return null;
     var total = basePrice;
     for (final variant in widget.dish.variants) {
       if (variant.name == _size) total += variant.priceDelta;
@@ -649,6 +679,7 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
         if (chosen.contains(option.id)) total += option.priceDelta;
       }
     }
+    if (!total.isFinite || total <= 0) return null;
     return total;
   }
 
@@ -754,7 +785,13 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
         const SizedBox(height: 4),
         ...group.options.map((option) {
           final checked = selected.contains(option.id);
-          return CheckboxListTile(
+          // The paper sheet paints a ColoredBox background between the tile
+          // and the nearest Material ancestor, which would hide ink
+          // splashes (and trips the ListTile debug assertion). Give each
+          // modifier row its own transparent Material.
+          return Material(
+            color: Colors.transparent,
+            child: CheckboxListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
             value: checked,
@@ -771,6 +808,7 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
             }),
             title: Text(option.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 12)),
             secondary: option.priceDelta == 0 ? null : Text('+${option.priceDelta.toStringAsFixed(2)}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 10)),
+            ),
           );
         }),
       ]),

@@ -9,18 +9,20 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/widgets/book/flip_book.dart';
+import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/widgets/marketplace/restaurant_order_mode_switch.dart';
 import 'package:azaman/widgets/marketplace/restaurant_tray_rail.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
-BusinessProduct _product() => BusinessProduct(
+BusinessProduct _product({double priceUsdc = 12}) => BusinessProduct(
   id: 'dish-1',
   businessProfileId: 'bp-1',
   name: 'Jollof Rice',
   slug: 'jollof-rice',
-  priceUsdc: 12,
+  priceUsdc: priceUsdc,
   totalRevenue: 0,
   imageUrls: const [],
   isActive: true,
@@ -45,14 +47,14 @@ BusinessProfile _business() => BusinessProfile(
   products: const [],
 );
 
-CatalogSection _section() => CatalogSection(
+CatalogSection _section({double priceUsdc = 12}) => CatalogSection(
   id: 'mains',
   businessProfileId: 'bp-1',
   name: 'Mains',
   description: null,
   displayOrder: 0,
   isActive: true,
-  products: [_product()],
+  products: [_product(priceUsdc: priceUsdc)],
 );
 
 Map<String, dynamic> _experience() => {
@@ -351,5 +353,166 @@ void main() {
     expect(cart.state.itemCount, 1);
     expect(cart.state.businessProfileId, business.id);
     expect(cart.state.items.single.notes, 'Delivery');
+  });
+
+  testWidgets('non-zero price-delta modifier raises the unit price and reaches the cart payload',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cart = CartNotifier();
+    final business = _business();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cartProvider.overrideWith((ref) => cart),
+          storefrontExperienceProvider(business.id).overrideWith(
+            (ref) async => _experience(),
+          ),
+          storefrontProductsProvider(business.id).overrideWith(
+            (ref) async => <String, dynamic>{
+              'products': <dynamic>[
+                <String, dynamic>{
+                  'id': 'dish-1',
+                  'name': 'Jollof Rice',
+                  'priceUsdc': 12,
+                  'modifierGroups': <dynamic>[
+                    <String, dynamic>{
+                      'id': 'extras',
+                      'name': 'Extras',
+                      'required': false,
+                      'options': <dynamic>[
+                        <String, dynamic>{
+                          'id': 'opt-cheese',
+                          'name': 'Extra cheese',
+                          'priceDelta': 1.5,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: BusinessBookTab(
+              business: business,
+              colors: _colors,
+              onOrderProduct: (_) => fail('legacy ticket path should not run'),
+              menuSections: [_section()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await _openDish(tester);
+
+    // Base dish price before any modifier is selected.
+    expect(find.text('12.00 USDC'), findsOneWidget);
+
+    await tester.tap(find.text('Build your dish'));
+    await tester.pumpAndSettle();
+
+    // Selecting the +1.50 modifier must raise the sheet total by the delta.
+    await tester.tap(find.text('Extra cheese'));
+    await tester.pump();
+    expect(find.text('Done · 13.50 USDC'), findsOneWidget);
+
+    await tester.tap(find.text('Done · 13.50 USDC'));
+    await tester.pumpAndSettle();
+
+    // The detail Add total reflects the raised unit price.
+    expect(find.text('Add to tray · 13.50'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Add to tray').first);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // The ID -> name translation at the commit boundary must price the cart
+    // line by the base + delta, not the bare catalog price.
+    expect(cart.state.itemCount, 1);
+    expect(cart.state.items.single.unitPrice, 13.5);
+    expect(cart.state.items.single.variants['Extras'], 'Extra cheese');
+  });
+
+  testWidgets('unknown effective price fails closed — no 0.00 total, Add disabled',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cart = CartNotifier();
+    final business = _business();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cartProvider.overrideWith((ref) => cart),
+          storefrontExperienceProvider(business.id).overrideWith(
+            (ref) async => _experience(),
+          ),
+          storefrontProductsProvider(business.id).overrideWith(
+            (ref) async => <String, dynamic>{
+              'products': <dynamic>[
+                // Neither 'price' nor 'priceUsdc': the dish price is unknown.
+                <String, dynamic>{'id': 'dish-1', 'name': 'Jollof Rice'},
+              ],
+            },
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: BusinessBookTab(
+              business: business,
+              colors: _colors,
+              onOrderProduct: (_) => fail('legacy ticket path should not run'),
+              menuSections: [_section(priceUsdc: 0)],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await _openDish(tester);
+
+    // Fail closed: the detail shows an explicit unavailable state and never
+    // renders 0.00 as a substitute for an unknown price. Both the price row
+    // and the Add label carry the unavailable state.
+    expect(find.text('Price unavailable'), findsNWidgets(2));
+    expect(find.textContaining('Add to tray'), findsNothing);
+    // The Add button itself is disabled while the price is unknown.
+    expect(
+      tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Price unavailable'),
+      ).enabled,
+      isFalse,
+    );
+
+    // A disabled Add cannot reach the cart.
+    expect(cart.state.itemCount, 0);
+  });
+
+  testWidgets('second paper-rip commit still fires the commit action exactly once',
+      (tester) async {
+    var commits = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RestaurantCommitSurface(
+            style: MarketplaceCommitStyle.paperRip,
+            childBuilder: (onCommit) => FilledButton(
+              onPressed: () => onCommit(() => commits++),
+              child: const Text('Rip it'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Rip it'));
+    await tester.pumpAndSettle();
+    expect(commits, 1);
+
+    // A second rip after the first completed must animate the full arc again
+    // (controller reset) and still run the commit action exactly once.
+    await tester.tap(find.text('Rip it'));
+    await tester.pumpAndSettle();
+    expect(commits, 2);
   });
 }
