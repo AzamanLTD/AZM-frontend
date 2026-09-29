@@ -55,6 +55,7 @@ class StorefrontWidgetRegistry {
       return RetailCollectionBoxWidget(
         props: props,
         business: biz,
+        businessProfileId: businessProfileId,
         checkoutGateway: businessProfileId != null
             ? StorefrontRetailCheckoutGateway(businessProfileId: businessProfileId)
             : null,

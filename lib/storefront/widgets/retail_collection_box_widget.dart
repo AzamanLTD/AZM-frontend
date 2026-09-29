@@ -1,49 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../marketplace/experiences/retail/retail_cart.dart';
-import '../../marketplace/experiences/retail/retail_cart_sheet.dart';
 import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
+import '../../widgets/marketplace/retail_tray_commit.dart';
 import '../models/storefront_models.dart';
-import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/durable_operation_registry.dart';
 
-class RetailCollectionBoxWidget extends StatefulWidget {
+/// The storefront's retail collection shelf (SDUI `retail_collection_box`).
+///
+/// Since TASK-012 every add — quick look or lift gesture — commits to the
+/// SHARED tray (cartProvider), so FloatingCartBar and CartScreen own the bag.
+/// The previous local `RetailCart` copy (with its own sheet and checkout
+/// flow) is retired from this widget; those files remain as public API.
+class RetailCollectionBoxWidget extends ConsumerStatefulWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
+
+  /// The storefront's business profile id — the registry holds it;
+  /// [StorefrontBusinessInfo] does not carry it (F-034).
+  final String? businessProfileId;
+
+  /// Kept for constructor compatibility. Since TASK-012, checkout runs
+  /// through the shared tray (cartProvider → CartScreen); this widget no
+  /// longer reads the gateway.
   final RetailCheckoutGateway? checkoutGateway;
 
   const RetailCollectionBoxWidget({
     super.key,
     required this.props,
     required this.business,
+    this.businessProfileId,
     this.checkoutGateway,
   });
 
   @override
-  State<RetailCollectionBoxWidget> createState() =>
+  ConsumerState<RetailCollectionBoxWidget> createState() =>
       _RetailCollectionBoxWidgetState();
 }
 
 class _RetailCollectionBoxWidgetState
-    extends State<RetailCollectionBoxWidget> {
-  // r42: one key per LOGICAL checkout of this collection box. The key is
-  // armed once and passed into the one-shot submit path; a re-tap after a
-  // lost response RETRIES THE SAME durable instance (same key) instead of
-  // placing a second order; a materially different cart begins a genuinely
-  // new instance and the old record stays recoverable.
-  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE;
-  // the INSTANCE identity is the durable record this widget resolves via
-  // its [FinancialOperationRef] retry handle.
-  static const _checkoutActionId = 'storefront.retail.checkout';
-  final _checkoutRef = FinancialOperationRef();
-
-  RetailCart _cart = const RetailCart();
-
+    extends ConsumerState<RetailCollectionBoxWidget> {
   @override
   Widget build(BuildContext context) {
     final collection = RetailCollection(
-      id: (widget.props['id'] ?? widget.props['collectionId'] ??
+      id: (widget.props['id'] ??
+              widget.props['collectionId'] ??
               'retail-collection')
           .toString(),
       title: (widget.props['title'] ?? 'Collection').toString(),
@@ -55,287 +56,63 @@ class _RetailCollectionBoxWidgetState
       return _EmptyCollection(title: collection.title);
     }
 
-    return Stack(
-      children: [
-        RetailCollectionBox(
-          collection: collection,
-          onProductTap: (product) => showRetailQuickLook(
-            context,
-            product: product,
-            onAddToCart: (selection) {
-              if (!mounted) return;
-              setState(() {
-                _cart = _cart.add(
-                  selection.product,
-                  variants: selection.variants,
-                  quantity: selection.quantity,
-                );
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${selection.product.name} added to bag')),
-              );
-            },
-          ),
+    return RetailCollectionBox(
+      collection: collection,
+      onProductTap: (product) => showRetailQuickLook(
+        context,
+        product: product,
+        onAddToCart: (selection) => _commitToTray(
+          selection.product,
+          variants: selection.variants,
+          quantity: selection.quantity,
         ),
-        if (_cart.itemCount > 0)
-          Positioned(
-            right: 8,
-            top: 0,
-            child: _BagButton(
-              itemCount: _cart.itemCount,
-              onPressed: _openCart,
-            ),
-          ),
-      ],
+      ),
+      liftCommit: widget.businessProfileId == null
+          ? null
+          : (product) => _commitOrQuickLook(product),
     );
   }
 
-  Future<void> _openCart() => showRetailCartSheet(
-        context,
-        cart: _cart,
-        onChanged: (next) {
-          if (mounted) setState(() => _cart = next);
-        },
-        onCheckout: _submitCheckout,
-      );
-
-  Future<void> _submitCheckout() async {
-    Navigator.of(context).pop();
-    final gateway = widget.checkoutGateway;
-    if (gateway == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checkout is not available for this store yet.'),
-          ),
-        );
-      }
+  /// Variant products cannot commit blind — a lift on them opens the quick
+  /// look instead, so the user picks sizes/colours first.
+  Future<void> _commitOrQuickLook(RetailProduct product) async {
+    if (product.variants.isEmpty) {
+      await _commitToTray(product);
       return;
     }
-
-    final paymentProtection = widget.business.escrowProtectionAvailable
-        ? await _choosePaymentProtection()
-        : RetailPaymentProtection.direct;
-    if (!mounted || paymentProtection == null) return;
-
-    final options = RetailCheckoutOptions(
-      escrowProtectionAvailable: widget.business.escrowProtectionAvailable,
-      paymentProtection: paymentProtection,
+    showRetailQuickLook(
+      context,
+      product: product,
+      onAddToCart: (selection) => _commitToTray(
+        selection.product,
+        variants: selection.variants,
+        quantity: selection.quantity,
+      ),
     );
-    // Cart fingerprint: the logical checkout identity is the cart content +
-    // chosen protection. A materially different cart is a genuinely new
-    // checkout (fresh key); a retry of the same unfinished cart reuses it.
-    final cartFingerprint = {
-      'lines': [for (final l in _cart.lines) {'id': l.key, 'qty': l.quantity}],
-      'protection': options.paymentProtection.name,
-    };
-    // r42 instance resolution (same policy as postFinancial): retry the
-    // ref's unfinished instance when the cart fingerprint matches, else
-    // begin a genuinely new instance — the old record is never replaced.
-    final api = ApiClient();
-    // Fail closed when the account namespace cannot be established.
-    final account = await api.operationAccount(failClosed: true);
-    DurableOperation op;
-    final retryId = _checkoutRef.operationId;
-    if (retryId != null) {
-      try {
-        op = await DurableOperationRegistry.retry(retryId,
-            account: account, request: cartFingerprint);
-      } on DurableOperationException {
-        op = await _beginNew(account, cartFingerprint);
-      }
-    } else {
-      // close-out review 2, finding 3 (in-flow recovery adapter): the
-      // snapshot is a synthetic cart fingerprint, NOT a wire request — so
-      // this instance is persisted replaySafe:false (generic replay fails
-      // closed) and recovery happens HERE: an exactly-matching unfinished
-      // cart (same lines, same protection) resumes ITS instance with ITS
-      // key instead of minting a duplicate checkout identity.
-      final match = await DurableOperationRegistry.recoverExact(
-          account: account, type: _checkoutActionId, request: cartFingerprint);
-      if (match is DurableRecoveryUnique) {
-        op = match.operation; // exact: same cart resumes the same key
-      } else {
-        op = await _beginNew(account, cartFingerprint);
-      }
-    }
-    _checkoutRef.operationId = op.operationId;
-    final result = await RetailCheckoutController(gateway).submit(
-      _cart,
-      options: options,
-      idempotencyKey: op.key,
-    );
-    if (!mounted) return;
-    // Disposition (r42): only a DEFINITIVE outcome retires the instance.
-    // A retryable failure (network loss, 408/425/429, 5xx, or a 2xx whose
-    // body could not be parsed) means the server state is UNKNOWN — the
-    // order may already exist. The instance stays pending and the ref
-    // stays armed, so the user's re-tap reuses the SAME key and the
-    // backend converges on the committed order instead of executing a
-    // second checkout. Retiring here would silently arm a fresh key and
-    // duplicate the order.
-    final definitive = switch (result) {
-      RetailCheckoutSuccess() => true,
-      RetailCheckoutUnavailable() => true,
-      RetailCheckoutFailure(retryable: false) => true,
-      RetailCheckoutFailure() => false,
-    };
-    if (definitive) {
-      await DurableOperationRegistry.retire(op.operationId, account: account);
-      _checkoutRef.operationId = null;
-    }
-
-    switch (result) {
-      case RetailCheckoutSuccess(
-          :final confirmationMessage,
-          :final orderId,
-          :final escrowId,
-        ):
-        if (escrowId != null && escrowId.isNotEmpty) {
-          final funded = await _fundEscrow(
-            gateway,
-            escrowId,
-            orderId: orderId,
-          );
-          if (!mounted) return;
-          if (funded) {
-            setState(() => _cart = _cart.clear());
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  confirmationMessage == null
-                      ? 'Order $orderId created and escrow funded.'
-                      : '$confirmationMessage Escrow funded.',
-                ),
-              ),
-            );
-          }
-          return;
-        }
-
-        setState(() => _cart = _cart.clear());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(confirmationMessage ?? 'Order $orderId created.')),
-        );
-        return;
-
-      case RetailCheckoutFailure(:final message):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-        return;
-
-      case RetailCheckoutUnavailable(:final message):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-        return;
-    }
   }
 
-  /// Begin a genuinely new checkout instance. replaySafe:false — the
-  /// stored snapshot is the cart FINGERPRINT, not a wire request; generic
-  /// recovery replay must fail closed (this flow recovers via
-  /// recoverExact above).
-  Future<DurableOperation> _beginNew(
-      String account, Map<String, dynamic> cartFingerprint) {
-    return DurableOperationRegistry.begin(
-        account: account,
-        type: _checkoutActionId,
-        endpoint: '/storefront/checkout',
-        request: cartFingerprint,
-        replaySafe: false);
-  }
-
-  Future<bool> _fundEscrow(
-    RetailCheckoutGateway gateway,
-    String escrowId, {
-    required String orderId,
+  Future<void> _commitToTray(
+    RetailProduct product, {
+    Map<String, String> variants = const {},
+    int quantity = 1,
   }) async {
-    final credentials = await _showEscrowCredentials(orderId);
-    if (!mounted || credentials == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order created, but escrow payment was not completed.'),
-          ),
-        );
-      }
-      return false;
-    }
-
-    try {
-      await gateway.fundEscrow(
-        escrowId,
-        totpToken: credentials.totpToken,
-        password: credentials.password,
-      );
-      return true;
-    } catch (error) {
-      if (!mounted) return false;
-      final retry = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Escrow funding failed'),
-          content: Text(error.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Leave unpaid'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Try again'),
-            ),
-          ],
-        ),
-      );
-      if (retry == true) {
-        return _fundEscrow(gateway, escrowId, orderId: orderId);
-      }
-      return false;
-    }
-  }
-
-  Future<_EscrowCredentials?> _showEscrowCredentials(String orderId) {
-    return showDialog<_EscrowCredentials>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => _EscrowCredentialsDialog(orderId: orderId),
+    final businessProfileId = widget.businessProfileId;
+    if (businessProfileId == null || businessProfileId.isEmpty) return;
+    final added = await retailCommitToTray(
+      context,
+      ref,
+      businessProfileId: businessProfileId,
+      businessName: widget.business.name,
+      product: product,
+      variants: variants,
+      quantity: quantity,
     );
-  }
-
-  Future<RetailPaymentProtection?> _choosePaymentProtection() {
-    return showDialog<RetailPaymentProtection>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Choose payment protection'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(
-              context,
-              RetailPaymentProtection.direct,
-            ),
-            child: const ListTile(
-              leading: Icon(Icons.payment_outlined),
-              title: Text('Pay normally'),
-              subtitle: Text('Pay the store directly.'),
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(
-              context,
-              RetailPaymentProtection.escrow,
-            ),
-            child: const ListTile(
-              leading: Icon(Icons.verified_user_outlined),
-              title: Text('Use escrow protection'),
-              subtitle: Text(
-                'Hold your payment in protection until the order conditions are met.',
-              ),
-            ),
-          ),
-        ],
+    if (!mounted || !added) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${product.name} added to cart'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -351,132 +128,6 @@ class _RetailCollectionBoxWidgetState
         )
         .where((product) => product.id.isNotEmpty)
         .toList(growable: false);
-  }
-}
-
-class _EscrowCredentials {
-  final String? totpToken;
-  final String? password;
-
-  const _EscrowCredentials({this.totpToken, this.password});
-}
-
-class _EscrowCredentialsDialog extends StatefulWidget {
-  final String orderId;
-
-  const _EscrowCredentialsDialog({required this.orderId});
-
-  @override
-  State<_EscrowCredentialsDialog> createState() =>
-      _EscrowCredentialsDialogState();
-}
-
-class _EscrowCredentialsDialogState extends State<_EscrowCredentialsDialog> {
-  final _totpController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  @override
-  void dispose() {
-    _totpController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Fund escrow'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Confirm payment for order ${widget.orderId}.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _totpController,
-              keyboardType: TextInputType.number,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              decoration: const InputDecoration(
-                labelText: '2FA code',
-                helperText: 'Use this when two-factor authentication is enabled.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Account password',
-                helperText: 'Use this when 2FA is not enabled.',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            _EscrowCredentials(
-              totpToken: _totpController.text.trim().isEmpty
-                  ? null
-                  : _totpController.text.trim(),
-              password: _passwordController.text.isEmpty
-                  ? null
-                  : _passwordController.text,
-            ),
-          ),
-          child: const Text('Fund escrow'),
-        ),
-      ],
-    );
-  }
-}
-
-class _BagButton extends StatelessWidget {
-  final int itemCount;
-  final VoidCallback onPressed;
-
-  const _BagButton({required this.itemCount, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
-    return Material(
-      elevation: 2,
-      color: Theme.of(context).colorScheme.primary,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.shopping_bag_outlined,
-                size: 18,
-                color: onPrimary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$itemCount',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: onPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

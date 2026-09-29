@@ -1,5 +1,6 @@
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -12,7 +13,9 @@ void main() {
         'currency': 'GHS',
         'images': ['https://example.com/a.jpg'],
         'tags': ['popular', 'bundle'],
-        'variants': {'size': ['M', 'L']},
+        'variants': {
+          'size': ['M', 'L'],
+        },
       });
 
       expect(product.id, 'p1');
@@ -37,20 +40,30 @@ void main() {
     });
   });
 
-  testWidgets('collection box renders products and opens quick look', (tester) async {
+  testWidgets('collection box renders products and opens quick look', (
+    tester,
+  ) async {
     RetailProduct? selected;
+    // TASK-012: the shelf reads themeProvider, so a scope is required.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RetailCollectionBox(
-            collection: const RetailCollection(
-              id: 'c1',
-              title: 'Staff Picks',
-              products: [
-                RetailProduct(id: 'p1', name: 'Bag', price: 20, currency: 'GHS'),
-              ],
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: RetailCollectionBox(
+              collection: const RetailCollection(
+                id: 'c1',
+                title: 'Staff Picks',
+                products: [
+                  RetailProduct(
+                    id: 'p1',
+                    name: 'Bag',
+                    price: 20,
+                    currency: 'GHS',
+                  ),
+                ],
+              ),
+              onProductTap: (product) => selected = product,
             ),
-            onProductTap: (product) => selected = product,
           ),
         ),
       ),
@@ -69,18 +82,21 @@ void main() {
     // standalone, so the test supplies one and disposes it.
     final scrollController = ScrollController();
     addTearDown(scrollController.dispose);
+    // TASK-012: the sheet reads themeProvider, so a scope is required.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RetailQuickLookSheet(
-            scrollController: scrollController,
-            product: const RetailProduct(
-              id: 'p1',
-              name: 'Bag',
-              price: 20,
-              currency: 'GHS',
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: RetailQuickLookSheet(
+              scrollController: scrollController,
+              product: const RetailProduct(
+                id: 'p1',
+                name: 'Bag',
+                price: 20,
+                currency: 'GHS',
+              ),
+              onAddToCart: (_) {},
             ),
-            onAddToCart: (_) {},
           ),
         ),
       ),

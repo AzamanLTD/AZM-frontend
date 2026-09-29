@@ -13,6 +13,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/marketplace/marketplace_dossier_sheet.dart';
 import 'package:azaman/widgets/marketplace/marketplace_experience_scope.dart';
+import 'package:azaman/widgets/marketplace/retail_dossier_picker.dart';
 import 'package:azaman/widgets/marketplace/restaurant_menu_journey_adapter.dart';
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
@@ -282,6 +283,11 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
             _statusPill(product.available),
             for (final tag in product.tags.take(3)) _tagPill(tag),
           ],
+        ),
+        RetailDossierPicker(
+          product: product,
+          businessProfileId: business.id,
+          businessName: business.businessName,
         ),
       ],
     );
