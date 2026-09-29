@@ -21,6 +21,14 @@ class BookingSuccessSheet extends ConsumerWidget {
   final String route;
   final DateTime departureTime;
 
+  /// Optional Level-5 keepsake (boarding pass, key card) rendered between
+  /// the success header and the detail rows.
+  final Widget? keepsake;
+
+  /// Wire for the panel weight's own scroll view (see [show]). Null keeps
+  /// the whisper layout: content-sized, no scrolling.
+  final ScrollController? scrollController;
+
   const BookingSuccessSheet({
     super.key,
     required this.bookingRef,
@@ -28,6 +36,8 @@ class BookingSuccessSheet extends ConsumerWidget {
     required this.totalFare,
     required this.route,
     required this.departureTime,
+    this.keepsake,
+    this.scrollController,
   });
 
   /// Convenience method to show the sheet.
@@ -42,15 +52,36 @@ class BookingSuccessSheet extends ConsumerWidget {
     required double totalFare,
     required String route,
     required DateTime departureTime,
+    Widget? keepsake,
   }) {
-    return AzamanSheet.showWhisper<void>(
+    AzamanHaptics.celebration();
+    if (keepsake == null) {
+      // Receipt-only: a fixed four-row confirmation — a whisper, as before.
+      return AzamanSheet.showWhisper<void>(
+        context,
+        builder: (_) => BookingSuccessSheet(
+          bookingRef: bookingRef,
+          seatCount: seatCount,
+          totalFare: totalFare,
+          route: route,
+          departureTime: departureTime,
+        ),
+      );
+    }
+    // With a keepsake the receipt is content-tall. The sheet grammar's own
+    // rule: a whisper taller than its ceiling "has become a panel and
+    // should say so" — so it opens as a panel and scrolls instead of
+    // overflowing on a small phone.
+    return AzamanSheet.showPanel<void>(
       context,
-      builder: (_) => BookingSuccessSheet(
+      builder: (sheetContext, scrollController) => BookingSuccessSheet(
         bookingRef: bookingRef,
         seatCount: seatCount,
         totalFare: totalFare,
         route: route,
         departureTime: departureTime,
+        keepsake: keepsake,
+        scrollController: scrollController,
       ),
     );
   }
@@ -62,7 +93,7 @@ class BookingSuccessSheet extends ConsumerWidget {
     // NEW-B: the weight owns surface, whisper radius and bottom safe-area, so
     // the old Container and SafeArea are deleted rather than ported. The
     // stagger is where the removed sheet-level fade-in used to live.
-    return Padding(
+    final body = Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
       child: AzStaggeredColumn(
         children: [
@@ -104,6 +135,7 @@ class BookingSuccessSheet extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+          if (keepsake != null) ...[keepsake!, const SizedBox(height: 24)],
 
           // Detail rows
           _detailRow(colors, Icons.route_rounded, 'Route', route),
@@ -171,6 +203,10 @@ class BookingSuccessSheet extends ConsumerWidget {
         ],
       ),
     );
+    if (scrollController != null) {
+      return SingleChildScrollView(controller: scrollController, child: body);
+    }
+    return body;
   }
 
   Widget _detailRow(
