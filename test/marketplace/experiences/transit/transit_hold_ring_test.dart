@@ -307,6 +307,139 @@ void main() {
     });
   });
 
+  group('microsecond hold precision (audit follow-up)', () {
+    const window = Duration(minutes: 5);
+
+    test('fraction stays positive through the final partial second', () {
+      final expiresAt = DateTime(2026, 9, 1, 8, 5);
+      // 500ms left: inSeconds truncated this to zero (instant death);
+      // microseconds keep the hold live until the actual instant.
+      final t500 = expiresAt.subtract(const Duration(milliseconds: 500));
+      final f500 = transitHoldFraction(expiresAt, window, now: t500);
+      expect(f500, greaterThan(0));
+      expect(f500, closeTo(0.5 / 300, 1e-9));
+
+      // Strictly unexpired while isAfter holds: even 1µs is live.
+      final t1us = expiresAt.subtract(const Duration(microseconds: 1));
+      expect(transitHoldFraction(expiresAt, window, now: t1us), greaterThan(0));
+
+      // At the instant itself (and past it): gone.
+      expect(transitHoldFraction(expiresAt, window, now: expiresAt), 0);
+      final tPast = expiresAt.add(const Duration(milliseconds: 1));
+      expect(transitHoldFraction(expiresAt, window, now: tPast), 0);
+    });
+
+    test('the 25% urgency threshold is not crossed by truncation', () {
+      final expiresAt = DateTime(2026, 9, 1, 8, 5);
+      // 75.1s of 300s = 25.033%: above the threshold. inSeconds read this
+      // as exactly 75/300 = 25%, firing the beat almost a second early.
+      final tAbove = expiresAt.subtract(
+        const Duration(seconds: 75, milliseconds: 100),
+      );
+      expect(
+        transitHoldFraction(expiresAt, window, now: tAbove),
+        greaterThan(0.25),
+      );
+      // 74.9s = 24.967%: genuinely inside the final quarter.
+      final tBelow = expiresAt.subtract(
+        const Duration(seconds: 74, milliseconds: 900),
+      );
+      expect(
+        transitHoldFraction(expiresAt, window, now: tBelow),
+        lessThan(0.25),
+      );
+    });
+
+    testWidgets('a hold 500ms before expiry never fires onExpired early', (
+      tester,
+    ) async {
+      final expiresAt = DateTime(2026, 9, 1, 8, 5);
+      var fakeNow = expiresAt.subtract(const Duration(milliseconds: 500));
+      DateTime clock() => fakeNow;
+      var expiredCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TransitHoldRing(
+            expiresAt: expiresAt,
+            window: window,
+            accentColor: _testColors.accent,
+            warningColor: _testColors.warning,
+            dangerColor: _testColors.danger,
+            trackColor: _testColors.divider,
+            clock: clock,
+            onExpired: () => expiredCalls++,
+          ),
+        ),
+      );
+
+      // Ticks land inside the final half-second: still live, no callback.
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      expect(expiredCalls, 0);
+      expect(
+        transitHoldFraction(expiresAt, window, now: fakeNow),
+        greaterThan(0),
+      );
+
+      // Crossing the actual expiry instant: exactly one callback.
+      fakeNow = expiresAt;
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(); // post-frame callback for onExpired
+      expect(expiredCalls, 1);
+
+      // Further ticks never repeat it.
+      fakeNow = expiresAt.add(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
+      expect(expiredCalls, 1);
+    });
+
+    testWidgets('the urgency beat fires between 75.1s and 74.9s, once', (
+      tester,
+    ) async {
+      await _recordPlatformCalls(tester, (calls) async {
+        final expiresAt = DateTime(2026, 9, 1, 8, 5);
+        var fakeNow = expiresAt.subtract(
+          const Duration(seconds: 75, milliseconds: 100),
+        );
+        DateTime clock() => fakeNow;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TransitHoldRing(
+              expiresAt: expiresAt,
+              window: window,
+              accentColor: _testColors.accent,
+              warningColor: _testColors.warning,
+              dangerColor: _testColors.danger,
+              trackColor: _testColors.divider,
+              clock: clock,
+            ),
+          ),
+        );
+
+        // First tick at 75.1s (25.033%): the beat must NOT have fired.
+        await tester.pump(const Duration(seconds: 1));
+        expect(calls.where((m) => m.startsWith('HapticFeedback')), isEmpty);
+
+        // Cross to 74.9s (24.967%): the beat fires exactly once.
+        fakeNow = expiresAt.subtract(
+          const Duration(seconds: 74, milliseconds: 900),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(calls.where((m) => m.contains('mediumImpact')).length, 1);
+
+        // Further ticks deeper into the final quarter: still exactly one.
+        for (final remaining in [60, 30, 10]) {
+          fakeNow = expiresAt.subtract(Duration(seconds: remaining));
+          await tester.pump(const Duration(seconds: 1));
+        }
+        expect(calls.where((m) => m.contains('mediumImpact')).length, 1);
+      });
+    });
+  });
+
   group('DemoTransitHoldGateway', () {
     test('returns an immediate 5-minute success (timer-free)', () async {
       const gateway = DemoTransitHoldGateway();

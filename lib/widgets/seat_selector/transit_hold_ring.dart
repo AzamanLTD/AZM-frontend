@@ -29,11 +29,15 @@ double transitHoldFraction(
 }) {
   if (expiresAt == null) return 0;
   final t = now ?? DateTime.now();
+  // An expiry is an instant, not a second bucket. inSeconds truncated the
+  // final partial second to zero, which killed the hold early and let the
+  // urgency beat land almost a second before its time. Microseconds keep
+  // the fraction live while expiresAt.isAfter(now) holds, to the micro.
   if (!expiresAt.isAfter(t)) return 0;
-  final total = window.inSeconds;
-  if (total <= 0) return 0;
-  final remaining = expiresAt.difference(t).inSeconds;
-  return (remaining / total).clamp(0.0, 1.0).toDouble();
+  final totalUs = window.inMicroseconds;
+  if (totalUs <= 0) return 0;
+  final remainingUs = expiresAt.difference(t).inMicroseconds;
+  return (remainingUs / totalUs).clamp(0.0, 1.0).toDouble();
 }
 
 /// `m:ss` countdown label. Null expiry → `--:--`; expired → `0:00`.
