@@ -48,16 +48,30 @@ class _RecordingCartNotifier extends CartNotifier {
   }) {
     startNewCartCalls++;
   }
+
+  /// Seeds the tray with another business's item, reproducing the
+  /// cross-business state the commit path must confirm with the user.
+  void seedOtherBusiness() {
+    state = const CartState(
+      businessProfileId: 'other-biz',
+      businessName: 'Other Business',
+      experiencePreset: 'DINING_JOURNEY',
+      items: [
+        CartItem(productId: 'x', name: 'Other item', unitPrice: 5, quantity: 1),
+      ],
+    );
+  }
 }
 
 RetailProduct _product({
   bool available = true,
+  double? price = 25,
   Map<String, dynamic> variants = const {},
 }) {
   return RetailProduct(
     id: 'prod-1',
     name: 'Everyday Bag',
-    price: 25,
+    price: price,
     currency: 'GHS',
     variants: variants,
     available: available,
@@ -219,5 +233,66 @@ void main() {
     // A successful commit closes the dossier exactly once.
     expect(find.text('dossier root'), findsOneWidget);
     expect(find.text('Add to bag'), findsNothing);
+  });
+
+  testWidgets('a product without a price never enters the money cart',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await pumpPicker(tester, cart, _product(price: null, variants: {
+      'Size': ['S', 'M', 'L'],
+    }));
+
+    expect(find.text('Price unavailable'), findsOneWidget);
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+
+    // Even a fully-selected, available product is uncommittable while the
+    // price is unknown.
+    await tester.tap(find.text('M'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    expect(cart.addItemCalls, isEmpty);
+    expect(cart.startNewCartCalls, 0);
+  });
+
+  testWidgets('a cancelled cross-business confirmation mutates nothing',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await pumpPicker(tester, cart, _product());
+
+    cart.seedOtherBusiness();
+    await tester.tap(find.text('Add to bag'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start new cart?'), findsOneWidget);
+    await tester.tap(find.text('Keep current cart'));
+    await tester.pumpAndSettle();
+
+    expect(cart.addItemCalls, isEmpty);
+    expect(cart.startNewCartCalls, 0);
+    // The other business's cart is untouched and the picker stays open.
+    expect(find.text('Add to bag'), findsOneWidget);
+  });
+
+  testWidgets('a confirmed cross-business switch restarts the cart once',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await pumpPicker(tester, cart, _product());
+
+    cart.seedOtherBusiness();
+    await tester.tap(find.text('Add to bag'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Start new cart'));
+    await tester.pumpAndSettle();
+
+    expect(cart.startNewCartCalls, 1);
+    expect(cart.addItemCalls, hasLength(1));
+    expect(cart.addItemCalls.single['businessProfileId'], 'biz-1');
+    // The commit completed — the dossier closes.
+    expect(find.text('dossier root'), findsOneWidget);
   });
 }

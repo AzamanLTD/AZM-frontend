@@ -43,10 +43,11 @@ class _RetailCollectionBoxWidgetState
   @override
   Widget build(BuildContext context) {
     final collection = RetailCollection(
-      id: (widget.props['id'] ??
-              widget.props['collectionId'] ??
-              'retail-collection')
-          .toString(),
+      id:
+          (widget.props['id'] ??
+                  widget.props['collectionId'] ??
+                  'retail-collection')
+              .toString(),
       title: (widget.props['title'] ?? 'Collection').toString(),
       subtitle: widget.props['subtitle']?.toString(),
       products: _parseProducts(widget.props['products']),
@@ -121,11 +122,7 @@ class _RetailCollectionBoxWidgetState
     if (raw is! List) return const [];
     return raw
         .whereType<Map>()
-        .map(
-          (item) => RetailProduct.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
+        .map((item) => RetailProduct.fromJson(Map<String, dynamic>.from(item)))
         .where((product) => product.id.isNotEmpty)
         .toList(growable: false);
   }
@@ -143,8 +140,8 @@ class _EmptyCollection extends StatelessWidget {
       child: Text(
         '$title is empty',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

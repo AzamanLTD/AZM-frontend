@@ -229,9 +229,14 @@ class _RetailCollectionBoxState extends ConsumerState<RetailCollectionBox> {
                 ],
               ),
             ),
-            if (products.length > 1)
+            if (widget.collection.products.length > 1)
               Text(
-                '${products.length} items',
+                // Honest count: when the shelf shows fewer products than
+                // the collection holds, say so instead of understating.
+                products.length < widget.collection.products.length
+                    ? '${products.length} of '
+                          '${widget.collection.products.length} items'
+                    : '${products.length} items',
                 style: AzText.caption.copyWith(color: colors.textTertiary),
               ),
           ],
@@ -353,7 +358,12 @@ class _LiftableCardState extends State<_LiftableCard>
 
   bool get _liftEnabled {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return widget.onCommit != null && widget.product.available && !reduceMotion;
+    return widget.onCommit != null &&
+        widget.product.available &&
+        // An unknown price can never be a blind commit — the tray must not
+        // accept a product whose price the server did not send.
+        widget.product.price != null &&
+        !reduceMotion;
   }
 
   double get _visualTravel => _dragging
@@ -462,7 +472,7 @@ class _RetailProductCardState extends ConsumerState<RetailProductCard> {
             children: [
               Expanded(
                 child: image == null
-                    ? const _RetailImageFallback()
+                    ? _desaturateWhenUnavailable(const _RetailImageFallback())
                     : _desaturateWhenUnavailable(
                         Image.network(
                           image,
@@ -478,13 +488,19 @@ class _RetailProductCardState extends ConsumerState<RetailProductCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AzText.bodyL.copyWith(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                    // The unavailable state covers the whole card: the
+                    // title greys out with the image. The state line below
+                    // deliberately stays at full strength so the reason is
+                    // always readable.
+                    _desaturateWhenUnavailable(
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AzText.bodyL.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -509,11 +525,15 @@ class _RetailProductCardState extends ConsumerState<RetailProductCard> {
     );
   }
 
-  Widget _desaturateWhenUnavailable(Widget image) {
-    if (widget.product.available) return image;
+  /// Applies the unavailable presentation — luminance-preserving
+  /// desaturation plus a dim — to ANY part of the card (image, title), so
+  /// the whole product reads as out of stock. The state line is never
+  /// wrapped: its text must stay readable.
+  Widget _desaturateWhenUnavailable(Widget content) {
+    if (widget.product.available) return content;
     return ColorFiltered(
       colorFilter: const ColorFilter.matrix(_kDesaturateMatrix),
-      child: Opacity(opacity: 0.55, child: image),
+      child: Opacity(opacity: 0.55, child: content),
     );
   }
 }
@@ -725,7 +745,11 @@ class _RetailQuickLookSheetState extends ConsumerState<RetailQuickLookSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: widget.product.available && _allVariantsSelected
+              // An unknown price is not zero — never commit it to the tray.
+              onPressed:
+                  widget.product.available &&
+                      widget.product.price != null &&
+                      _allVariantsSelected
                   ? () => widget.onAddToCart(
                       RetailCartSelection(
                         product: widget.product,
@@ -736,7 +760,11 @@ class _RetailQuickLookSheetState extends ConsumerState<RetailQuickLookSheet> {
                   : null,
               icon: const Icon(HugeIconsStroke.shoppingBag01, size: 18),
               label: Text(
-                widget.product.available ? 'Add to bag' : 'Unavailable',
+                !widget.product.available
+                    ? 'Unavailable'
+                    : widget.product.price == null
+                    ? 'Price unavailable'
+                    : 'Add to bag',
               ),
             ),
           ),

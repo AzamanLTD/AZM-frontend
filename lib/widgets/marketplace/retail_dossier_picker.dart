@@ -51,8 +51,10 @@ class _RetailDossierPickerState extends ConsumerState<RetailDossierPicker> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider.select((theme) => theme.colors));
     final hasVariants = widget.product.variants.isNotEmpty;
+    // An unknown price is not zero — never commit it to the tray.
     final canAdd =
         widget.product.available &&
+        widget.product.price != null &&
         (!hasVariants || _allVariantsSelected) &&
         _quantity > 0;
 
@@ -127,7 +129,11 @@ class _RetailDossierPickerState extends ConsumerState<RetailDossierPicker> {
                 : null,
             icon: const Icon(HugeIconsStroke.shoppingBag01, size: 18),
             label: Text(
-              widget.product.available ? 'Add to bag' : 'Unavailable',
+              !widget.product.available
+                  ? 'Unavailable'
+                  : widget.product.price == null
+                  ? 'Price unavailable'
+                  : 'Add to bag',
             ),
           ),
         ),

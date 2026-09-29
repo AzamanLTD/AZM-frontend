@@ -23,6 +23,11 @@ import 'package:azaman/providers/cart_provider.dart';
 /// Adds [product] to the shared tray. Shows the "Start new cart?" dialog when
 /// the tray holds another business's items. Returns true when the item is in
 /// the tray at the end.
+///
+/// A product whose price is unknown ([RetailProduct.price] == null) never
+/// enters the tray: an unknown monetary value is not zero, and letting it
+/// through would let the cart display a made-up subtotal. A genuine
+/// zero-priced product (price == 0) is a real price and commits normally.
 Future<bool> retailCommitToTray(
   BuildContext context,
   WidgetRef ref, {
@@ -32,7 +37,9 @@ Future<bool> retailCommitToTray(
   Map<String, String> variants = const {},
   int quantity = 1,
 }) async {
-  if (!product.available || quantity <= 0) return false;
+  if (!product.available || product.price == null || quantity <= 0) {
+    return false;
+  }
 
   final cart = ref.read(cartProvider);
   final crossBusiness =
@@ -79,7 +86,9 @@ Future<bool> retailCommitToTray(
         businessName: businessName,
         productId: product.id,
         name: product.name,
-        unitPrice: product.price ?? 0,
+        // Guarded above: a null price never reaches here, so this is the
+        // real price — including a genuine 0.
+        unitPrice: product.price!,
         imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
         experiencePreset: 'SHOP_FLOOR',
         quantity: quantity,

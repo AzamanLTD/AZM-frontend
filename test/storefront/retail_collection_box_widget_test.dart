@@ -246,4 +246,105 @@ void main() {
     // No confirmation snackbar for a silent no-op.
     expect(find.text('Everyday Bag added to cart'), findsNothing);
   });
+
+  testWidgets('a product without a price is uncommittable everywhere',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await tester.pumpWidget(buildWidget(
+      cart: cart,
+      products: [
+        {
+          'id': 'p1',
+          'name': 'Everyday Bag',
+          'currency': 'GHS',
+          // No price key: the server never sent one.
+          'variants': {
+            'Size': ['Small', 'Large'],
+          },
+        },
+      ],
+    ));
+
+    // The lift gesture is fully disabled — dragging does nothing at all.
+    await tester.drag(find.text('Everyday Bag'), const Offset(0, 184));
+    await tester.pumpAndSettle();
+    expect(cart.addItemCalls, isEmpty);
+    expect(find.text('Quick look'), findsNothing);
+
+    // The quick look opens, but its add is gated by the unknown price.
+    // (The card and the sheet's own price line also read "Price
+    // unavailable" — the button is the one that must be disabled.)
+    await openQuickLook(tester);
+    expect(find.text('Price unavailable'), findsAtLeastNWidgets(1));
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    expect(cart.addItemCalls, isEmpty);
+    expect(find.text('Everyday Bag added to cart'), findsNothing);
+  });
+
+  testWidgets('an unavailable product is uncommittable everywhere',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await tester.pumpWidget(buildWidget(
+      cart: cart,
+      products: [
+        {
+          'id': 'p1',
+          'name': 'Everyday Bag',
+          'price': 25,
+          'currency': 'GHS',
+          'available': false,
+        },
+      ],
+    ));
+
+    await tester.drag(find.text('Everyday Bag'), const Offset(0, 184));
+    await tester.pumpAndSettle();
+    expect(cart.addItemCalls, isEmpty);
+
+    // The card's tap is dead too — no quick look for an unavailable item.
+    await tester.tap(find.text('Everyday Bag'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quick look'), findsNothing);
+    expect(cart.addItemCalls, isEmpty);
+  });
+
+  testWidgets('the shelf count never claims more than it shows',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    final products = [
+      for (var i = 1; i <= 8; i++)
+        {'id': 'p$i', 'name': 'Item $i', 'price': 10, 'currency': 'GHS'},
+    ];
+    await tester.pumpWidget(buildWidget(cart: cart, products: products));
+
+    // Six shown of eight — the label must say so.
+    expect(find.text('6 of 8 items'), findsOneWidget);
+    expect(find.text('8 items'), findsNothing);
+  });
+
+  testWidgets('the unavailable presentation covers the whole card',
+      (tester) async {
+    final cart = _RecordingCartNotifier();
+    await tester.pumpWidget(buildWidget(
+      cart: cart,
+      products: [
+        {
+          'id': 'p1',
+          'name': 'Everyday Bag',
+          'price': 25,
+          'currency': 'GHS',
+          'available': false,
+        },
+      ],
+    ));
+
+    // The image/fallback AND the title are desaturated/dimmed — the
+    // state is a whole-card presentation, not an image-only one.
+    expect(find.byType(ColorFiltered), findsNWidgets(2));
+    // The state line stays present and readable.
+    expect(find.text('Currently unavailable'), findsOneWidget);
+  });
 }

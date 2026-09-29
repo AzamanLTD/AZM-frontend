@@ -12,6 +12,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -63,17 +64,27 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
         if (next.itemCount > 0 && !_hasPresented && mounted) {
           setState(() => _hasPresented = true);
         }
-        if (countChanged && next.itemCount > previous.itemCount) {
-          // The tray catches the item: squash-and-stretch, plus the retail
-          // two-beat "clack". Other verticals keep their softer pulse.
-          _catch.forward(from: 0);
-          if (next.experiencePreset == 'SHOP_FLOOR') {
-            AzamanHaptics.addToCart();
-          } else {
+        // The OS accessibility setting gates the celebration: under reduced
+        // motion nothing animates — the bar settles straight to its new
+        // state (MotionTokens.accessibleDuration is the canonical gate for
+        // the tween-based transitions further below).
+        final reduceMotion = mounted && MediaQuery.disableAnimationsOf(context);
+        // The catch is the retail tray's identity: only SHOP_FLOOR count
+        // increases squash-and-stretch with the two-beat "clack". Every
+        // other vertical (and every non-add change) keeps the existing
+        // softer pulse and its original haptic.
+        final retailCatch =
+            countChanged &&
+            next.itemCount > previous.itemCount &&
+            next.experiencePreset == 'SHOP_FLOOR';
+        if (retailCatch) {
+          if (!reduceMotion) _catch.forward(from: 0);
+          AzamanHaptics.addToCart();
+        } else {
+          if (!reduceMotion) _pulse.forward(from: 0);
+          if (countChanged && next.itemCount > previous.itemCount) {
             AzamanHaptics.toggle();
           }
-        } else {
-          _pulse.forward(from: 0);
         }
       }
     });
@@ -172,7 +183,10 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
+                              duration: MotionTokens.accessibleDuration(
+                                context,
+                                const Duration(milliseconds: 180),
+                              ),
                               transitionBuilder: (child, animation) =>
                                   FadeTransition(
                                     opacity: animation,
@@ -229,7 +243,10 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
                                 .chain(CurveTween(curve: Curves.easeOutBack))
                                 .animate(_pulse),
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 220),
+                              duration: MotionTokens.accessibleDuration(
+                                context,
+                                const Duration(milliseconds: 220),
+                              ),
                               transitionBuilder: (child, animation) =>
                                   FadeTransition(
                                     opacity: animation,
