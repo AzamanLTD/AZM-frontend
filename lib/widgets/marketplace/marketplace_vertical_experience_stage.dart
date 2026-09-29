@@ -20,6 +20,7 @@ import 'package:azaman/marketplace/experience/marketplace_experience_capabilitie
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
+import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
 import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
@@ -37,6 +38,9 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   final void Function(BusinessProduct product, Map<String, String> selections, int quantity)? onAddToTray;
   final Map<String, RestaurantDish> restaurantDishesById;
   final String? dineInContext;
+  final RestaurantOrderMode orderMode;
+  final ValueChanged<RestaurantOrderMode>? onOrderModeChanged;
+  final bool dineInAvailable;
   final Map<String, dynamic>? experience;
 
   const MarketplaceVerticalExperienceStage({
@@ -52,6 +56,9 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     this.onAddToTray,
     this.restaurantDishesById = const {},
     this.dineInContext,
+    this.orderMode = RestaurantOrderMode.takeaway,
+    this.onOrderModeChanged,
+    this.dineInAvailable = true,
     this.experience,
   });
 
@@ -200,6 +207,9 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         showOptions: blueprint.showOptions,
         showQuantity: blueprint.showQuantity,
         dineInContext: blueprint.customerContext.enabled ? dineInContext : null,
+        orderMode: orderMode,
+        onOrderModeChanged: onOrderModeChanged,
+        dineInAvailable: dineInAvailable,
         detailPresentation: blueprint.detailPresentation,
       ),
     );

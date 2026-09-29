@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
@@ -7,7 +9,11 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/book/book.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
+import 'package:azaman/widgets/marketplace/restaurant_order_mode_switch.dart';
 
 class RestaurantNativeMenuJourney extends StatefulWidget {
   final String businessName;
@@ -21,6 +27,9 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
   final bool showOptions;
   final bool showQuantity;
   final String? dineInContext;
+  final RestaurantOrderMode orderMode;
+  final ValueChanged<RestaurantOrderMode>? onOrderModeChanged;
+  final bool dineInAvailable;
   final MarketplaceDetailPresentation detailPresentation;
 
   const RestaurantNativeMenuJourney({
@@ -36,6 +45,9 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
     this.showOptions = true,
     this.showQuantity = true,
     this.dineInContext,
+    this.orderMode = RestaurantOrderMode.takeaway,
+    this.onOrderModeChanged,
+    this.dineInAvailable = true,
     this.detailPresentation = MarketplaceDetailPresentation.dishDossier,
   });
 
@@ -118,7 +130,21 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
       children: [
         Column(
           children: [
-            if (widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
+            if (widget.onOrderModeChanged != null)
+              Builder(builder: (context) {
+                final onOrderModeChanged = widget.onOrderModeChanged;
+                if (onOrderModeChanged == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: RestaurantOrderModeSwitch(
+                    selected: widget.orderMode,
+                    onChanged: onOrderModeChanged,
+                    colors: widget.colors,
+                    dineInEnabled: widget.dineInAvailable,
+                  ),
+                );
+              }),
+            if (widget.orderMode == RestaurantOrderMode.dineIn && widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
                 child: Align(
@@ -194,20 +220,37 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
 
   Widget _menuPage(_MenuPage page, int index) {
     return _paperSurface(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      Stack(
+        fit: StackFit.expand,
         children: [
-          Text(page.title, style: const TextStyle(color: Color(0xFF2D2416), fontSize: 16, fontWeight: FontWeight.w800)),
-          if (page.description != null && page.description!.isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text(page.description!, style: const TextStyle(color: Color(0xFF8B7A5A), fontSize: 10.5))),
-          const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(color: Color(0xFFE8DCC4), height: 1)),
-          Expanded(child: ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: page.products.length,
-            separatorBuilder: (_, __) => const Divider(color: Color(0xFFE8DCC4), height: 16),
-            itemBuilder: (_, itemIndex) => _dishRow(page.products[itemIndex]),
-          )),
-          Align(alignment: Alignment.center, child: Text('$index', style: const TextStyle(color: Color(0xFFB8A88A), fontSize: 10))),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 92),
+                child: Text(page.title, style: const TextStyle(color: Color(0xFF2D2416), fontSize: 16, fontWeight: FontWeight.w800)),
+              ),
+              if (page.description != null && page.description!.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 4, right: 92), child: Text(page.description!, style: const TextStyle(color: Color(0xFF8B7A5A), fontSize: 10.5))),
+              const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(color: Color(0xFFE8DCC4), height: 1)),
+              Expanded(child: ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: page.products.length,
+                separatorBuilder: (_, __) => const Divider(color: Color(0xFFE8DCC4), height: 16),
+                itemBuilder: (_, itemIndex) => _dishRow(page.products[itemIndex]),
+              )),
+              Align(alignment: Alignment.center, child: Text('$index', style: const TextStyle(color: Color(0xFFB8A88A), fontSize: 10))),
+            ],
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _RibbonBookmark(
+              title: page.title,
+              color: widget.colors.accent,
+              textColor: widget.colors.isDark ? Colors.black : Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -287,7 +330,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
               children: [
                 Row(children: [Expanded(child: Text(product.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800))), IconButton(onPressed: _committing ? null : _closeDetail, icon: const Icon(Icons.close_rounded))]),
                 if (dish.description != null && dish.description!.isNotEmpty) Text(dish.description!, style: TextStyle(color: widget.colors.textSecondary, fontSize: 13, height: 1.35)),
-                if (widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
+                if (widget.orderMode == RestaurantOrderMode.dineIn && widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
                   Padding(padding: const EdgeInsets.only(top: 9), child: Row(children: [Icon(Icons.table_restaurant_outlined, size: 15, color: widget.colors.textTertiary), const SizedBox(width: 5), Expanded(child: Text(widget.dineInContext!, style: TextStyle(color: widget.colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600)))])),
                 if (widget.showSpecifications && (dish.preparationMins != null || dish.calorieCount != null || dish.estimatedDelivery != null))
                   Padding(padding: const EdgeInsets.only(top: 13), child: Wrap(spacing: 7, runSpacing: 7, children: [
@@ -295,8 +338,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                     if (dish.calorieCount != null) _chip('${dish.calorieCount} kcal'),
                     if (dish.estimatedDelivery != null && dish.estimatedDelivery!.isNotEmpty) _chip(dish.estimatedDelivery!),
                   ])),
-                if (widget.showOptions && dish.variants.isNotEmpty) _variantChoices(dish),
-                if (widget.showOptions) ...dish.optionGroups.map(_modifierGroup),
+                if (widget.showOptions && (dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty)) _buildSheetLauncher(dish),
                 const SizedBox(height: 15),
                 Row(children: [Expanded(child: Text('${unit.toStringAsFixed(2)} USDC', style: TextStyle(color: widget.colors.accent, fontSize: 18, fontWeight: FontWeight.w900))), if (widget.showQuantity) _quantityControl()]),
                 const SizedBox(height: 13),
@@ -311,49 +353,102 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
 
   Widget _chip(String label) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: widget.colors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)));
 
-  Widget _variantChoices(RestaurantDish dish) => Padding(
-    padding: const EdgeInsets.only(top: 15),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Size', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 7),
-      Wrap(spacing: 7, runSpacing: 7, children: dish.variants.map((variant) => ChoiceChip(
-        label: Text(variant.priceDelta == 0 ? variant.name : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}'),
-        selected: _size == variant.name,
-        onSelected: (_) => setState(() => _size = variant.name),
-      )).toList()),
-    ]),
-  );
-
-  Widget _modifierGroup(RestaurantOptionGroup group) {
-    final selected = _options.putIfAbsent(group.id, () => <String>{});
-    final multi = group.maxSelection > 1;
+  Widget _buildSheetLauncher(RestaurantDish dish) {
+    final progress = restaurantBuildProgress(
+      hasVariants: dish.variants.isNotEmpty,
+      sizeChosen: _size != null && _size!.isNotEmpty,
+      requiredGroupsSatisfied: [
+        for (final group in dish.optionGroups.where((group) => group.required))
+          _options[group.id]?.isNotEmpty ?? false,
+      ],
+    );
+    final requiredTotal = (dish.variants.isEmpty ? 0 : 1) +
+        dish.optionGroups.where((group) => group.required).length;
+    final complete = progress >= 1;
+    final summary = dish.variants.isEmpty && dish.optionGroups.isEmpty
+        ? 'No options required'
+        : complete
+            ? 'Ready — all choices made'
+            : '${(progress * requiredTotal).round()} of $requiredTotal required chosen';
     return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Expanded(child: Text(group.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700))), Text(group.required ? 'Required' : (multi ? 'Up to ${group.maxSelection}' : 'Optional'), style: TextStyle(color: widget.colors.textTertiary, fontSize: 10))]),
-        const SizedBox(height: 4),
-        ...group.options.map((option) {
-          final checked = selected.contains(option.id);
-          return CheckboxListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            value: checked,
-            onChanged: (value) => setState(() {
-              if (value == true) {
-                if (!multi) {
-                  selected..clear()..add(option.id);
-                } else if (selected.length < group.maxSelection) {
-                  selected.add(option.id);
-                }
-              } else {
-                selected.remove(option.id);
-              }
-            }),
-            title: Text(option.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 12)),
-            secondary: option.priceDelta == 0 ? null : Text('+${option.priceDelta.toStringAsFixed(2)}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 10)),
-          );
+      padding: const EdgeInsets.only(top: 15),
+      child: Semantics(
+        button: true,
+        label: 'Build your dish — $summary',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _openBuildSheet(dish),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+            decoration: BoxDecoration(
+              color: widget.colors.softSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: complete ? widget.colors.accent.withValues(alpha: 0.55) : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                _buildRing(progress, complete),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Build your dish', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(summary, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: complete ? widget.colors.accent : widget.colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.tune_rounded, size: 18, color: widget.colors.textTertiary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRing(double progress, bool complete) {
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: CustomPaint(
+        painter: _CompletionRingPainter(
+          progress: complete ? 1 : progress,
+          complete: complete,
+          trackColor: widget.colors.textTertiary.withValues(alpha: 0.25),
+          accent: widget.colors.accent,
+        ),
+        child: complete
+            ? Center(child: Icon(Icons.check_rounded, size: 17, color: widget.colors.accent))
+            : Center(child: Text('${(progress * 100).round()}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800))),
+      ),
+    );
+  }
+
+  void _openBuildSheet(RestaurantDish dish) {
+    AzamanHaptics.nav();
+    AzamanSheet.showPanel<void>(
+      context,
+      builder: (sheetContext, scrollController) => _RestaurantBuildSheet(
+        dish: dish,
+        basePrice: _product?.priceUsdc,
+        colors: widget.colors,
+        scrollController: scrollController,
+        initialSize: _size,
+        initialOptions: _options,
+        onDone: (size, options) => setState(() {
+          _size = size;
+          _options
+            ..clear()
+            ..addAll({
+              for (final entry in options.entries) entry.key: Set<String>.from(entry.value),
+            });
+          AzamanHaptics.confirm();
         }),
-      ]),
+      ),
     );
   }
 
@@ -471,4 +566,265 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
       ),
     ),
   );
+}
+
+class _CompletionRingPainter extends CustomPainter {
+  final double progress;
+  final bool complete;
+  final Color trackColor;
+  final Color accent;
+
+  const _CompletionRingPainter({
+    required this.progress,
+    required this.complete,
+    required this.trackColor,
+    required this.accent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide / 2) - 2.5;
+    final track = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(center, radius, track);
+    if (progress <= 0) return;
+    final arc = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -math.pi / 2, 2 * math.pi * progress, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CompletionRingPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.complete != complete ||
+      oldDelegate.trackColor != trackColor ||
+      oldDelegate.accent != accent;
+}
+
+class _RestaurantBuildSheet extends StatefulWidget {
+  final RestaurantDish dish;
+  final double? basePrice;
+  final AzamanColors colors;
+  final ScrollController scrollController;
+  final String? initialSize;
+  final Map<String, Set<String>> initialOptions;
+  final void Function(String? size, Map<String, Set<String>> options) onDone;
+
+  const _RestaurantBuildSheet({
+    required this.dish,
+    required this.basePrice,
+    required this.colors,
+    required this.scrollController,
+    required this.initialSize,
+    required this.initialOptions,
+    required this.onDone,
+  });
+
+  @override
+  State<_RestaurantBuildSheet> createState() => _RestaurantBuildSheetState();
+}
+
+class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
+  late String? _size = widget.initialSize;
+  late final Map<String, Set<String>> _options = {
+    for (final entry in widget.initialOptions.entries) entry.key: Set<String>.from(entry.value),
+  };
+
+  double? _unitPrice() {
+    final basePrice = widget.dish.price ?? widget.basePrice;
+    if (basePrice == null) return null;
+    var total = basePrice;
+    for (final variant in widget.dish.variants) {
+      if (variant.name == _size) total += variant.priceDelta;
+    }
+    for (final group in widget.dish.optionGroups) {
+      final chosen = _options[group.id] ?? const <String>{};
+      for (final option in group.options) {
+        if (chosen.contains(option.id)) total += option.priceDelta;
+      }
+    }
+    return total;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dish = widget.dish;
+    final unitPrice = _unitPrice();
+    final canClose =
+        unitPrice != null &&
+        !dish.optionGroups.any(
+          (group) => group.required && (_options[group.id]?.isEmpty ?? true),
+        ) &&
+        (dish.variants.isEmpty || (_size != null && _size!.isNotEmpty));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 6, 18, 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Build your ${dish.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: widget.colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close build sheet',
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: widget.colors.textSecondary,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: widget.scrollController,
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (dish.variants.isNotEmpty) _variantChoices(),
+                  ...dish.optionGroups.map(_modifierGroup),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: canClose
+                  ? () {
+                      widget.onDone(_size, _options);
+                      Navigator.pop(context);
+                    }
+                  : null,
+              child: Text(
+                unitPrice == null
+                    ? 'Price unavailable'
+                    : canClose
+                        ? 'Done · ${unitPrice.toStringAsFixed(2)} USDC'
+                        : 'Choose required options',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  Widget _variantChoices() => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Size', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 7),
+      Wrap(spacing: 7, runSpacing: 7, children: widget.dish.variants.map((variant) => ChoiceChip(
+        label: Text(variant.priceDelta == 0 ? variant.name : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}'),
+        selected: _size == variant.name,
+        onSelected: (_) => setState(() => _size = variant.name),
+      )).toList()),
+    ]),
+  );
+
+  Widget _modifierGroup(RestaurantOptionGroup group) {
+    final selected = _options.putIfAbsent(group.id, () => <String>{});
+    final multi = group.maxSelection > 1;
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Expanded(child: Text(group.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700))), Text(group.required ? 'Required' : (multi ? 'Up to ${group.maxSelection}' : 'Optional'), style: TextStyle(color: widget.colors.textTertiary, fontSize: 10))]),
+        const SizedBox(height: 4),
+        ...group.options.map((option) {
+          final checked = selected.contains(option.id);
+          return CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: checked,
+            onChanged: (value) => setState(() {
+              if (value == true) {
+                if (!multi) {
+                  selected..clear()..add(option.id);
+                } else if (selected.length < group.maxSelection) {
+                  selected.add(option.id);
+                }
+              } else {
+                selected.remove(option.id);
+              }
+            }),
+            title: Text(option.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 12)),
+            secondary: option.priceDelta == 0 ? null : Text('+${option.priceDelta.toStringAsFixed(2)}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 10)),
+          );
+        }),
+      ]),
+    );
+  }
+}
+
+class _RibbonBookmark extends StatelessWidget {
+  final String title;
+  final Color color;
+  final Color textColor;
+
+  const _RibbonBookmark({required this.title, required this.color, required this.textColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 5, offset: Offset(0, 2))],
+      ),
+      child: ClipPath(
+        clipper: const _RibbonNotchClipper(),
+        child: Container(
+          width: 84,
+          height: 30,
+          color: color,
+          padding: const EdgeInsets.only(right: 10, bottom: 3),
+          alignment: Alignment.center,
+          child: Text(
+            title.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: textColor, fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 0.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RibbonNotchClipper extends CustomClipper<Path> {
+  const _RibbonNotchClipper();
+
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(size.width - 10, size.height - 8)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _RibbonNotchClipper oldClipper) => false;
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 
 typedef RestaurantCommitAction = void Function();
 typedef RestaurantCommitRunner = Future<void> Function(
@@ -70,12 +71,14 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     _commitSubtitle = subtitle;
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
+      AzamanHaptics.addToCart();
       action();
       _commitInFlight = false;
       return;
     }
 
     if (MediaQuery.of(context).disableAnimations) {
+      AzamanHaptics.addToCart();
       action();
       if (!mounted) return;
       setState(() => _showReducedMotion = true);
@@ -87,6 +90,11 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
       return;
     }
 
+    // A rip can only play from a fresh sheet: reset the controller so a
+    // second commit animates the full arc. Without this, the controller sits
+    // at 1 after the first rip, animateTo(1) completes instantly, and the
+    // finally block cancels _commitTimer before the add ever runs.
+    _controller.value = 0;
     setState(() {
       _showReducedMotion = false;
       _showPaperRip = true;
@@ -94,6 +102,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
 
     _commitTimer = Timer(_commitDelay, () {
       if (!mounted || !_commitInFlight) return;
+      AzamanHaptics.addToCart();
       action();
     });
 
@@ -170,7 +179,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
                               key: const ValueKey('paper-rip-animation'),
                               painter: _PaperRipPainter(
                                 progress: Curves.easeInOutCubic.transform(progress),
-                                textColor: Theme.of(context).colorScheme.onSurface,
+                                textColor: const Color(0xFF2D2416),
                                 origin: _lastPointerPosition,
                                 label: _commitLabel,
                                 subtitle: _commitSubtitle,
@@ -203,11 +212,11 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle_rounded, size: 18),
+              const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF2D2416)),
               const SizedBox(width: 8),
               Text(
                 _commitLabel == null ? 'Added to your order tray' : '${_commitLabel} added to your tray',
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF2D2416)),
               ),
             ],
           ),
