@@ -336,6 +336,70 @@ void main() {
     expect(find.text('Done'), findsOneWidget);
   });
 
+  // TASK-015 flight regression: the key card must genuinely TRAVEL from the
+  // doorway into the YOUR STAYS slot during the card animation — not merely
+  // scale/fade into existence inside the destination slot. Proven by
+  // capturing the card's rect mid-flight and after settle: the mid-flight
+  // position sits above the slot (still at the door area), the final
+  // position sits inside the slot (below the YOUR STAYS label), and the two
+  // positions differ. A regression to in-place materialisation fails all
+  // three legs: the mid-flight rect would already be inside the slot.
+  testWidgets('key card flies from the doorway into the YOUR STAYS slot',
+      (tester) async {
+    final room = _room('203', floor: 2, price: 850);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: HotelArrivalSheet(
+              reservationRef: 'R-77',
+              room: room,
+              checkIn: DateTime(2026, 9, 25),
+              nights: 3,
+              totalUsdc: 2550,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // The 'AZAMAN' brand line lives only inside the key card, so its rect
+    // tracks the card through the flight.
+    final cardFinder = find.text('AZAMAN');
+    final slotLabel = find.text('YOUR STAYS');
+
+    // Door flight: 450ms. The card controller starts via the door's
+    // whenComplete callback, whose microtask resolves across the following
+    // pump boundary — hence the 10ms flush frame below before sampling.
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pump(const Duration(milliseconds: 10));
+    // Mid-flight sample. kPopSpring settles inside the first third of its
+    // 350ms window, so the airborne position is captured 20ms into the
+    // spring's run: the card is still up at the doorway here.
+    await tester.pump(const Duration(milliseconds: 10));
+    final midRect = tester.getRect(cardFinder);
+    final labelRect = tester.getRect(slotLabel);
+
+    // Still airborne: up at the doorway, above the slot destination and
+    // above the slot label entirely — not at rest inside the slot.
+    expect(midRect.top, lessThan(labelRect.top),
+        reason: 'mid-flight the card must still be up at the doorway, '
+            'above the stays slot label');
+
+    await tester.pumpAndSettle();
+
+    final finalRect = tester.getRect(cardFinder);
+    final settledLabelRect = tester.getRect(slotLabel);
+
+    // The card actually moved during the animation.
+    expect(finalRect.top, greaterThan(midRect.top),
+        reason: 'the card must travel downward during the card animation');
+    // The final position is INSIDE the YOUR STAYS destination: below the
+    // slot label, resting in the slot.
+    expect(finalRect.top, greaterThan(settledLabelRect.bottom),
+        reason: 'the settled card must rest inside the stays slot');
+  });
+
   // Corrigendum §3A regression: a rendered cell's visual position and the
   // hit-test/index/reveal geometry must stay aligned across multiple cells —
   // not just cell 0 — so the rendered pitch (56dp cell + AzSpace.xs gap) and

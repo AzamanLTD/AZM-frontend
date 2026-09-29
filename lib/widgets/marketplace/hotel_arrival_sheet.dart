@@ -79,6 +79,15 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
   late final AnimationController _card;
   bool _started = false;
   bool _committed = false;
+  Offset? _flight;
+
+  // The key-card flight path: the card is born at the doorway and travels
+  // down into the YOUR STAYS slot. Both anchors are measured from the live
+  // render tree while the card animation runs, so the flight survives any
+  // layout change and collapses to nothing under reduced motion (the card
+  // controller jumps straight to 1.0, so no travel is ever painted).
+  final GlobalKey _doorKey = GlobalKey(debugLabel: 'arrival-door');
+  final GlobalKey _slotKey = GlobalKey(debugLabel: 'stays-slot');
 
   @override
   void didChangeDependencies() {
@@ -94,6 +103,12 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
           context, MotionTokens.emphasized),
     );
     _card.addStatusListener((status) {
+      // The flight path is measured ONCE, when the card sets off: the door
+      // stage and the stays slot are settled boxes from the previous frame
+      // by then, so their global centres are valid without any timers.
+      if (status == AnimationStatus.forward && _flight == null) {
+        _flight = _flightVector();
+      }
       if (status == AnimationStatus.completed && !_committed) {
         _committed = true;
         AzamanHaptics.commit();
@@ -173,6 +188,7 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
 
   Widget _doorStage(AzamanColors colors) {
     return SizedBox(
+      key: _doorKey,
       height: 176,
       child: Stack(
         alignment: Alignment.center,
@@ -278,6 +294,25 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
     );
   }
 
+  /// Vector from the card's rest position (inside the stays slot) back to
+  /// the door stage where it is born. Translating by this amount at flight
+  /// start places the card at the doorway; interpolating it to zero on
+  /// kPopSpring carries it down into the slot. Both anchors are plain
+  /// untransformed boxes (the door STAGE, not the perspective-rotated door
+  /// panel), measured once at card start from the previous frame's settled
+  /// layout — no timers, no repeating tickers.
+  Offset _flightVector() {
+    final doorBox = _doorKey.currentContext?.findRenderObject();
+    final slotBox = _slotKey.currentContext?.findRenderObject();
+    if (doorBox is! RenderBox || slotBox is! RenderBox) return Offset.zero;
+    if (!doorBox.attached || !slotBox.attached) return Offset.zero;
+    final doorCentre = doorBox
+        .localToGlobal(doorBox.size.center(Offset.zero));
+    final slotCentre = slotBox
+        .localToGlobal(slotBox.size.center(Offset.zero));
+    return doorCentre - slotCentre;
+  }
+
   Widget _staysSlot(AzamanColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,6 +321,7 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
             style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
         const SizedBox(height: AzSpace.sm),
         Container(
+          key: _slotKey,
           width: double.infinity,
           padding: const EdgeInsets.all(AzSpace.md),
           decoration: BoxDecoration(
@@ -298,13 +334,23 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
             child: AnimatedBuilder(
               animation: _card,
               builder: (context, child) {
-                // The named key-card materialisation primitive from the liquid engine —
-// the planning source specifies kPopSpring here, not a substituted curve.
-final pop = kPopSpring.transform(_card.value);
-                return Opacity(
-                  opacity: _card.value.clamp(0.0, 1.0).toDouble(),
-                  child:
-                      Transform.scale(scale: 0.6 + 0.4 * pop, child: child),
+                // The named key-card motion primitive from the liquid engine —
+                // the planning source specifies kPopSpring here, not a
+                // substituted curve. The spring drives BOTH the pop scale and
+                // the flight: at t=0 the card sits at the doorway; as the
+                // spring settles the travel vector eases to zero, leaving the
+                // card resting inside the YOUR STAYS slot.
+                final pop = kPopSpring.transform(_card.value);
+                final flight = (_card.value >= 1 || _flight == null)
+                    ? Offset.zero
+                    : _flight! * (1 - pop);
+                return Transform.translate(
+                  offset: flight,
+                  child: Opacity(
+                    opacity: _card.value.clamp(0.0, 1.0).toDouble(),
+                    child:
+                        Transform.scale(scale: 0.6 + 0.4 * pop, child: child),
+                  ),
                 );
               },
               child: _keyCard(colors),
