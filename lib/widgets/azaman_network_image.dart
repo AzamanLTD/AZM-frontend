@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 
 /// Drop-in replacement for CachedNetworkImage that ALWAYS constrains decode
 /// resolution to the actual display size. This is the single biggest image
@@ -10,7 +13,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 /// When [width]/[height] are provided, they're used to compute memCacheWidth/
 /// memCacheHeight (× devicePixelRatio). When not provided, LayoutBuilder
 /// reads parent constraints at runtime.
-class AzamanNetworkImage extends StatelessWidget {
+///
+/// Placeholder and fallback read AzamanColors from the live theme, never M3
+/// fallback roles, so a failed load can never leak framework lavender.
+class AzamanNetworkImage extends ConsumerWidget {
   final String? imageUrl;
   final double? width;
   final double? height;
@@ -31,9 +37,10 @@ class AzamanNetworkImage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
     if (width != null && height != null) {
-      return _buildImage(context, width!, height!);
+      return _buildImage(context, colors, width!, height!);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -41,19 +48,24 @@ class AzamanNetworkImage extends StatelessWidget {
         final h = height ?? constraints.maxHeight;
         final resolvedW = w.isFinite ? w : 400.0;
         final resolvedH = h.isFinite ? h : 400.0;
-        return _buildImage(context, resolvedW, resolvedH);
+        return _buildImage(context, colors, resolvedW, resolvedH);
       },
     );
   }
 
-  Widget _buildImage(BuildContext context, double w, double h) {
+  Widget _buildImage(
+    BuildContext context,
+    AzamanColors colors,
+    double w,
+    double h,
+  ) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final targetW = (w * dpr).round();
     final targetH = (h * dpr).round();
 
     Widget image;
     if (imageUrl == null || imageUrl!.isEmpty) {
-      image = _fallback(context, w, h);
+      image = _fallback(colors, w, h);
     } else {
       image = CachedNetworkImage(
         imageUrl: imageUrl!,
@@ -62,9 +74,9 @@ class AzamanNetworkImage extends StatelessWidget {
         fit: fit,
         memCacheWidth: targetW,
         memCacheHeight: targetH,
-        fadeInDuration: const Duration(milliseconds: 200),
-        placeholder: placeholder ?? (_, __) => _shimmer(context, w, h),
-        errorWidget: errorWidget ?? (_, __, ___) => _fallback(context, w, h),
+        fadeInDuration: MotionTokens.control,
+        placeholder: placeholder ?? (_, __) => _shimmerBlock(colors, w, h),
+        errorWidget: errorWidget ?? (_, __, ___) => _fallback(colors, w, h),
       );
     }
 
@@ -73,27 +85,20 @@ class AzamanNetworkImage extends StatelessWidget {
         : image;
   }
 
-  Widget _shimmer(BuildContext context, double w, double h) => Container(
+  Widget _shimmerBlock(AzamanColors colors, double w, double h) => Container(
         width: width ?? w,
         height: height ?? h,
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withValues(alpha: 0.3),
+        color: colors.softSurface,
       );
 
-  Widget _fallback(BuildContext context, double w, double h) => Container(
+  Widget _fallback(AzamanColors colors, double w, double h) => Container(
         width: width ?? w,
         height: height ?? h,
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withValues(alpha: 0.3),
+        color: colors.softSurface,
         child: Icon(
           Icons.image_outlined,
           size: (w * 0.35).clamp(16.0, 48.0),
-          color:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
+          color: colors.textTertiary,
         ),
       );
 }
