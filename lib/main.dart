@@ -18,18 +18,21 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/withdrawal_screen.dart';
+import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/widgets/home/plus_action_launcher.dart';
+import 'package:azaman/widgets/nav_transitions.dart'
+    as nav_transitions_pkg;
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
-import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/router/app_router.dart';
 import 'package:azaman/router/route_depth.dart';
 
 import 'package:azaman/providers/auth_provider.dart' as auth_pkg;
-import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
 import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
@@ -289,8 +292,10 @@ class AzamanApp extends ConsumerWidget {
 // unusable region at any screen size.
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// The Market tab's index in the shell (Home 0 · Chat 1 · P2P 2 · Market 3).
-const int kMarketTabIndex = 3;
+/// The Marketplace tab's index in the shell (Home 0 · Chat 1 · Marketplace 2)
+/// — NEW-HOME §15: P2P left the primary nav; it is reachable via the Home
+/// P2P module and its canonical routes.
+const int kMarketTabIndex = 2;
 
 /// The launcher's five targets — exactly the wires TASK-011's launch allowlist
 /// guards (`MarketplaceHomeScreen._launchableCategoryWires`), so a launcher
@@ -483,7 +488,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     super.initState();
     _shellSocketService = ref.read(socketServiceProvider);
 
-    _pages = [const AzamanHomePage(), null, null, null];
+    _pages = [const AzamanHomePage(), null, null];
 
     _transitionCtrl = AnimationController(
       vsync: this,
@@ -509,8 +514,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       case 1:
         return const FriendsHubScreen();
       case 2:
-        return const P2PMarketplaceScreen();
-      case 3:
         return const MarketplaceHomeScreen();
       default:
         return const AzamanHomePage();
@@ -799,11 +802,44 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               ),
               child: const SizedBox.expand(),
             ),
-            if (_displayedIndex == 2 &&
-                ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
-              const VendorPullTab(),
             DrawerPeekHint(
               onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
+            ),
+            // NEW-HOME §8: the floating + action launcher, topmost in the
+            // shell stack. It means "things I can DO" (Recent Activity is
+            // "things that HAPPENED"). The + sits beside the bottom nav;
+            // opening de-emphasizes the content and the actions appear
+            // directly on screen — never inside a boxed modal.
+            Positioned.fill(
+              child: PlusActionLauncher(
+                actions: [
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.moneySend01,
+                    label: 'Send',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context, const SendMoneyScreen()),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.moneyReceiveFlow01,
+                    label: 'Receive',
+                    onTap: () => showReceiveSheet(context),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.wallet01,
+                    label: 'Add Cash',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context,
+                        const DepositScreen(
+                            initialTab: DepositTab.fiat)),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.bank,
+                    label: 'Withdraw',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context, const WithdrawalScreen()),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

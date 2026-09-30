@@ -131,8 +131,8 @@ void main() {
     expect(marketFinder, findsNothing);
     expect(_budgetOf(tester, homeFinder).enabled, isTrue);
 
-    // Navigate Home -> Marketplace (tab 3).
-    _select(tester, 3);
+    // Navigate Home -> Marketplace (tab 2 — NEW-HOME's 3-tab shell).
+    _select(tester, 2);
     // First frame of the transition: both pages exist, both budgets ON.
     await tester.pump(const Duration(milliseconds: 40));
     expect(homeFinder, findsOneWidget);

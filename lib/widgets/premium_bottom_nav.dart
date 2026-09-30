@@ -1,7 +1,9 @@
 // =============================================================================
-// AZAMAN — 4-Tab Adaptive Bottom Navigation with Per-Tab Badges
+// AZAMAN — 3-Tab Adaptive Bottom Navigation with Per-Tab Badges
 //
-// Tabs: Home · Chat · P2P · Market
+// Tabs: Home · Chat · Marketplace  (NEW-HOME §15: P2P is no longer a
+// permanent primary destination — it lives behind the Home P2P module and
+// its canonical routes.)
 // Each tab shows a live badge (unread counts, active trades, vault goals, etc.)
 // The nav is a floating glass pill that adapts to safe-area.
 //
@@ -129,14 +131,9 @@ const _kNavItems = [
     label: 'Chat',
   ),
   _NavItem(
-    icon: HugeIconsStroke.creditCard,
-    activeIcon: HugeIconsSolid.creditCard,
-    label: 'P2P',
-  ),
-  _NavItem(
     icon: HugeIconsStroke.store01,
     activeIcon: HugeIconsSolid.store01,
-    label: 'Market',
+    label: 'Marketplace',
   ),
 ];
 
@@ -394,24 +391,8 @@ class _NavButton extends StatelessWidget {
       );
     }
 
-    // Tab 2 (P2P) — active trade count (dot indicator)
+    // Tab 2 (Marketplace) — notification count for marketplace orders
     if (index == 2) {
-      return Consumer(
-        builder: (_, ref, child) {
-          final c = ref.watch(activeTradeCountProvider).value ?? 0;
-          return _BadgeStack(
-            icon: child!,
-            count: c,
-            showNumber: false,
-            color: colors,
-          );
-        },
-        child: icon,
-      );
-    }
-
-    // Tab 3 (Market) — notification count for marketplace orders
-    if (index == 3) {
       return Consumer(
         builder: (_, ref, child) {
           final c = ref.watch(unreadCountProvider);

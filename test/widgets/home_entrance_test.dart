@@ -30,9 +30,10 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/widgets/flippable_balance_card.dart';
-import 'package:azaman/widgets/live_market_section.dart';
-import 'package:azaman/widgets/recent_activity_section.dart';
+import 'package:azaman/widgets/home/az_typewriter_heading.dart';
+import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
+import 'package:azaman/widgets/home/wallet_modules.dart';
+import 'package:azaman/widgets/home/activity_doorway.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/material.dart';
@@ -151,22 +152,17 @@ bool _hasNonIdentityScale(WidgetTester tester, Finder anchor) {
 }
 
 // Content anchors, one per choreographed block (see the block map in
-// home_screen.dart's _stage). Block 4 (susu) renders nothing under its
-// stub-failure state and block 1 is the only text on the page.
+// home_screen.dart's _stage — NEW-HOME's five-block composition). Block 1's
+// anchor is the heading WIDGET, not its text: the typewriter types its
+// message after the first frame, so the text is deliberately empty at t=0.
 Finder get _headerGift => find.byIcon(HugeIconsSolid.gift); // block 0
-// Block 1's text is now the NEW-D greeting ("Good <morning|afternoon|
-// evening>, <name|there>"), so the anchor matches any part of day.
-Finder get _title =>
-    find.textContaining(RegExp('Good (morning|afternoon|evening)')); // block 1
-Finder get _addMoneyPill => find.byIcon(HugeIconsSolid.plusSign); // block 2
-Finder get _heroCard =>
-    find.byType(FlippableBalanceCard); // block 3
-Finder get _activity =>
-    find.byType(RecentActivitySection); // block 5
-Finder get _market => find.byType(LiveMarketSection); // block 6
+Finder get _heading => find.byType(AzTypewriterHeading); // block 1
+Finder get _deck => find.byType(PullRevealCardDeck); // block 2
+Finder get _modules => find.byType(WalletModulesRow); // block 3
+Finder get _doorway => find.byType(RecentActivityDoorway); // block 4
 
 List<Finder> get _anchors =>
-    [_headerGift, _title, _addMoneyPill, _heroCard, _activity, _market];
+    [_headerGift, _heading, _deck, _modules, _doorway];
 
 void main() {
   testWidgets(
@@ -213,8 +209,8 @@ void main() {
   });
 
   testWidgets(
-      'entrance direction: header from the left, rail from the right, '
-      'pills from below', (tester) async {
+      'entrance direction: identity blocks from the left, wallet body '
+      'from below', (tester) async {
     await _pumpHome(tester);
 
     // First frame: every block sits exactly at its begin offset.
@@ -223,17 +219,27 @@ void main() {
     expect(header, isNotEmpty, reason: 'header block has no entrance slide');
     expect(header.first.position.value.dx, lessThan(0));
 
-    // The rail travels from the RIGHT: positive x, opposite the header —
-    // the deck is slid in, not dropped.
-    final rail = _ancestorSlides(tester, _heroCard);
-    expect(rail, isNotEmpty, reason: 'balance rail has no entrance slide');
-    expect(rail.first.position.value.dx, greaterThan(0));
+    // The typewriter heading travels from the LEFT too: the identity pair
+    // (header + heading) arrives as one camera move.
+    final heading = _ancestorSlides(tester, _heading);
+    expect(heading, isNotEmpty, reason: 'heading block has no entrance slide');
+    expect(heading.first.position.value.dx, lessThan(0));
 
-    // The action pills rise from BELOW: positive y (the nearest ancestor
-    // is the per-pill slide, which shares the block's direction).
-    final pill = _ancestorSlides(tester, _addMoneyPill);
-    expect(pill, isNotEmpty, reason: 'action pill has no entrance slide');
-    expect(pill.first.position.value.dy, greaterThan(0));
+    // The card deck rises from BELOW: positive y (block 2 and beyond
+    // compose the wallet body rising into place).
+    final deck = _ancestorSlides(tester, _deck);
+    expect(deck, isNotEmpty, reason: 'card deck has no entrance slide');
+    expect(deck.first.position.value.dy, greaterThan(0));
+
+    // The modules and the doorway rise from BELOW as well.
+    final modules = _ancestorSlides(tester, _modules);
+    expect(modules, isNotEmpty,
+        reason: 'wallet modules have no entrance slide');
+    expect(modules.first.position.value.dy, greaterThan(0));
+    final doorway = _ancestorSlides(tester, _doorway);
+    expect(doorway, isNotEmpty,
+        reason: 'activity doorway has no entrance slide');
+    expect(doorway.first.position.value.dy, greaterThan(0));
 
     // Let the entrance play out without waiting for the never-settling
     // bell pulse (see the note in the completion test).

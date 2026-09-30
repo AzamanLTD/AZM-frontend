@@ -110,6 +110,16 @@ class TransactionSummary {
   final String symbol;
   final DateTime? createdAt;
 
+  /// NEW-HOME §13: the backend's own transaction kind (e.g. DEPOSIT_FIAT,
+  /// SUSU_CONTRIBUTION). Explicit action semantics read from THIS — never
+  /// from the display title.
+  final String rawType;
+
+  /// Structured reference id for a related entity (e.g. a trade id), when
+  /// the wallet history payload carries one. Used by typed activity
+  /// actions; null means the action safely falls back to details.
+  final String? reference;
+
   const TransactionSummary({
     required this.id,
     required this.title,
@@ -118,6 +128,8 @@ class TransactionSummary {
     required this.status,
     required this.symbol,
     required this.createdAt,
+    this.rawType = '',
+    this.reference,
   });
 }
 
@@ -447,6 +459,10 @@ class HomeSummaryService {
       title = isCredit ? 'Money in' : 'Money out';
     }
 
+    final ref = w['reference'] ??
+        w['tradeId'] ??
+        w['relatedId'] ??
+        w['susuId'];
     return TransactionSummary(
       id: w['id']?.toString() ?? '',
       title: title,
@@ -455,6 +471,8 @@ class HomeSummaryService {
       status: (w['status']?.toString() ?? 'UNKNOWN').toUpperCase(),
       symbol: (w['currency'] ?? w['crypto'] ?? 'USDC').toString().toUpperCase(),
       createdAt: _asDate(w['createdAt']),
+      rawType: type,
+      reference: ref == null ? null : ref.toString(),
     );
   }
 

@@ -66,7 +66,7 @@ Future<void> _pumpNav(
   );
 }
 
-const _labels = ['Home', 'Chat', 'P2P', 'Market'];
+const _labels = ['Home', 'Chat', 'Marketplace'];
 
 void main() {
   setUp(() {
@@ -84,7 +84,7 @@ void main() {
       for (var i = 0; i < _labels.length; i++) {
         await tester.longPress(find.text(_labels[i]));
       }
-      expect(longPresses, [0, 1, 2, 3]);
+      expect(longPresses, [0, 1, 2]);
       expect(selections, isEmpty);
     });
 
@@ -95,7 +95,7 @@ void main() {
       for (final label in _labels) {
         await tester.longPress(find.text(label));
       }
-      expect(longPresses, [0, 1, 2, 3]);
+      expect(longPresses, [0, 1, 2]);
       expect(
         selections,
         isEmpty,
@@ -109,10 +109,10 @@ void main() {
       final longPresses = <int>[];
       final selections = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
-      await tester.longPress(find.text('Market'));
-      await tester.longPress(find.text('Market'));
-      await tester.longPress(find.text('Market'));
-      expect(longPresses, [3, 3, 3]);
+      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.text('Marketplace'));
+      expect(longPresses, [2, 2, 2]);
       expect(selections, isEmpty);
     });
 
@@ -122,12 +122,12 @@ void main() {
       final selections = <int>[];
       await _pumpNav(
         tester,
-        selectedIndex: 3,
+        selectedIndex: 2,
         selections: selections,
         longPresses: longPresses,
       );
-      await tester.longPress(find.text('Market'));
-      expect(longPresses, [3]);
+      await tester.longPress(find.text('Marketplace'));
+      expect(longPresses, [2]);
     });
 
     testWidgets('reduced motion does not change the callback contract', (
@@ -141,8 +141,8 @@ void main() {
         longPresses: longPresses,
         reduceMotion: true,
       );
-      await tester.longPress(find.text('Market'));
-      expect(longPresses, [3]);
+      await tester.longPress(find.text('Marketplace'));
+      expect(longPresses, [2]);
     });
   });
 
@@ -154,9 +154,8 @@ void main() {
       final longPresses = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
       await tester.tap(find.text('Chat'));
-      await tester.tap(find.text('P2P'));
-      await tester.tap(find.text('Market'));
-      expect(selections, [1, 2, 3]);
+      await tester.tap(find.text('Marketplace'));
+      expect(selections, [1, 2]);
       expect(longPresses, isEmpty);
     });
 
@@ -167,11 +166,11 @@ void main() {
       final longPresses = <int>[];
       await _pumpNav(
         tester,
-        selectedIndex: 3,
+        selectedIndex: 2,
         selections: selections,
         longPresses: longPresses,
       );
-      await tester.tap(find.text('Market'));
+      await tester.tap(find.text('Marketplace'));
       expect(
         selections,
         isEmpty,
@@ -192,7 +191,7 @@ void main() {
       // deadline: the gesture arena must resolve to neither a long press nor
       // a tap — no callback, no navigation, nothing left half-open.
       final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Market')),
+        tester.getCenter(find.text('Marketplace')),
       );
       await tester.pump(const Duration(milliseconds: 120));
       await gesture.moveBy(const Offset(0, 120));
@@ -211,8 +210,8 @@ void main() {
       // plain tap behaviour — nothing crashes, nothing double-fires.
       final selections = <int>[];
       await _pumpNav(tester, selections: selections);
-      await tester.longPress(find.text('Market'));
-      expect(selections, [3]);
+      await tester.longPress(find.text('Marketplace'));
+      expect(selections, [2]);
     });
   });
 }
