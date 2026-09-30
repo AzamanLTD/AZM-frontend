@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/message_action_service.dart';
+import 'package:azaman/widgets/az_avatar.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class StarredMessagesScreen extends ConsumerStatefulWidget {
@@ -117,9 +118,10 @@ class _StarredItem extends StatelessWidget {
     final isMedia = messageType != 'TEXT' || mediaUrl != null;
 
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        child: Text(senderName.isNotEmpty ? senderName[0].toUpperCase() : '?'),
+      leading: AzAvatar(
+        circular: true,
+        name: senderName,
+        size: 40,
       ),
       title: Row(
         children: [
