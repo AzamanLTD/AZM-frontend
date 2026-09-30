@@ -474,11 +474,10 @@ class _RetailProductCardState extends ConsumerState<RetailProductCard> {
                 child: image == null
                     ? _desaturateWhenUnavailable(const _RetailImageFallback())
                     : _desaturateWhenUnavailable(
-                        Image.network(
-                          image,
-                          width: double.infinity,
+                        AzamanNetworkImage(
+                          imageUrl: image,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
+                          errorWidget: (_, __, ___) =>
                               const _RetailImageFallback(),
                         ),
                       ),
