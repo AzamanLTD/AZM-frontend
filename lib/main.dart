@@ -47,6 +47,7 @@ import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_vertical_accent.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_motion.dart';
@@ -205,10 +206,22 @@ class AzamanApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // TASK-025: the shell resolves the theme through the active accent —
+    // a Marketplace vertical's session accent while one is active, otherwise
+    // the user's saved identity. Applied HERE (not per-screen) so nav,
+    // sheets, Material framework widgets and the status bar all follow the
+    // same accent; leaving the vertical clears the override and the saved
+    // identity returns automatically.
+    final vertical = ref.watch(verticalAccentProvider);
     final themeData = ref.watch(
-      theme_pkg.themeProvider.select((t) => t.themeData),
+      theme_pkg.themeProvider.select(
+        (t) => theme_pkg.ThemeProvider.getThemeData(
+          t.currentTheme,
+          accent: vertical ?? t.accent,
+        ),
+      ),
     );
-    final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
+    final colors = ref.watch(resolvedAzamanColorsProvider);
 
     // TASK-026: eager root watch. SensoryProvider's async _load() runs at app
     // startup, so a force-quit/relaunch restores persisted sensory values

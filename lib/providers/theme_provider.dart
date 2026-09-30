@@ -10,10 +10,20 @@ import 'package:azaman/utils/azaman_page_transitions.dart';
 
 
 // ============================================================
-// AZAMAN THEME ENGINE — V3 (Immersive Planetary Themes)
+// AZAMAN THEME ENGINE — V5
 //
-// 11 distinct visual identities that transform the ENTIRE app.
-// Each theme defines colors, glow effects, card styles, and mood.
+// Two brightnesses (light / dark) × four accent identities
+// (gold / teal / indigo / rose). The SURFACE ladder is shared by
+// all eight combinations; only the accent family changes. That is
+// deliberate: a user picking an identity must never get a
+// different contrast contract, and no screen needs eight sets of
+// visual QA.
+//
+// TASK-025 also lets a Marketplace vertical borrow the accent for
+// the duration of a session (see AzVerticalAccentScope), so being
+// in Restaurants looks different from being in Hotels without the
+// user managing another theme.
+//
 // Persists across app restarts via SharedPreferences.
 // ============================================================
 
@@ -27,8 +37,80 @@ enum AzamanTheme {
   dark,
 }
 
+/// The four accent identities. Surfaces never change; only the accent family does.
+enum AzAccent { gold, teal, indigo, rose }
+
+/// One accent family in both brightnesses.
+///
+/// `onAccent` is part of the contract, not an afterthought: gold on white needs
+/// dark ink, indigo on black needs white ink. Getting this wrong is how a "theme
+/// picker" ships unreadable buttons.
+class AzAccentFamily {
+  final AzAccent id;
+  final Color lightAccent;
+  final Color lightOnAccent;
+  final Color lightSecondary;
+  final Color darkAccent;
+  final Color darkOnAccent;
+  final Color darkSecondary;
+
+  const AzAccentFamily({
+    required this.id,
+    required this.lightAccent,
+    required this.lightOnAccent,
+    required this.lightSecondary,
+    required this.darkAccent,
+    required this.darkOnAccent,
+    required this.darkSecondary,
+  });
+
+  Color accentFor(bool isDark) => isDark ? darkAccent : lightAccent;
+  Color onAccentFor(bool isDark) => isDark ? darkOnAccent : lightOnAccent;
+  Color secondaryFor(bool isDark) => isDark ? darkSecondary : lightSecondary;
+
+  static const Map<AzAccent, AzAccentFamily> all = {
+    AzAccent.gold: AzAccentFamily(
+      id: AzAccent.gold,
+      lightAccent: Color(0xFFB8860B),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF8B6914),
+      darkAccent: Color(0xFFE0AE3A),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFFF59E0B),
+    ),
+    AzAccent.teal: AzAccentFamily(
+      id: AzAccent.teal,
+      lightAccent: Color(0xFF0E7C7B),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF0F766E),
+      darkAccent: Color(0xFF2DD4BF),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFF5EEAD4),
+    ),
+    AzAccent.indigo: AzAccentFamily(
+      id: AzAccent.indigo,
+      lightAccent: Color(0xFF4338CA),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF3730A3),
+      darkAccent: Color(0xFF8B9BFF),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFFA5B4FC),
+    ),
+    AzAccent.rose: AzAccentFamily(
+      id: AzAccent.rose,
+      lightAccent: Color(0xFFBE123C),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF9F1239),
+      darkAccent: Color(0xFFFB7185),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFFFDA4AF),
+    ),
+  };
+}
+
 class ThemeProvider with ChangeNotifier {
   AzamanTheme _currentTheme = AzamanTheme.light;
+  AzAccent _accent = AzAccent.gold;
   bool _isLoaded = false;
 
   /// Set in [dispose]. Async work started in the constructor (SharedPreferences
@@ -37,6 +119,7 @@ class ThemeProvider with ChangeNotifier {
   bool _isDisposed = false;
 
   AzamanTheme get currentTheme => _currentTheme;
+  AzAccent get accent => _accent;
   bool get isLoaded => _isLoaded;
 
   /// Backwards-compat shim — older call sites read `resolvedTheme` to
@@ -61,9 +144,34 @@ class ThemeProvider with ChangeNotifier {
     } else {
       _currentTheme = AzamanTheme.light;
     }
+    // TASK-025: load the persisted accent identity (azaman_accent).
+    // Invalid/missing/out-of-range values must safely fall back to gold —
+    // the picker's default identity.
+    final savedAccentIndex = prefs.getInt('azaman_accent');
+    if (savedAccentIndex != null &&
+        savedAccentIndex >= 0 &&
+        savedAccentIndex < AzAccent.values.length) {
+      _accent = AzAccent.values[savedAccentIndex];
+    } else {
+      _accent = AzAccent.gold;
+    }
     _isLoaded = true;
     if (_isDisposed) return;
     notifyListeners();
+  }
+
+  /// TASK-025: choose the accent identity (gold / teal / indigo / rose).
+  ///
+  /// Local-only persistence — the accent is NOT backend-synced: the theme
+  /// sync already covers cross-device feel, and an accent flip must never
+  /// wait on (or fail because of) a network round-trip. Opening a vertical
+  /// never touches this value either; vertical borrows are session-only.
+  Future<void> setAccent(AzAccent accent) async {
+    _accent = accent;
+    if (_isDisposed) return;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('azaman_accent', accent.index);
   }
 
   @override
@@ -162,15 +270,25 @@ class ThemeProvider with ChangeNotifier {
   }
 
   // --- QUICK ACCESSORS FOR WIDGETS ---
-  ThemeData get themeData => getThemeData(_currentTheme);
-  AzamanColors get colors => getColors(_currentTheme);
+  //
+  // Accent-aware: every instance consumer (shell, widgets, settings) sees
+  // the user's selected identity. The STATIC getThemeData(theme) /
+  // getColors(theme) remain the historical baseline so existing callers and
+  // the TASK-004 permanent guard keep their exact visuals.
+  ThemeData get themeData => getThemeData(_currentTheme, accent: _accent);
+  AzamanColors get colors => getColors(_currentTheme).withAccent(_accent);
 
   // ============================================================
   // THEME DEFINITIONS
   // ============================================================
 
-  static ThemeData getThemeData(AzamanTheme theme) {
-    final c = getColors(theme);
+  /// TASK-025: `accent == null` (every pre-existing static call) keeps the
+  /// historical visual identity per theme — light gold / dark teal — so
+  /// `test/theme/theme_provider_test.dart` and all static callers keep their
+  /// exact current visuals. Passing an explicit [accent] resolves it through
+  /// the accent family. The INSTANCE getters always pass the user's accent.
+  static ThemeData getThemeData(AzamanTheme theme, {AzAccent? accent}) {
+    final c = accent == null ? getColors(theme) : getColors(theme).withAccent(accent);
     // Derived once and threaded through both ThemeData and its ColorScheme so
     // the two can never disagree about which mode the palette is in.
     final brightness = brightnessOf(c);
@@ -533,6 +651,45 @@ class AzamanColors {
   Color get commentPrimary => textPrimary;
   Color get commentSecondary => textSecondary;
   Color get commentTertiary => textTertiary;
+
+  /// TASK-025: ink that stays readable on the active accent. Part of the
+  /// accent contract, not an afterthought — gold on white needs dark ink,
+  /// indigo on black needs white ink.
+  Color get onAccent => isDark ? Colors.black : Colors.white;
+
+  /// TASK-025: the same surface ladder with a different accent family.
+  ///
+  /// Purely additive: the constructor is untouched, and every non-accent
+  /// field (surfaces, semantic colours, text ladder, borders) is carried
+  /// over unchanged. Only `accent`, `accentSecondary`, `accentSurface` and
+  /// `glow` change — exactly the fields an identity owns.
+  AzamanColors withAccent(AzAccent accent) {
+    final family =
+        AzAccentFamily.all[accent] ?? AzAccentFamily.all[AzAccent.gold]!;
+    final nextAccent = family.accentFor(isDark);
+    return AzamanColors(
+      isDark: isDark,
+      name: '$name · ${accent.name}',
+      icon: icon,
+      background: background,
+      surface: surface,
+      card: card,
+      softSurface: softSurface,
+      divider: divider,
+      accent: nextAccent,
+      accentSecondary: family.secondaryFor(isDark),
+      accentSurface: nextAccent.withValues(alpha: 0.10),
+      success: success,
+      danger: danger,
+      warning: warning,
+      textPrimary: textPrimary,
+      textSecondary: textSecondary,
+      textTertiary: textTertiary,
+      glow: nextAccent,
+      scaffoldBackground: scaffoldBackground,
+      border: border,
+    );
+  }
 }
 
 
