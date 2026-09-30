@@ -31,8 +31,9 @@ void main() {
 
         async.elapse(const Duration(milliseconds: 44));
         expect(m.shownText, 'Hey');
-        expect(m.phase, TypewriterPhase.idle,
-            reason: 'typing completes and the message holds');
+        expect(m.phase, TypewriterPhase.holding,
+            reason: 'typing completes and the message HOLDS — the hold is '
+                'a real phase that owns the rotation timer');
         m.dispose();
       });
     });
@@ -62,8 +63,9 @@ void main() {
         expect(m.shownText, 'Same');
 
         m.showMessage('Same');
-        expect(m.phase, TypewriterPhase.idle,
-            reason: 'identical text must not restart the grammar');
+        expect(m.phase, TypewriterPhase.holding,
+            reason: 'identical text must not restart the grammar — the '
+                'current hold carries on undisturbed');
         expect(m.shownText, 'Same');
         async.elapse(const Duration(seconds: 1));
         expect(m.shownText, 'Same');
@@ -90,7 +92,9 @@ void main() {
       fakeAsync((async) {
         final m = TypewriterMachine()..showImmediately('Instant');
         expect(m.shownText, 'Instant');
-        expect(m.phase, TypewriterPhase.idle);
+        expect(m.phase, TypewriterPhase.holding,
+            reason: 'reduced motion skips the traversal, not the hold '
+                'cycle');
         async.elapse(const Duration(seconds: 1));
         expect(m.shownText, 'Instant');
         m.dispose();
