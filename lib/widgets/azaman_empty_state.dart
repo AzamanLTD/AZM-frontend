@@ -8,7 +8,7 @@ import 'package:azaman/providers/theme_provider.dart';
 //
 // Provides a consistent, premium empty-state experience across all screens.
 // Replaces the 6+ inconsistent private _buildEmptyState() methods scattered
-// throughout the app (admin_war_room, vendor_dashboard, friend_chat,
+// throughout the app (vendor_dashboard, friend_chat,
 // marketplace, leaderboard, azm_rewards, etc.).
 //
 // Usage:

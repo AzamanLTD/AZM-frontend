@@ -558,12 +558,6 @@ class _NotificationHubScreenState
         deepLink('/marketplace');
         break;
 
-      // ── Admin war room ──────────────────────────────────────────────────
-      case 'OPEN_WAR_ROOM':
-        // Admin screen is imperative nav, not a GoRoute.
-        // Silently no-op for now (admin notifications are informational).
-        break;
-
       // ── Fallback: try legacy payload keys (backwards compat) ────────────
       default:
         // Legacy: some older notifications used flat tradeId/disputeId keys

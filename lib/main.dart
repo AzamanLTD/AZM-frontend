@@ -514,6 +514,20 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     }
   }
 
+  /// Ticker budget (milestone 2026-09-30): only the page participating in
+  /// the current transition keeps its tickers enabled. Once navigation
+  /// settles (_displayedIndex == _selectedIndex), exactly one page is
+  /// ticker-enabled — every previously-visited, still-mounted page stops
+  /// consuming animation cycles. Page state is preserved (nothing unmounts)
+  /// and no new navigation state is introduced.
+  Widget _withPageTickerBudget(int index, Widget child) {
+    final enabled = index == _selectedIndex || index == _displayedIndex;
+    return TickerMode(
+      enabled: enabled,
+      child: child,
+    );
+  }
+
   /// Incoming page: 6% inset slide + fade in.
   Widget _buildIncoming(int index) {
     final incoming = _selectedIndex != _displayedIndex;
@@ -551,12 +565,21 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   @override
   void dispose() {
+    // `ref` is unusable once the element is disposed (riverpod asserts).
+    // Deregister the shell's socket callbacks in deactivate() — the last
+    // lifecycle point where ref.read is legal — and keep dispose() for
+    // controller teardown only.
+    _transitionCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
     final socketService = ref.read(socketServiceProvider);
     socketService.removeNewTradeRequestListener();
     socketService.removeBizNotificationListener();
     socketService.removeBizNotificationsUpdatedListener();
-    _transitionCtrl.dispose();
-    super.dispose();
   }
 
   void _initPostFrameStartup() {
@@ -733,9 +756,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 children: [
                   for (var index = 0; index < _pages.length; index++)
                     if (_pages[index] != null && index != _selectedIndex)
-                      _buildOutgoing(index),
+                      _withPageTickerBudget(
+                          index, _buildOutgoing(index)),
                   if (_pages[_selectedIndex] != null)
-                    _buildIncoming(_selectedIndex),
+                    _withPageTickerBudget(
+                      _selectedIndex,
+                      _buildIncoming(_selectedIndex),
+                    ),
                 ],
               ),
               child: const SizedBox.expand(),
