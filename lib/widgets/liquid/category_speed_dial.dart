@@ -10,7 +10,11 @@ class CategoryDialItem {
   final String? wire;
   final IconData icon;
   final String label;
-  const CategoryDialItem({required this.wire, required this.icon, required this.label});
+  const CategoryDialItem({
+    required this.wire,
+    required this.icon,
+    required this.label,
+  });
 }
 
 const double _pillHeight = kLiquidMinTapTarget; // 44, was 38
@@ -29,7 +33,12 @@ const double _satIconSize = 15;
 const double _satLabelFS = 12;
 
 /// Real measurement — no character counting, honours the user's text scale.
-Size measurePill(String label, TextStyle style, TextScaler scaler, TextDirection dir) {
+Size measurePill(
+  String label,
+  TextStyle style,
+  TextScaler scaler,
+  TextDirection dir,
+) {
   final tp = TextPainter(
     text: TextSpan(text: label, style: style),
     textDirection: dir,
@@ -39,7 +48,12 @@ Size measurePill(String label, TextStyle style, TextScaler scaler, TextDirection
 }
 
 /// Same idea as [measurePill] but sized for satellites.
-Size measureSatellitePill(String label, TextStyle style, TextScaler scaler, TextDirection dir) {
+Size measureSatellitePill(
+  String label,
+  TextStyle style,
+  TextScaler scaler,
+  TextDirection dir,
+) {
   final tp = TextPainter(
     text: TextSpan(text: label, style: style),
     textDirection: dir,
@@ -110,10 +124,13 @@ List<ArcSlot> solveRadialFan({
       width: sizes[i].width,
       height: sizes[i].height,
     );
-    if (rect.left < safe.left) rect = rect.shift(Offset(safe.left - rect.left, 0));
-    if (rect.right > safe.right) rect = rect.shift(Offset(safe.right - rect.right, 0));
+    if (rect.left < safe.left)
+      rect = rect.shift(Offset(safe.left - rect.left, 0));
+    if (rect.right > safe.right)
+      rect = rect.shift(Offset(safe.right - rect.right, 0));
     if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-    if (rect.bottom > safe.bottom) rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+    if (rect.bottom > safe.bottom)
+      rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
     slots.add(ArcSlot(index: i, rect: rect, angle: rad));
   }
   return slots;
@@ -148,12 +165,13 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
   OverlayEntry? _entry;
   LiquidPhase _phase = LiquidPhase.closed;
 
-  bool get _isOpen => _phase == LiquidPhase.open || _phase == LiquidPhase.opening;
+  bool get _isOpen =>
+      _phase == LiquidPhase.open || _phase == LiquidPhase.opening;
 
   CategoryDialItem get _current => widget.categories.firstWhere(
-        (c) => c.wire == widget.selectedWire,
-        orElse: () => widget.categories.first,
-      );
+    (c) => c.wire == widget.selectedWire,
+    orElse: () => widget.categories.first,
+  );
 
   @override
   void dispose() {
@@ -164,18 +182,18 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
   }
 
   TextStyle get _labelStyle => TextStyle(
-        fontSize: _labelFS,
-        fontWeight: FontWeight.w600,
-        color: widget.colors.textPrimary,
-        decoration: TextDecoration.none,
-      );
+    fontSize: _labelFS,
+    fontWeight: FontWeight.w600,
+    color: widget.colors.textPrimary,
+    decoration: TextDecoration.none,
+  );
 
   TextStyle get _satLabelStyle => TextStyle(
-        fontSize: _satLabelFS,
-        fontWeight: FontWeight.w600,
-        color: widget.colors.textPrimary,
-        decoration: TextDecoration.none,
-      );
+    fontSize: _satLabelFS,
+    fontWeight: FontWeight.w600,
+    color: widget.colors.textPrimary,
+    decoration: TextDecoration.none,
+  );
 
   void _toggle() => _isOpen ? _close() : _open();
 
@@ -187,15 +205,16 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
     final anchor = box.localToGlobal(Offset.zero) & box.size;
     final media = MediaQuery.of(context);
     final dir = Directionality.of(context);
-    final satellites =
-        widget.categories.where((c) => c.wire != widget.selectedWire).toList();
+    final satellites = widget.categories
+        .where((c) => c.wire != widget.selectedWire)
+        .toList();
     if (satellites.isEmpty) return;
 
     final slots = solveRadialFan(
       anchor: anchor,
       sizes: [
         for (final s in satellites)
-          measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir)
+          measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir),
       ],
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
     );
@@ -238,7 +257,9 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
   void _close() {
     if (!_isOpen) return;
     setState(() => _phase = LiquidPhase.closing);
-    AzamanHaptics.confirm();
+    // F-051: no haptic on close. A pick already fired its single confirm (the
+    // satellite's onTap), and dismissing a menu is silent — this line used to
+    // double the pick haptic and mislabel a scrim dismissal as a confirm.
     _c.reverse().whenComplete(() {
       _entry?.remove();
       _entry = null;
@@ -278,17 +299,27 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                       borderRadius: BorderRadius.circular(_pillRadius),
                       border: Border.all(color: c.divider),
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(_current.icon, size: _iconSize, color: c.textPrimary),
-                      const SizedBox(width: 8),
-                      Text(_current.label, style: _labelStyle),
-                      const SizedBox(width: 4),
-                      Transform.rotate(
-                        angle: _c.value * 3.14159,
-                        child: Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 18, color: c.textSecondary),
-                      ),
-                    ]),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _current.icon,
+                          size: _iconSize,
+                          color: c.textPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(_current.label, style: _labelStyle),
+                        const SizedBox(width: 4),
+                        Transform.rotate(
+                          angle: _c.value * 3.14159,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: c.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -362,39 +393,44 @@ class _DialOverlay extends StatelessWidget {
     }
     bounds = bounds.inflate(56);
 
-    return Stack(children: [
-      Positioned.fill(
-        child: ExcludeSemantics(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onClose,
-            child: FadeTransition(
-              opacity: CurvedAnimation(parent: controller, curve: const Interval(0, 0.2)),
-              child: ColoredBox(color: Colors.black.withValues(alpha: 0.14)),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ExcludeSemantics(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onClose,
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: controller,
+                  curve: const Interval(0, 0.2),
+                ),
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.14)),
+              ),
             ),
           ),
         ),
-      ),
-      CompositedTransformFollower(
-        link: link,
-        showWhenUnlinked: false,
-        offset: bounds.topLeft - anchor.topLeft,
-        child: SizedBox(
-          width: bounds.width,
-          height: bounds.height,
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: controller,
-                  builder: (_, __) => CustomPaint(
-                    painter: _DialGooPainter(
-                      t: reduced ? 1 : controller.value,
-                      origin: bounds.topLeft,
-                      anchor: anchor,
-                      slots: slots,
-                      body: colors.card,
-                      rim: colors.divider,
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          offset: bounds.topLeft - anchor.topLeft,
+          child: SizedBox(
+            width: bounds.width,
+            height: bounds.height,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: controller,
+                    builder: (_, __) => CustomPaint(
+                      painter: _DialGooPainter(
+                        t: reduced ? 1 : controller.value,
+                        origin: bounds.topLeft,
+                        anchor: anchor,
+                        slots: slots,
+                        body: colors.card,
+                        rim: colors.divider,
+                      ),
                     ),
                   ),
                 ),
@@ -402,53 +438,63 @@ class _DialOverlay extends StatelessWidget {
             ),
           ),
         ),
-      ),
-      for (var i = 0; i < slots.length; i++)
-        _SatellitePill(
-          controller: controller,
-          slot: slots[i],
-          anchor: anchor,
-          item: items[i],
-          total: slots.length,
-          colors: colors,
-          labelStyle: labelStyle,
-          reduced: reduced,
-          onPick: onPick,
-        ),
+        for (var i = 0; i < slots.length; i++)
+          _SatellitePill(
+            controller: controller,
+            slot: slots[i],
+            anchor: anchor,
+            item: items[i],
+            total: slots.length,
+            colors: colors,
+            labelStyle: labelStyle,
+            reduced: reduced,
+            onPick: onPick,
+          ),
 
-      // trigger ghost: keep the selected-category pill visible on top of goo
-      CompositedTransformFollower(
-        link: link,
-        showWhenUnlinked: false,
-        offset: Offset.zero,
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (_, __) {
-            final t = reduced ? 1.0 : controller.value;
-            return Container(
-              height: pillHeight,
-              padding: EdgeInsets.symmetric(horizontal: pillHPad),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(pillRadius),
-                border: Border.all(color: colors.divider),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(currentItem.icon, size: iconSize, color: colors.textPrimary),
-                const SizedBox(width: 8),
-                Text(currentItem.label, style: labelStyle),
-                const SizedBox(width: 4),
-                Transform.rotate(
-                  angle: t * 3.14159,
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                      size: 18, color: colors.textSecondary),
+        // trigger ghost: keep the selected-category pill visible on top of goo
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          offset: Offset.zero,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (_, __) {
+              final t = reduced ? 1.0 : controller.value;
+              return Container(
+                height: pillHeight,
+                padding: EdgeInsets.symmetric(horizontal: pillHPad),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(pillRadius),
+                  border: Border.all(color: colors.divider),
                 ),
-              ]),
-            );
-          },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      currentItem.icon,
+                      size: iconSize,
+                      color: colors.textPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(currentItem.label, style: labelStyle),
+                    const SizedBox(width: 4),
+                    Transform.rotate(
+                      angle: t * 3.14159,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -518,9 +564,10 @@ class _SatellitePill extends StatelessWidget {
               border: Border.all(color: colors.divider),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3)),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
             padding: const EdgeInsets.symmetric(horizontal: _satPillHPad),
@@ -530,16 +577,18 @@ class _SatellitePill extends StatelessWidget {
                 Icon(item.icon, size: _satIconSize, color: colors.textPrimary),
                 const SizedBox(width: 6),
                 Flexible(
-                  child: Text(item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: _satLabelFS,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                        decoration: TextDecoration.none,
-                      )),
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: _satLabelFS,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -569,7 +618,8 @@ class _DialGooPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (t <= 0.001) return;
-    final flight = (t / 0.45).clamp(0.0, 1.0) * (1 - ((t - 0.62) / 0.38).clamp(0.0, 1.0));
+    final flight =
+        (t / 0.45).clamp(0.0, 1.0) * (1 - ((t - 0.62) / 0.38).clamp(0.0, 1.0));
     final sigma = kGooBlurRest + (kGooBlurActive - kGooBlurRest) * flight;
     final a = anchor.shift(-origin);
 
@@ -581,7 +631,10 @@ class _DialGooPainter extends CustomPainter {
       rim: rim,
       shapes: (c, paint) {
         c.drawRRect(
-          RRect.fromRectAndRadius(a.inflate(2 * flight), const Radius.circular(_pillRadius)),
+          RRect.fromRectAndRadius(
+            a.inflate(2 * flight),
+            const Radius.circular(_pillRadius),
+          ),
           paint,
         );
         for (final slot in slots) {

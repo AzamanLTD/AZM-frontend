@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/admin/ai_operations_screen.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/thinking_orb.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class AiCommandMenu extends ConsumerStatefulWidget {
@@ -212,7 +215,11 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(color: colors.accent),
+          // F-052: ThinkingOrb was orphaned (zero importers). The AI command
+          // sheet's loading state is its natural home — the orb is the app's
+          // designed "AI is thinking" indicator, and a Material spinner is
+          // not part of the vocabulary.
+          ThinkingOrb(size: 26, color: colors.accent),
           const SizedBox(height: 16),
           Text(
             'Syncing neural network...',
@@ -310,7 +317,7 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
               onTap: () {
                 if (name.toLowerCase().contains('cfo') ||
                     name.toLowerCase().contains('financial')) {
-                  HapticFeedback.mediumImpact();
+                  AzamanHaptics.confirm();
                   Navigator.pop(context);
                   Navigator.push(
                     context,
