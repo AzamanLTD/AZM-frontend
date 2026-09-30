@@ -78,10 +78,13 @@ class PullRevealCardDeck extends StatefulWidget {
   final ValueChanged<bool>? onRevealChanged;
 
   @override
-  State<PullRevealCardDeck> createState() => _PullRevealCardDeckState();
+  State<PullRevealCardDeck> createState() => PullRevealCardDeckState();
 }
 
-class _PullRevealCardDeckState extends State<PullRevealCardDeck>
+/// Public on purpose: the Home deck host holds a
+/// GlobalKey<PullRevealCardDeckState> so the PIN-gate flow can collapse the
+/// deck programmatically when verification fails/cancels (audit §6).
+class PullRevealCardDeckState extends State<PullRevealCardDeck>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,

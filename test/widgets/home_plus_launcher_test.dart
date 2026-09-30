@@ -12,11 +12,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 
+/// A fresh controller per pump — the shell owns the controller so it can
+/// toggle the launcher from the nav band; the tests own one each.
+PlusLauncherController? _lastController;
+
 Future<void> _pumpLauncher(
   WidgetTester tester, {
   bool reducedMotion = false,
   required List<PlusLauncherAction> actions,
 }) async {
+  final controller = PlusLauncherController();
+  _lastController = controller;
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
@@ -25,7 +31,8 @@ Future<void> _pumpLauncher(
           data: const MediaQueryData(size: Size(400, 900))
               .copyWith(disableAnimations: reducedMotion),
           child: Scaffold(
-            body: PlusActionLauncher(actions: actions),
+            body: PlusActionLauncher(
+                controller: controller, actions: actions),
           ),
         ),
       ),
@@ -34,19 +41,22 @@ Future<void> _pumpLauncher(
 }
 
 void main() {
-  testWidgets('closed: only the + trigger is alive, no actions visible',
-      (tester) async {
-    final picked = <String>[];
+  testWidgets('closed at rest: the overlay layer is empty — the trigger '
+      'lives in the nav band, not here', (tester) async {
     await _pumpLauncher(
       tester,
       actions: [
         PlusLauncherAction(
-            icon: Icons.send, label: 'Send', onTap: () => picked.add('Send')),
+            icon: Icons.send, label: 'Send', onTap: () => fail('must not '
+                'fire while closed')),
       ],
     );
 
-    expect(find.byIcon(Icons.add), findsOneWidget);
-    expect(find.text('Send'), findsNothing);
+    expect(find.text('Send'), findsNothing,
+        reason: 'no action rows mount while the launcher is closed');
+    expect(find.byIcon(Icons.add), findsNothing,
+        reason: 'the + trigger is PremiumBottomNav.trailing now — the '
+            'launcher owns only the overlay layer');
   });
 
   testWidgets('tapping + opens the actions directly on screen; picking '
@@ -72,7 +82,9 @@ void main() {
       ],
     );
 
-    await tester.tap(find.byIcon(Icons.add));
+    // The nav band's + calls controller.open() — the exact signal under
+    // test.
+    _lastController!.open();
     await tester.pumpAndSettle();
 
     // All four actions visible — Send / Receive / Add Cash / Withdraw.
@@ -80,9 +92,6 @@ void main() {
     expect(find.text('Receive'), findsOneWidget);
     expect(find.text('Add Cash'), findsOneWidget);
     expect(find.text('Withdraw'), findsOneWidget);
-
-    // The + is still present — now in its close role.
-    expect(find.byIcon(Icons.add), findsOneWidget);
 
     await tester.tap(find.text('Send'));
     await tester.pumpAndSettle();
@@ -102,7 +111,7 @@ void main() {
             icon: Icons.send, label: 'Send', onTap: () => picked.add('Send')),
       ],
     );
-    await tester.tap(find.byIcon(Icons.add));
+    _lastController!.open();
     await tester.pumpAndSettle();
 
     // Tap the scrim (top of the screen — no action sits there).
@@ -125,7 +134,7 @@ void main() {
       ],
     );
 
-    await tester.tap(find.byIcon(Icons.add));
+    _lastController!.open();
     // ONE pump: reduced motion means no entrance traversal.
     await tester.pump();
     expect(find.text('Send'), findsOneWidget);

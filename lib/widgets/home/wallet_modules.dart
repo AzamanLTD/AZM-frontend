@@ -9,11 +9,20 @@
 // not fetch data solely to look richer).
 //
 // Data honesty rules, enforced per module:
-//   SAVE — vaults are read ONLY if the vault provider was already
-//          initialised elsewhere (ref.exists, no listening → no fetch).
-//   P2P  — the in-memory active-ad count from the trade provider, read
-//          without triggering a fetch.
-//   SUSU — the susu list Home already watches (NEW-D data logic, kept).
+//   SAVE — the SAVINGS product's real goal data (the module opens
+//          /savings), read ONLY from the already-initialised cached
+//          savings overview provider (ref.exists → no decorative fetch).
+//          Vault semantics never leak into this notice.
+//   P2P  — the USER-FACING offer market (/p2p/ads), read ONLY from the
+//          already-initialised cached adsProvider (ref.exists → no
+//          decorative fetch, the global market provider is never
+//          initialised from Home). The vendor-owned /ads/mine list
+//          (tradeProvider.myActiveAds) is NOT a live offer market and can
+//          never produce a "offers live" notice.
+//   SUSU — the susu list Home already watches; the relevant group is
+//          chosen DETERMINISTICALLY (earliest upcoming scheduled
+//          contribution), and the SAME group drives both the notice text
+//          and the navigation target.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -22,10 +31,10 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/providers/marketplace_provider.dart';
+import 'package:azaman/providers/savings_overview_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/providers/trade_provider.dart';
-import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -48,60 +57,91 @@ class WalletNotice {
 
 // ── NOTICE-BOARD PROVIDERS ────────────────────────────────────────────────
 
-/// SAVE. `ref.exists` is load-bearing: it returns false (and initialises
-/// nothing) when the vault provider has never been built, so Home never
-/// triggers a vault fetch just to decorate the notice board.
+/// SAVE. The module opens /savings, so the notice represents the SAVINGS
+/// product. `ref.exists` is load-bearing: it returns false (and initialises
+/// nothing) when the savings overview provider has never been built — i.e.
+/// the user has not opened Savings — so Home never triggers a savings fetch
+/// just to decorate the notice board. Vault data is never read here.
 final saveModuleNoticeProvider = Provider<WalletNotice>((ref) {
-  if (!ref.exists(vaultsProvider)) {
+  if (!ref.exists(savingsOverviewProvider)) {
     return const WalletNotice.educational(
         "Put money aside for something you're building.");
   }
-  final vaults = ref.watch(vaultsProvider).valueOrNull ?? const <Vault>[];
-  Vault? active;
-  for (final v in vaults) {
-    if (v.status == 'ACTIVE') {
-      active = v;
-      break;
-    }
-  }
-  if (active == null || active.targetAmountUsdc <= 0) {
+  final overview = ref.watch(savingsOverviewProvider).valueOrNull;
+  final goal = overview?.mostRelevantGoal();
+  if (goal == null) {
     return const WalletNotice.educational(
         "Put money aside for something you're building.");
   }
-  final progress = (active.currentAmountUsdc / active.targetAmountUsdc)
-      .clamp(0.0, 1.0);
+  final name = goal['name']?.toString() ?? 'your goal';
+  final current = (goal['currentAmountGhs'] as num?)?.toDouble() ?? 0.0;
+  final target = (goal['targetAmountGhs'] as num?)?.toDouble() ?? 0.0;
+  if (target <= 0) {
+    return const WalletNotice.educational(
+        "Put money aside for something you're building.");
+  }
+  final progress = (current / target).clamp(0.0, 1.0);
   return WalletNotice.real(
-      '${AzMoney.usdc(active.currentAmountUsdc)} saved · Goal ${(progress * 100).round()}%');
+      '${AzMoney.ghs(current)} · ${name.split(' ').first} ${(progress * 100).round()}%');
 });
 
-/// P2P. In-memory active ads only — no fetch is triggered by watching here.
+/// P2P. The notice represents the USER-FACING offer market (`/p2p/ads`).
+/// `ref.exists` is load-bearing: it initialises nothing, so Home never
+/// boots the global market provider just to decorate itself. When the
+/// market IS cached (the user visited the marketplace), the real offer
+/// count shows. The vendor-owned `tradeProvider.myActiveAds` list is
+/// deliberately NOT read here: a user's own ads must never produce a false
+/// "offers live" notice.
 final p2pModuleNoticeProvider = Provider<WalletNotice>((ref) {
-  final ads = ref.watch(tradeProvider.select((t) => t.myActiveAds.length));
-  if (ads <= 0) {
+  if (!ref.exists(adsProvider)) {
     return const WalletNotice.educational(
         'Buy or sell directly with verified vendors.');
   }
+  final offers = ref.watch(adsProvider).valueOrNull ?? const <AdListing>[];
+  if (offers.isEmpty) {
+    return const WalletNotice.educational(
+        'Buy or sell directly with verified vendors.');
+  }
+  final n = offers.length;
   return WalletNotice.real(
-      '$ads offer${ads == 1 ? '' : 's'} live · Buy / Sell');
+      '$n offer${n == 1 ? '' : 's'} live · Buy / Sell');
 });
 
-/// SUSU. Same authoritative list Home already watches.
-final susuModuleNoticeProvider = Provider<WalletNotice>((ref) {
-  final groups = ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
-  SusuSummary? active;
+/// SUSU. Same authoritative list Home already watches. The relevant group
+/// is chosen DETERMINISTICALLY — the earliest upcoming scheduled
+/// contribution among ACTIVE groups (groups without a schedule lose to
+/// scheduled ones; ties broken by group id so the choice is stable) — and
+/// the SAME selection drives both the notice text and the navigation
+/// target.
+SusuSummary? chooseMostRelevantSusu(List<SusuSummary> groups) {
+  SusuSummary? best;
+  DateTime? bestRunAt;
   for (final g in groups) {
-    if (g.status == SusuStatus.active) {
-      active = g;
-      break;
+    if (g.status != SusuStatus.active) continue;
+    final runAt = g.nextCycle?.scheduledRunAt;
+    if (best == null) {
+      best = g;
+      bestRunAt = runAt;
+      continue;
+    }
+    if (runAt == null) continue; // best already chosen; unscheduled loses
+    if (bestRunAt == null || runAt.isBefore(bestRunAt)) {
+      best = g;
+      bestRunAt = runAt;
     }
   }
-  if (active == null) {
+  return best;
+}
+
+/// SUSU notice for [group] — null when no active group exists.
+WalletNotice susuNoticeFor(SusuSummary? group) {
+  if (group == null) {
     return const WalletNotice.educational(
         'Save together with your circle.');
   }
-  final runAt = active.nextCycle?.scheduledRunAt;
-  final cycle = active.nextCycle?.cycleNumber ?? 1;
-  final total = active.totalCycles > 0 ? active.totalCycles : 1;
+  final runAt = group.nextCycle?.scheduledRunAt;
+  final cycle = group.nextCycle?.cycleNumber ?? 1;
+  final total = group.totalCycles > 0 ? group.totalCycles : 1;
   if (runAt == null) {
     return WalletNotice.real('Cycle $cycle of $total');
   }
@@ -113,6 +153,12 @@ final susuModuleNoticeProvider = Provider<WalletNotice>((ref) {
           : 'in $days days';
   return WalletNotice.real(
       'Next contribution $when · Cycle $cycle of $total');
+}
+
+final susuModuleNoticeProvider = Provider<WalletNotice>((ref) {
+  final groups =
+      ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
+  return susuNoticeFor(chooseMostRelevantSusu(groups));
 });
 
 // ── WIDGETS ───────────────────────────────────────────────────────────────
@@ -174,13 +220,9 @@ class _SusuModule extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final groups =
         ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
-    SusuSummary? active;
-    for (final g in groups) {
-      if (g.status == SusuStatus.active) {
-        active = g;
-        break;
-      }
-    }
+    // The SAME deterministic selection the notice uses — the notice text
+    // and the navigation target can never disagree.
+    final active = chooseMostRelevantSusu(groups);
     return WalletModule(
       key: const ValueKey('wallet-module-susu'),
       icon: HugeIconsSolid.userGroup,

@@ -37,6 +37,9 @@ import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/providers/home_shell_active_provider.dart';
+import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
+import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/services/az_sound.dart';
 
 import 'package:azaman/services/socket_service.dart';
@@ -472,6 +475,10 @@ class MainWrapper extends ConsumerStatefulWidget {
 class _MainWrapperState extends ConsumerState<MainWrapper>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+
+  /// The + launcher open/close state, shared between the trigger (in the
+  /// nav band) and the overlay (in the body stack).
+  final PlusLauncherController _plus = PlusLauncherController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget?> _pages;
@@ -528,6 +535,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
+    // NEW-HOME audit §7: Home-local security state (unlocked card
+    // details) and Home-local machines (the typewriter) must know when
+    // Home stops being the displayed tab — pages stay MOUNTED, so only
+    // this explicit signal separates "mounted" from "active".
+    ref.read(homeShellActiveProvider.notifier).state = i == 0;
     final page = _pages[i] ?? _pageFor(i);
     // TASK-010: compression tracks the CURRENT page's offset. The incoming
     // page starts at its top, so the pill must start at rest — otherwise a
@@ -756,6 +768,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(
+        // NEW-HOME §8/§10 (audit): the + action trigger sits STRUCTURALLY
+        // BESIDE the nav pill — [navigation] [+] — themed by the AZM
+        // accent identity, sharing the pill's band and safe-area handling.
+        trailing: PlusLauncherTrigger(controller: _plus),
         selectedIndex: _selectedIndex,
         onItemSelected: _onNavItemSelected,
         // TASK-010b: a long-press on the Market tab opens the vertical
@@ -802,6 +818,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               ),
               child: const SizedBox.expand(),
             ),
+            // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
+            // pull tag (vendor → dashboard, non-vendor → 3-pull apply
+            // flow) keeps its configured home on the HOME tab, the shell's
+            // primary surface in the 3-tab layout. The settings toggle
+            // (`vendorTagEnabled`) still decides whether it appears.
+            if (_displayedIndex == 0 &&
+                ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
+              const VendorPullTab(),
             DrawerPeekHint(
               onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
             ),
@@ -812,6 +836,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
             // directly on screen — never inside a boxed modal.
             Positioned.fill(
               child: PlusActionLauncher(
+                controller: _plus,
                 actions: [
                   PlusLauncherAction(
                     icon: HugeIconsSolid.moneySend01,

@@ -43,6 +43,7 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
+import 'package:azaman/providers/home_shell_active_provider.dart';
 import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
@@ -185,6 +186,32 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     _handoffDragPx = 0;
   }
 
+  // REVERSE HANDOFF (audit §1): pulling down from the top of the activity
+  // surface walks the handoff back with the same resistance grammar — a
+  // small pull moves the wallet barely at all; past the commit threshold
+  // the wallet state takes over. Below threshold the activity state
+  // springs back.
+  void _onActivityPullUpdate(double dragPx) {
+    final reverseProgress = ActivityHandoffPhysics.progressFor(dragPx);
+    _handoff.value = 1 - ActivityHandoffPhysics.revealFor(reverseProgress);
+  }
+
+  void _onActivityPullEnd(bool commits) {
+    if (commits) {
+      if (_handoffHapticArmed) {
+        AzamanHaptics.threshold();
+        _handoffHapticArmed = false;
+      }
+      _collapseActivity();
+    } else {
+      if (_reduceMotion) {
+        _handoff.value = 1;
+      } else {
+        _handoff.animateWith(_handoffSpringTo(1));
+      }
+    }
+  }
+
   void _collapseActivity() {
     if (_reduceMotion) {
       _handoff.value = 0;
@@ -295,6 +322,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                   child: HomeActivitySurface(
                     onClose: _collapseActivity,
                     active: walletGone,
+                    onTopPullUpdate: _onActivityPullUpdate,
+                    onTopPullEnd: _onActivityPullEnd,
                   ),
                 ),
               ),
@@ -320,17 +349,30 @@ class _DeckHost extends ConsumerStatefulWidget {
 class _DeckHostState extends ConsumerState<_DeckHost> {
   bool _detailsUnlocked = false;
 
+  /// The inner deck handle: the PIN-gate flow and the visibility re-lock
+  /// both collapse the deck PROGRAMMATICALLY (audit §6/§7).
+  final GlobalKey<PullRevealCardDeckState> _deckKey =
+      GlobalKey<PullRevealCardDeckState>();
+
   static const double _cardHeight = 180;
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // AUDIT §7 — MainWrapper keeps pages mounted, so an unlock can never be
+    // treated as indefinitely valid. The INSTANT Home stops being the
+    // shell's active tab, sensitive card details re-lock and the deck
+    // collapses to the balance-card resting state.
+    ref.listen(homeShellActiveProvider, (prev, next) {
+      if (!next) _relockNow();
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PullRevealCardDeck(
-          key: const ValueKey('home-card-deck'),
+          key: _deckKey,
           cardHeight: _cardHeight,
           topCard: const TapHintOverlay(
             hintKey: 'has_seen_flippable_card_hint',
@@ -358,6 +400,16 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
     );
   }
 
+  /// The single re-lock path: clears the unlock AND collapses the deck
+  /// back to the balance-card resting state.
+  void _relockNow() {
+    if (!mounted) return;
+    if (_detailsUnlocked) {
+      setState(() => _detailsUnlocked = false);
+    }
+    _deckKey.currentState?.collapse();
+  }
+
   Future<void> _onRevealChanged(bool revealed) async {
     if (!revealed) {
       // Pulled back / programmatic collapse: lock again next time.
@@ -372,8 +424,11 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
     if (verified) {
       setState(() => _detailsUnlocked = true);
     } else {
-      // Gate dismissed without verification: collapse the deck again.
+      // AUDIT §6 — gate cancelled/failed: the deck MUST collapse back to
+      // the balance-card resting state, not merely clear a flag while the
+      // revealed card lingers.
       setState(() => _detailsUnlocked = false);
+      _deckKey.currentState?.collapse();
     }
   }
 }

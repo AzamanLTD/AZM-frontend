@@ -40,16 +40,138 @@ class PlusLauncherAction {
   });
 }
 
-/// The launcher layer. Render it as the topmost Stack child of a host that
-/// owns the full screen (the shell does — body extends behind the nav).
-///
-/// Closed: only the vibrant + trigger is visible, positioned to sit beside
-/// the bottom nav pill. Open: the trigger stays put (rotating into its
-/// close role) while the actions appear directly over the de-emphasized
-/// content.
-class PlusActionLauncher extends ConsumerStatefulWidget {
-  const PlusActionLauncher({super.key, required this.actions});
+/// Shared open/close state for the launcher pair (audit §10): the TRIGGER
+/// lives structurally beside the bottom nav while the OVERLAY lives in the
+/// host's stack, so the two must share one explicit controller instead of
+/// the launcher owning both.
+class PlusLauncherController extends ChangeNotifier {
+  bool _isOpen = false;
+  bool get isOpen => _isOpen;
 
+  void open() {
+    if (_isOpen) return;
+    _isOpen = true;
+    notifyListeners();
+  }
+
+  void close() {
+    if (!_isOpen) return;
+    _isOpen = false;
+    notifyListeners();
+  }
+
+  void toggle() => _isOpen ? close() : open();
+}
+
+/// The + trigger. Structurally ADJACENT to the nav ([navigation] [+]) via
+/// PremiumBottomNav's `trailing` slot — not an unrelated FAB floating
+/// above the bar. The AZM accent identity/theme system colors it: the
+/// gradient is the theme's accent pair and the glow is the accent itself,
+/// so light/dark/accent behavior follows the user's identity.
+class PlusLauncherTrigger extends ConsumerStatefulWidget {
+  const PlusLauncherTrigger({
+    super.key,
+    required this.controller,
+    this.size = 54,
+  });
+
+  final PlusLauncherController controller;
+  final double size;
+
+  @override
+  ConsumerState<PlusLauncherTrigger> createState() =>
+      _PlusLauncherTriggerState();
+}
+
+class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _rot = AnimationController(
+    vsync: this,
+    duration: MotionTokens.standard,
+    value: 0,
+  );
+
+  void _sync() {
+    if (!mounted) return;
+    widget.controller.isOpen ? _rot.forward() : _rot.reverse();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_sync);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_sync);
+    _rot.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ref.watch(themeProvider).colors;
+    final reduceMotion = !AzMotion.of(context).travel;
+    final turns = reduceMotion
+        ? (widget.controller.isOpen ? 0.125 : 0.0)
+        : _rot.value * 0.125;
+
+    return GestureDetector(
+      key: const ValueKey('plus-launcher-trigger'),
+      onTap: () {
+        if (widget.controller.isOpen) {
+          // Dismissal is silent (the liquid-launcher haptic convention).
+          widget.controller.close();
+        } else {
+          AzamanHaptics.nav();
+          widget.controller.open();
+        }
+      },
+      child: Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            // The AZM accent identity — no hard-coded marketing colors.
+            colors: [colors.accent, colors.accentSecondary],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.accent.withValues(alpha: 0.4),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Transform.rotate(
+          angle: turns * 2 * 3.141592653589793,
+          child: Icon(Icons.add,
+              color: colors.onAccent, size: widget.size * 0.52),
+        ),
+      ),
+    );
+  }
+}
+
+/// The launcher OVERLAY layer (scrim + actions). Render it as the topmost
+/// Stack child of a host that owns the full screen. The trigger is NOT part
+/// of this layer anymore: it sits structurally beside the bottom nav
+/// (PremiumBottomNav.trailing) and shares open/close state through
+/// [controller]. When open, the actions appear directly over the
+/// de-emphasized content; the trigger rotates into its close (×) role in
+/// place, in the nav band.
+class PlusActionLauncher extends ConsumerStatefulWidget {
+  const PlusActionLauncher({
+    super.key,
+    required this.controller,
+    required this.actions,
+  });
+
+  final PlusLauncherController controller;
   final List<PlusLauncherAction> actions;
 
   @override
@@ -65,7 +187,8 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     reverseDuration: MotionTokens.control,
     value: 0,
   );
-  bool _isOpen = false;
+
+  bool _syncedOnce = false;
 
   @override
   void initState() {
@@ -75,13 +198,41 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     // branch only re-evaluates on a state change, so the controller has to
     // hand one over at completion.
     _open.addStatusListener(_onStatus);
+    widget.controller.addListener(_onController);
+    // NOTE: the initial sync deliberately does NOT happen here —
+    // _syncFromController reads AzMotion.of(context), and inherited lookups
+    // are illegal before initState completes. didChangeDependencies fires
+    // immediately after and before the first build, so a controller that
+    // is already open on mount still opens on the launcher's first frame.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_syncedOnce) {
+      _syncedOnce = true;
+      _syncFromController();
+    }
+  }
+
+  @override
+  void didUpdateWidget(PlusActionLauncher oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onController);
+      widget.controller.addListener(_onController);
+      _syncFromController();
+    }
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onController);
     _open.dispose();
     super.dispose();
   }
+
+  void _onController() => _syncFromController();
 
   void _onStatus(AnimationStatus status) {
     if (status == AnimationStatus.dismissed && mounted) {
@@ -91,32 +242,35 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
 
   bool get _reduceMotion => !AzMotion.of(context).travel;
 
-  void _setOpen(bool open) {
-    setState(() => _isOpen = open);
+  void _syncFromController() {
+    final open = widget.controller.isOpen;
     if (_reduceMotion) {
       // Reduced motion: direct state transition — the actions are simply
       // there, no traversal.
-      _open.value = open ? 1.0 : 0.0;
+      if (_open.value != (open ? 1.0 : 0.0)) {
+        _open.value = open ? 1.0 : 0.0;
+        if (mounted) setState(() {});
+      }
     } else {
       open ? _open.forward() : _open.reverse();
+      // The closed-at-rest build branch renders the bare shrink — the
+      // AnimatedBuilder that listens to [_open] is not mounted there, so
+      // starting the controller alone schedules NO rebuild. Re-evaluate
+      // build here so the animated stack mounts and the traversal plays.
+      if (mounted) setState(() {});
     }
   }
 
-  void _toggle() {
-    if (_isOpen) {
-      // Dismissal is silent (the liquid-launcher haptic convention).
-      _setOpen(false);
-    } else {
-      AzamanHaptics.nav();
-      _setOpen(true);
-    }
+  void _dismiss() {
+    // Dismissal is silent (the liquid-launcher haptic convention).
+    widget.controller.close();
   }
 
   void _pick(PlusLauncherAction action) {
     // EXACTLY one confirm per pick — the double-haptic class this codebase
     // already removed elsewhere.
     AzamanHaptics.confirm();
-    _setOpen(false);
+    widget.controller.close();
     action.onTap();
   }
 
@@ -124,24 +278,11 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final bottom = MediaQuery.of(context).padding.bottom;
-    // The trigger floats beside/above the nav pill: far enough up to clear
-    // the 62px pill + gutter, matching AzSpace.navClearance's intent.
-    final triggerBottom = bottom + 84.0;
 
-    final trigger = Positioned(
-      right: AzSpace.lg,
-      bottom: triggerBottom,
-      child: _TriggerButton(
-        open: _open,
-        isOpen: _isOpen,
-        reduceMotion: _reduceMotion,
-        onTap: _toggle,
-      ),
-    );
-
-    if (!_isOpen && _open.isDismissed) {
-      // Closed at rest: only the trigger is alive.
-      return Stack(children: [trigger]);
+    if (!widget.controller.isOpen && _open.isDismissed) {
+      // Closed at rest: the overlay layer is not alive at all (the
+      // trigger lives in the nav band and owns its own closed state).
+      return const SizedBox.shrink(key: ValueKey('plus-launcher-overlay'));
     }
 
     return AnimatedBuilder(
@@ -155,7 +296,7 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: _isOpen ? _toggle : null,
+              onTap: widget.controller.isOpen ? _dismiss : null,
               child: FadeTransition(
                 opacity: Tween(begin: 0.0, end: 1.0).animate(
                   CurvedAnimation(parent: _open, curve: MotionTokens.enter),
@@ -170,8 +311,9 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
             ),
           ),
           // The actions: appear directly on the screen as a generous
-          // vertical column rising toward the trigger — no boxed modal,
-          // staggered with MotionTokens.
+          // vertical column rising toward the nav band — no boxed modal,
+          // staggered with MotionTokens. The column clears the nav band
+          // (pill + safe-area inset) so every row stays reachable.
           Positioned.fill(
             child: IgnorePointer(
               ignoring: t < 0.5,
@@ -191,62 +333,14 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                         reduceMotion: _reduceMotion,
                         onPick: _pick,
                       ),
-                    SizedBox(height: triggerBottom + 56),
+                    SizedBox(height: bottom + 140),
                   ],
                 ),
               ),
             ),
           ),
-          trigger,
         ]);
       },
-    );
-  }
-}
-
-class _TriggerButton extends StatelessWidget {
-  final Animation<double> open;
-  final bool isOpen;
-  final bool reduceMotion;
-  final VoidCallback onTap;
-
-  const _TriggerButton({
-    required this.open,
-    required this.isOpen,
-    required this.reduceMotion,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // The + rotates 45° into its close (×) role while open.
-    final turns =
-        reduceMotion ? (isOpen ? 0.125 : 0.0) : open.value * 0.125;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 54,
-        height: 54,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF7C5CFF), Color(0xFF3AD1B0)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x667C5CFF),
-              blurRadius: 18,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Transform.rotate(
-          angle: turns * 2 * 3.141592653589793,
-          child: const Icon(Icons.add, color: Colors.white, size: 28),
-        ),
-      ),
     );
   }
 }

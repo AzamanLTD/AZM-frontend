@@ -13,10 +13,11 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/widgets/home/activity_actions.dart'
+    show ActivityRecipient;
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/services/api_client.dart';
@@ -26,7 +27,13 @@ import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class SendMoneyScreen extends ConsumerStatefulWidget {
-  const SendMoneyScreen({super.key});
+  /// AUTHORITATIVE recipient seed (NEW-HOME §13 "Send Again"): when the
+  /// caller carries an explicit recipient payload from a real transaction
+  /// record, the screen opens with that recipient already resolved — no
+  /// re-derivation, no guessing. Null = the normal search flow.
+  const SendMoneyScreen({super.key, this.initialRecipient});
+
+  final ActivityRecipient? initialRecipient;
 
   @override
   ConsumerState<SendMoneyScreen> createState() => _SendMoneyScreenState();
@@ -47,6 +54,17 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialRecipient;
+    if (seed != null) {
+      // An explicit payload resolves the recipient immediately — the AZM
+      // ID the record carried is authoritative (it was validated when the
+      // original transfer was made).
+      _recipient = {
+        'username': seed.displayName,
+        'fullName': seed.displayName,
+        'azamanId': seed.azamanId,
+      };
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(friendProvider).refreshAll();
     });
