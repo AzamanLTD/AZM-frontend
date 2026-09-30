@@ -29,7 +29,6 @@ import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 
 // Supported currencies — shown as horizontal pill selectors.
 const _kCurrencies = ['USDC', 'USD', 'GHS', 'USDT', 'AZM'];
@@ -124,7 +123,6 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
       );
       if (!mounted) return;
       AzamanHaptics.commit();
-      AzSound.success();
       Navigator.of(context).pop(ticket);
     } catch (e) {
       if (!mounted) return;

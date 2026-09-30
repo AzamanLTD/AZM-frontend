@@ -16,7 +16,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 
 class NotificationPreferencesScreen extends ConsumerStatefulWidget {
   const NotificationPreferencesScreen({super.key});
@@ -129,7 +128,6 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
       });
       if (mounted) {
         AzamanHaptics.commit();
-        AzSound.success();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Notification preferences saved'), duration: Duration(seconds: 1)),
         );

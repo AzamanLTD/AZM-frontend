@@ -81,7 +81,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
 
     if (MediaQuery.of(context).disableAnimations) {
       AzamanHaptics.addToCart();
-      AzSound.tick();
+      AzSound.rip();
       action();
       if (!mounted) return;
       setState(() => _showReducedMotion = true);

@@ -26,7 +26,6 @@ import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
@@ -802,7 +801,6 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
       }
       if (!mounted) return;
       AzamanHaptics.commit();
-      AzSound.success();
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -1011,7 +1009,6 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
       await _service.submitKybDocuments(docs);
       if (!mounted) return;
       AzamanHaptics.commit();
-      AzSound.success();
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;

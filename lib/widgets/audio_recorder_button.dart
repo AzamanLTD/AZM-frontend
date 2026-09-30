@@ -35,7 +35,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 
 
 /// Callback fired when a successful recording finishes. The file is on
@@ -238,7 +237,6 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     if (!await file.exists()) return;
 
     AzamanHaptics.commit();
-    AzSound.success();
     widget.onRecorded(
       file,
       duration.inSeconds.clamp(1, 1 << 30),

@@ -24,7 +24,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class AzamanConfirmSheet {
@@ -142,7 +141,6 @@ class _ConfirmBody extends ConsumerWidget {
                   AzamanHaptics.warn();
                 } else {
                   AzamanHaptics.commit();
-                  AzSound.success();
                 }
                 Navigator.pop(context, true);
               },

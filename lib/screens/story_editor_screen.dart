@@ -18,7 +18,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 
@@ -135,7 +134,6 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
       _mode = EditMode.none;
     });
     AzamanHaptics.commit();
-    AzSound.success();
   }
 
   void _addSticker(String sticker) {

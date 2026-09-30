@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
@@ -159,7 +158,6 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
                   context,
                   () {
                     AzamanHaptics.commit();
-                    AzSound.success();
                     _handleUploadAndNotify();
                   },
                   reason: 'Authenticate to mark trade as paid',
