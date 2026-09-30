@@ -19,10 +19,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -40,6 +38,7 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart' hide Marker;
@@ -49,7 +48,6 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-import 'package:azaman/config.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 enum _ViewMode { list, map }
@@ -356,6 +354,19 @@ class _MarketplaceHomeScreenState
 
   // ── Sort + filter (client-side) ─────────────────────────────────────────────
 
+  /// Client-side category match that tolerates the historical hotel launcher
+  /// wire value REAL_ESTATE: the backend/demo search already normalizes it to
+  /// HOSPITALITY, but a literal equality here would empty the result list.
+  bool _categoryMatchesBusiness(
+      String businessCategory, String selectedCategory) {
+    final actual = businessCategory.trim().toUpperCase();
+    final wanted = selectedCategory.trim().toUpperCase();
+    if (wanted == 'REAL_ESTATE') {
+      return actual == 'HOSPITALITY' || actual == 'REAL_ESTATE';
+    }
+    return actual == wanted;
+  }
+
   List<BusinessProfile> _applySortFilter(
       List<BusinessProfile> input) {
     var list = input.where((b) {
@@ -367,7 +378,7 @@ class _MarketplaceHomeScreenState
         return false;
       }
       if (_selectedCategory != null &&
-          b.category != _selectedCategory) {
+          !_categoryMatchesBusiness(b.category, _selectedCategory!)) {
         return false;
       }
       return true;
@@ -538,6 +549,7 @@ class _MarketplaceHomeScreenState
       );
       return _MarketplaceWorldData(
         category: cat,
+        blueprint: MarketplaceExperienceBlueprint.fromJson(null, cat.wire),
         count: inCategory.length,
         previewImageUrl: preview?.coverImageUrl ?? preview?.logoUrl,
         previewBusinessName: preview?.businessName,
@@ -1328,17 +1340,9 @@ class _MarketplaceHomeScreenState
   }
 
   /// Opens the story viewer for a business's stories (not their profile).
+  /// Both production and demo mode use the same API route — in demo mode the
+  /// DemoInterceptor supplies the seeded business-specific story response.
   void _openBusinessStories(BuildContext context, String bizId) async {
-    if (AppConfig.demoMode) {
-      // In demo mode, create demo story groups with placeholder content
-      // so the story viewer opens properly instead of redirecting to the
-      // business profile page.
-      final demoGroups = _buildDemoStoryGroups(bizId);
-      if (context.mounted) {
-        await StoryViewerScreen.open(context, groups: demoGroups, initialGroupIndex: 0, heroTag: 'marketplace-story-ring-$bizId');
-      }
-      return;
-    }
     try {
       final res = await apiClient.get('/stories/business/$bizId');
       final body = jsonDecode(res.body);
@@ -1356,42 +1360,6 @@ class _MarketplaceHomeScreenState
       }
     }
   }
-
-  /// Builds demo story groups for a business in demo mode.
-  List<StoryGroup> _buildDemoStoryGroups(String bizId) {
-    return [
-      StoryGroup(
-        authorId: 0,
-        authorUsername: 'Demo Business',
-        authorAvatarUrl: null,
-        hasUnseen: true,
-        isBoosted: false,
-        stories: [
-          StoryItem(
-            id: 'demo-story-1',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800',
-            mediaType: 'IMAGE',
-            caption: 'Welcome to our store! 🎉',
-            durationSeconds: 5,
-            boosted: false,
-            seen: false,
-            createdAt: DateTime.now(),
-          ),
-          StoryItem(
-            id: 'demo-story-2',
-            mediaUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800',
-            mediaType: 'IMAGE',
-            caption: 'Check out our latest products',
-            durationSeconds: 5,
-            boosted: false,
-            seen: false,
-            createdAt: DateTime.now(),
-          ),
-        ],
-      ),
-    ];
-  }
-
 
   String _categoryLabel(String? cat) {
     switch (cat) {
@@ -1778,86 +1746,6 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  Widget _nearbyCard(BusinessLocation loc, AzamanColors colors) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        AzamanHaptics.nav();
-        final uri = Uri.parse(
-            'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}');
-        launchUrl(uri, mode: LaunchMode.externalApplication)
-            .catchError((_) => false);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.divider, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.accentSurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.location_on_outlined,
-                  size: 20, color: colors.accent),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    loc.label.isNotEmpty ? loc.label : 'Branch',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    loc.address,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: colors.textTertiary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (loc.distanceKm != null)
-                  Text(
-                    '${loc.distanceKm!.toStringAsFixed(1)} km',
-                    style: TextStyle(
-                        color: colors.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700),
-                  ),
-                const SizedBox(height: 4),
-                Icon(Icons.near_me_outlined,
-                    size: 16, color: colors.textTertiary),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _locationPrompt(AzamanColors colors) {
     return Center(
       child: Padding(
@@ -1937,34 +1825,23 @@ class _MarketplaceHomeScreenState
 /// truthful count and preview derived from the loaded search state.
 class _MarketplaceWorldData {
   final BusinessCategory category;
+  final MarketplaceExperienceBlueprint blueprint;
   final int count;
   final String? previewImageUrl;
   final String? previewBusinessName;
 
   const _MarketplaceWorldData({
     required this.category,
+    required this.blueprint,
     required this.count,
     this.previewImageUrl,
     this.previewBusinessName,
   });
 
   /// One deterministic, category-native line naming the world's promise.
-  String get phrase {
-    final subtitle = category.subtitle;
-    if (subtitle != null && subtitle.isNotEmpty) return subtitle;
-    switch (category.wire) {
-      case 'RETAIL':
-        return 'Shop racks, aisles & drops';
-      case 'HOSPITALITY':
-        return 'Rooms, suites & stays';
-      case 'FOOD_BEVERAGE':
-        return 'Tables, plates & takeaway';
-      case 'LOGISTICS':
-        return 'Seats, routes & departures';
-      default:
-        return 'Browse ${category.label.toLowerCase()}';
-    }
-  }
+  /// Derived only from the central MarketplaceExperienceBlueprint — the
+  /// portal is never a second owner of vertical semantics.
+  String get phrase => blueprint.worldPromise;
 }
 
 class _MarketplaceWorldCard extends StatelessWidget {

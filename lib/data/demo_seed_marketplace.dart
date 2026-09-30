@@ -91,6 +91,30 @@ class DemoMarketplaceSeed {
 
   static const String _demoAzamanId = 'AZM-000123456';
 
+  /// Seeded Marketplace-family entity IDs. Every parameterized matcher must
+  /// resolve a known ID to a valid synthetic response and throw
+  /// [DemoEndpointNotSeededException] for anything else — no fake data for
+  /// IDs the demo world never seeded.
+  static const List<String> seededBusinessIds = <String>[
+    restaurantBizId, restaurant2BizId,
+    hotelBizId, hotel2BizId,
+    transitBizId, transit2BizId,
+    retailBizId, retail2BizId,
+  ];
+  static const List<String> seededTripIds = <String>[
+    'trip-001', 'trip-002', 'trip-003', 'trip-004',
+  ];
+  static const List<String> seededInvoiceIds = <String>[
+    'inv-restaurant-001', 'inv-restaurant-002',
+  ];
+  static const List<String> seededReservationRefs = <String>['AZM-RES-001'];
+  static const List<String> seededDineInTabIds = <String>['tab-demo-001'];
+  static const String seededTrustScoreAzamanId = _demoAzamanId;
+
+  static bool isSeededId(String id, List<String> seeded) =>
+      seeded.contains(id.trim().toUpperCase()) ||
+      seeded.contains(id);
+
   /// The canonical Marketplace GET endpoints the app's customer journey
   /// actually calls. Every entry must be explicitly covered by
   /// [DemoInterceptor] — a permanent test walks this list and fails if
@@ -314,8 +338,12 @@ class DemoMarketplaceSeed {
     'hasMore': false, 'nextCursor': null,
   };
 
-  static Map<String, dynamic> getInvoice(String invoiceId) =>
-    {'invoice': invoiceId == 'inv-restaurant-001' ? _unpaidInvoice() : _paidInvoice()};
+  static Map<String, dynamic> getInvoice(String invoiceId) {
+    if (!isSeededId(invoiceId, seededInvoiceIds)) {
+      throw DemoEndpointNotSeededException('GET', '/business/invoices/$invoiceId');
+    }
+    return {'invoice': invoiceId == 'inv-restaurant-001' ? _unpaidInvoice() : _paidInvoice()};
+  }
 
   static Map<String, dynamic> getMyOrders() => {
     'orders': [
@@ -418,6 +446,9 @@ class DemoMarketplaceSeed {
   }
 
   static Map<String, dynamic> getTripSeats(String tripId) {
+    if (!isSeededId(tripId, seededTripIds)) {
+      throw DemoEndpointNotSeededException('GET', '/marketplace/transit/trips/$tripId/seats');
+    }
     final seats = <Map<String, dynamic>>[];
     final occupied = {'1A','2B','3D','5A','7C','10B','10D'};
     for (var row = 1; row <= 10; row++) {
@@ -441,6 +472,9 @@ class DemoMarketplaceSeed {
   }
 
   static Map<String, dynamic> getTrustScore(String azamanId) {
+    if (azamanId.trim() != seededTrustScoreAzamanId) {
+      throw DemoEndpointNotSeededException('GET', '/marketplace/trust-score/$azamanId');
+    }
     return {
       'trustLevel': 'GOOD', 'noShowRate': 0.02,
       'totalBookings': 14, 'noShowCount': 0, 'completedBookings': 14,
@@ -450,6 +484,9 @@ class DemoMarketplaceSeed {
   /// Legacy dine-in tab path (marketplace_booking_service). Coherent OPEN
   /// tab on the seeded restaurant so the endpoint is explicitly covered.
   static Map<String, dynamic> getDineInTab(String tabId) {
+    if (!isSeededId(tabId, seededDineInTabIds)) {
+      throw DemoEndpointNotSeededException('GET', '/marketplace/business/dine-in/$tabId');
+    }
     return {'data': {
       'id': tabId,
       'status': 'OPEN',

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/data/demo_seed_marketplace.dart';
@@ -277,6 +278,123 @@ void main() {
         () => DemoInterceptor.tryGet('/follows/unseeded'),
         throwsA(isA<DemoEndpointNotSeededException>()),
       );
+    });
+  });
+
+  group('DemoInterceptor — parameterized matchers validate seeded IDs', () {
+    // Known seeded entity ID -> valid synthetic response (200 + JSON).
+    test('known IDs resolve to valid synthetic responses', () {
+      final known = <String>[
+        '/follows/check/${DemoMarketplaceSeed.seededBusinessIds.first}',
+        '/stories/analytics/business/${DemoMarketplaceSeed.seededBusinessIds.first}',
+        '/marketplace/trust-score/${DemoMarketplaceSeed.seededTrustScoreAzamanId}',
+        '/marketplace/reservations/${DemoMarketplaceSeed.seededReservationRefs.first}/checkin-qr',
+        '/marketplace/transit/trips/${DemoMarketplaceSeed.seededTripIds.first}/seats',
+        '/marketplace/business/dine-in/${DemoMarketplaceSeed.seededDineInTabIds.first}',
+        for (final inv in DemoMarketplaceSeed.seededInvoiceIds)
+          '/business/invoices/$inv',
+      ];
+      for (final endpoint in known) {
+        final res = DemoInterceptor.tryGet(endpoint);
+        expect(res, isNotNull, reason: 'seeded $endpoint must resolve');
+        expect(res!.statusCode, 200);
+        expect(
+          () => jsonDecode(res.body),
+          returnsNormally,
+          reason: 'seeded $endpoint must return valid JSON',
+        );
+      }
+    });
+
+    // Unknown entity ID -> the typed not-seeded signal, never fake data.
+    test('unknown IDs throw the typed not-seeded signal', () {
+      final unknown = <String>[
+        '/follows/check/BIZ-NOPE-999',
+        '/follows/check/999',
+        '/stories/analytics/business/BIZ-NOPE-999',
+        '/stories/analytics/business/',
+        '/marketplace/trust-score/AZM-000000000',
+        '/marketplace/reservations/AZM-RES-NOPE/checkin-qr',
+        '/marketplace/transit/trips/trip-999/seats',
+        '/marketplace/business/dine-in/tab-nope-999',
+        '/business/invoices/inv-nope-999',
+      ];
+      for (final endpoint in unknown) {
+        expect(
+          () => DemoInterceptor.tryGet(endpoint),
+          throwsA(isA<DemoEndpointNotSeededException>()),
+          reason: 'unknown $endpoint must not be faked',
+        );
+      }
+    });
+
+    test('seeded ID lists stay coherent with the seed constants', () {
+      expect(DemoMarketplaceSeed.seededBusinessIds.length, 8);
+      for (final b in DemoMarketplaceSeed.allBusinesses()) {
+        expect(DemoMarketplaceSeed.seededBusinessIds, contains(b['bizId']));
+      }
+      expect(DemoMarketplaceSeed.seededTripIds.length, 4);
+    });
+  });
+
+  group('Demo business stories — truthful seeded path', () {
+    test(
+      'interceptor serves business-specific seeded stories, no Unsplash',
+      () {
+        final res = DemoInterceptor.tryGet(
+          '/stories/business/${DemoMarketplaceSeed.restaurantBizId}',
+        );
+        expect(res, isNotNull);
+        final body = jsonDecode(res!.body) as Map<String, dynamic>;
+
+        // Never Unsplash media in the demo story path.
+        expect(res.body, isNot(contains('images.unsplash.com')));
+
+        final groups = body['groups'] as List;
+        expect(
+          groups,
+          isNotEmpty,
+          reason: 'seeded business must have story groups',
+        );
+        final first = groups.first as Map<String, dynamic>;
+        final author = first['author'] as Map<String, dynamic>;
+        expect(
+          author['username'],
+          "Chef Abby's",
+          reason: 'story author is the seeded business, not "Demo Business"',
+        );
+        final stories = first['stories'] as List;
+        expect(stories, isNotEmpty);
+        for (final st in stories.whereType<Map<String, dynamic>>()) {
+          expect(
+            (st['id'] as String).startsWith('bs-'),
+            true,
+            reason: 'story IDs come from the seed, not DateTime.now() fakes',
+          );
+          expect(st['mediaUrl'], isNot(contains('images.unsplash.com')));
+        }
+      },
+    );
+
+    test('unknown business stories throw the typed not-seeded signal', () {
+      expect(
+        () => DemoInterceptor.tryGet('/stories/business/BIZ-NOPE-999'),
+        throwsA(isA<DemoEndpointNotSeededException>()),
+      );
+    });
+
+    test('marketplace home screen has no duplicate demo story generator', () {
+      final source = File(
+        'lib/screens/marketplace/marketplace_home_screen.dart',
+      ).readAsStringSync();
+      expect(
+        source,
+        isNot(contains('_buildDemoStoryGroups')),
+        reason: 'the Unsplash demo story generator must stay deleted',
+      );
+      expect(source, isNot(contains('images.unsplash.com')));
+      // Both modes use the normal API route.
+      expect(source, contains("apiClient.get('/stories/business/\$bizId')"));
     });
   });
 }

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/models/business_models.dart';
+import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 
 /// Portal permanent guards (milestone 2026-09-30):
 ///   1. The bare marketplace tab is the PORTAL — a destination with an
@@ -21,6 +23,12 @@ class _RecordingSearchNotifier extends BusinessSearchNotifier {
   _RecordingSearchNotifier() : super(BusinessService());
 
   final List<String?> searchedCategories = [];
+
+  /// Places pre-fetched results into the search state without any network,
+  /// so guard tests can reason about the client-side filter path.
+  void seedResults(List<BusinessProfile> businesses, {String? category}) {
+    state = state.copyWith(results: businesses, category: category);
+  }
 
   @override
   Future<void> search(
@@ -51,6 +59,29 @@ Future<_RecordingSearchNotifier> _pumpHome(
   await tester.pump(const Duration(milliseconds: 600));
   return notifier;
 }
+
+/// A hotel business on the HOSPITALITY wire (what backend records return).
+BusinessProfile _hotelBusiness() => BusinessProfile(
+  id: 'internal-profile-hotel',
+  bizId: 'public-biz-hotel',
+  businessName: 'Accra Grand Hotel',
+  category: 'HOSPITALITY',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 0,
+  completedEscrows: 0,
+  userId: 1,
+  totalVolume: 0,
+  averageRating: 4.8,
+  reviewCount: 2,
+  reviews: const [],
+  amenities: const [],
+  cuisineTypes: const [],
+  username: 'accra-grand',
+  products: const [],
+  locations: const [],
+);
 
 /// Scrolls the portal list until [finder] is built (ListView is lazy —
 /// below-the-fold sections do not exist until scrolled into view).
@@ -184,5 +215,68 @@ void main() {
       findsOneWidget,
     );
     expect(notifier.searchedCategories, ['RETAIL']);
+  });
+
+  testWidgets(
+    'REAL_ESTATE selection keeps HOSPITALITY businesses (client-side alias)',
+    (tester) async {
+      // The launcher sends the legacy REAL_ESTATE wire for hotels while
+      // backend records stay HOSPITALITY; the returned hotels must survive
+      // the client-side filter, not be dropped.
+      final notifier = await _pumpHome(tester, initialCategory: 'REAL_ESTATE');
+      notifier.seedResults([_hotelBusiness()], category: 'REAL_ESTATE');
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        find.byKey(const ValueKey('public-biz-hotel')),
+        findsOneWidget,
+        reason: 'HOSPITALITY business must appear under a REAL_ESTATE filter',
+      );
+      expect(find.text('No businesses found'), findsNothing);
+
+      // Let the one-shot child timers fire so no timer stays pending.
+      await tester.pump(const Duration(milliseconds: 800));
+    },
+  );
+
+  testWidgets('world cards promise their blueprint journey, not ad-hoc text', (
+    tester,
+  ) async {
+    await _pumpHome(tester);
+
+    // Every phrase comes from the central blueprint, one per preset.
+    expect(find.text('Tables, plates & takeaway'), findsOneWidget);
+    expect(find.text('Shop racks, aisles & drops'), findsOneWidget);
+    expect(find.text('Rooms, suites & stays'), findsOneWidget);
+    expect(find.text('Seats, routes & departures'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 800));
+  });
+
+  test('every primary category resolves its blueprint from the wire alone', () {
+    for (final cat in BusinessCategories.primary) {
+      final blueprint = MarketplaceExperienceBlueprint.fromJson(null, cat.wire);
+      expect(
+        blueprint.worldPromise,
+        isNotEmpty,
+        reason: '${cat.wire} must carry a category-native promise',
+      );
+      expect(
+        blueprint.worldPromise,
+        isNot(contains('Browse')),
+        reason: '${cat.wire} must not fall back to a generic browse phrase',
+      );
+    }
+
+    final presets = {
+      for (final cat in BusinessCategories.primary)
+        cat.wire: MarketplaceExperienceBlueprint.fromJson(
+          null,
+          cat.wire,
+        ).preset,
+    };
+    expect(presets['FOOD_BEVERAGE'], 'DINING_JOURNEY');
+    expect(presets['RETAIL'], 'SHOP_FLOOR');
+    expect(presets['HOSPITALITY'], 'BUILDING_WALK');
+    expect(presets['LOGISTICS'], 'TRAVEL_JOURNEY');
   });
 }

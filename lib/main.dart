@@ -446,12 +446,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   late final List<Widget?> _pages;
   late final AnimationController _transitionCtrl;
+  // Cached in initState: `ref` is unusable from dispose() (riverpod asserts),
+  // and deactivate() can fire for temporary removals that later re-insert the
+  // State — deregistering there could drop listeners that are never reregistered.
+  late final SocketService _shellSocketService;
   int _displayedIndex = 0;
   int _transitionDirection = 1;
 
   @override
   void initState() {
     super.initState();
+    _shellSocketService = ref.read(socketServiceProvider);
+
     _pages = [const AzamanHomePage(), null, null, null];
 
     _transitionCtrl = AnimationController(
@@ -565,21 +571,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   @override
   void dispose() {
-    // `ref` is unusable once the element is disposed (riverpod asserts).
-    // Deregister the shell's socket callbacks in deactivate() — the last
-    // lifecycle point where ref.read is legal — and keep dispose() for
-    // controller teardown only.
+    // Deregister the shell's socket callbacks via the cached service — no
+    // ref.read here (riverpod asserts once the element is disposed), and no
+    // deactivate() deregistration (deactivation can be temporary).
+    _shellSocketService.removeNewTradeRequestListener();
+    _shellSocketService.removeBizNotificationListener();
+    _shellSocketService.removeBizNotificationsUpdatedListener();
     _transitionCtrl.dispose();
     super.dispose();
-  }
-
-  @override
-  void deactivate() {
-    super.deactivate();
-    final socketService = ref.read(socketServiceProvider);
-    socketService.removeNewTradeRequestListener();
-    socketService.removeBizNotificationListener();
-    socketService.removeBizNotificationsUpdatedListener();
   }
 
   void _initPostFrameStartup() {
@@ -668,7 +667,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   void _initUnifiedSocket() {
-    final socketService = ref.read(socketServiceProvider);
+    final socketService = _shellSocketService;
     socketService.init(ref);
     final webrtcService = ref.read(webrtcServiceProvider);
     webrtcService.initialize();

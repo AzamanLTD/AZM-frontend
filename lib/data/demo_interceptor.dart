@@ -432,8 +432,17 @@ class DemoInterceptor {
       return DemoMarketplaceSeed.getTripSeats(transitSeatsMatch.group(1)!);
     }
 
-    // /marketplace/reservations/{reservationId}/checkin-qr
+    // /marketplace/reservations/{reservationId}/checkin-qr — seeded
+    // reservation only; unknown refs are not seeded, not faked.
     if (path.contains('/marketplace/reservations/') && path.endsWith('/checkin-qr')) {
+      final reservationId = path
+          .split('/marketplace/reservations/')[1]
+          .split('/checkin-qr')[0];
+      if (!DemoMarketplaceSeed.isSeededId(
+          reservationId, DemoMarketplaceSeed.seededReservationRefs)) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/marketplace/reservations/$reservationId/checkin-qr');
+      }
       return {
         'success': true,
         'token': 'demo-token-123',
@@ -454,13 +463,24 @@ class DemoInterceptor {
       return {'following': DemoMarketplaceSeed.getFollowing()};
     }
 
-    // /follows/check/{bizId}
+    // /follows/check/{bizId} — seeded businesses only.
     if (path.startsWith('/follows/check/')) {
+      final bizId = path.substring('/follows/check/'.length);
+      if (!DemoMarketplaceSeed.isSeededId(
+          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        throw DemoEndpointNotSeededException('GET', '/follows/check/$bizId');
+      }
       return {'isFollowing': false};
     }
 
-    // /stories/analytics/business/{bizId}
+    // /stories/analytics/business/{bizId} — seeded businesses only.
     if (path.startsWith('/stories/analytics/business/')) {
+      final bizId = path.substring('/stories/analytics/business/'.length);
+      if (!DemoMarketplaceSeed.isSeededId(
+          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/stories/analytics/business/$bizId');
+      }
       return {'data': {'views': 340, 'replies': 12, 'boosts': 5}};
     }
 
