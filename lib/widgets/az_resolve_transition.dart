@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 enum AzResolvePhase { loading, resolved }
@@ -55,7 +56,7 @@ class _AzResolveTransitionState extends State<AzResolveTransition>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduced = MediaQuery.of(context).disableAnimations;
+    final reduced = !AzMotion.of(context).travel;
     if (_reducedMotion != reduced) {
       _reducedMotion = reduced;
       _scheduleArrival();
@@ -91,7 +92,7 @@ class _AzResolveTransitionState extends State<AzResolveTransition>
         setState(() => _reducedVisible = true);
         return;
       }
-      if (MediaQuery.of(context).disableAnimations) {
+      if (!AzMotion.of(context).travel) {
         _arrive(reduced: true);
       } else if (MotionTokens.staggerDelay(widget.index) == Duration.zero) {
         _arrive(reduced: false);
@@ -137,7 +138,7 @@ class _AzResolveTransitionState extends State<AzResolveTransition>
       ignoring: !resolved,
       child: ExcludeSemantics(
         excluding: !resolved,
-        child: MediaQuery.of(context).disableAnimations
+        child: !AzMotion.of(context).travel
             ? AnimatedOpacity(
                 duration: widget.skipEntrance
                     ? Duration.zero
