@@ -217,16 +217,9 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                             final name = g['name'] ?? 'Group';
                             final groupId = g['id'];
                             return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                                child: Icon(
-                                  Icons.group,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSecondaryContainer,
-                                ),
+                              leading: AzAvatar(
+                                circular: true,
+                                name: name.toString(),
                               ),
                               title: Text(name.toString()),
                               onTap: () => _forward(
