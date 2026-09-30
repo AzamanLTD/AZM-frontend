@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/marketplace/experiences/hotel/hotel_experience.dart';
 
@@ -21,10 +22,12 @@ void main() {
 
   testWidgets('room explorer exposes selectable room', (tester) async {
     HotelRoom? selected;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: HotelRoomExplorer(
+    // The room image uses the canonical AzamanNetworkImage, which resolves
+    // the theme via riverpod, so the harness needs a ProviderScope.
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(body: HotelRoomExplorer(
       rooms: const [HotelRoom(id: 'r1', name: 'Ocean Suite', nightlyRate: 850, currency: 'GHS')],
       onRoomSelected: (room) => selected = room,
-    ))));
+    )))));
     expect(find.text('Ocean Suite'), findsOneWidget);
     await tester.tap(find.text('Ocean Suite'));
     expect(selected?.id, 'r1');

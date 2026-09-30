@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 import 'retail_cart.dart';
 import 'retail_experience.dart';
@@ -127,14 +128,11 @@ class _ProductThumbnail extends StatelessWidget {
       height: 52,
       child: image == null
           ? const Icon(Icons.shopping_bag_outlined)
-          : ClipRRect(
+          : AzamanNetworkImage(
+              imageUrl: image,
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                image,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.shopping_bag_outlined),
-              ),
+              errorWidget: (_, __, ___) =>
+                  const Icon(Icons.shopping_bag_outlined),
             ),
     );
   }

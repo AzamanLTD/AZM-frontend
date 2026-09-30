@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -11,6 +10,17 @@ class ChatAvatar extends StatelessWidget {
   final bool showOnlineDot;
   final String? heroTag;
 
+  /// NEW-K: list rows render a true circle; chat/header contexts keep the
+  /// default squircle. Default false preserves every existing caller.
+  final bool circular;
+
+  /// NEW-K: story-ring stroke, used only when [storyRing] is supplied.
+  final double ringStrokeWidth;
+
+  /// NEW-K: optional session story ring drawn OUTSIDE the avatar body. Null
+  /// (the default) leaves the existing rendering untouched.
+  final Gradient? storyRing;
+
   const ChatAvatar({
     super.key,
     this.imageUrl,
@@ -19,6 +29,9 @@ class ChatAvatar extends StatelessWidget {
     this.isOnline = false,
     this.showOnlineDot = false,
     this.heroTag,
+    this.circular = false,
+    this.ringStrokeWidth = 2.0,
+    this.storyRing,
   });
 
   @override
@@ -37,11 +50,16 @@ class ChatAvatar extends StatelessWidget {
   }
 
   Widget _buildAvatar(bool hasImage, Gradient gradient) {
-    // Squircle curvature — matches StoryRing's proportions (2026-07-06) so
-    final radius = size * 0.5;
-    final shape = ContinuousRectangleBorder(borderRadius: BorderRadius.circular(radius));
+    // Squircle curvature matches StoryRing's proportions (2026-07-06); the
+    // circular flag switches list rows to a true circle without touching the
+    // chat/header default.
+    final ShapeBorder shape = circular
+        ? const CircleBorder()
+        : ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(size * 0.5),
+          );
 
-    return SizedBox(
+    final body = SizedBox(
       width: size,
       height: size,
       child: Stack(
@@ -76,6 +94,21 @@ class ChatAvatar extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    if (storyRing == null) return body;
+    return Container(
+      width: size + ringStrokeWidth * 2 + 4,
+      height: size + ringStrokeWidth * 2 + 4,
+      decoration: BoxDecoration(
+        shape: circular ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: circular
+            ? null
+            : BorderRadius.circular((size + 8) * 0.42),
+        gradient: storyRing,
+      ),
+      padding: EdgeInsets.all(ringStrokeWidth + 2),
+      child: body,
     );
   }
 

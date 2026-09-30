@@ -12,6 +12,7 @@ import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/services/message_action_service.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/widgets/az_avatar.dart';
 
 class ForwardDialog {
   /// Shows the forward dialog as a modal bottom sheet.
@@ -190,13 +191,10 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                             final avatar = f['profilePictureUrl'];
                             final friendshipId = f['friendshipId'] ?? f['id'];
                             return ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: avatar != null
-                                    ? NetworkImage(avatar)
-                                    : null,
-                                child: avatar == null
-                                    ? Text(name[0].toUpperCase())
-                                    : null,
+                              leading: AzAvatar(
+                                circular: true,
+                                imageUrl: avatar as String?,
+                                name: name.toString(),
                               ),
                               title: Text(name),
                               onTap: () => _forward(
@@ -219,16 +217,9 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                             final name = g['name'] ?? 'Group';
                             final groupId = g['id'];
                             return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                                child: Icon(
-                                  Icons.group,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSecondaryContainer,
-                                ),
+                              leading: AzAvatar(
+                                circular: true,
+                                name: name.toString(),
                               ),
                               title: Text(name.toString()),
                               onTap: () => _forward(
