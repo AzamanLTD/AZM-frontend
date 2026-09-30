@@ -42,6 +42,7 @@ import 'package:azaman/services/startup_coordinator.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/azaman_connectivity_banner.dart';
+import 'package:azaman/widgets/az_error_surface.dart';
 import 'package:azaman/widgets/themed_app_backdrop.dart';
 import 'package:azaman/widgets/in_app_push_banner.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
@@ -157,35 +158,19 @@ Future<void> _bootstrap() async {
     }).sendPort,
   );
 
+  // A build failure is the ONE screen with nothing else on it — and the screen
+  // a user sees when they are already frustrated. It is designed like the rest
+  // of the app now: theme-derived colours, one human sentence, a way forward.
+  // The old body hardcoded #1A1A2E and told the user to restart the app.
+  //
+  // Review correction (2026-09-30): there is no safe "re-run the failed build"
+  // from inside ErrorWidget.builder — nudging a notifier from here cannot
+  // re-execute the failed ancestor build and would duplicate root lifecycle
+  // work if it tried. So the shell passes NO retry and the surface claims no
+  // action it cannot perform. The truthful way out is the OS back gesture,
+  // which is exactly what the hint copy says.
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    return const Material(
-      color: Color(0xFF1A1A2E),
-      child: Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-              SizedBox(height: 16),
-              Text(
-                'Something went wrong',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Pull down to refresh, or restart the app.',
-                style: TextStyle(color: Colors.white54, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return AzErrorSurface.fromFramework();
   };
 
   // Sound ships silent until the shell says which backend is live (TASK-020).

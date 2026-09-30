@@ -23,8 +23,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/connectivity_service.dart';
+import 'package:azaman/widgets/offline_hairline.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 
@@ -88,8 +88,6 @@ class _AzamanConnectivityBannerState
 
   @override
   Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
-
     // Drive the state machine off the connectivity stream.
     ref.listen<AsyncValue<bool>>(connectivityProvider, (_, next) {
       next.whenData((online) {
@@ -102,97 +100,21 @@ class _AzamanConnectivityBannerState
     return Stack(
       children: [
         widget.child,
-        if (_state != _BannerState.hidden)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: _BannerStrip(state: _state, colors: colors),
+        // The strip is always mounted and animates its own height. Nothing is
+        // pushed down permanently and nothing floats over the content.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: OfflineHairline(
+              offline: _state == _BannerState.offline,
+              justReconnected: _state == _BannerState.reconnected,
             ),
           ),
+        ),
       ],
-    );
-  }
-}
-
-class _BannerStrip extends StatelessWidget {
-  final _BannerState state;
-  final AzamanColors colors;
-
-  const _BannerStrip({required this.state, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOffline = state == _BannerState.offline;
-    final bgColor = isOffline ? colors.danger : colors.success;
-    final icon = isOffline
-        ? Icons.cloud_outlined
-        : Icons.cloud_outlined;
-    final label = isOffline
-        ? 'You are offline'
-        : 'Reconnected';
-    final subtitle = isOffline
-        ? 'Showing your last loaded data. Some actions are paused.'
-        : null;
-
-    return AnimatedSlide(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      offset: Offset.zero,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: bgColor.withValues(alpha: 0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
