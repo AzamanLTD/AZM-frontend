@@ -42,7 +42,7 @@ class SpendingCategory {
 }
 
 // Map backend transaction types to spending categories
-const _categoryMap = <String, SpendingCategory>{
+const spendingCategoryMap = <String, SpendingCategory>{
   'WITHDRAWAL_FIAT': SpendingCategory(key: 'cash', label: 'Cash Withdrawals', icon: HugeIconsSolid.moneySend01, colorValue: 0xFFEF4444),
   'WITHDRAWAL_CRYPTO': SpendingCategory(key: 'crypto', label: 'Crypto Withdrawals', icon: HugeIconsSolid.bitcoinSend, colorValue: 0xFFF59E0B),
   'SUSU_CONTRIBUTION': SpendingCategory(key: 'susu', label: 'Susu Contributions', icon: HugeIconsSolid.group01, colorValue: 0xFF8B5CF6),
@@ -55,7 +55,7 @@ const _categoryMap = <String, SpendingCategory>{
   'EWA_WITHDRAWAL': SpendingCategory(key: 'ewa', label: 'Earned Wage Access', icon: HugeIconsSolid.wallet01, colorValue: 0xFFA855F7),
 };
 
-const _uncategorized = SpendingCategory(
+const uncategorizedSpendingCategory = SpendingCategory(
   key: 'other',
   label: 'Other',
   icon: HugeIconsSolid.note01,
@@ -155,7 +155,7 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
 
         // Category breakdown
         if (isDebit) {
-          final cat = _categoryMap[txn.rawType.toUpperCase()] ?? _uncategorized;
+          final cat = spendingCategoryMap[txn.rawType.toUpperCase()] ?? uncategorizedSpendingCategory;
           _categorySpending[cat.key] = (_categorySpending[cat.key] ?? 0) + amount;
         }
       }
@@ -323,9 +323,9 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
                       sectionsSpace: 2,
                       centerSpaceRadius: 48,
                       sections: sortedEntries.map((entry) {
-                        final cat = _categoryMap.values.firstWhere(
+                        final cat = spendingCategoryMap.values.firstWhere(
                           (c) => c.key == entry.key,
-                          orElse: () => _uncategorized,
+                          orElse: () => uncategorizedSpendingCategory,
                         );
                         final percentage = total > 0 ? (entry.value / total * 100) : 0;
                         return PieChartSectionData(
@@ -349,9 +349,9 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: sortedEntries.take(5).map((entry) {
-                      final cat = _categoryMap.values.firstWhere(
+                      final cat = spendingCategoryMap.values.firstWhere(
                         (c) => c.key == entry.key,
-                        orElse: () => _uncategorized,
+                        orElse: () => uncategorizedSpendingCategory,
                       );
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3),
@@ -491,9 +491,9 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
           ),
           const SizedBox(height: 16),
           ...sortedEntries.map((entry) {
-            final cat = _categoryMap.values.firstWhere(
+            final cat = spendingCategoryMap.values.firstWhere(
               (c) => c.key == entry.key,
-              orElse: () => _uncategorized,
+              orElse: () => uncategorizedSpendingCategory,
             );
             final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
 

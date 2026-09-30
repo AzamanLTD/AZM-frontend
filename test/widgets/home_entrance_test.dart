@@ -154,7 +154,10 @@ bool _hasNonIdentityScale(WidgetTester tester, Finder anchor) {
 // home_screen.dart's _stage). Block 4 (susu) renders nothing under its
 // stub-failure state and block 1 is the only text on the page.
 Finder get _headerGift => find.byIcon(HugeIconsSolid.gift); // block 0
-Finder get _title => find.text('Welcome back'); // block 1
+// Block 1's text is now the NEW-D greeting ("Good <morning|afternoon|
+// evening>, <name|there>"), so the anchor matches any part of day.
+Finder get _title =>
+    find.textContaining(RegExp('Good (morning|afternoon|evening)')); // block 1
 Finder get _addMoneyPill => find.byIcon(HugeIconsSolid.plusSign); // block 2
 Finder get _heroCard =>
     find.byType(FlippableBalanceCard); // block 3

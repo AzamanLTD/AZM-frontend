@@ -33,6 +33,14 @@ import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/services/home_summary_service.dart'
+    show TransactionSummary;
+import 'package:azaman/screens/spending_insights_screen.dart'
+    show SpendingInsightsScreen, spendingCategoryMap, uncategorizedSpendingCategory;
+import 'package:azaman/providers/transaction_history_provider.dart';
+import 'package:azaman/widgets/home/az_greeting_brain.dart';
+import 'package:azaman/widgets/home/az_insight_card.dart';
+import 'package:azaman/widgets/home/az_refresh_reward.dart';
 
 
 class AzamanHomePage extends ConsumerStatefulWidget {
@@ -103,14 +111,28 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage> {
     // A refresh is a "re-check the world" action, not a navigation. The
     // threshold tick is the same sensation the pull gesture armed with, so the
     // release feels like the gesture completing rather than a new event.
+    // Exactly one threshold haptic per committed pull — never doubled.
     AzamanHaptics.threshold();
+    // NEW-D refresh reward: capture the authoritative balance the Home deck
+    // renders BEFORE the world is re-read, so the comparison is between two
+    // real observations, not an invented one.
+    final balanceBefore = ref.read(balanceDataProvider).availableBalance;
     final summaryFuture = ref.read(homeSummaryProvider.notifier).refresh();
     final auth = ref.read(authProvider);
     if (auth.user?.id != null) {
-      // ignore: discarded_futures
-      auth.fetchUserDetails();
+      // Awaited now: the balance comparison below is only honest once the
+      // fresh profile (and the balance it publishes) has actually landed.
+      await auth.fetchUserDetails();
     }
     await summaryFuture;
+    final balanceAfter = ref.read(balanceDataProvider).availableBalance;
+    if (AzRefreshReward.landed(
+        before: balanceBefore, after: balanceAfter)) {
+      // A settlement really landed while refreshing — the money moving up
+      // on screen is the animation; this is its receipt (§H.7).
+      // ignore: discarded_futures
+      AzamanHaptics.moneyLanded();
+    }
   }
 
   @override
@@ -399,19 +421,168 @@ class _GreetingTitle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final username = ref.watch(authProvider).user?.username ?? '';
-    final heading = username.isEmpty ? 'Welcome back' : 'Hi, $username';
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    // Read the signals where they already exist. Every input is optional: an
+    // absent value means the brain skips that line rather than inventing one.
+    // (NEW-D; §H.7: no streak input — streaks are not a Home mechanic.)
+    final summary = ref.watch(homeSummaryProvider);
+    final susuGroups = ref.watch(susuListProvider).valueOrNull ?? const [];
+    final line = AzGreetingBrain.resolve(AzGreetingInputs(
+      now: DateTime.now(),
+      username: username,
+      moneyArrivedToday: _settledInflowToday(summary.recentTransactions),
+      // Escrow release timing has no Home-level authoritative source
+      // (escrowProvider is trade-keyed); left null rather than invented.
+      escrowReleasingInHours: null,
+      susuDueTomorrow: _susuDueTomorrow(susuGroups),
+      // Deposit-awaiting-approval has no authoritative Home-level source;
+      // pendingWithdrawals are withdrawals, not deposits. Left null.
+      depositAwaitingApproval: false,
+    ));
+
+    final glyph = Icon(
+      AzGreetingBrain.glyphFor(line.tone),
+      key: ValueKey(line.tone),
+      size: 20,
+      color: colors.accent,
+    );
+    final text = Text(
+      line.text,
+      key: ValueKey(line.text),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AzText.display.copyWith(color: colors.textPrimary),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-      child: Text(
-        heading,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AzText.display.copyWith(color: colors.textPrimary),
+      child: Row(
+        children: [
+          // Reduced motion: the glyph and the words simply ARE there — the
+          // switcher becomes an identity swap, same convention as the rest
+          // of Home's entrance (TASK-008).
+          AnimatedSwitcher(
+            duration: reduceMotion ? Duration.zero : MotionTokens.control,
+            transitionBuilder: (child, anim) =>
+                FadeTransition(opacity: anim, child: child),
+            child: glyph,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: reduceMotion ? Duration.zero : MotionTokens.standard,
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
+              child: text,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  /// A settled inflow today: the most recent wallet-history credit that is
+  /// COMPLETED (settled) and landed today. The amount comes from the same
+  /// authoritative /wallet/history snapshot the Activity section renders —
+  /// no extra fetch, no invented figures. Null when nothing qualifies.
+  static String? _settledInflowToday(
+      List<TransactionSummary> recentTransactions) {
+    for (final t in recentTransactions) {
+      if (!t.isCredit || t.status != 'COMPLETED') continue;
+      final created = t.createdAt;
+      if (created == null) continue;
+      final now = DateTime.now();
+      if (created.year == now.year &&
+          created.month == now.month &&
+          created.day == now.day) {
+        return t.symbol == 'GHS'
+            ? AzMoney.ghs(t.amount)
+            : AzMoney.usdc(t.amount);
+      }
+    }
+    return null;
+  }
+
+  /// True when an ACTIVE Susu group's next pending cycle is scheduled for
+  /// tomorrow — the same `nextCycle` the hub tile renders its countdown
+  /// from. Real data only; no group means no claim.
+  static bool _susuDueTomorrow(List<SusuSummary> groups) {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    for (final g in groups) {
+      if (g.status != SusuStatus.active) continue;
+      final runAt = g.nextCycle?.scheduledRunAt;
+      if (runAt == null) continue;
+      if (runAt.year == tomorrow.year &&
+          runAt.month == tomorrow.month &&
+          runAt.day == tomorrow.day) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
+
+/// NEW-D — Home's verifiable spending insight, derived ONLY from the
+/// transaction history that is ALREADY loaded (transactionHistoryProvider).
+/// Home never triggers a history fetch to decorate itself (§G.8 data-source
+/// rule): an empty history renders no card at all. Amounts follow the
+/// insights screen's own aggregation (USDC, principal + fee, debit-only).
+final _homeInsightDataProvider = Provider<AzInsightData?>((ref) {
+  final items = ref.watch(transactionHistoryProvider).items;
+  if (items.isEmpty) return null;
+
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  // 7 daily buckets, oldest first, ending today.
+  final daily = List<double>.filled(7, 0, growable: false);
+  var lastWeekTotal = 0.0;
+  final categoryTotals = <String, double>{};
+
+  for (final t in items) {
+    // Same debit definition as spending_insights_screen.dart, restricted
+    // to settled records — an unsettled spend is not a fact yet.
+    if (t.category != 'WITHDRAWAL' || t.status != 'COMPLETED') continue;
+    final amount = t.amountUsdc + t.feeUsdc;
+    final created = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
+    final ageDays = today.difference(created).inDays;
+    if (ageDays < 0 || ageDays >= 14) continue;
+    if (ageDays < 7) {
+      daily[6 - ageDays] += amount;
+      categoryTotals[t.rawType.toUpperCase()] =
+          (categoryTotals[t.rawType.toUpperCase()] ?? 0) + amount;
+    } else {
+      lastWeekTotal += amount;
+    }
+  }
+
+  final thisWeekTotal = daily.fold<double>(0, (a, b) => a + b);
+  // A week with no settled spending has no insight to state — absent, not
+  // zeroed (F.5).
+  if (thisWeekTotal <= 0) return null;
+
+  // Top real category this week, labelled by the insights screen's own
+  // authoritative category map.
+  String categoryLabel = uncategorizedSpendingCategory.label;
+  var best = -1.0;
+  categoryTotals.forEach((type, total) {
+    if (total > best) {
+      best = total;
+      categoryLabel =
+          (spendingCategoryMap[type] ?? uncategorizedSpendingCategory).label;
+    }
+  });
+
+  return AzInsightData(
+    amountText: AzMoney.usdc(thisWeekTotal),
+    category: categoryLabel,
+    changeFraction: lastWeekTotal > 0
+        ? (thisWeekTotal - lastWeekTotal) / lastWeekTotal
+        : null,
+    daily: daily,
+  );
+});
 
 class _PillData {
   final String label;
@@ -429,15 +600,52 @@ class _ActionPills extends ConsumerWidget {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     // Icon family: hugeicons_pro, matching the bottom nav. These four names
     // are verified in-repo (`rg -o "HugeIcons(Solid|Stroke)\.[A-Za-z0-9_]+" lib`).
+    // NEW-D (§G.8/§10.10): 4 → 3 — "fewer, larger, better". Withdraw is a
+    // rare, considered action (and WithdrawalScreen commits via its own
+    // slide-to-confirm), so it moves one tap deeper behind History, the
+    // single surface that exposes "what happened" and "money out".
     final pills = [
       _PillData(label: "Add Money", icon: HugeIconsSolid.plusSign,
         onTap: () => pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat))),
       _PillData(label: "Send", icon: HugeIconsSolid.moneySend01,
         onTap: () => pushWithVerticalTransition(context, const SendMoneyScreen())),
-      _PillData(label: "Withdraw", icon: HugeIconsSolid.bank,
-        onTap: () => pushWithVerticalTransition(context, const WithdrawalScreen())),
       _PillData(label: "History", icon: HugeIconsStroke.transactionHistory,
-        onTap: () => pushWithVerticalTransition(context, const TransactionHistoryScreen())),
+        onTap: () {
+          showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: colors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (sheetContext) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(HugeIconsStroke.transactionHistory,
+                        color: colors.accent),
+                    title: const Text('Transaction history'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      pushWithVerticalTransition(
+                          sheetContext, const TransactionHistoryScreen());
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(HugeIconsSolid.bank, color: colors.accent),
+                    title: const Text('Withdraw'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      pushWithVerticalTransition(
+                          sheetContext, const WithdrawalScreen());
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -536,6 +744,12 @@ class _BalanceCardsScroll extends ConsumerWidget {
     const double deckCardWidthFactor = 0.88;
     const double deckGutter = AzSpace.md;
 
+    // NEW-D insight card: rendered ONLY when the already-loaded transaction
+    // history yields a verifiable insight. No fetch happens from Home — if
+    // the history has not been loaded by its own screen, the deck is
+    // exactly what TASK-008 shipped. Nothing is faked to fill the slot.
+    final insight = ref.watch(_homeInsightDataProvider);
+
     return SizedBox(
       height: 180,
       child: ListView(
@@ -551,6 +765,17 @@ class _BalanceCardsScroll extends ConsumerWidget {
               child: FlippableBalanceCard(),
             ),
           ),
+          if (insight != null) ...[
+            const SizedBox(width: deckGutter),
+            SizedBox(
+              width: screenWidth * deckCardWidthFactor,
+              child: AzInsightCard(
+                insight: insight,
+                onTap: () => pushWithVerticalTransition(
+                    context, const SpendingInsightsScreen()),
+              ),
+            ),
+          ],
           const SizedBox(width: deckGutter),
           SizedBox(
             width: screenWidth * deckCardWidthFactor,
