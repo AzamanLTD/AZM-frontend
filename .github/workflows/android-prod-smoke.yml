@@ -1,0 +1,121 @@
+# Production-connected Android device smoke build.
+#
+# The CI-purpose Android Integration workflow builds with a PLACEHOLDER
+# Firebase configuration and the default dev backend (localhost), which is
+# fine for compile/integration gating but useless on a real phone. This
+# workflow produces an INSTALLABLE debug APK wired to the PRODUCTION backend
+# via --dart-define=ENV=prod and the real Android Firebase configuration,
+# injected from the AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 repository secret.
+#
+# Dispatch-only until it is deliberately folded into a release pipeline.
+# It intentionally does NOT touch the CI workflow's placeholder config —
+# that workflow still serves its compile-gating purpose.
+#
+# The secret is base64-encoded google-services.json content. It is never
+# echoed, logged, or printed; the decode stream is piped straight to the
+# file and only structural facts (package names) are asserted.
+
+name: Android Prod Smoke Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Backend environment for the device smoke APK"
+        required: true
+        type: choice
+        options:
+          - prod
+        default: prod
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-prod-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-prod-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Keep in lockstep with android-integration.yml / flutter-ci.yml.
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Reclaim runner disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo rm -rf /usr/local/lib/android/sdk/emulator
+          sudo rm -rf /opt/ghc
+
+      # Fails loudly and early when the repository secret is absent — an
+      # empty secret must never fall through to a broken or default config.
+      - name: Write Android Firebase configuration
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON_B64}" ]; then
+            echo "::error::Required secret AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 is missing or empty. Add it in repository Settings → Secrets → Actions before dispatching this workflow."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+          test -s android/app/google-services.json
+
+      - name: Validate Firebase package binding
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("android/app/google-services.json")
+          data = json.loads(path.read_text())
+          clients = data.get("client", [])
+          package_names = {
+              c.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              for c in clients
+          }
+          assert "com.example.azaman" in package_names, (
+              f"Firebase config does not contain com.example.azaman; got {sorted(package_names)}"
+          )
+          PY
+
+      - name: Build production-connected debug APK
+        run: >
+          flutter build apk
+          --debug
+          --dart-define=ENV=${{ inputs.environment }}
+          --split-per-abi
+
+      - name: Upload production-connected APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaman-android-${{ inputs.environment }}-debug
+          path: build/app/outputs/flutter-apk/*-arm64-v8a-debug.apk
+          if-no-files-found: error
+          retention-days: 14

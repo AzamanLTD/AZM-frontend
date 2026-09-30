@@ -446,12 +446,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   late final List<Widget?> _pages;
   late final AnimationController _transitionCtrl;
+  // Cached in initState: `ref` is unusable from dispose() (riverpod asserts),
+  // and deactivate() can fire for temporary removals that later re-insert the
+  // State — deregistering there could drop listeners that are never reregistered.
+  late final SocketService _shellSocketService;
   int _displayedIndex = 0;
   int _transitionDirection = 1;
 
   @override
   void initState() {
     super.initState();
+    _shellSocketService = ref.read(socketServiceProvider);
+
     _pages = [const AzamanHomePage(), null, null, null];
 
     _transitionCtrl = AnimationController(
@@ -514,6 +520,20 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     }
   }
 
+  /// Ticker budget (milestone 2026-09-30): only the page participating in
+  /// the current transition keeps its tickers enabled. Once navigation
+  /// settles (_displayedIndex == _selectedIndex), exactly one page is
+  /// ticker-enabled — every previously-visited, still-mounted page stops
+  /// consuming animation cycles. Page state is preserved (nothing unmounts)
+  /// and no new navigation state is introduced.
+  Widget _withPageTickerBudget(int index, Widget child) {
+    final enabled = index == _selectedIndex || index == _displayedIndex;
+    return TickerMode(
+      enabled: enabled,
+      child: child,
+    );
+  }
+
   /// Incoming page: 6% inset slide + fade in.
   Widget _buildIncoming(int index) {
     final incoming = _selectedIndex != _displayedIndex;
@@ -551,10 +571,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   @override
   void dispose() {
-    final socketService = ref.read(socketServiceProvider);
-    socketService.removeNewTradeRequestListener();
-    socketService.removeBizNotificationListener();
-    socketService.removeBizNotificationsUpdatedListener();
+    // Deregister the shell's socket callbacks via the cached service — no
+    // ref.read here (riverpod asserts once the element is disposed), and no
+    // deactivate() deregistration (deactivation can be temporary).
+    _shellSocketService.removeNewTradeRequestListener();
+    _shellSocketService.removeBizNotificationListener();
+    _shellSocketService.removeBizNotificationsUpdatedListener();
     _transitionCtrl.dispose();
     super.dispose();
   }
@@ -645,7 +667,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   void _initUnifiedSocket() {
-    final socketService = ref.read(socketServiceProvider);
+    final socketService = _shellSocketService;
     socketService.init(ref);
     final webrtcService = ref.read(webrtcServiceProvider);
     webrtcService.initialize();
@@ -733,9 +755,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 children: [
                   for (var index = 0; index < _pages.length; index++)
                     if (_pages[index] != null && index != _selectedIndex)
-                      _buildOutgoing(index),
+                      _withPageTickerBudget(
+                          index, _buildOutgoing(index)),
                   if (_pages[_selectedIndex] != null)
-                    _buildIncoming(_selectedIndex),
+                    _withPageTickerBudget(
+                      _selectedIndex,
+                      _buildIncoming(_selectedIndex),
+                    ),
                 ],
               ),
               child: const SizedBox.expand(),

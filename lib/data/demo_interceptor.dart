@@ -215,10 +215,36 @@ class DemoInterceptor {
       case '/showcases':
         return DemoSeedData.emptyData();
       // ── Marketplace endpoints (exact) ─────────────────────────────
+      // Demo search honours the REAL query string (category / verified /
+      // q / limit / cursor) so marketplace selections genuinely change
+      // the result set instead of always returning the same page.
       case '/business/search':
-        return DemoMarketplaceSeed.searchBusinesses();
+        final q = _queryOf(endpoint);
+        return DemoMarketplaceSeed.searchBusinesses(
+          q: q['q'],
+          category: q['category'],
+          verified: q['verified'] == 'true'
+              ? true
+              : (q['verified'] == 'false' ? false : null),
+          limit: int.tryParse(q['limit'] ?? '') ?? 20,
+          cursor: q['cursor'],
+        );
       case '/business/me':
         return {'business': null};
+      // ── Marketplace owner surfaces (demo user owns no business —
+      // zero/empty responses here are the deliberate, truthful seeds) ──
+      case '/business/kyb/status':
+        return DemoMarketplaceSeed.getKybStatus();
+      case '/business/my-orders':
+        return DemoMarketplaceSeed.getMyOrders();
+      case '/business/notifications':
+        return DemoMarketplaceSeed.getOwnerNotifications();
+      case '/business/notifications/unread-count':
+        return {'count': 0};
+      case '/business/orders/stats':
+        return DemoMarketplaceSeed.getOwnerStats();
+      case '/business/products':
+        return DemoMarketplaceSeed.getMyProducts();
       case '/users/invoices':
         return DemoMarketplaceSeed.getMyInvoices();
     }
@@ -305,6 +331,34 @@ class DemoInterceptor {
       if (path.endsWith('/trust-metrics')) return {'data': {'trustScore': 0.85, 'totalTrades': 12}};
     }
 
+    // /marketplace/business/{bizId}/stories — same rail as /stories/business/.
+    final bizStoriesMatch =
+        RegExp(r'^/marketplace/business/([^/]+)/stories$').firstMatch(path);
+    if (bizStoriesMatch != null) {
+      return DemoMarketplaceSeed.getBusinessStories(bizStoriesMatch.group(1)!);
+    }
+
+    // /marketplace/business/dine-in/{tabId} (legacy booking-service path).
+    final dineInMatch =
+        RegExp(r'^/marketplace/business/dine-in/([^/]+)$').firstMatch(path);
+    if (dineInMatch != null) {
+      return DemoMarketplaceSeed.getDineInTab(dineInMatch.group(1)!);
+    }
+
+    // /marketplace/trust-score/{azamanId}
+    final trustScoreMatch =
+        RegExp(r'^/marketplace/trust-score/([^/]+)$').firstMatch(path);
+    if (trustScoreMatch != null) {
+      return DemoMarketplaceSeed.getTrustScore(trustScoreMatch.group(1)!);
+    }
+
+    // /business/products/{productId} (public single-product lookup).
+    final productMatch =
+        RegExp(r'^/business/products/([^/]+)$').firstMatch(path);
+    if (productMatch != null) {
+      return DemoMarketplaceSeed.getProductById(productMatch.group(1)!);
+    }
+
     // /marketplace/business/{bizId}
     final bizMatch = RegExp(r'^/marketplace/business/([^/]+)$').firstMatch(path);
     if (bizMatch != null) {
@@ -329,10 +383,10 @@ class DemoInterceptor {
       return DemoMarketplaceSeed.getLocations(locationsMatch.group(1)!);
     }
 
-    // /business/{bizId}/reviews
+    // /business/{bizId}/reviews — real seeded reviews per business.
     final reviewsMatch = RegExp(r'^/business/([^/]+)/reviews$').firstMatch(path);
     if (reviewsMatch != null) {
-      return {'reviews': [], 'hasMore': false, 'nextCursor': null};
+      return DemoMarketplaceSeed.getReviews(reviewsMatch.group(1)!);
     }
 
     // /business/invoices/{invoiceId}
@@ -347,9 +401,18 @@ class DemoInterceptor {
       return DemoMarketplaceSeed.getBusinessByBizId(businessMatch.group(1)!);
     }
 
-    // /business/search/nearby
+    // /business/search/nearby — query-aware (category/verified/q/limit/cursor).
     if (path == '/business/search/nearby') {
-      return DemoMarketplaceSeed.searchNearby();
+      final q = _queryOf(endpoint);
+      return DemoMarketplaceSeed.searchNearby(
+        q: q['q'],
+        category: q['category'],
+        verified: q['verified'] == 'true'
+            ? true
+            : (q['verified'] == 'false' ? false : null),
+        limit: int.tryParse(q['limit'] ?? '') ?? 20,
+        cursor: q['cursor'],
+      );
     }
 
     // /showcases/{bizId}
@@ -369,8 +432,17 @@ class DemoInterceptor {
       return DemoMarketplaceSeed.getTripSeats(transitSeatsMatch.group(1)!);
     }
 
-    // /marketplace/reservations/{reservationId}/checkin-qr
+    // /marketplace/reservations/{reservationId}/checkin-qr — seeded
+    // reservation only; unknown refs are not seeded, not faked.
     if (path.contains('/marketplace/reservations/') && path.endsWith('/checkin-qr')) {
+      final reservationId = path
+          .split('/marketplace/reservations/')[1]
+          .split('/checkin-qr')[0];
+      if (!DemoMarketplaceSeed.isSeededId(
+          reservationId, DemoMarketplaceSeed.seededReservationRefs)) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/marketplace/reservations/$reservationId/checkin-qr');
+      }
       return {
         'success': true,
         'token': 'demo-token-123',
@@ -391,13 +463,24 @@ class DemoInterceptor {
       return {'following': DemoMarketplaceSeed.getFollowing()};
     }
 
-    // /follows/check/{bizId}
+    // /follows/check/{bizId} — seeded businesses only.
     if (path.startsWith('/follows/check/')) {
+      final bizId = path.substring('/follows/check/'.length);
+      if (!DemoMarketplaceSeed.isSeededId(
+          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        throw DemoEndpointNotSeededException('GET', '/follows/check/$bizId');
+      }
       return {'isFollowing': false};
     }
 
-    // /stories/analytics/business/{bizId}
+    // /stories/analytics/business/{bizId} — seeded businesses only.
     if (path.startsWith('/stories/analytics/business/')) {
+      final bizId = path.substring('/stories/analytics/business/'.length);
+      if (!DemoMarketplaceSeed.isSeededId(
+          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/stories/analytics/business/$bizId');
+      }
       return {'data': {'views': 340, 'replies': 12, 'boosts': 5}};
     }
 
@@ -427,8 +510,42 @@ class DemoInterceptor {
       return DemoSeedData.emptyData();
     }
 
-    // Unknown endpoint — return empty data to avoid crashes
+    // ── Marketplace-family coverage guard ────────────────────────────────
+    // A GET in a Marketplace-related family that reaches this point has
+    // NO seeded coverage. Returning fake-empty data here would let a
+    // missing demo implementation masquerade as a successful "nothing
+    // exists" response (e.g. "No businesses found"). Fail explicitly with
+    // a typed signal instead — providers surface it as an error state.
+    if (path == '/business' ||
+        path == '/marketplace' ||
+        path == '/showcases' ||
+        path.startsWith('/business/') ||
+        path.startsWith('/marketplace/') ||
+        path.startsWith('/follows/') ||
+        path.startsWith('/showcases/')) {
+      throw DemoEndpointNotSeededException('GET', path);
+    }
+
+    // Unknown non-marketplace endpoint — return empty data to avoid crashes
     return DemoSeedData.emptyData();
+  }
+
+  /// Parses `?a=1&b=2` off an endpoint string into a flat map.
+  static Map<String, String> _queryOf(String endpoint) {
+    final qIndex = endpoint.indexOf('?');
+    if (qIndex < 0) return const {};
+    final out = <String, String>{};
+    for (final part in endpoint.substring(qIndex + 1).split('&')) {
+      if (part.isEmpty) continue;
+      final eq = part.indexOf('=');
+      if (eq < 0) {
+        out[Uri.decodeQueryComponent(part)] = '';
+      } else {
+        out[Uri.decodeQueryComponent(part.substring(0, eq))] =
+            Uri.decodeQueryComponent(part.substring(eq + 1));
+      }
+    }
+    return out;
   }
 
   // ── POST endpoint matching ────────────────────────────────────────────

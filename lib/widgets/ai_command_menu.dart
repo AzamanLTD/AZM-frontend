@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/admin/ai_operations_screen.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/thinking_orb.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
@@ -312,21 +310,13 @@ class _AiCommandMenuState extends ConsumerState<AiCommandMenu>
           ),
           child: Material(
             color: Colors.transparent,
+            // Control-plane navigation removed (marketplace milestone,
+            // 2026-09-30): the CFO/financial capability tile used to push the
+            // admin AiOperationsScreen. Admin surfaces live in AZM-adminPortal;
+            // the customer app has no path to them.
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
-              onTap: () {
-                if (name.toLowerCase().contains('cfo') ||
-                    name.toLowerCase().contains('financial')) {
-                  AzamanHaptics.confirm();
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AiOperationsScreen(),
-                    ),
-                  );
-                }
-              },
+              onTap: null,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(

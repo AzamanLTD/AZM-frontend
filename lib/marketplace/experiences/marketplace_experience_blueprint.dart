@@ -149,6 +149,16 @@ class MarketplaceExperienceBlueprint {
     return MotionTokens.accessibleDuration(context, normal);
   }
 
+  /// Category-native "what you do here" promise for portal world cards.
+  /// Owned here so no caller becomes a second owner of vertical semantics.
+  String get worldPromise => switch (preset) {
+    'DINING_JOURNEY' => 'Tables, plates & takeaway',
+    'SHOP_FLOOR' => 'Shop racks, aisles & drops',
+    'BUILDING_WALK' => 'Rooms, suites & stays',
+    'TRAVEL_JOURNEY' => 'Seats, routes & departures',
+    _ => navigationLabel,
+  };
+
   String get navigationLabel => switch (navigationMode) {
     MarketplaceNavigationMode.contextual => 'Explore what matters here',
     MarketplaceNavigationMode.floorTraverse => 'Explore by floor',

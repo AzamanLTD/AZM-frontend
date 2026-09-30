@@ -33,7 +33,6 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
-import 'package:azaman/screens/admin/admin_dashboard.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
@@ -137,29 +136,6 @@ class SettingsDrawer extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                     children: [
-                      // ROOT ACCESS — restricted to the platform admin account only.
-                      // The backend already hard-gates every /api/admin route behind
-                      // `adminOnly` middleware; this UI gate just keeps the entry point
-                      // from cluttering the drawer for every other user.
-                      if ((user?.email ?? '').toLowerCase() == 'admin@azaman.test') ...[
-                        _animatedWrapper(
-                          delay: 4,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionHeader(
-                                'ROOT ACCESS',
-                                colors: colors,
-                                headerColor: colors.danger,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildGodModeTile(context, colors),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 25),
-                      ],
-
                       // PAYMENT ADDRESSES (Phase UI-2, 2026-05-26)
                       // Both deposit destinations (where users send funds
                       // INTO Azaman from external accounts/wallets) and
@@ -606,71 +582,6 @@ class SettingsDrawer extends ConsumerWidget {
   // ──────────────────────────────────────────────────────────────────────────
   // OTHER UI COMPONENTS — preserved from previous drawer
   // ──────────────────────────────────────────────────────────────────────────
-
-  Widget _buildGodModeTile(BuildContext context, AzamanColors colors) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.heavyImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminDashboard()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colors.danger.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
-          boxShadow: [
-            BoxShadow(
-              color: colors.danger.withValues(alpha: 0.08),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: colors.danger.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withValues(alpha: 0.5)),
-              ),
-              child: Icon(Icons.shield_outlined, color: colors.danger, size: 24),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Admin War Room',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  Text(
-                    'System overrides & resolutions',
-                    style: TextStyle(
-                      color: colors.danger.withValues(alpha: 0.8),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.error_outline, color: colors.danger, size: 18),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSlenderTile(
     BuildContext context,
