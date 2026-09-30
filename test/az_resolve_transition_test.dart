@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:azaman/providers/sensory_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/call/call_history_screen.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/az_resolve_transition.dart';
 import 'package:azaman/widgets/az_skeleton.dart';
@@ -237,6 +240,88 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   }
+
+  testWidgets('Call History resolves cold rows once and skips cached return', (
+    tester,
+  ) async {
+    final ready = Completer<List<dynamic>>();
+    var requests = 0;
+    final container = ProviderContainer(
+      overrides: [
+        callHistoryProvider.overrideWith((ref) {
+          requests++;
+          return ready.future;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    Widget screen(bool visible) => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: visible ? const CallHistoryScreen() : const SizedBox(),
+      ),
+    );
+    await tester.pumpWidget(screen(true));
+    expect(find.byType(SkeletonBlock), findsWidgets);
+    expect(find.byType(AzResolveTransition), findsNothing);
+    ready.complete(
+      List.generate(
+        16,
+        (i) => <String, dynamic>{
+          'caller': {'id': 1},
+          'callee': {'id': 2, 'displayName': 'Person $i'},
+          'status': 'ANSWERED',
+          'type': 'VOICE',
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(SkeletonBlock), findsNothing);
+    final blocks = tester
+        .widgetList<AzResolveTransition>(find.byType(AzResolveTransition))
+        .toList();
+    expect(blocks.where((b) => !b.skipEntrance).map((b) => b.index), [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+    ]);
+    expect(blocks.where((b) => b.announce).length, 1);
+    expect(blocks.every((b) => b.index <= 5), isTrue);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(haptics, 1);
+
+    // Rebuild, lazily scroll away/back, and return from another screen.
+    await tester.pumpWidget(screen(true));
+    final scrollable = tester.state<ScrollableState>(
+      find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    scrollable.position.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(haptics, 1);
+    await tester.pumpWidget(screen(false));
+    await tester.pumpWidget(screen(true));
+    await tester.pump();
+    final cached = tester.widgetList<AzResolveTransition>(
+      find.byType(AzResolveTransition),
+    );
+    expect(cached.every((b) => b.skipEntrance && !b.announce), isTrue);
+    expect(requests, 1);
+    expect(haptics, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets(
     'SkeletonBlock stops and resumes shimmer when reduced motion changes',

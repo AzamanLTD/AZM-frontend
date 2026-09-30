@@ -13,7 +13,7 @@ import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/screens/call/call_screen.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
-import 'package:azaman/widgets/staggered_item.dart';
+import 'package:azaman/widgets/az_resolve_transition.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // Provider for call history
@@ -30,6 +30,21 @@ class CallHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
+  late final bool _awaitedFirstLoad;
+  final Set<int> _arrivedRows = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // The non-autoDispose provider retains data across same-session visits.
+    // Cached content is already there and must not announce or replay.
+    _awaitedFirstLoad = !ref.read(callHistoryProvider).hasValue;
+  }
+
+  bool _claimArrival(int index) =>
+      _awaitedFirstLoad && index <= 5 && _arrivedRows.add(index);
+
+
   @override
   Widget build(BuildContext context) {
     final callsAsync = ref.watch(callHistoryProvider);
@@ -98,8 +113,10 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
               itemCount: calls.length,
               itemBuilder: (context, index) {
                 final call = calls[index] as Map<String, dynamic>;
-                return StaggeredItem(
+                return _CallHistoryArrival(
+                  key: ValueKey(index),
                   index: index,
+                  claimArrival: _claimArrival,
                   child: _CallHistoryItem(call: call),
                 );
               },
@@ -144,6 +161,43 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
       },
     );
   }
+}
+
+// Capture each row's eligibility once, rather than changing it on rebuild.
+// A lazy row recreated after scrolling or refresh cannot replay its arrival.
+class _CallHistoryArrival extends StatefulWidget {
+  final int index;
+  final bool Function(int) claimArrival;
+  final Widget child;
+
+  const _CallHistoryArrival({
+    super.key,
+    required this.index,
+    required this.claimArrival,
+    required this.child,
+  });
+
+  @override
+  State<_CallHistoryArrival> createState() => _CallHistoryArrivalState();
+}
+
+class _CallHistoryArrivalState extends State<_CallHistoryArrival> {
+  late final bool _play;
+
+  @override
+  void initState() {
+    super.initState();
+    _play = widget.claimArrival(widget.index);
+  }
+
+  @override
+  Widget build(BuildContext context) => AzResolveTransition(
+    phase: AzResolvePhase.resolved,
+    index: widget.index.clamp(0, 5),
+    skipEntrance: !_play,
+    announce: _play && widget.index == 0,
+    child: widget.child,
+  );
 }
 
 class _CallHistoryItem extends StatelessWidget {
