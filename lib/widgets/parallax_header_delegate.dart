@@ -23,6 +23,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/theme/az_motion.dart';
 
 class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String? imageUrl;
@@ -57,7 +58,7 @@ class ParallaxHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     // Parallax: image moves at 0.5x scroll speed
     final imageHeight = maxExtent;
-    final imageOffset = shrinkOffset * 0.5;
+    final imageOffset = AzMotion.scale(context, shrinkOffset * 0.5);
 
     // Title opacity: fades in as header collapses
     final compactTitleOpacity = (1.0 - expandPercent).clamp(0.0, 1.0);

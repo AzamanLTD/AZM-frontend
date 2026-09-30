@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/sensory_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/widgets/parallax_header_delegate.dart';
 
 void main() {
   setUp(() {
@@ -71,6 +72,27 @@ void main() {
             ),
           ),
         );
+      });
+    }
+  }
+
+  for (final forced in <bool?>[null, true, false]) {
+    for (final os in [false, true]) {
+      testWidgets('marketplace parallax OS=$os override=$forced retains its header', (tester) async {
+        AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
+        await tester.pumpWidget(MaterialApp(home: MediaQuery(
+          data: MediaQueryData(disableAnimations: os),
+          child: Builder(builder: (context) => ParallaxHeaderDelegate(
+            imageUrl: null, title: 'Storefront', minExtent: 56, maxExtent: 280,
+          ).build(context, 40, false)),
+        )));
+        final images = tester.widgetList<Positioned>(find.byType(Positioned))
+            .where((w) => w.left == 0 && w.right == 0 && w.height == 280);
+        expect(images.length, 1);
+        expect(images.single.top, (forced ?? os) ? 0 : -20);
+        expect(find.text('Storefront'), findsWidgets);
+        expect(tester.takeException(), isNull);
+        await tester.pumpAndSettle();
       });
     }
   }
