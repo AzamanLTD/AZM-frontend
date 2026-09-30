@@ -36,14 +36,10 @@ Widget _host({bool reduceMotion = false}) {
     ],
     child: MaterialApp(
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          disableAnimations: reduceMotion,
-        ),
+        data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
         child: child ?? const SizedBox.shrink(),
       ),
-      home: const Scaffold(
-        body: Center(child: NotificationBell()),
-      ),
+      home: const Scaffold(body: Center(child: NotificationBell())),
     ),
   );
 }
@@ -60,33 +56,38 @@ double _badgeScale(WidgetTester tester) {
 }
 
 Finder _badgeText(String text) => find.descendant(
-      of: find.byType(NotificationBell),
-      matching: find.text(text),
-    );
+  of: find.byType(NotificationBell),
+  matching: find.text(text),
+);
 
 void main() {
   testWidgets('unread 0 — no badge, no attention animation', (tester) async {
     await tester.pumpWidget(_host());
     // Clear the 300ms entrance fade so no timer is pending at teardown.
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.descendant(
-      of: find.byType(NotificationBell),
-      matching: find.byType(Transform),
-    ), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(NotificationBell),
+        matching: find.byType(Transform),
+      ),
+      findsNothing,
+    );
     expect(_badgeText('0'), findsNothing);
   });
 
-  testWidgets('0 → positive fires ONE pop then settles (no idle cycles)',
-      (tester) async {
+  testWidgets('0 → positive fires ONE pop then settles (no idle cycles)', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     // Clear the 300ms entrance fade so no timer is pending at teardown.
     await tester.pump(const Duration(milliseconds: 400));
 
     // 0 → 3.
     final element = tester.element(find.byType(NotificationBell));
-    ProviderScope.containerOf(element, listen: false)
-        .read(_fakeUnread.notifier)
-        .state = 3;
+    ProviderScope.containerOf(
+      element,
+      listen: false,
+    ).read(_fakeUnread.notifier).state = 3;
     await tester.pump(); // rebuild with the badge
     await tester.pump(const Duration(milliseconds: 40));
 
@@ -106,20 +107,25 @@ void main() {
       const Duration(seconds: 1),
     ]) {
       await tester.pump(d);
-      expect(_badgeScale(tester), moreOrLessEquals(1.0, epsilon: 0.001),
-          reason: 'no idle animation cycles while unread stays at 3');
+      expect(
+        _badgeScale(tester),
+        moreOrLessEquals(1.0, epsilon: 0.001),
+        reason: 'no idle animation cycles while unread stays at 3',
+      );
     }
   });
 
-  testWidgets('staying positive never re-pops; count still updates',
-      (tester) async {
+  testWidgets('staying positive never re-pops; count still updates', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     // Clear the 300ms entrance fade so no timer is pending at teardown.
     await tester.pump(const Duration(milliseconds: 400));
 
-    final container =
-        ProviderScope.containerOf(tester.element(find.byType(NotificationBell)),
-            listen: false);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NotificationBell)),
+      listen: false,
+    );
     container.read(_fakeUnread.notifier).state = 2;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500)); // pop finished
@@ -130,8 +136,11 @@ void main() {
     await tester.pump(); // rebuild with new count
     await tester.pump(const Duration(milliseconds: 40));
     expect(_badgeText('5'), findsOneWidget);
-    expect(_badgeScale(tester), moreOrLessEquals(1.0, epsilon: 0.01),
-        reason: 'an increase while already unread must not re-pop');
+    expect(
+      _badgeScale(tester),
+      moreOrLessEquals(1.0, epsilon: 0.01),
+      reason: 'an increase while already unread must not re-pop',
+    );
 
     // 150 unread: the badge caps at 99+, still settled.
     container.read(_fakeUnread.notifier).state = 150;
@@ -143,19 +152,23 @@ void main() {
     // Back to 0: the badge disappears entirely.
     container.read(_fakeUnread.notifier).state = 0;
     await tester.pump();
-    expect(find.descendant(
-      of: find.byType(NotificationBell),
-      matching: find.byType(Transform),
-    ), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(NotificationBell),
+        matching: find.byType(Transform),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('a later 0 → positive fires a fresh pop', (tester) async {
     await tester.pumpWidget(_host());
     // Clear the 300ms entrance fade so no timer is pending at teardown.
     await tester.pump(const Duration(milliseconds: 400));
-    final container =
-        ProviderScope.containerOf(tester.element(find.byType(NotificationBell)),
-            listen: false);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NotificationBell)),
+      listen: false,
+    );
 
     // First arrival.
     container.read(_fakeUnread.notifier).state = 1;
@@ -169,23 +182,30 @@ void main() {
     container.read(_fakeUnread.notifier).state = 1;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
-    expect(_badgeScale(tester), isNot(moreOrLessEquals(1.0, epsilon: 0.01)),
-        reason: 'each fresh 0 → positive transition signals once');
+    expect(
+      _badgeScale(tester),
+      isNot(moreOrLessEquals(1.0, epsilon: 0.01)),
+      reason: 'each fresh 0 → positive transition signals once',
+    );
   });
 
   testWidgets('reduced motion: badge appears settled, no pop', (tester) async {
     await tester.pumpWidget(_host(reduceMotion: true));
     await tester.pump(const Duration(milliseconds: 400));
 
-    final container =
-        ProviderScope.containerOf(tester.element(find.byType(NotificationBell)),
-            listen: false);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NotificationBell)),
+      listen: false,
+    );
     container.read(_fakeUnread.notifier).state = 3;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 10));
 
     expect(_badgeText('3'), findsOneWidget);
-    expect(_badgeScale(tester), moreOrLessEquals(1.0, epsilon: 0.001),
-        reason: 'reduced motion collapses the pop to zero duration');
+    expect(
+      _badgeScale(tester),
+      moreOrLessEquals(1.0, epsilon: 0.001),
+      reason: 'reduced motion collapses the pop to zero duration',
+    );
   });
 }

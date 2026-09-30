@@ -42,8 +42,9 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -75,8 +76,9 @@ TickerMode _budgetOf(WidgetTester tester, Finder pageFinder) {
 }
 
 Future<void> _pumpShell(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(const Size(800, 600));
 
@@ -85,7 +87,8 @@ Future<void> _pumpShell(WidgetTester tester) async {
       auth_pkg.authProvider.overrideWith((ref) => auth_pkg.AuthProvider()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       businessSearchProvider.overrideWith((ref) => _InertSearchNotifier()),
     ],
@@ -110,12 +113,14 @@ Future<void> _pumpShell(WidgetTester tester) async {
 void _select(WidgetTester tester, int index) {
   tester
       .widget<PremiumBottomNav>(find.byType(PremiumBottomNav))
-      .onItemSelected.call(index);
+      .onItemSelected
+      .call(index);
 }
 
 void main() {
-  testWidgets('inactive pages are ticker-disabled after navigation settles',
-      (tester) async {
+  testWidgets('inactive pages are ticker-disabled after navigation settles', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     final homeFinder = find.byType(AzamanHomePage);
@@ -132,10 +137,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 40));
     expect(homeFinder, findsOneWidget);
     expect(marketFinder, findsOneWidget);
-    expect(_budgetOf(tester, homeFinder).enabled, isTrue,
-        reason: 'mid-transition the outgoing page animates its exit');
-    expect(_budgetOf(tester, marketFinder).enabled, isTrue,
-        reason: 'mid-transition the incoming page animates its entrance');
+    expect(
+      _budgetOf(tester, homeFinder).enabled,
+      isTrue,
+      reason: 'mid-transition the outgoing page animates its exit',
+    );
+    expect(
+      _budgetOf(tester, marketFinder).enabled,
+      isTrue,
+      reason: 'mid-transition the incoming page animates its entrance',
+    );
 
     // Let the transition complete. Fixed pumps, not pumpAndSettle: Home
     // legitimately runs repeating tickers (live market shimmer), which never
@@ -145,11 +156,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Settled: Marketplace enabled, Home STILL MOUNTED but ticker-disabled.
-    expect(homeFinder, findsOneWidget,
-        reason: 'page state is preserved — the shell never unmounts pages');
+    expect(
+      homeFinder,
+      findsOneWidget,
+      reason: 'page state is preserved — the shell never unmounts pages',
+    );
     expect(marketFinder, findsOneWidget);
-    expect(_budgetOf(tester, homeFinder).enabled, isFalse,
-        reason: 'the settled-out page must stop consuming animation cycles');
+    expect(
+      _budgetOf(tester, homeFinder).enabled,
+      isFalse,
+      reason: 'the settled-out page must stop consuming animation cycles',
+    );
     expect(_budgetOf(tester, marketFinder).enabled, isTrue);
 
     // Navigate back Home: the budget reverses.
@@ -158,8 +175,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
     expect(homeFinder, findsOneWidget);
-    expect(marketFinder, findsOneWidget,
-        reason: 'Marketplace stays mounted after returning home');
+    expect(
+      marketFinder,
+      findsOneWidget,
+      reason: 'Marketplace stays mounted after returning home',
+    );
     expect(_budgetOf(tester, homeFinder).enabled, isTrue);
     expect(_budgetOf(tester, marketFinder).enabled, isFalse);
   });

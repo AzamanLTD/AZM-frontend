@@ -52,7 +52,6 @@ Future<_RecordingSearchNotifier> _pumpHome(
   return notifier;
 }
 
-
 /// Scrolls the portal list until [finder] is built (ListView is lazy —
 /// below-the-fold sections do not exist until scrolled into view).
 Future<void> _reveal(WidgetTester tester, Finder finder) async {
@@ -72,24 +71,41 @@ void main() {
   testWidgets('bare tab opens on the portal destination', (tester) async {
     await _pumpHome(tester);
 
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace_portal_body')),
+      findsOneWidget,
+    );
     expect(find.text('Marketplace'), findsOneWidget);
     expect(find.text('Choose your world'), findsOneWidget);
 
     // One world card per primary category.
-    for (final wire in ['LOGISTICS', 'FOOD_BEVERAGE', 'HOSPITALITY', 'RETAIL']) {
+    for (final wire in [
+      'LOGISTICS',
+      'FOOD_BEVERAGE',
+      'HOSPITALITY',
+      'RETAIL',
+    ]) {
       expect(find.byKey(ValueKey('marketplace_world_$wire')), findsOneWidget);
     }
 
-    await _reveal(tester, find.byKey(const ValueKey('marketplace_explore_all')));
-    expect(find.byKey(const ValueKey('marketplace_explore_all')), findsOneWidget);
+    await _reveal(
+      tester,
+      find.byKey(const ValueKey('marketplace_explore_all')),
+    );
+    expect(
+      find.byKey(const ValueKey('marketplace_explore_all')),
+      findsOneWidget,
+    );
     // Explore machinery is NOT on the portal surface.
     expect(
-        find.byKey(const ValueKey('marketplace_back_to_portal')), findsNothing);
+      find.byKey(const ValueKey('marketplace_back_to_portal')),
+      findsNothing,
+    );
   });
 
-  testWidgets('tapping a world enters explore seeded with that category',
-      (tester) async {
+  testWidgets('tapping a world enters explore seeded with that category', (
+    tester,
+  ) async {
     final notifier = await _pumpHome(tester);
     notifier.searchedCategories.clear();
 
@@ -97,8 +113,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     // Explore surface is up: back affordance visible, portal deck gone.
-    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace_back_to_portal')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
 
     // The world tap fired a category-seeded search.
@@ -110,12 +128,17 @@ void main() {
     final notifier = await _pumpHome(tester);
     notifier.searchedCategories.clear();
 
-    await _reveal(tester, find.byKey(const ValueKey('marketplace_explore_all')));
+    await _reveal(
+      tester,
+      find.byKey(const ValueKey('marketplace_explore_all')),
+    );
     await tester.tap(find.byKey(const ValueKey('marketplace_explore_all')));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace_back_to_portal')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
     // Unfiltered: no additional category search is fired (the unfiltered
     // seed search from init still stands).
@@ -123,30 +146,43 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
   });
 
-  testWidgets('back affordance returns to the portal and refreshes the unfiltered search',
-      (tester) async {
-    final notifier = await _pumpHome(tester);
-    notifier.searchedCategories.clear();
+  testWidgets(
+    'back affordance returns to the portal and refreshes the unfiltered search',
+    (tester) async {
+      final notifier = await _pumpHome(tester);
+      notifier.searchedCategories.clear();
 
-    await tester.tap(find.byKey(const ValueKey('marketplace_world_LOGISTICS')));
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(notifier.searchedCategories, ['LOGISTICS']);
+      await tester.tap(
+        find.byKey(const ValueKey('marketplace_world_LOGISTICS')),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(notifier.searchedCategories, ['LOGISTICS']);
 
-    await tester.tap(find.byKey(const ValueKey('marketplace_back_to_portal')));
-    await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(
+        find.byKey(const ValueKey('marketplace_back_to_portal')),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsOneWidget);
-    // The portal refreshes the unfiltered result set so world counts and
-    // featured picks reflect the whole catalog.
-    expect(notifier.searchedCategories, ['LOGISTICS', null]);
-  });
+      expect(
+        find.byKey(const ValueKey('marketplace_portal_body')),
+        findsOneWidget,
+      );
+      // The portal refreshes the unfiltered result set so world counts and
+      // featured picks reflect the whole catalog.
+      expect(notifier.searchedCategories, ['LOGISTICS', null]);
+    },
+  );
 
-  testWidgets('initialCategory still lands directly in explore', (tester) async {
+  testWidgets('initialCategory still lands directly in explore', (
+    tester,
+  ) async {
     final notifier = await _pumpHome(tester, initialCategory: 'retail');
 
     expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
-    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace_back_to_portal')),
+      findsOneWidget,
+    );
     expect(notifier.searchedCategories, ['RETAIL']);
   });
 }

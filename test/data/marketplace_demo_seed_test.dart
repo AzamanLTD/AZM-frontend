@@ -38,14 +38,22 @@ void main() {
         'LOGISTICS',
         'RETAIL',
       ]) {
-        final inCat =
-            DemoMarketplaceSeed.allBusinesses().where((b) => b['category'] == wire);
+        final inCat = DemoMarketplaceSeed.allBusinesses().where(
+          (b) => b['category'] == wire,
+        );
         final verified = inCat.where((b) => b['isVerified'] == true).length;
         final unverified = inCat.where((b) => b['isVerified'] != true).length;
-        expect(verified, greaterThanOrEqualTo(1),
-            reason: '$wire needs a verified business');
-        expect(unverified, greaterThanOrEqualTo(1),
-            reason: '$wire needs an unverified business so the verified filter is testable');
+        expect(
+          verified,
+          greaterThanOrEqualTo(1),
+          reason: '$wire needs a verified business',
+        );
+        expect(
+          unverified,
+          greaterThanOrEqualTo(1),
+          reason:
+              '$wire needs an unverified business so the verified filter is testable',
+        );
       }
     });
 
@@ -57,8 +65,11 @@ void main() {
           if (e.key == 'website') continue;
           if (v is String) {
             if (v.startsWith('http')) {
-              expect(v, startsWith('https://media.base44.com/'),
-                  reason: 'media must be a checked-in asset: $v');
+              expect(
+                v,
+                startsWith('https://media.base44.com/'),
+                reason: 'media must be a checked-in asset: $v',
+              );
               expect(v.contains('picsum'), isFalse);
             }
           } else if (v is Map) {
@@ -67,8 +78,11 @@ void main() {
             for (final e in v) {
               if (e is Map) walk(Map<String, dynamic>.from(e));
               if (e is String && e.startsWith('http')) {
-                expect(e, startsWith('https://media.base44.com/'),
-                    reason: 'media must be a checked-in asset: $e');
+                expect(
+                  e,
+                  startsWith('https://media.base44.com/'),
+                  reason: 'media must be a checked-in asset: $e',
+                );
               }
             }
           }
@@ -134,7 +148,9 @@ void main() {
       final both = DemoMarketplaceSeed.searchBusinesses(q: 'jollof accra');
       expect((both['businesses'] as List).length, 1);
 
-      final noSingleBusiness = DemoMarketplaceSeed.searchBusinesses(q: 'jollof kumasi');
+      final noSingleBusiness = DemoMarketplaceSeed.searchBusinesses(
+        q: 'jollof kumasi',
+      );
       expect((noSingleBusiness['businesses'] as List).length, 0);
 
       final none = DemoMarketplaceSeed.searchBusinesses(q: 'zzzz-not-a-word');
@@ -148,26 +164,31 @@ void main() {
       expect(page1['nextCursor'], '3');
 
       final page2 = DemoMarketplaceSeed.searchBusinesses(
-          limit: 3, cursor: page1['nextCursor'] as String);
+        limit: 3,
+        cursor: page1['nextCursor'] as String,
+      );
       expect((page2['businesses'] as List).length, 3);
       expect(page2['hasMore'], isTrue);
 
       final page3 = DemoMarketplaceSeed.searchBusinesses(
-          limit: 3, cursor: page2['nextCursor'] as String);
+        limit: 3,
+        cursor: page2['nextCursor'] as String,
+      );
       expect((page3['businesses'] as List).length, 2);
       expect(page3['hasMore'], isFalse);
       expect(page3['nextCursor'], isNull);
     });
 
-    test('nearby search returns one location per business and honours filters',
-        () {
-      final all = DemoMarketplaceSeed.searchNearby();
-      expect((all['locations'] as List).length, 8);
+    test(
+      'nearby search returns one location per business and honours filters',
+      () {
+        final all = DemoMarketplaceSeed.searchNearby();
+        expect((all['locations'] as List).length, 8);
 
-      final retail =
-          DemoMarketplaceSeed.searchNearby(category: 'RETAIL');
-      expect((retail['locations'] as List).length, 2);
-    });
+        final retail = DemoMarketplaceSeed.searchNearby(category: 'RETAIL');
+        expect((retail['locations'] as List).length, 2);
+      },
+    );
   });
 
   group('DemoMarketplaceSeed — truthful coverage', () {
@@ -181,8 +202,11 @@ void main() {
     test('each seeded business has two coherent reviews (not fake-empty)', () {
       for (final b in DemoMarketplaceSeed.allBusinesses()) {
         final reviews = DemoMarketplaceSeed.getReviews(b['bizId'] as String);
-        expect((reviews['reviews'] as List).length, 2,
-            reason: 'reviews must exist for ${b['bizId']}');
+        expect(
+          (reviews['reviews'] as List).length,
+          2,
+          reason: 'reviews must exist for ${b['bizId']}',
+        );
       }
     });
 
@@ -200,35 +224,45 @@ void main() {
 
   group('DemoInterceptor — required GET coverage', () {
     test(
-        'every requiredGetEndpoint is explicitly seeded (non-null, 200, JSON)',
-        () {
-      for (final endpoint in DemoMarketplaceSeed.requiredGetEndpoints) {
-        final res = DemoInterceptor.tryGet(endpoint);
-        expect(res, isNotNull,
-            reason: 'required demo GET $endpoint must be covered');
-        expect(res!.statusCode, 200);
-        expect(
-          () => jsonDecode(res.body),
-          returnsNormally,
-          reason: 'body of $endpoint must be valid JSON',
-        );
-      }
-    });
+      'every requiredGetEndpoint is explicitly seeded (non-null, 200, JSON)',
+      () {
+        for (final endpoint in DemoMarketplaceSeed.requiredGetEndpoints) {
+          final res = DemoInterceptor.tryGet(endpoint);
+          expect(
+            res,
+            isNotNull,
+            reason: 'required demo GET $endpoint must be covered',
+          );
+          expect(res!.statusCode, 200);
+          expect(
+            () => jsonDecode(res.body),
+            returnsNormally,
+            reason: 'body of $endpoint must be valid JSON',
+          );
+        }
+      },
+    );
 
     test(
-        'query params genuinely flow through the interceptor search cases',
-        () {
-      final res = DemoInterceptor.tryGet(
-          '/business/search?category=RETAIL&verified=true&limit=20');
-      expect(res, isNotNull);
-      final body = jsonDecode(res!.body) as Map<String, dynamic>;
-      final rows = (body['businesses'] as List)
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      expect(rows.length, 1, reason: 'RETAIL + verified=true = Mr. Price only');
-      expect(rows.first['businessName'], 'Mr. Price');
-      expect(rows.first['isVerified'], true);
-    });
+      'query params genuinely flow through the interceptor search cases',
+      () {
+        final res = DemoInterceptor.tryGet(
+          '/business/search?category=RETAIL&verified=true&limit=20',
+        );
+        expect(res, isNotNull);
+        final body = jsonDecode(res!.body) as Map<String, dynamic>;
+        final rows = (body['businesses'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        expect(
+          rows.length,
+          1,
+          reason: 'RETAIL + verified=true = Mr. Price only',
+        );
+        expect(rows.first['businessName'], 'Mr. Price');
+        expect(rows.first['isVerified'], true);
+      },
+    );
 
     test('unseeded marketplace-family GET throws the typed signal', () {
       expect(
