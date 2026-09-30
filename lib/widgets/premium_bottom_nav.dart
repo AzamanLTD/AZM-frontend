@@ -23,6 +23,7 @@ import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/liquid_tab_backdrop.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -179,7 +180,7 @@ class PremiumBottomNav extends ConsumerWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
     // Passed down once so the buttons do not re-read MediaQuery in four
     // places, and so the whole nav agrees on the same mode in one frame.
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = !AzMotion.of(context).travel;
     // One listen rebuilds the whole nav as the page scrolls.
     return ValueListenableBuilder<double>(
       valueListenable: navScrollCompression,
@@ -217,7 +218,7 @@ class PremiumBottomNav extends ConsumerWidget {
             opacity:
                 1.0 - ((1.0 - NavScrollCompression.compressedOpacity) * t),
             child: AnimatedContainer(
-              duration: MotionTokens.fast,
+              duration: AzMotion.duration(context, MotionTokens.fast),
               height: h,
               decoration: BoxDecoration(
                 color: colors.surface,
@@ -359,7 +360,7 @@ class _NavButton extends StatelessWidget {
   }
 
   Widget _badge(BuildContext context, Color color) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = !AzMotion.of(context).travel;
     final icon = AnimatedSwitcher(
       duration: reduceMotion ? Duration.zero : MotionTokens.fast,
       transitionBuilder: (child, anim) => FadeTransition(

@@ -45,7 +45,7 @@ void main() {
   var haptics = 0;
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    AzSensory.hapticsEnabled = true;
+    AzSensory.apply(const SensoryPreferences());
     haptics = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -54,7 +54,7 @@ void main() {
         });
   });
   tearDown(() {
-    AzSensory.hapticsEnabled = true;
+    AzSensory.apply(const SensoryPreferences());
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
@@ -187,6 +187,20 @@ void main() {
         expect(haptics, 1);
       },
     );
+  }
+
+  for (final forced in [true, false]) {
+    testWidgets('resolve override=$forced wins over opposite OS flag', (tester) async {
+      AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
+      await tester.pumpWidget(wrap(reduced: !forced, announce: true));
+      expect(within(Transform), forced ? findsNothing : findsOneWidget);
+      expect(within(AnimatedOpacity), forced ? findsOneWidget : findsNothing);
+      await tester.pumpAndSettle();
+      expect(haptics, 1);
+      await tester.pumpWidget(wrap(reduced: !forced, announce: true));
+      await tester.pumpAndSettle();
+      expect(haptics, 1);
+    });
   }
 
   testWidgets('nonzero index and disabled haptics never announce', (

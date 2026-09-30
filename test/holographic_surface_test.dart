@@ -1,3 +1,6 @@
+import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/theme/az_motion.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +27,46 @@ Widget _host({bool interactive = true, bool reduceMotion = false}) => MaterialAp
     );
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    AzSensory.apply(const SensoryPreferences());
+  });
+  tearDown(() => AzSensory.apply(const SensoryPreferences()));
+
+  for (final forced in [true, false]) {
+    testWidgets('sheen override=$forced wins over opposite OS flag', (tester) async {
+      AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
+      await tester.pumpWidget(_host(reduceMotion: !forced));
+      expect(find.descendant(of: find.byType(HolographicSurface),
+        matching: find.byType(Listener)), forced ? findsNothing : findsOneWidget);
+      expect(find.text('GH₵ 1,240.42'), findsOneWidget);
+      final gradients = tester.widgetList<DecoratedBox>(find.descendant(
+        of: find.byType(HolographicSurface), matching: find.byType(DecoratedBox)))
+        .where((w) => (w.decoration as BoxDecoration).gradient != null);
+      expect(gradients.length, greaterThanOrEqualTo(3));
+    });
+  }
+
+  testWidgets('changing override stops a moving sheen without losing its material', (tester) async {
+    final sensory = SensoryProvider();
+    addTearDown(sensory.dispose);
+    await tester.pumpWidget(AzMotionScope(notifier: sensory, child: _host()));
+    await tester.pumpAndSettle();
+    final gesture = await tester.startGesture(tester.getCenter(find.byType(HolographicSurface)));
+    await gesture.moveBy(const Offset(40, 20));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 16));
+    await sensory.setForceReduceMotion(true);
+    await tester.pump();
+    expect(find.descendant(of: find.byType(HolographicSurface), matching: find.byType(Listener)), findsNothing);
+    expect(find.text('GH₵ 1,240.42'), findsOneWidget);
+    expect(tester.binding.transientCallbackCount, 0);
+    await sensory.setForceReduceMotion(false);
+    await tester.pump();
+    expect(find.descendant(of: find.byType(HolographicSurface), matching: find.byType(Listener)), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('renders its child', (tester) async {
     await tester.pumpWidget(_host());
     expect(find.text('GH₵ 1,240.42'), findsOneWidget);

@@ -49,6 +49,7 @@ import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/theme/az_motion.dart';
 
 class P2POrder {
   final String id;
@@ -215,7 +216,7 @@ class AzamanApp extends ConsumerWidget {
     // static sink BEFORE any screen fires a haptic — not only after the user
     // opens Settings. Provider is single-instantiated by the root ProviderScope;
     // no second provider or sink is created here.
-    ref.watch(sensoryProvider);
+    final sensory = ref.watch(sensoryProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -234,9 +235,12 @@ class AzamanApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        builder: (context, child) => ThemedAppBackdrop(
-          child: AzamanConnectivityBanner(
-            child: child ?? const SizedBox.shrink(),
+        builder: (context, child) => AzMotionScope(
+          notifier: sensory,
+          child: ThemedAppBackdrop(
+            child: AzamanConnectivityBanner(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),
@@ -472,6 +476,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _transitionCtrl.duration = AzMotion.of(context).travel
+        ? MotionTokens.emphasized : MotionTokens.control;
+  }
+
   Widget _pageFor(int index) {
     switch (index) {
       case 1:
@@ -499,14 +510,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     // compressed state from the outgoing page would linger until the new page
     // scrolls.
     if (navScrollCompression.value != 0) navScrollCompression.value = 0;
-    final disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final midTransition = _displayedIndex != _selectedIndex;
 
     setState(() {
       _pages[i] = page;
-      if (disableAnimations || midTransition) {
-        // Snap when the user taps mid-flight, or when a11y animations are off.
+      if (midTransition) {
+        // Preserve the existing snap when the user taps mid-flight.
         _displayedIndex = i;
         _selectedIndex = i;
       } else {
@@ -515,7 +524,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       }
     });
 
-    if (!disableAnimations && !midTransition) {
+    if (!midTransition) {
       _transitionCtrl.forward(from: 0);
     }
   }
@@ -540,6 +549,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     if (!incoming) {
       return _pages[index]!;
     }
+    final fade = FadeTransition(
+      opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.enter),
+      ),
+      child: _pages[index]!,
+    );
+    // Reduced motion preserves arrival as a control-tempo cross-fade only.
+    if (!AzMotion.of(context).travel) return fade;
     final d = _transitionDirection;
     return SlideTransition(
       position: Tween<Offset>(begin: Offset(0.06 * d, 0), end: Offset.zero)
@@ -549,12 +566,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               curve: MotionTokens.symmetric,
             ),
           ),
-      child: FadeTransition(
-        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: _transitionCtrl, curve: MotionTokens.enter),
-        ),
-        child: _pages[index]!,
-      ),
+      child: fade,
     );
   }
 

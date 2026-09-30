@@ -1,3 +1,5 @@
+import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 // =============================================================================
 // TASK-010 — Nav pill scroll-reactive compression: regression suite
 //
@@ -113,7 +115,9 @@ double _pillOpacity(WidgetTester tester) => (tester.widget(
     ) as Opacity).opacity;
 
 void main() {
+  tearDown(() => AzSensory.apply(const SensoryPreferences()));
   setUp(() {
+    AzSensory.apply(const SensoryPreferences());
     SharedPreferences.setMockInitialValues({});
     // The notifier is global; keep each test's starting state honest.
     navScrollCompression.value = 0;
@@ -317,6 +321,21 @@ void main() {
         expect(find.text('Home'), findsOneWidget);
       },
     );
+
+    for (final forced in [true, false]) {
+      testWidgets('nav user override=$forced wins over opposite OS flag', (tester) async {
+        AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
+        await _pumpNav(tester, reduceMotion: !forced);
+        navScrollCompression.value = 1;
+        await tester.pumpAndSettle();
+        expect(_navHeight(tester), (forced ? 62 : 52) + 16);
+        expect(_pillOpacity(tester), forced ? 1.0 : 0.92);
+        final pill = tester.widgetList<AnimatedContainer>(
+          find.descendant(of: _navFinder, matching: find.byType(AnimatedContainer)))
+            .firstWhere((w) => w.constraints?.maxHeight == (forced ? 62 : 52));
+        expect(pill.duration.inMicroseconds, forced ? 0 : MotionTokens.fast.inMicroseconds);
+      });
+    }
 
     testWidgets(
       'tapping another tab works while compressed; re-tapping the active '
