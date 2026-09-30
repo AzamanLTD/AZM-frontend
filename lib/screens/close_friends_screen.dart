@@ -16,6 +16,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/az_avatar.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -232,13 +233,10 @@ class _FriendTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: colors.softSurface,
-        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-        child: avatarUrl == null
-            ? Text(name[0].toUpperCase(), style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600))
-            : null,
+      leading: AzAvatar(
+        circular: true,
+        imageUrl: avatarUrl,
+        name: name,
       ),
       title: Text(name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
       trailing: IconButton(
@@ -262,13 +260,10 @@ class _SearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: colors.softSurface,
-        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-        child: avatarUrl == null
-            ? Text(name[0].toUpperCase(), style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600))
-            : null,
+      leading: AzAvatar(
+        circular: true,
+        imageUrl: avatarUrl,
+        name: name,
       ),
       title: Text(name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
       trailing: Container(
