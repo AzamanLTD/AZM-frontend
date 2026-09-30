@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_state_illustration.dart';
 
 
 // =============================================================================
@@ -44,6 +45,16 @@ class AzamanEmptyState extends ConsumerWidget {
   /// Useful inside cards or constrained containers.
   final bool compact;
 
+  /// Optional drawn scene. When null, the legacy icon-in-a-circle is rendered —
+  /// which keeps every existing call site byte-identical in behaviour.
+  final AzStateScene? scene;
+
+  /// The product's voice: one line of personality under the title.
+  final String? voice;
+
+  /// 0 → 1; drives the illustration's self-drawing entrance.
+  final double progress;
+
   const AzamanEmptyState({
     super.key,
     required this.icon,
@@ -53,6 +64,9 @@ class AzamanEmptyState extends ConsumerWidget {
     this.onAction,
     this.iconSize = 56,
     this.compact = false,
+    this.scene,
+    this.voice,
+    this.progress = 1.0,
   });
 
   @override
@@ -66,19 +80,28 @@ class AzamanEmptyState extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Decorative circle behind icon
-          Container(
-            padding: EdgeInsets.all(compact ? 16 : 20),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withValues(alpha: 0.06),
+          // A drawn scene when the caller supplies one; otherwise the original
+          // icon-in-a-circle, so nothing that exists today changes.
+          if (scene != null)
+            AzStateIllustration(
+              scene: scene!,
+              colors: colors,
+              size: compact ? 64 : 96,
+              progress: progress,
+            )
+          else
+            Container(
+              padding: EdgeInsets.all(compact ? 16 : 20),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withValues(alpha: 0.06),
+              ),
+              child: Icon(
+                icon,
+                size: compact ? 40 : iconSize,
+                color: colors.textTertiary,
+              ),
             ),
-            child: Icon(
-              icon,
-              size: compact ? 40 : iconSize,
-              color: colors.textTertiary,
-            ),
-          ),
           SizedBox(height: compact ? 16 : 20),
 
           // Title
@@ -101,6 +124,21 @@ class AzamanEmptyState extends ConsumerWidget {
               style: TextStyle(
                 color: colors.textTertiary,
                 fontSize: compact ? 12 : 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // The product's voice: one line of personality, accent-tinted.
+          if (voice != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              voice!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.accent.withValues(alpha: 0.85),
+                fontSize: compact ? 11 : 12,
+                fontWeight: FontWeight.w600,
                 height: 1.4,
               ),
             ),
