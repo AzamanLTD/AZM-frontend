@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'package:azaman/widgets/azaman_network_image.dart';
+
 import '../models/storefront_models.dart';
 import '../services/storefront_tracking_service.dart';
 import '../core/storefront_tracking_scope.dart';
@@ -133,10 +136,10 @@ class _ProductCard extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
+                      ? AzamanNetworkImage(
+                          imageUrl: imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _ImageFallback(),
+                          errorWidget: (_, __, ___) => _ImageFallback(),
                         )
                       : _ImageFallback(),
                 ),
