@@ -19,6 +19,7 @@ import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/screens/marketplace/receipt_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
@@ -102,6 +103,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           );
           if (!mounted) return;
           AzamanHaptics.commit();
+          AzSound.success();
           setState(() {
             _invoice = updated;
             _paying = false;

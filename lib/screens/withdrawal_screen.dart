@@ -41,6 +41,7 @@ import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
@@ -425,6 +426,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // The logical withdrawal is complete — postFinancial has already
         // retired the durable entry (2xx), so the next one is a new action.
         HapticFeedback.heavyImpact();
+        AzSound.success();
         // Refresh the pool status — a successful payout debits SystemFiatPool
         // so the banner state may have changed.
         ref.invalidate(fiatPoolStatusProvider);
@@ -546,6 +548,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       if (accepted) {
         // (2xx → postFinancial retired the durable entry already.)
         HapticFeedback.heavyImpact();
+        AzSound.success();
         // Open the real progress UI from the queue-row identity carried
         // in this same response — the saved-payout queue is worker-driven,
         // so the sheet polls the owner-scoped status surface.

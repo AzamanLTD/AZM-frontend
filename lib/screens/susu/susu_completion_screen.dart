@@ -15,6 +15,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 // ── Confetti Particle ──────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ class _SusuCompletionScreenState extends ConsumerState<SusuCompletionScreen>
 
     // Heavy haptics for celebration
     AzamanHaptics.commit();
+    AzSound.success();
     Future.delayed(const Duration(milliseconds: 500), () => AzamanHaptics.commit());
     Future.delayed(const Duration(milliseconds: 1000), () => AzamanHaptics.confirm());
   }

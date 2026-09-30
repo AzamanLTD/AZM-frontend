@@ -12,6 +12,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class BookingSuccessSheet extends ConsumerWidget {
@@ -55,6 +56,7 @@ class BookingSuccessSheet extends ConsumerWidget {
     Widget? keepsake,
   }) {
     AzamanHaptics.celebration();
+    AzSound.success();
     if (keepsake == null) {
       // Receipt-only: a fixed four-row confirmation — a whisper, as before.
       return AzamanSheet.showWhisper<void>(

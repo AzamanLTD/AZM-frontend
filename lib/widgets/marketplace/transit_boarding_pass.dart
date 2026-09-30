@@ -30,6 +30,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 // Paper palette shared with the restaurant build sheet (TASK-013).
 const _paperTop = Color(0xFFF3E9D2);
@@ -115,6 +116,7 @@ class _TransitBoardingPassCardState extends State<TransitBoardingPassCard>
     if (_tearDrag >= 45) {
       // Committed: the stub separates and falls away.
       AzamanHaptics.moneyLanded();
+      AzSound.rip();
       setState(() => _torn = true);
       _tearController.forward(from: 0);
     } else {
