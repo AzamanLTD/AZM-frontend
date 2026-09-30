@@ -32,6 +32,7 @@ import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
 import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/providers/sensory_provider.dart';
 
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/webrtc_service.dart';
@@ -216,6 +217,14 @@ class AzamanApp extends ConsumerWidget {
       theme_pkg.themeProvider.select((t) => t.themeData),
     );
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
+
+    // TASK-026: eager root watch. SensoryProvider's async _load() runs at app
+    // startup, so a force-quit/relaunch restores persisted sensory values
+    // (haptics, sound, ambient motion, reduce-motion) into the AzSensory
+    // static sink BEFORE any screen fires a haptic — not only after the user
+    // opens Settings. Provider is single-instantiated by the root ProviderScope;
+    // no second provider or sink is created here.
+    ref.watch(sensoryProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(

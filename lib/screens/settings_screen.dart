@@ -35,6 +35,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
+import 'package:azaman/widgets/sensory_preferences_section.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 
@@ -188,6 +189,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+
+          // ── FEEL (TASK-026) ─────────────────────────────────────────
+          const SensoryPreferencesSection(),
 
           // ── PREFERENCES ─────────────────────────────────────────────
           _SectionHeader('Preferences', colors: colors),
