@@ -40,9 +40,11 @@ import 'package:azaman/theme/motion_tokens.dart';
 CustomTransitionPage<T> traversePage<T>({
   required LocalKey key,
   required Widget child,
+  String? restorationId,
 }) {
   return CustomTransitionPage<T>(
     key: key,
+    restorationId: restorationId,
     child: child,
     transitionDuration: MotionTokens.standard,
     reverseTransitionDuration: MotionTokens.standard,
@@ -73,9 +75,11 @@ CustomTransitionPage<T> traversePage<T>({
 CustomTransitionPage<T> risePage<T>({
   required LocalKey key,
   required Widget child,
+  String? restorationId,
 }) {
   return CustomTransitionPage<T>(
     key: key,
+    restorationId: restorationId,
     child: child,
     transitionDuration: MotionTokens.emphasized,
     reverseTransitionDuration: MotionTokens.emphasized,
@@ -107,9 +111,11 @@ CustomTransitionPage<T> risePage<T>({
 CustomTransitionPage<T> morphPage<T>({
   required LocalKey key,
   required Widget child,
+  String? restorationId,
 }) {
   return CustomTransitionPage<T>(
     key: key,
+    restorationId: restorationId,
     child: child,
     transitionDuration: MotionTokens.fast,
     reverseTransitionDuration: MotionTokens.fast,

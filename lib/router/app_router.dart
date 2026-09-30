@@ -35,7 +35,6 @@ import 'package:azaman/screens/marketplace/hotel_booking_screen.dart';
 import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
 import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
 
-
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/notification_hub_screen.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
@@ -108,7 +107,6 @@ import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
 import 'package:azaman/config.dart';
 
-
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -120,6 +118,12 @@ final RouteDepthTracker routeDepthTracker = RouteDepthTracker(appRouter);
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
+  // NEW-A (restoration): gives the Navigator a stable restoration scope so
+  // the page stack participates in Flutter's restoration system. Combined
+  // with every page's restorationId (its stable route name, set by the
+  // transition families) routes are deemed restorable and each route
+  // subtree gets its own RestorationScope from ModalRoute.
+  restorationScopeId: 'azm-router',
   redirect: (context, state) {
     // NEW-A (Step 5): normalize azaman:// deep links into app paths BEFORE
     // any other check, so a cold-start or runtime deep link resolves
@@ -158,6 +162,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.notifications,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const NotificationHubScreen(),
       ),
     ),
@@ -174,8 +179,7 @@ final GoRouter appRouter = GoRouter(
         return ActiveTradeScreen(
           orderId: '#$tradeId',
           amount: (extra?['amount'] as num?)?.toDouble() ?? 0.0,
-          paymentMethod:
-              extra?['paymentMethod'] as String? ?? 'Bank Transfer',
+          paymentMethod: extra?['paymentMethod'] as String? ?? 'Bank Transfer',
         );
       },
     ),
@@ -194,8 +198,8 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.queue,
       builder: (context, state) {
         final queueId = state.uri.queryParameters['queueId'] ?? '';
-        final position = int.tryParse(
-                state.uri.queryParameters['position'] ?? '') ?? 1;
+        final position =
+            int.tryParse(state.uri.queryParameters['position'] ?? '') ?? 1;
         final adId = state.uri.queryParameters['adId'] ?? '';
         return WaitingRoomScreen(
           queueId: queueId,
@@ -211,6 +215,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.settings,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const SettingsScreen(),
       ),
     ),
@@ -219,6 +224,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.profileEdit,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const ProfileDetailsScreen(),
       ),
     ),
@@ -227,6 +233,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.accountActivity,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const AccountActivityScreen(),
       ),
     ),
@@ -235,6 +242,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.accountDelete,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const AccountDeactivationScreen(),
       ),
     ),
@@ -243,6 +251,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.transactions,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const TransactionHistoryScreen(),
       ),
     ),
@@ -253,6 +262,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.friends,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const FriendsHubScreen(),
       ),
     ),
@@ -261,6 +271,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.messages,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const MessagesHubScreen(),
       ),
     ),
@@ -269,6 +280,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.referral,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const ReferralScreen(),
       ),
     ),
@@ -277,6 +289,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.leaderboard,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const LeaderboardScreen(),
       ),
     ),
@@ -285,6 +298,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.azmAuction,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const AzmAuctionScreen(),
       ),
     ),
@@ -296,6 +310,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.marketplace,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const P2PMarketListScreen(),
       ),
     ),
@@ -304,6 +319,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.savings,
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const SavingsScreen(),
       ),
     ),
@@ -330,6 +346,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.susuHub,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const SusuHubScreen(),
       ),
     ),
@@ -338,29 +355,27 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.proofOfResidency,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const ProofOfResidencyScreen(),
       ),
     ),
     GoRoute(
       path: '/susu/invite/:token',
       name: AzRouteNames.susuInvite,
-      builder: (context, state) => InviteLandingScreen(
-        token: state.pathParameters['token']!,
-      ),
+      builder: (context, state) =>
+          InviteLandingScreen(token: state.pathParameters['token']!),
     ),
     GoRoute(
       path: '/susu/:id',
       name: AzRouteNames.susuDetail,
-      builder: (context, state) => SusuDashboardScreen(
-        susuId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          SusuDashboardScreen(susuId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/susu/:id/contract',
       name: AzRouteNames.susuContract,
-      builder: (context, state) => LiabilityAcceptanceScreen(
-        susuId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          LiabilityAcceptanceScreen(susuId: state.pathParameters['id']!),
     ),
 
     // ── V3 Premium Marketplace (2026-06-21) ─────────────────────────────────
@@ -375,6 +390,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.checkinQr,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: CheckInQrScreen(
           reservationId: state.pathParameters['reservationId']!,
         ),
@@ -385,6 +401,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.businessCheckin,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const BusinessCheckInScreen(),
       ),
     ),
@@ -393,6 +410,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.transitTrips,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const TransitTripListScreen(),
       ),
     ),
@@ -406,9 +424,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace/transit/:tripId/seats',
       name: AzRouteNames.transitSeatSelection,
-      builder: (context, state) => TransitSeatSelectionScreen(
-        tripId: state.pathParameters['tripId']!,
-      ),
+      builder: (context, state) =>
+          TransitSeatSelectionScreen(tripId: state.pathParameters['tripId']!),
     ),
     GoRoute(
       path: '/business-market',
@@ -418,16 +435,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/business-market/:bizId/hotel-booking',
       name: AzRouteNames.hotelBooking,
-      builder: (context, state) => HotelBookingScreen(
-        bizId: state.pathParameters['bizId']!,
-      ),
+      builder: (context, state) =>
+          HotelBookingScreen(bizId: state.pathParameters['bizId']!),
     ),
     GoRoute(
       path: '/business-market/dine-in/:tabId',
       name: AzRouteNames.dineInTab,
-      builder: (context, state) => DineInTabScreen(
-        tabId: state.pathParameters['tabId']!,
-      ),
+      builder: (context, state) =>
+          DineInTabScreen(tabId: state.pathParameters['tabId']!),
     ),
     GoRoute(
       path: '/business-market/:bizId/stories',
@@ -458,9 +473,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/business-market/invoices/:invoiceId',
       name: AzRouteNames.invoiceDetail,
-      builder: (_, state) => InvoiceDetailScreen(
-        invoiceId: state.pathParameters['invoiceId']!,
-      ),
+      builder: (_, state) =>
+          InvoiceDetailScreen(invoiceId: state.pathParameters['invoiceId']!),
     ),
     GoRoute(
       path: '/business-market/dashboard',
@@ -501,9 +515,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/business/:bizId',
       name: AzRouteNames.businessProfile,
-      builder: (_, state) => BusinessProfileScreen(
-        bizId: state.pathParameters['bizId']!,
-      ),
+      builder: (_, state) =>
+          BusinessProfileScreen(bizId: state.pathParameters['bizId']!),
     ),
 
     // ── Worker Sub-Portal (Business OS, 2026-07-06) ────────────────────────
@@ -565,6 +578,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.storefrontDiscovery,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const StorefrontDiscoveryScreen(),
       ),
     ),
@@ -573,6 +587,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.storefrontOrderHistory,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const StorefrontOrderHistoryScreen(),
       ),
     ),
@@ -581,6 +596,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.universalSearch,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const UniversalSearchScreen(),
       ),
     ),
@@ -589,6 +605,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.spendingInsights,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const SpendingInsightsScreen(),
       ),
     ),
@@ -597,6 +614,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.roundUpSavings,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const RoundUpSettingsScreen(),
       ),
     ),
@@ -605,6 +623,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.storyHighlights,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const StoryHighlightsScreen(),
       ),
     ),
@@ -613,6 +632,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.closeFriends,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const CloseFriendsScreen(),
       ),
     ),
@@ -621,11 +641,14 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.storyCamera,
       builder: (context, state) => StoryCameraScreen(
         onCaptured: (mediaFile, isVideo, filter) {
-          context.pushNamed('story-editor', extra: {
-            'mediaFile': mediaFile,
-            'isVideo': isVideo,
-            'filter': filter,
-          });
+          context.pushNamed(
+            'story-editor',
+            extra: {
+              'mediaFile': mediaFile,
+              'isVideo': isVideo,
+              'filter': filter,
+            },
+          );
         },
       ),
     ),
@@ -657,6 +680,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.loyaltyCards,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const LoyaltyCardsScreen(),
       ),
     ),
@@ -665,6 +689,7 @@ final GoRouter appRouter = GoRouter(
       name: AzRouteNames.notificationPreferences,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
+        restorationId: state.name,
         child: const NotificationPreferencesScreen(),
       ),
     ),
@@ -676,8 +701,10 @@ final GoRouter appRouter = GoRouter(
         return SusuPositionPicker(
           totalPositions: extra['totalPositions'] as int? ?? 10,
           selectedPosition: extra['selectedPosition'] as int?,
-          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
-          onPositionSelected: extra['onPositionSelected'] as ValueChanged<int>? ?? (_) {},
+          members: (extra['members'] as List? ?? [])
+              .cast<Map<String, dynamic>>(),
+          onPositionSelected:
+              extra['onPositionSelected'] as ValueChanged<int>? ?? (_) {},
         );
       },
     ),
@@ -690,7 +717,8 @@ final GoRouter appRouter = GoRouter(
           groupName: extra['groupName'] as String? ?? 'Susu Group',
           totalContributed: extra['totalContributed'] as double? ?? 0,
           totalPayout: extra['totalPayout'] as double? ?? 0,
-          members: (extra['members'] as List? ?? []).cast<Map<String, dynamic>>(),
+          members: (extra['members'] as List? ?? [])
+              .cast<Map<String, dynamic>>(),
           currency: extra['currency'] as String? ?? 'GHS',
         );
       },
@@ -724,15 +752,16 @@ final GoRouter appRouter = GoRouter(
         orderId: state.pathParameters['orderId']!,
         // The notification warm path always had the human order ref; keep
         // the same default (ref == id) when a deep link omits it.
-        orderRef: state.uri.queryParameters['orderRef'] ?? state.pathParameters['orderId']!,
+        orderRef:
+            state.uri.queryParameters['orderRef'] ??
+            state.pathParameters['orderId']!,
       ),
     ),
     GoRoute(
       path: '/vault/:vaultId/yield',
       name: AzRouteNames.vaultYield,
-      builder: (context, state) => VaultYieldScreen(
-        vaultId: state.pathParameters['vaultId']!,
-      ),
+      builder: (context, state) =>
+          VaultYieldScreen(vaultId: state.pathParameters['vaultId']!),
     ),
     GoRoute(
       path: '/story-create',
@@ -759,8 +788,10 @@ class _DisputeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Text('Dispute #$disputeId',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16)),
+        title: Text(
+          'Dispute #$disputeId',
+          style: TextStyle(color: colors.textPrimary, fontSize: 16),
+        ),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
@@ -772,15 +803,19 @@ class _DisputeScreen extends ConsumerWidget {
             children: [
               Icon(Icons.gavel, size: 64, color: colors.danger),
               const SizedBox(height: 16),
-              Text('Dispute #$disputeId',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'Dispute #$disputeId',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('This dispute is being reviewed.',
-                  style:
-                      TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                'This dispute is being reviewed.',
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
             ],
           ),
         ),
@@ -819,20 +854,22 @@ void handleNotificationTap({
   // they were, and the router's auth redirect stays authoritative.
   switch (action) {
     case 'OPEN_TRADE':
-    case 'PING_TOPUP': {
-      final tradeId = actionPayload?['tradeId']?.toString();
-      if (tradeId != null) {
-        appRouter.push(AzRoutes.trade(tradeId));
+    case 'PING_TOPUP':
+      {
+        final tradeId = actionPayload?['tradeId']?.toString();
+        if (tradeId != null) {
+          appRouter.push(AzRoutes.trade(tradeId));
+        }
+        break;
       }
-      break;
-    }
-    case 'OPEN_DISPUTE': {
-      final disputeId = actionPayload?['disputeId']?.toString();
-      if (disputeId != null) {
-        appRouter.push(AzRoutes.dispute(disputeId));
+    case 'OPEN_DISPUTE':
+      {
+        final disputeId = actionPayload?['disputeId']?.toString();
+        if (disputeId != null) {
+          appRouter.push(AzRoutes.dispute(disputeId));
+        }
+        break;
       }
-      break;
-    }
     case 'OPEN_FRIEND_REQUEST':
     case 'OPEN_FRIEND_CHAT':
       appRouter.push(AzRoutes.friends);
@@ -844,71 +881,90 @@ void handleNotificationTap({
       appRouter.push(AzRoutes.marketplace);
       break;
     // Phase 4 (Susu Sprint, 2026-05-31) — susu deep-link actions.
-    case 'OPEN_SUSU': {
-      final susuId = actionPayload?['susuId']?.toString();
-      appRouter.push(susuId == null ? AzRoutes.susuHub : AzRoutes.susuDetail(susuId));
-      break;
-    }
-    case 'OPEN_SUSU_INVITE': {
-      // The BE may emit either a SusuInvite id (FRIEND/PHONE channels)
-      // or a token (LINK channel). We prefer the token — the public-route
-      // redemption flow.
-      final token = actionPayload?['token']?.toString();
-      final susuId = actionPayload?['susuId']?.toString();
-      if (token != null && token.isNotEmpty) {
-        appRouter.push(AzRoutes.susuInvite(token));
-      } else if (susuId != null) {
-        appRouter.push(AzRoutes.susuDetail(susuId));
-      } else {
-        appRouter.push(AzRoutes.susuHub);
+    case 'OPEN_SUSU':
+      {
+        final susuId = actionPayload?['susuId']?.toString();
+        appRouter.push(
+          susuId == null ? AzRoutes.susuHub : AzRoutes.susuDetail(susuId),
+        );
+        break;
       }
-      break;
-    }
-    case 'OPEN_DEPOSIT_FOR_SUSU': {
-      final amount = actionPayload?['amount']?.toString();
-      final susuId = actionPayload?['susuId']?.toString();
-      appRouter.push(AzRoutes.deposit(
-        amount: amount,
-        memo: susuId == null ? null : 'susu:$susuId',
-      ));
-      break;
-    }
-    case 'OPEN_CHAT': {
-      final conversationId = actionPayload?['conversationId']?.toString()
-          ?? actionPayload?['roomId']?.toString();
-      if (conversationId != null) {
-        // RETAINED (documented in the NEW-A migration inventory): chat has
-        // no canonical route yet — FriendChatScreen needs friendship state
-        // (friendUsername/friendId) that has no URL representation. The
-        // push stays on the router-owned root navigator; the fallback path
-        // below keeps the old cold-start behaviour (hub, not nothing).
-        final navigator = rootNavigatorKey.currentState;
-        if (navigator != null) {
-          navigator.push(MaterialPageRoute(
-            builder: (_) => FriendChatScreen(
-              friendshipId: conversationId,
-              friendUsername: actionPayload?['friendName']?.toString() ?? 'Friend',
-              friendId: int.tryParse(actionPayload?['friendId']?.toString() ?? '') ?? 0,
-            ),
-          ));
+    case 'OPEN_SUSU_INVITE':
+      {
+        // The BE may emit either a SusuInvite id (FRIEND/PHONE channels)
+        // or a token (LINK channel). We prefer the token — the public-route
+        // redemption flow.
+        final token = actionPayload?['token']?.toString();
+        final susuId = actionPayload?['susuId']?.toString();
+        if (token != null && token.isNotEmpty) {
+          appRouter.push(AzRoutes.susuInvite(token));
+        } else if (susuId != null) {
+          appRouter.push(AzRoutes.susuDetail(susuId));
+        } else {
+          appRouter.push(AzRoutes.susuHub);
+        }
+        break;
+      }
+    case 'OPEN_DEPOSIT_FOR_SUSU':
+      {
+        final amount = actionPayload?['amount']?.toString();
+        final susuId = actionPayload?['susuId']?.toString();
+        appRouter.push(
+          AzRoutes.deposit(
+            amount: amount,
+            memo: susuId == null ? null : 'susu:$susuId',
+          ),
+        );
+        break;
+      }
+    case 'OPEN_CHAT':
+      {
+        final conversationId =
+            actionPayload?['conversationId']?.toString() ??
+            actionPayload?['roomId']?.toString();
+        if (conversationId != null) {
+          // RETAINED (documented in the NEW-A migration inventory): chat has
+          // no canonical route yet — FriendChatScreen needs friendship state
+          // (friendUsername/friendId) that has no URL representation. The
+          // push stays on the router-owned root navigator; the fallback path
+          // below keeps the old cold-start behaviour (hub, not nothing).
+          final navigator = rootNavigatorKey.currentState;
+          if (navigator != null) {
+            navigator.push(
+              MaterialPageRoute(
+                builder: (_) => FriendChatScreen(
+                  friendshipId: conversationId,
+                  friendUsername:
+                      actionPayload?['friendName']?.toString() ?? 'Friend',
+                  friendId:
+                      int.tryParse(
+                        actionPayload?['friendId']?.toString() ?? '',
+                      ) ??
+                      0,
+                ),
+              ),
+            );
+          } else {
+            appRouter.push(AzRoutes.messages);
+          }
         } else {
           appRouter.push(AzRoutes.messages);
         }
-      } else {
-        appRouter.push(AzRoutes.messages);
+        break;
       }
-      break;
-    }
-    case 'OPEN_ORDER': {
-      final orderId = actionPayload?['orderId']?.toString();
-      if (orderId != null) {
-        appRouter.push(AzRoutes.orderTracking(
-          orderId,
-          orderRef: actionPayload?['orderRef']?.toString() ?? orderId,
-        ));
+    case 'OPEN_ORDER':
+      {
+        final orderId = actionPayload?['orderId']?.toString();
+        if (orderId != null) {
+          appRouter.push(
+            AzRoutes.orderTracking(
+              orderId,
+              orderRef: actionPayload?['orderRef']?.toString() ?? orderId,
+            ),
+          );
+        }
+        break;
       }
-      break;
-    }
     case 'OPEN_PROOF_OF_RESIDENCY':
       appRouter.push(AzRoutes.proofOfResidency);
       break;
@@ -941,7 +997,10 @@ class _AzamanRouteErrorScreen extends ConsumerWidget {
     final colors = ref.watch(themeProvider.select((t) => t.colors));
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(title: const Text('Page not found'), backgroundColor: colors.surface),
+      appBar: AppBar(
+        title: const Text('Page not found'),
+        backgroundColor: colors.surface,
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -950,13 +1009,21 @@ class _AzamanRouteErrorScreen extends ConsumerWidget {
             children: [
               Icon(Icons.explore_off, size: 56, color: colors.textTertiary),
               const SizedBox(height: 16),
-              Text('This page could not be loaded.',
-                  style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                'This page could not be loaded.',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
               if (error != null)
-                Text('$error',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                    textAlign: TextAlign.center),
+                Text(
+                  '$error',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => context.go('/'),

@@ -237,7 +237,7 @@ abstract final class AzRoutes {
   static const closeFriends = '/close-friends';
   static const storyCamera = '/story-camera';
   static const storyEditor = '/story-editor';
-  static const storyCreate = '/story-create';
+  static const storyCreation = '/story-create';
   static String storyAnalytics(String businessId, {String? name}) => name ==
           null
       ? '/story-analytics/$businessId'

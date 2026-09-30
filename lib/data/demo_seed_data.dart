@@ -27,7 +27,8 @@ class DemoSeedData {
       'username': demoUsername,
       'email': 'pyrax@demo.azaman.app',
       'role': 'USER',
-      'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
+      'profilePictureUrl':
+          'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
       'azamanId': 'AZM-000123456',
       'availableBalance': 12450.00,
       'vendorUnallocatedBalance': 0,
@@ -36,7 +37,7 @@ class DemoSeedData {
       'azmBalance': 12450.00,
       'kycStatus': 'VERIFIED',
       'banStatus': 'ACTIVE',
-    }
+    },
   };
 
   // ── /users/dashboard ──────────────────────────────────────────────────
@@ -57,17 +58,13 @@ class DemoSeedData {
       'theme': 'system',
       'vendorTagEnabled': true,
       'shortcuts': ['deposit', 'withdraw', 'send', 'susu'],
-      'notifications': {
-        'trades': true,
-        'messages': true,
-        'marketing': false,
-      },
+      'notifications': {'trades': true, 'messages': true, 'marketing': false},
     },
   };
 
   // ── /users/onboarding ────────────────────────────────────────────────
   static Map<String, dynamic> onboarding() => {
-    'data': {'completed': true}
+    'data': {'completed': true},
   };
 
   // ── /friends ─────────────────────────────────────────────────────────
@@ -77,7 +74,8 @@ class DemoSeedData {
       'friend': {
         'id': 2,
         'username': 'Bella',
-        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
+        'profilePictureUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
       },
       'latestMessage': {
         'content': 'Hey Pyrax! Are we still on for Friday?',
@@ -91,7 +89,8 @@ class DemoSeedData {
       'friend': {
         'id': 3,
         'username': 'Lamar',
-        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
+        'profilePictureUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
       },
       'latestMessage': {
         'content': 'Sent you the GHS 200 for the susu',
@@ -105,13 +104,15 @@ class DemoSeedData {
       'friend': {
         'id': 4,
         'username': 'Ibrah',
-        'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png',
+        'profilePictureUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png',
       },
       'latestMessage': {
         'content': '',
         'createdAt': _hoursAgo(28),
         'messageType': 'IMAGE',
-        'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
+        'mediaUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
       },
       'unreadCount': 1,
     },
@@ -236,7 +237,8 @@ class DemoSeedData {
               'senderUsername': 'Ibrah',
               'content': '',
               'messageType': 'IMAGE',
-              'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
+              'mediaUrl':
+                  'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
               'createdAt': _hoursAgo(27, 55),
               'status': 'DELIVERED',
             },
@@ -317,12 +319,14 @@ class DemoSeedData {
         'fromUser': {
           'id': 5,
           'username': 'Alfred',
-          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
+          'profilePictureUrl':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
         },
         'requester': {
           'id': 5,
           'username': 'Alfred',
-          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
+          'profilePictureUrl':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
         },
         'createdAt': _hoursAgo(12),
         'status': 'PENDING',
@@ -344,10 +348,46 @@ class DemoSeedData {
       'susuGroupId': null,
       'susuStatus': null,
       'members': [
-        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png'}, 'role': 'ADMIN'},
-        {'id': 2, 'userId': 2, 'user': {'username': 'Bella', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png'}, 'role': 'MEMBER'},
-        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png'}, 'role': 'MEMBER'},
-        {'id': 4, 'userId': 4, 'user': {'username': 'Ibrah', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png'}, 'role': 'MEMBER'},
+        {
+          'id': 1,
+          'userId': 1,
+          'user': {
+            'username': demoUsername,
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
+          },
+          'role': 'ADMIN',
+        },
+        {
+          'id': 2,
+          'userId': 2,
+          'user': {
+            'username': 'Bella',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
+        {
+          'id': 3,
+          'userId': 3,
+          'user': {
+            'username': 'Lamar',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
+        {
+          'id': 4,
+          'userId': 4,
+          'user': {
+            'username': 'Ibrah',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/58ad74605_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
       ],
       'updatedAt': _hoursAgo(1),
     },
@@ -360,10 +400,46 @@ class DemoSeedData {
       'susuGroupId': 'susu-1',
       'susuGroup': {'status': 'ACTIVE', 'initiationDeadline': null},
       'members': [
-        {'id': 1, 'userId': 1, 'user': {'username': demoUsername, 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png'}, 'role': 'ADMIN'},
-        {'id': 3, 'userId': 3, 'user': {'username': 'Lamar', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png'}, 'role': 'MEMBER'},
-        {'id': 5, 'userId': 5, 'user': {'username': 'Alfred', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png'}, 'role': 'MEMBER'},
-        {'id': 6, 'userId': 6, 'user': {'username': 'adwoa_boateng', 'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/f0c3891b6_generated_image.png'}, 'role': 'MEMBER'},
+        {
+          'id': 1,
+          'userId': 1,
+          'user': {
+            'username': demoUsername,
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
+          },
+          'role': 'ADMIN',
+        },
+        {
+          'id': 3,
+          'userId': 3,
+          'user': {
+            'username': 'Lamar',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
+        {
+          'id': 5,
+          'userId': 5,
+          'user': {
+            'username': 'Alfred',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
+        {
+          'id': 6,
+          'userId': 6,
+          'user': {
+            'username': 'adwoa_boateng',
+            'profilePictureUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/f0c3891b6_generated_image.png',
+          },
+          'role': 'MEMBER',
+        },
       ],
       'updatedAt': _hoursAgo(3),
     },
@@ -545,6 +621,39 @@ class DemoSeedData {
     ],
   };
 
+  // ── /users/me/security-logs ─────────────────────────────────────────
+  /// 30 synthetic security events so Account Activity is a genuinely
+  /// long-scroll surface in demo mode (and in restoration tests).
+  static Map<String, dynamic> securityLogs(int page, int limit) {
+    const titles = [
+      'Signed in',
+      'Password changed',
+      'New device sign-in',
+      'PIN updated',
+      'Two-factor method changed',
+      'Session revoked',
+      'Login from new location',
+      'Security key registered',
+    ];
+    final logs = List.generate(30, (i) {
+      final idx = 29 - i; // newest first
+      return {
+        'id': 'sec-${idx + 1}',
+        'title': titles[idx % titles.length],
+        'body': 'Security event recorded on the AZM account.',
+        'createdAt': _hoursAgo(idx * 8),
+        'isRead': idx < 5,
+      };
+    });
+    final start = (page - 1) * limit;
+    final end = (start + limit).clamp(0, logs.length);
+    return {
+      'success': true,
+      'logs': logs.sublist(start, end),
+      'total': logs.length,
+    };
+  }
+
   // ── /finance/transactions ────────────────────────────────────────────
   static Map<String, dynamic> financeTransactions() => {
     'data': [
@@ -609,7 +718,10 @@ class DemoSeedData {
   };
 
   // ── /notifications/unread-count ─────────────────────────────────────
-  static Map<String, dynamic> unreadNotifications() => {'success': true, 'count': 3};
+  static Map<String, dynamic> unreadNotifications() => {
+    'success': true,
+    'count': 3,
+  };
 
   // ── /savings/overview ───────────────────────────────────────────────
   static Map<String, dynamic> savingsOverview() => {
@@ -695,11 +807,21 @@ class DemoSeedData {
   static Map<String, dynamic> leaderboard() => {
     'data': {
       'entries': [
-        {'userId': 1, 'username': demoUsername, 'azmBalance': 12450.00, 'rank': 1},
+        {
+          'userId': 1,
+          'username': demoUsername,
+          'azmBalance': 12450.00,
+          'rank': 1,
+        },
         {'userId': 2, 'username': 'Bella', 'azmBalance': 8200.00, 'rank': 2},
         {'userId': 5, 'username': 'Alfred', 'azmBalance': 5600.00, 'rank': 3},
         {'userId': 3, 'username': 'Lamar', 'azmBalance': 4300.00, 'rank': 4},
-        {'userId': 6, 'username': 'adwoa_boateng', 'azmBalance': 2100.00, 'rank': 5},
+        {
+          'userId': 6,
+          'username': 'adwoa_boateng',
+          'azmBalance': 2100.00,
+          'rank': 5,
+        },
       ],
     },
   };
@@ -717,10 +839,34 @@ class DemoSeedData {
   // ── /azm/spend/card-skins ───────────────────────────────────────────
   static Map<String, dynamic> cardSkins() => {
     'data': [
-      {'id': 'default', 'name': 'Classic Gold', 'price': 0, 'owned': true, 'equipped': true},
-      {'id': 'midnight', 'name': 'Midnight', 'price': 50, 'owned': true, 'equipped': false},
-      {'id': 'sunset', 'name': 'Sunset', 'price': 100, 'owned': false, 'equipped': false},
-      {'id': 'ocean', 'name': 'Ocean Depth', 'price': 150, 'owned': false, 'equipped': false},
+      {
+        'id': 'default',
+        'name': 'Classic Gold',
+        'price': 0,
+        'owned': true,
+        'equipped': true,
+      },
+      {
+        'id': 'midnight',
+        'name': 'Midnight',
+        'price': 50,
+        'owned': true,
+        'equipped': false,
+      },
+      {
+        'id': 'sunset',
+        'name': 'Sunset',
+        'price': 100,
+        'owned': false,
+        'equipped': false,
+      },
+      {
+        'id': 'ocean',
+        'name': 'Ocean Depth',
+        'price': 150,
+        'owned': false,
+        'equipped': false,
+      },
     ],
   };
 
@@ -867,14 +1013,16 @@ class DemoSeedData {
         'authorId': 2,
         'author': {
           'username': 'Bella',
-          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
+          'profilePictureUrl':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/5e57d4e1e_generated_image.png',
         },
         'hasUnseen': true,
         'isBoosted': false,
         'stories': [
           {
             'id': 's-1',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/15f5c05c3_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Friday vibes at the spot',
             'durationSeconds': 5,
@@ -884,7 +1032,8 @@ class DemoSeedData {
           },
           {
             'id': 's-1b',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2a2ea44bb_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2a2ea44bb_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Dinner was unreal',
             'durationSeconds': 5,
@@ -898,14 +1047,16 @@ class DemoSeedData {
         'authorId': 3,
         'author': {
           'username': 'Lamar',
-          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
+          'profilePictureUrl':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
         },
         'hasUnseen': true,
         'isBoosted': false,
         'stories': [
           {
             'id': 's-2',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/b9d199e58_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/b9d199e58_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New office setup',
             'durationSeconds': 5,
@@ -915,7 +1066,8 @@ class DemoSeedData {
           },
           {
             'id': 's-2b',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'Late night grind',
             'durationSeconds': 5,
@@ -929,14 +1081,16 @@ class DemoSeedData {
         'authorId': 10,
         'author': {
           'username': 'crypto_gh',
-          'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2b94a3394_generated_image.png',
+          'profilePictureUrl':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/2b94a3394_generated_image.png',
         },
         'hasUnseen': false,
         'isBoosted': true,
         'stories': [
           {
             'id': 's-3',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'New rates just dropped!',
             'durationSeconds': 5,
@@ -946,7 +1100,8 @@ class DemoSeedData {
           },
           {
             'id': 's-3b',
-            'mediaUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
+            'mediaUrl':
+                'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/344b96f6b_generated_image.png',
             'mediaType': 'IMAGE',
             'caption': 'USDC pairs now live',
             'durationSeconds': 5,
@@ -965,7 +1120,8 @@ class DemoSeedData {
       {
         'id': 'biz-1',
         'name': "Chef Abby's",
-        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
+        'logoUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/eded2b264_generated_image.png',
         'accentColor': '#F59E0B',
         'verified': true,
         'rating': 4.8,
@@ -976,7 +1132,8 @@ class DemoSeedData {
       {
         'id': 'biz-2',
         'name': 'Advenr',
-        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/9eab4badd_generated_image.png',
+        'logoUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/9eab4badd_generated_image.png',
         'accentColor': '#4F8EF7',
         'verified': true,
         'rating': 4.6,
@@ -987,7 +1144,8 @@ class DemoSeedData {
       {
         'id': 'biz-3',
         'name': 'Mr. Price',
-        'logoUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png',
+        'logoUrl':
+            'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/348cc5c1f_generated_image.png',
         'accentColor': '#00D97E',
         'verified': false,
         'rating': 4.3,
@@ -1041,8 +1199,18 @@ class DemoSeedData {
   // ── /azm/spend/history ───────────────────────────────────────────────
   static Map<String, dynamic> spendHistory() => {
     'data': [
-      {'id': 'sp-1', 'category': 'Airtime', 'amount': 20.00, 'date': _hoursAgo(48)},
-      {'id': 'sp-2', 'category': 'Data Bundle', 'amount': 35.00, 'date': _hoursAgo(96)},
+      {
+        'id': 'sp-1',
+        'category': 'Airtime',
+        'amount': 20.00,
+        'date': _hoursAgo(48),
+      },
+      {
+        'id': 'sp-2',
+        'category': 'Data Bundle',
+        'amount': 35.00,
+        'date': _hoursAgo(96),
+      },
     ],
   };
 
@@ -1057,7 +1225,9 @@ class DemoSeedData {
   };
 
   // ── /kyc/status ──────────────────────────────────────────────────────
-  static Map<String, dynamic> kycStatus() => {'data': {'status': 'VERIFIED'}};
+  static Map<String, dynamic> kycStatus() => {
+    'data': {'status': 'VERIFIED'},
+  };
 
   // ── /users/profile ───────────────────────────────────────────────────
   static Map<String, dynamic> userProfile() => {
@@ -1066,7 +1236,8 @@ class DemoSeedData {
       'username': demoUsername,
       'email': 'pyrax@demo.azaman.app',
       'role': 'USER',
-      'profilePictureUrl': 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
+      'profilePictureUrl':
+          'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
       'azamanId': 'AZM-000123456',
       'kycStatus': 'VERIFIED',
     },
@@ -1075,10 +1246,30 @@ class DemoSeedData {
   // ── /users/me/milestones ────────────────────────────────────────────
   static Map<String, dynamic> milestones() => {
     'data': [
-      {'id': 'ms-1', 'title': 'First Trade', 'completed': true, 'date': _daysFromNow(-60)},
-      {'id': 'ms-2', 'title': 'First Deposit', 'completed': true, 'date': _daysFromNow(-90)},
-      {'id': 'ms-3', 'title': '7-Day Login Streak', 'completed': true, 'date': _hoursAgo(1)},
-      {'id': 'ms-4', 'title': 'First Susu Cycle', 'completed': false, 'date': null},
+      {
+        'id': 'ms-1',
+        'title': 'First Trade',
+        'completed': true,
+        'date': _daysFromNow(-60),
+      },
+      {
+        'id': 'ms-2',
+        'title': 'First Deposit',
+        'completed': true,
+        'date': _daysFromNow(-90),
+      },
+      {
+        'id': 'ms-3',
+        'title': '7-Day Login Streak',
+        'completed': true,
+        'date': _hoursAgo(1),
+      },
+      {
+        'id': 'ms-4',
+        'title': 'First Susu Cycle',
+        'completed': false,
+        'date': null,
+      },
     ],
   };
 
@@ -1092,11 +1283,13 @@ class DemoSeedData {
   };
 
   // ── /round-up ────────────────────────────────────────────────────────
-  static Map<String, dynamic> roundUp() => {'data': {'enabled': true, 'totalSaved': 42.50}};
+  static Map<String, dynamic> roundUp() => {
+    'data': {'enabled': true, 'totalSaved': 42.50},
+  };
 
   // ── /wallet/deposit-address/polygon ─────────────────────────────────
   static Map<String, dynamic> depositAddress() => {
-    'data': {'address': '0xDemo1234567890abcdef1234567890abcdef1234'}
+    'data': {'address': '0xDemo1234567890abcdef1234567890abcdef1234'},
   };
 
   // ── Empty/generic responses ──────────────────────────────────────────
@@ -1113,8 +1306,14 @@ class DemoSeedData {
         'accountName': 'Kwame Mensah',
         'isVerified': true,
         'isPrimary': true,
-        'lastUsedAt': DateTime.now().subtract(const Duration(hours: 2)).toUtc().toIso8601String(),
-        'createdAt': DateTime.now().subtract(const Duration(days: 30)).toUtc().toIso8601String(),
+        'lastUsedAt': DateTime.now()
+            .subtract(const Duration(hours: 2))
+            .toUtc()
+            .toIso8601String(),
+        'createdAt': DateTime.now()
+            .subtract(const Duration(days: 30))
+            .toUtc()
+            .toIso8601String(),
       },
       {
         'id': 'momo-002',
@@ -1124,8 +1323,14 @@ class DemoSeedData {
         'accountName': 'Ama Boateng',
         'isVerified': true,
         'isPrimary': false,
-        'lastUsedAt': DateTime.now().subtract(const Duration(days: 5)).toUtc().toIso8601String(),
-        'createdAt': DateTime.now().subtract(const Duration(days: 15)).toUtc().toIso8601String(),
+        'lastUsedAt': DateTime.now()
+            .subtract(const Duration(days: 5))
+            .toUtc()
+            .toIso8601String(),
+        'createdAt': DateTime.now()
+            .subtract(const Duration(days: 15))
+            .toUtc()
+            .toIso8601String(),
       },
     ],
   };
@@ -1142,7 +1347,8 @@ class DemoSeedData {
     'data': {
       'reference': 'DEP-DEMO-\${DateTime.now().millisecondsSinceEpoch}',
       'amountGhs': null, // filled by the interceptor from the request body
-      'instructions': 'Approve the mobile money prompt on your phone to complete the deposit.',
+      'instructions':
+          'Approve the mobile money prompt on your phone to complete the deposit.',
       'requiresOtp': false,
     },
   };
@@ -1150,13 +1356,12 @@ class DemoSeedData {
   /// Demo deposit OTP confirmation.
   static Map<String, dynamic> depositOtpConfirmed() => {
     'success': true,
-    'data': {
-      'reference': 'DEP-DEMO-CONFIRMED',
-      'status': 'COMPLETED',
-    },
+    'data': {'reference': 'DEP-DEMO-CONFIRMED', 'status': 'COMPLETED'},
   };
   static Map<String, dynamic> nullData() => {'data': null};
-  static Map<String, dynamic> okSuccess() => {'data': {'ok': true}};
+  static Map<String, dynamic> okSuccess() => {
+    'data': {'ok': true},
+  };
 
   // ── Helper: timestamps ───────────────────────────────────────────────
   static String _hoursAgo(int hours, [int addMinutes = 0]) {
