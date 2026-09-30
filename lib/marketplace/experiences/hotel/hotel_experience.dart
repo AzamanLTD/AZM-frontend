@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 
 class HotelRoom {
   final String id;
@@ -117,17 +118,7 @@ class HotelRoomExplorer extends StatelessWidget {
                   SizedBox(
                     width: 124,
                     height: 132,
-                    child: image == null
-                        ? ColoredBox(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: const Icon(Icons.hotel_outlined),
-                          )
-                        : Image.network(
-                            image,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.hotel_outlined),
-                          ),
+                    child: AzamanNetworkImage(imageUrl: image),
                   ),
                   Expanded(
                     child: Padding(
