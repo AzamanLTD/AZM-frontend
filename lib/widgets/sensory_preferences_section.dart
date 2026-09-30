@@ -94,6 +94,9 @@ class SensoryPreferencesSection extends ConsumerWidget {
             ],
           ),
         ),
+        // TASK-025: the identity picker sits directly under the Feel group —
+        // one row, four discs, no labels, no generic colour picker.
+        const AccentIdentityRow(),
       ],
     );
   }
@@ -153,7 +156,7 @@ class _SensoryRow extends StatelessWidget {
             Switch(
               value: value,
               onChanged: enabled ? onChanged : null,
-              activeColor: colors.accent,
+              activeThumbColor: colors.accent,
             ),
           ],
         ),
@@ -272,6 +275,80 @@ class _Segment extends StatelessWidget {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+// =============================================================================
+// TASK-025 — Accent identity picker.
+//
+// Exactly four discs (gold / teal / indigo / rose). Tapping one commits the
+// identity immediately — no restart, no dialog — via ThemeProvider.setAccent.
+// Deliberately unlabeled: the discs are self-evident and labels would turn a
+// whisper row into a form.
+// =============================================================================
+class AccentIdentityRow extends ConsumerWidget {
+  const AccentIdentityRow({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    final current = ref.watch(themeProvider.select((t) => t.accent));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Identity',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Your accent, everywhere in Azaman',
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (final a in AzAccent.values) ...[
+                GestureDetector(
+                  key: ValueKey('accent_disc_${a.name}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    ref.read(themeProvider).setAccent(a);
+                    AzamanHaptics.selection();
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AzAccentFamily.all[a]!
+                          .accentFor(colors.isDark),
+                      border: Border.all(
+                        color: current == a
+                            ? colors.textPrimary
+                            : colors.border,
+                        width: current == a ? 2.5 : 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
