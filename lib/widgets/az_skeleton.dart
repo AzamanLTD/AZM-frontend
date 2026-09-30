@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/providers/theme_provider.dart';
 
 /// Universal skeleton loading widget for Azaman.
 /// Use this for EVERY primary list screen on first load.
 /// Never use CircularProgressIndicator for full-screen loading.
-class AzSkeleton extends StatelessWidget {
+class AzSkeleton extends ConsumerWidget {
   final double width;
   final double height;
   final double borderRadius;
@@ -17,16 +19,18 @@ class AzSkeleton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    final base = colors.softSurface;
+    final highlight = colors.isDark ? colors.card : colors.background;
     return Shimmer.fromColors(
-      baseColor: isDark ? const Color(0xFF2A2A3E) : const Color(0xFFE8E8E8),
-      highlightColor: isDark ? const Color(0xFF3A3A5E) : const Color(0xFFF5F5F5),
+      baseColor: base,
+      highlightColor: highlight,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2A2A3E) : const Color(0xFFE8E8E8),
+          color: base,
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
