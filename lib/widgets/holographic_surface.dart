@@ -53,6 +53,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/widgets/liquid/liquid_engine.dart';
 
 class HolographicSurface extends StatefulWidget {
@@ -140,6 +141,15 @@ class _HolographicSurfaceState extends State<HolographicSurface>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!AzMotion.of(context).travel) {
+      _rest.stop();
+      _dx = _dy = _restFromDx = _restFromDy = 0;
+    }
+  }
+
+  @override
   void dispose() {
     _rest.dispose();
     super.dispose();
@@ -187,14 +197,16 @@ class _HolographicSurfaceState extends State<HolographicSurface>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = !AzMotion.of(context).travel;
     final radius = BorderRadius.circular(widget.borderRadius);
     final intensity = widget.intensity.clamp(0.0, 1.0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final (dx, dy) = reduceMotion ? (0.0, 0.0) : _sheenOffset();
+        final (offsetDx, offsetDy) = _sheenOffset();
+        final dx = AzMotion.scale(context, offsetDx);
+        final dy = AzMotion.scale(context, offsetDy);
 
         final surface = ClipRRect(
           borderRadius: radius,
