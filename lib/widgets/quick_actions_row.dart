@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/deposit_screen.dart';
-import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 
 class QuickActionsRow extends ConsumerWidget {
@@ -54,10 +54,8 @@ class QuickActionsRow extends ConsumerWidget {
 
   void _defaultDeposit(BuildContext ctx) {
     HapticFeedback.lightImpact();
-    Navigator.push(
-      ctx,
-      MaterialPageRoute(builder: (_) => const DepositScreen()),
-    );
+    // NEW-A: canonical /deposit route is authoritative.
+    ctx.push(AzRoutes.deposit());
   }
 
   void _defaultWithdraw(BuildContext ctx) {
@@ -70,10 +68,8 @@ class QuickActionsRow extends ConsumerWidget {
 
   void _defaultTransfer(BuildContext ctx, WidgetRef ref) {
     HapticFeedback.selectionClick();
-    Navigator.push(
-      ctx,
-      MaterialPageRoute(builder: (_) => const FriendsHubScreen()),
-    );
+    // NEW-A: "Transfer" lands on the friends hub — canonical /friends route.
+    ctx.push(AzRoutes.friends);
   }
 }
 

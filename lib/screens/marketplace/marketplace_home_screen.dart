@@ -26,13 +26,12 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
-import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
@@ -824,9 +823,8 @@ class _MarketplaceHomeScreenState
                   onTap: () {
                     Navigator.pop(sheetCtx);
                     AzamanHaptics.nav();
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const BusinessDashboardScreen(),
-                    ));
+                    // NEW-A: canonical business dashboard route.
+                    context.push(AzRoutes.businessMarketDashboard);
                   },
                   child: Container(
                     padding: const EdgeInsets.all(14),
@@ -889,9 +887,8 @@ class _MarketplaceHomeScreenState
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   AzamanHaptics.nav();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const BusinessRegisterScreen(),
-                  ));
+                  // NEW-A: canonical /business/register route.
+                  context.push(AzRoutes.businessRegister);
                 },
                 child: Container(
                   width: double.infinity,
@@ -997,7 +994,8 @@ class _MarketplaceHomeScreenState
                     // My Orders
                     _iconAction(
                       icon: Icons.receipt_long_rounded,
-                      onTap: () => context.pushNamed('storefront-order-history'),
+                      // NEW-A: canonical /my-orders location.
+                      onTap: () => context.push(AzRoutes.storefrontOrderHistory),
                       colors: colors,
                       activeColor: colors.accent,
                     ),

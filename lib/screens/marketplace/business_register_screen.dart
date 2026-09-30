@@ -22,9 +22,10 @@ import 'package:azaman/config.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/marketplace/business_profile_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:go_router/go_router.dart';
 
 // A focused set of country codes (ISO 3166-1 alpha-2). Extend as needed.
 const _kCountries = <String, String>{
@@ -159,12 +160,9 @@ class _BusinessRegisterScreenState
         content: Text('Business registered! BIZ ID: ${profile.bizId}'),
         behavior: SnackBarBehavior.floating,
       ));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BusinessProfileScreen(bizId: profile.bizId),
-        ),
-      );
+      // NEW-A: canonical business profile route replaces the widget
+      // instantiation — same pushReplacement contract, now deep-linkable.
+      context.pushReplacement(AzRoutes.businessProfile(profile.bizId));
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -184,12 +182,7 @@ class _BusinessRegisterScreenState
     if (existing != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BusinessProfileScreen(bizId: existing.bizId),
-            ),
-          );
+          context.pushReplacement(AzRoutes.businessProfile(existing.bizId));
         }
       });
       return Scaffold(

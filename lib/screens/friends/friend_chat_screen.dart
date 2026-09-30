@@ -14,6 +14,8 @@ import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/chat_trust_metrics_provider.dart';
 import 'package:azaman/screens/chat_profile_screen.dart';
@@ -34,7 +36,6 @@ import 'package:azaman/widgets/typing_indicator_bubble.dart';
 import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:azaman/screens/chat/message_search_screen.dart';
 
 
 class FriendChatScreen extends ConsumerStatefulWidget {
@@ -282,14 +283,14 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _openSearch() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MessageSearchScreen(
-          conversationId: widget.friendshipId,
-          conversationContext: 'direct',
-        ),
-      ),
-    ).then((result) {
+    // NEW-A: canonical message-search route; the 'direct' scoping context
+    // travels as extra so the location itself stays parameter-clean.
+    context
+        .push(
+          AzRoutes.messageSearch(widget.friendshipId),
+          extra: const {'conversationContext': 'direct'},
+        )
+        .then((result) {
       if (result != null && result is Map<String, dynamic>) {
         final messageId = result['id'] as String?;
         final localId = result['localId'] as String?;

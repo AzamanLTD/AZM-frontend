@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
-import 'package:azaman/screens/savings_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/susu/susu_hub_screen.dart';
-import 'package:azaman/screens/p2p/p2p_market_list_screen.dart';
-import 'package:azaman/widgets/routed_tab_surface.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/azm_reward_provider.dart';
-import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
@@ -359,10 +355,8 @@ class _CashBalanceCard extends ConsumerWidget {
                         onDarkCard: true,
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const DepositScreen()),
-                          );
+                          // NEW-A: canonical /deposit route.
+                          context.push(AzRoutes.deposit());
                         },
                       ),
                     ),
@@ -755,15 +749,8 @@ class _FeatureGrid extends StatelessWidget {
               child: _FeatureCard(
                 title: 'Savings',
                 imageAsset: 'assets/images/1.webp',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RoutedTabSurface(
-                      title: 'Savings',
-                      body: SavingsScreen(),
-                    ),
-                  ),
-                ),
+                // NEW-A: canonical /savings route (deep-linkable).
+                onTap: () => context.push(AzRoutes.savings),
               ),
             ),
             const SizedBox(width: 12),
@@ -771,12 +758,8 @@ class _FeatureGrid extends StatelessWidget {
               child: _FeatureCard(
                 title: 'Buy USDC',
                 imageAsset: 'assets/images/2.webp',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const P2PMarketListScreen(),
-                  ),
-                ),
+                // NEW-A: canonical P2P crypto market route.
+                onTap: () => context.push(AzRoutes.marketplace),
               ),
             ),
           ],
@@ -789,12 +772,8 @@ class _FeatureGrid extends StatelessWidget {
               child: _FeatureCard(
                 title: 'Susu',
                 imageAsset: 'assets/images/3.webp',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SusuHubScreen(),
-                  ),
-                ),
+                // NEW-A: canonical /susu hub route.
+                onTap: () => context.push(AzRoutes.susuHub),
               ),
             ),
             const SizedBox(width: 12),
@@ -802,12 +781,8 @@ class _FeatureGrid extends StatelessWidget {
               child: _FeatureCard(
                 title: 'Marketplace',
                 imageAsset: 'assets/images/5.webp',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const MarketplaceHomeScreen(),
-                  ),
-                ),
+                // NEW-A: canonical business marketplace route.
+                onTap: () => context.push(AzRoutes.businessMarketHome),
               ),
             ),
           ],

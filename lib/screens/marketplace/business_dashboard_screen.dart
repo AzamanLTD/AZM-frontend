@@ -20,10 +20,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:azaman/screens/marketplace/business_profile_screen.dart';
-import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
@@ -93,11 +92,9 @@ class _BusinessDashboardScreenState
     if (myBiz.hasLoaded && myBiz.profile == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const BusinessRegisterScreen()),
-          );
+          // NEW-A: canonical /business/register route; deep-linkable and
+          // swap-safe via the router.
+          context.pushReplacement(AzRoutes.businessRegister);
         }
       });
       return Scaffold(
@@ -123,12 +120,8 @@ class _BusinessDashboardScreenState
           if (profile != null)
             IconButton(
               icon: Icon(Icons.storefront_outlined, color: colors.textSecondary),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BusinessProfileScreen(bizId: profile.bizId),
-                ),
-              ),
+              // NEW-A: canonical business profile route.
+              onPressed: () => context.push(AzRoutes.businessProfile(profile.bizId)),
             ),
         ],
       ),
@@ -303,12 +296,8 @@ class _BusinessDashboardScreenState
       (
         'View Reviews',
         Icons.star_outline,
-        () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BusinessProfileScreen(bizId: profile.bizId),
-              ),
-            )
+        // NEW-A: canonical business profile route.
+        () => context.push(AzRoutes.businessProfile(profile.bizId))
       ),
       ('Submit KYB', Icons.shield_outlined, _openKybSheet),
       (

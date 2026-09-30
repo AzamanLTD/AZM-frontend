@@ -6,11 +6,11 @@ import 'package:azaman/widgets/scale_tap.dart';
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/account_activity_screen.dart';
-import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
+import 'package:go_router/go_router.dart';
 
 String _recentLabel(String title) {
   final t = title.toUpperCase();
@@ -71,8 +71,8 @@ class RecentActivitySection extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               ScaleTap(
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const AccountActivityScreen())),
+                // NEW-A: canonical account activity route.
+                onTap: () => context.push(AzRoutes.accountActivity),
                 child: Text('See All',
                   style: TextStyle(
                     fontSize: 13,
@@ -274,10 +274,8 @@ class _EmptyActivity extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: () {
             AzamanHaptics.nav();
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const DepositScreen()),
-            );
+            // NEW-A: canonical /deposit route.
+            context.push(AzRoutes.deposit());
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),

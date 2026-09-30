@@ -24,7 +24,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,6 +39,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/widgets/loyalty_stamp_card.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
@@ -52,7 +52,6 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
 import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 import 'package:azaman/widgets/stacked_gallery_cards.dart';
-import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
 import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/screens/marketplace/business_book_tab.dart';
@@ -883,15 +882,12 @@ class _BusinessProfileScreenState
           tooltip: 'Storefront',
           onTap: () {
             AzamanHaptics.nav();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StorefrontScreen(
-                  businessProfileId: business.id,
-                  businessName: business.businessName,
-                ),
-              ),
-            );
+            // NEW-A: canonical storefront route (business name travels as
+            // the 'name' query param — see the /storefront route builder).
+            context.push(AzRoutes.storefront(
+              business.id,
+              name: business.businessName,
+            ));
           },
         ),
         const SizedBox(height: 12),

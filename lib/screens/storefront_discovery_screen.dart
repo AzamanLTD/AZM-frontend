@@ -16,8 +16,8 @@ import '../storefront/services/storefront_tracking_service.dart';
 import '../providers/theme_provider.dart';
 import 'storefront_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/router/route_registry.dart';
 
 class StorefrontDiscoveryScreen extends ConsumerStatefulWidget {
   const StorefrontDiscoveryScreen({super.key});
@@ -118,7 +118,8 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
         actions: [
           IconButton(
             icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
-            onPressed: () => context.pushNamed('storefront-order-history'),
+            // NEW-A: canonical /my-orders location.
+            onPressed: () => context.push(AzRoutes.storefrontOrderHistory),
             tooltip: 'My Orders',
           ),
         ],

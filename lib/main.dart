@@ -26,6 +26,7 @@ import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/router/app_router.dart';
+import 'package:azaman/router/route_depth.dart';
 
 import 'package:azaman/providers/auth_provider.dart' as auth_pkg;
 import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
@@ -248,11 +249,18 @@ class AzamanApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        builder: (context, child) => AzMotionScope(
-          notifier: sensory,
-          child: ThemedAppBackdrop(
-            child: AzamanConnectivityBanner(
-              child: child ?? const SizedBox.shrink(),
+        // NEW-A (Step 4): enables Flutter's restoration system for the
+        // router's page stack and any widget that opts in via
+        // restorationId / RestorationMixin (scroll offsets, page state).
+        restorationScopeId: 'root',
+        builder: (context, child) => RouteDepthTrackerHost(
+          tracker: routeDepthTracker,
+          child: AzMotionScope(
+            notifier: sensory,
+            child: ThemedAppBackdrop(
+              child: AzamanConnectivityBanner(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         ),

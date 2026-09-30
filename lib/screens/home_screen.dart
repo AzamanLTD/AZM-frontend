@@ -3,10 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
-import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/models/susu_model.dart';
@@ -14,7 +12,6 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
-import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
