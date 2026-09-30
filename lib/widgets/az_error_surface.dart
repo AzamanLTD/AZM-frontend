@@ -67,7 +67,13 @@ class AzErrorSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).brightness == Brightness.dark
+    // Flutter 3.47.5 has no Theme.maybeOf. Only resolve Theme.of when an
+    // actual Theme ancestor exists; framework errors can render above it.
+    final inheritedTheme = context.findAncestorWidgetOfExactType<Theme>();
+    final brightness = inheritedTheme != null
+        ? Theme.of(context).brightness
+        : WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final colors = brightness == Brightness.dark
         ? ThemeProvider.getColors(AzamanTheme.dark)
         : ThemeProvider.getColors(AzamanTheme.light);
 

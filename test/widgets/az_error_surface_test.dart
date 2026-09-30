@@ -51,6 +51,34 @@ void main() {
     expect(find.text('Something went wrong'), findsNothing);
   });
 
+  testWidgets('fromFramework renders without a Theme ancestor', (tester) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Material(child: AzErrorSurface.fromFramework()),
+        ),
+      ),
+    );
+
+    final surfaceContext = tester.element(find.byType(AzErrorSurface));
+    expect(surfaceContext.findAncestorWidgetOfExactType<Theme>(), isNull);
+    expect(find.text('This part of Azaman did not load.'), findsOneWidget);
+    expect(find.text('Your data is safe. Go back and continue where you were.'),
+        findsOneWidget);
+    expect(find.byType(AzStateIllustration), findsOneWidget);
+    expect(find.text('Try again'), findsNothing);
+    expect(tester.takeException(), isNull);
+    final illustration = tester.widget<AzStateIllustration>(
+        find.byType(AzStateIllustration));
+    expect(illustration.colors.background,
+        ThemeProvider.getColors(AzamanTheme.dark).background);
+  });
+
   testWidgets('the scene redraws when progress changes', (tester) async {
     final colors = ThemeProvider.getColors(AzamanTheme.light);
     await tester.pumpWidget(_wrap(
