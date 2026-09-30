@@ -10,6 +10,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
@@ -107,6 +108,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         await svc.setEnabled(true);
         if (mounted) {
           AzamanHaptics.commit();
+          AzSound.success();
           setState(() => _biometricLockEnabled = true);
         }
       } else {

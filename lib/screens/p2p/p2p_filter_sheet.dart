@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -95,6 +96,7 @@ class _P2PFilterSheetState extends ConsumerState<P2PFilterSheet> {
 
   void _apply() {
     AzamanHaptics.commit();
+    AzSound.success();
     ref.read(p2pFiltersProvider.notifier).state = P2PFilters(
       paymentMethods: _selectedMethods,
       minAmount: double.tryParse(_minCtrl.text.trim()),

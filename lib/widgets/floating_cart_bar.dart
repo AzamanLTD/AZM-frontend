@@ -14,6 +14,7 @@ import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class FloatingCartBar extends ConsumerStatefulWidget {
@@ -80,6 +81,7 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
         if (retailCatch) {
           if (!reduceMotion) _catch.forward(from: 0);
           AzamanHaptics.addToCart();
+          AzSound.tick();
         } else {
           if (!reduceMotion) _pulse.forward(from: 0);
           if (countChanged && next.itemCount > previous.itemCount) {

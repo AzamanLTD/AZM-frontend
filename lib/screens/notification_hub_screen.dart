@@ -7,6 +7,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
@@ -150,6 +151,7 @@ class _NotificationHubScreenState
       );
     } else if (updated > 0) {
       AzamanHaptics.commit();
+      AzSound.success();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Marked $updated notification${updated == 1 ? '' : 's'} as read.'),

@@ -21,6 +21,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -145,6 +146,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       });
       if (res.statusCode == 200 || res.statusCode == 201) {
         AzamanHaptics.commit();
+        AzSound.success();
         setState(() {
           _successMessage = 'Sent $amountStr USDC successfully.';
           _recipient = null;

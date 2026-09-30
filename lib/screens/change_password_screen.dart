@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
@@ -100,6 +101,7 @@ class _ChangePasswordScreenState
       if (data is Map<String, dynamic> && data['success'] == true) {
         if (!mounted) return;
         AzamanHaptics.commit();
+        AzSound.success();
         final colors = ref.read(themeProvider).colors;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

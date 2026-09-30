@@ -21,6 +21,7 @@ import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class LeaveReviewSheet extends ConsumerStatefulWidget {
@@ -77,6 +78,7 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
             : _commentCtrl.text.trim(),
       });
       AzamanHaptics.commit();
+      AzSound.success();
       if (mounted) {
         setState(() {
           _submitted = true;

@@ -33,6 +33,7 @@ import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/widgets/liquid/liquid_engine.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 
@@ -146,6 +147,7 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
       if (status == AnimationStatus.completed && !_playedUnseal) {
         _playedUnseal = true;
         AzamanHaptics.moneyLanded();
+        AzSound.rip();
       }
     });
     _syncTicker(widget.escrow);
@@ -172,6 +174,7 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
         if (!_playedUnseal) {
           _playedUnseal = true;
           AzamanHaptics.moneyLanded();
+          AzSound.rip();
         }
       } else if (_seal.value >= 1.0) {
         _seal.forward(from: 0);

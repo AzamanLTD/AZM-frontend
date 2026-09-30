@@ -25,6 +25,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 // A focused set of country codes (ISO 3166-1 alpha-2). Extend as needed.
 const _kCountries = <String, String>{
@@ -155,6 +156,7 @@ class _BusinessRegisterScreenState
       if (!mounted) return;
       ref.read(myBusinessProvider.notifier).setProfile(profile);
       AzamanHaptics.commit();
+      AzSound.success();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Business registered! BIZ ID: ${profile.bizId}'),
         behavior: SnackBarBehavior.floating,

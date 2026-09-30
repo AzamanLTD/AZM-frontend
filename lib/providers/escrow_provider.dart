@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/escrow_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 class EscrowState {
   final SmartEscrow? escrow;
@@ -78,6 +79,7 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       final updated = await _service.fundEscrow(id);
       state = state.copyWith(escrow: updated, isFunding: false);
       AzamanHaptics.commit();
+      AzSound.success();
     } catch (e) {
       state = state.copyWith(isFunding: false, error: e.toString());
       rethrow;
@@ -94,6 +96,7 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       final result = await _service.markSatisfied(id);
       state = state.copyWith(escrow: result.escrow, isSatisfying: false);
       AzamanHaptics.commit();
+      AzSound.success();
       return result.settled;
     } catch (e) {
       state = state.copyWith(isSatisfying: false, error: e.toString());
@@ -126,6 +129,7 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       final updated = await _service.updateTerms(id, terms);
       state = state.copyWith(escrow: updated);
       AzamanHaptics.commit();
+      AzSound.success();
     } catch (e) {
       state = state.copyWith(error: e.toString());
       rethrow;

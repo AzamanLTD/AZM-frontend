@@ -33,6 +33,7 @@ import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/services/az_sound.dart';
 
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/webrtc_service.dart';
@@ -186,6 +187,11 @@ Future<void> _bootstrap() async {
       ),
     );
   };
+
+  // Sound ships silent until the shell says which backend is live (TASK-020).
+  // Warm it off the critical path so the first real success is not late.
+  AzSound.usePlatformSystemSounds();
+  unawaited(AzSound.ensureReady());
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(

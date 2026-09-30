@@ -7,6 +7,7 @@ import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.
 import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 
 typedef RestaurantCommitAction = void Function();
 typedef RestaurantCommitRunner = Future<void> Function(
@@ -72,6 +73,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
 
     if (widget.style != MarketplaceCommitStyle.paperRip) {
       AzamanHaptics.addToCart();
+      AzSound.tick();
       action();
       _commitInFlight = false;
       return;
@@ -79,6 +81,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
 
     if (MediaQuery.of(context).disableAnimations) {
       AzamanHaptics.addToCart();
+      AzSound.tick();
       action();
       if (!mounted) return;
       setState(() => _showReducedMotion = true);
@@ -103,6 +106,7 @@ class _RestaurantCommitSurfaceState extends State<RestaurantCommitSurface> with 
     _commitTimer = Timer(_commitDelay, () {
       if (!mounted || !_commitInFlight) return;
       AzamanHaptics.addToCart();
+      AzSound.rip();
       action();
     });
 

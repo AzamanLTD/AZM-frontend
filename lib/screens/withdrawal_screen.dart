@@ -41,6 +41,7 @@ import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
@@ -2009,6 +2010,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           context,
           () {
             AzamanHaptics.commit();
+            AzSound.success();
             _submit();
           },
           reason: _mode == _WithdrawMode.mobileMoney
