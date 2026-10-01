@@ -151,6 +151,18 @@ void main() {
           StorefrontFailureClass.domainConflict);
       expect(
           StorefrontService.classifyStorefrontFailure(
+              ApiException(message: 'Request timeout', statusCode: 408)),
+          StorefrontFailureClass.ambiguousOrUnknown,
+          reason: 'an answered 408 does not prove the backend never '
+              'received the request — same fail-safe as 5xx');
+      expect(
+          StorefrontService.classifyStorefrontFailure(
+              ApiException(message: 'Too early', statusCode: 425)),
+          StorefrontFailureClass.ambiguousOrUnknown,
+          reason: 'an answered 425 does not prove the backend never '
+              'received the request — same fail-safe as 5xx');
+      expect(
+          StorefrontService.classifyStorefrontFailure(
               ApiException(message: 'Internal', statusCode: 500)),
           StorefrontFailureClass.ambiguousOrUnknown);
       expect(
@@ -289,6 +301,54 @@ void main() {
       expect(_sentKey(rec.requests[1]), _sentKey(rec.requests[0]));
     });
 
+    test('408 → ambiguousOrUnknown AND retained; the retry reuses the SAME key (isRetryable parity)', () async {
+      final rec = _ScriptedClient();
+      final ref = FinancialOperationRef();
+      rec.script.add(_ScriptedClient.status(408, message: 'Request timeout'));
+
+      final err = await _errOf(() => _service(rec)
+          .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref));
+
+      // Independent review 2026-10-01: StorefrontApiException.isRetryable
+      // treats 408 as retryable, so the lifecycle must NOT retire it —
+      // classification and disposition stay consistent.
+      expect(StorefrontService.classifyStorefrontFailure(err),
+          StorefrontFailureClass.ambiguousOrUnknown);
+      expect(const StorefrontApiException(statusCode: 408, message: 'x').isRetryable, isTrue,
+          reason: 'consistency precondition: 408 is retryable');
+      expect(ref.operationId, isNotNull,
+          reason: 'the 408 instance stays ARMED — the backend may have '
+              'committed before the gateway answered');
+
+      rec.script.add(_ScriptedClient.okReplay);
+      await _service(rec)
+          .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref);
+      expect(_sentKey(rec.requests[1]), _sentKey(rec.requests[0]),
+          reason: 'the same-key retry converges on the committed order');
+    });
+
+    test('425 → ambiguousOrUnknown AND retained; the retry reuses the SAME key (isRetryable parity)', () async {
+      final rec = _ScriptedClient();
+      final ref = FinancialOperationRef();
+      rec.script.add(_ScriptedClient.status(425, message: 'Too early'));
+
+      final err = await _errOf(() => _service(rec)
+          .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref));
+
+      expect(StorefrontService.classifyStorefrontFailure(err),
+          StorefrontFailureClass.ambiguousOrUnknown);
+      expect(const StorefrontApiException(statusCode: 425, message: 'x').isRetryable, isTrue,
+          reason: 'consistency precondition: 425 is retryable');
+      expect(ref.operationId, isNotNull,
+          reason: 'the 425 instance stays ARMED');
+
+      rec.script.add(_ScriptedClient.okReplay);
+      await _service(rec)
+          .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref);
+      expect(_sentKey(rec.requests[1]), _sentKey(rec.requests[0]),
+          reason: 'the same-key retry converges on the committed order');
+    });
+
     test('5xx → ambiguousOrUnknown AND retained; the same-key retry converges', () async {
       final rec = _ScriptedClient();
       final ref = FinancialOperationRef();
@@ -346,6 +406,59 @@ void main() {
       expect(_sentKey(rec.requests[1]), _sentKey(rec.requests[0]));
     });
 
+    test('partial/malformed order objects are NEVER success — unknown, retained, same-key retry', () async {
+      // Independent review 2026-10-01: the old guard accepted any
+      // {order: Map}, so {order: {}} was surfaced as success and retired
+      // the instance. The guard now requires the minimum AUTHORITATIVE
+      // shape both backend success paths guarantee and the caller's
+      // confirmation contract requires: non-empty id + orderRef.
+      final partialOrderBodies = <String, Map<String, dynamic>>{
+        'empty order object': <String, dynamic>{},
+        'order without id': {'orderRef': 'R-001'},
+        'order without orderRef': {'id': 'order-1'},
+        'order with empty-string id': {'id': '', 'orderRef': 'R-001'},
+        'order with empty-string orderRef': {'id': 'order-1', 'orderRef': ''},
+        'order with non-string id': {'id': 123, 'orderRef': 'R-001'},
+        'order as a list, not a map': <String, dynamic>{},
+      };
+
+      for (var i = 0; i < partialOrderBodies.length; i++) {
+        final label = partialOrderBodies.keys.elementAt(i);
+        var body = partialOrderBodies.values.elementAt(i);
+        if (label == 'order as a list, not a map') {
+          body = <String, dynamic>{'order': ['not', 'a', 'map']};
+        } else {
+          body = <String, dynamic>{'order': body};
+        }
+
+        final rec = _ScriptedClient();
+        final ref = FinancialOperationRef();
+        rec.script.add(http.Response(
+          jsonEncode({'success': true, 'data': body}),
+          200,
+          headers: {'content-type': 'application/json'},
+        ));
+
+        final err = await _errOf(() => _service(rec)
+            .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref));
+
+        expect(err, isA<FormatException>(),
+            reason: '$label: a 2xx without the authoritative order shape is '
+                'an unknown economic state, never success');
+        expect(StorefrontService.classifyStorefrontFailure(err),
+            StorefrontFailureClass.ambiguousOrUnknown,
+            reason: label);
+        expect(ref.operationId, isNotNull,
+            reason: '$label: the durable instance stays ARMED');
+
+        rec.script.add(_ScriptedClient.okReplay);
+        await _service(rec)
+            .checkoutCart(businessProfileId: _biz, items: _cartA, operationType: _type, ref: ref);
+        expect(_sentKey(rec.requests[1]), _sentKey(rec.requests[0]),
+            reason: '$label: the same-key retry converges on the committed order');
+      }
+    });
+
     test('success returns the UNWRAPPED data map — order at result["order"], not result["data"]["order"]', () async {
       final rec = _ScriptedClient();
       final ref = FinancialOperationRef();
@@ -374,6 +487,31 @@ void main() {
       expect(StorefrontService.classifyStorefrontFailure(err),
           StorefrontFailureClass.ambiguousOrUnknown);
       expect(ref.operationId, isNotNull);
+    });
+
+    test('placeStorefrontOrder: a partial order object ({} — no id/orderRef) is never success either', () async {
+      final rec = _ScriptedClient();
+      final ref = FinancialOperationRef();
+      rec.script.add(http.Response(
+        jsonEncode({
+          'success': true,
+          'data': {'order': <String, dynamic>{}},
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      ));
+
+      final err = await _errOf(() => _service(rec).placeStorefrontOrder(
+          businessProfileId: _biz, productId: 'p1', quantity: 1,
+          operationType: 'storefront.order.place', ref: ref));
+
+      expect(err, isA<FormatException>(),
+          reason: '{order: {}} passes the OLD Map-only guard but is not an '
+              'authoritative order result');
+      expect(StorefrontService.classifyStorefrontFailure(err),
+          StorefrontFailureClass.ambiguousOrUnknown);
+      expect(ref.operationId, isNotNull,
+          reason: 'the durable instance stays ARMED');
     });
   });
 }
