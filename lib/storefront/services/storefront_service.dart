@@ -26,6 +26,54 @@ class StorefrontApiException implements Exception {
   String toString() => 'StorefrontApiException($statusCode${code == null ? '' : ', $code'}): $message';
 }
 
+/// Failure classification for the LIVE durable storefront economic
+/// paths (checkoutCart / placeStorefrontOrder via [operationType] + [ref]).
+/// Deep-dive step 2 (2026-10-01): callers must not treat every exception
+/// as one generic "order failed" — the class tells the UI which action is
+/// economically safe:
+///
+/// - [StorefrontFailureClass.definitivePreEconomic] — the backend PROVED
+///   no economic mutation happened (validation / business 4xx). The order
+///   did NOT go through; safe to correct the cart and retry. The durable
+///   instance was already retired by the disposition (step 1), so a
+///   corrected retry begins a new identity — never blind-repeat the same
+///   request.
+/// - [StorefrontFailureClass.authenticationRequired] — a 401 that survived
+///   ApiClient's automatic token refresh. Re-auth, then retry the same
+///   logical operation (instance stays armed, same key).
+/// - [StorefrontFailureClass.rateLimited] — 429. Wait, then retry the same
+///   logical operation (instance stays armed, same key).
+/// - [StorefrontFailureClass.domainConflict] — 409: the backend answered
+///   that this durable key was already used for DIFFERENT cart contents.
+///   Neither a transport failure nor safely retryable: reconcile against
+///   the existing order (check orders / refresh) before placing again.
+/// - [StorefrontFailureClass.ambiguousOrUnknown] — transport loss,
+///   timeout, 408/425 (answered but not proven pre-economic; consistent
+///   with StorefrontApiException.isRetryable), 5xx, or a malformed 2xx
+///   payload (including a 2xx without the minimum authoritative order
+///   shape — non-empty id + orderRef). The order MAY have
+///   committed; the durable instance stays armed and a retry of the SAME
+///   logical operation reuses the SAME key so the backend converges
+///   instead of duplicating. The UI must not claim the order "failed".
+///
+/// This classification is a read-only projection for callers and the UI.
+/// It never decides the durable identity lifecycle — the in-method
+/// disposition and DurableOperationRegistry own that (deep-dive step 1).
+enum StorefrontFailureClass {
+  definitivePreEconomic,
+  authenticationRequired,
+  rateLimited,
+  domainConflict,
+  ambiguousOrUnknown,
+}
+
+extension StorefrontFailureClassIsUnconfirmed on StorefrontFailureClass {
+  /// True when the economic outcome is UNPROVEN — the order may have
+  /// committed. UI must warn (check your orders) instead of asserting
+  /// the order definitely failed.
+  bool get isUnconfirmed => this == StorefrontFailureClass.ambiguousOrUnknown;
+}
+
 class StorefrontService {
   /// [apiClient] is injectable so tests can pass a recording client and
   /// assert the exact durable-identity wire behaviour of the production
@@ -69,9 +117,9 @@ class StorefrontService {
 
   /// r42 disposition, shared by the durable storefront economic paths
   /// (checkoutCart / placeStorefrontOrder): definitive pre-economic 4xx —
-  /// everything except 401 / 409 / 429 — releases the ref's instance;
-  /// every other answered outcome (and every transport loss) stays armed
-  /// for a same-key retry.
+  /// everything except 401 / 408 / 409 / 425 / 429 — releases the ref's
+  /// instance; every other answered outcome (and every transport loss)
+  /// stays armed for a same-key retry.
   ///
   /// The 2026-10-01 recovery audit found the disposition catch previously
   /// listened for StorefrontApiException, which ApiClient._handleResponse
@@ -80,12 +128,102 @@ class StorefrontService {
   /// response. The classification now runs on the type that actually
   /// flows (parity with ApiClient.postFinancial); the StorefrontApiException
   /// clause is kept as defense-in-depth for any direct-response caller.
+  ///
+  /// 408 (request timeout) and 425 (too early) are EXCLUDED from terminal
+  /// disposition: StorefrontApiException.isRetryable treats both as
+  /// retryable, and for the durable economic path an answered 408/425 does
+  /// not prove the backend never received the request (a proxy/gateway can
+  /// answer after the upstream commit). Without a concrete backend proof
+  /// that these statuses are always pre-economic, the safe default keeps
+  /// the instance ARMED: classify ambiguousOrUnknown, converge via the
+  /// fingerprint-checked same-key replay (independent review, 2026-10-01).
+  /// Minimum authoritative order shape guaranteed by the live backend on
+  /// BOTH success paths and required by the production caller's
+  /// confirmation/recovery contract (CartScreen reads the orderRef):
+  /// a non-empty string `id` AND a non-empty string `orderRef`.
+  /// Traced in AZM-backend routes/storefrontRoutes.js: the fresh 201 is
+  /// `data:{order}` = the created BusinessOrder row (id + orderRef
+  /// generated at commit); the exact-replay 200 is `data:{order,
+  /// idempotent:true}` where order = {id, orderRef, status}. Anything less
+  /// is NOT a confirmed checkout: treat as malformed success → the caller
+  /// never claims completion, the durable instance stays armed.
+  static bool _carriesAuthoritativeOrder(Map<String, dynamic> parsed) {
+    final order = parsed['order'];
+    if (order is! Map<String, dynamic>) return false;
+    final id = order['id'];
+    final orderRef = order['orderRef'];
+    return id is String &&
+        id.isNotEmpty &&
+        orderRef is String &&
+        orderRef.isNotEmpty;
+  }
+
   static bool _isDefinitivePreEconomic(int statusCode) =>
       statusCode >= 400 &&
       statusCode < 500 &&
       statusCode != 401 &&
+      statusCode != 408 &&
       statusCode != 409 &&
+      statusCode != 425 &&
       statusCode != 429;
+
+  /// Maps a thrown failure of the live durable storefront economic paths
+  /// to its economic class. Pure projection: reuses the SAME definitive
+  /// predicate as the disposition ([_isDefinitivePreEconomic]), so the
+  /// classification can never contradict the identity lifecycle.
+  ///
+  /// Traced wire semantics (backend routes/storefrontRoutes.js, 2026-10-01):
+  /// - 401 'TOKEN_EXPIRED' is already auto-refreshed inside
+  ///   ApiClient._executeWithRefresh; a 401 surfacing HERE means the
+  ///   refresh failed or the account is genuinely unauthorized.
+  /// - 409 on these routes is a FINGERPRINT-MISMATCH answer: the durable
+  ///   key was already used for different cart contents. (An exact replay
+  ///   answers 200 with `idempotent: true` — the success path, not 409.)
+  /// - 400/403/404 are the backend's explicit pre-economic validations
+  ///   (empty items, >50 items, paused business, unavailable product,
+  ///   escrow not offered). Residual gap, recorded in the deep-dive: the
+  ///   backend `wrap` catch-all also surfaces uncaught internal errors as
+  ///   400 with no machine-readable code — in current source every such
+  ///   throw precedes the order commit, so 400 stays de-facto
+  ///   pre-economic, but that contract is implicit; the backend should
+  ///   make it explicit (dedicated status/code) rather than Flutter
+  ///   guessing.
+  /// - 408 / 425: answered, but the answer does not prove the backend
+  ///   never received the request (gateway may answer after the upstream
+  ///   commit). Same fail-safe as 5xx: ambiguousOrUnknown, instance ARMED
+  ///   (consistency with StorefrontApiException.isRetryable).
+  /// - 5xx / transport loss / malformed 2xx payload: outcome UNPROVEN —
+  ///   always [StorefrontFailureClass.ambiguousOrUnknown], fail-safe.
+  static StorefrontFailureClass classifyStorefrontFailure(Object error) {
+    if (error is ApiException) {
+      if (error.statusCode == 401) {
+        return StorefrontFailureClass.authenticationRequired;
+      }
+      if (error.statusCode == 429) return StorefrontFailureClass.rateLimited;
+      if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
+      if (_isDefinitivePreEconomic(error.statusCode)) {
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      return StorefrontFailureClass.ambiguousOrUnknown; // 5xx / other
+    }
+    if (error is StorefrontApiException) {
+      // Direct-response paths (defense-in-depth; ApiClient.post maps every
+      // non-2xx to ApiException before the service parses anything).
+      if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
+      if (_isDefinitivePreEconomic(error.statusCode)) {
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      return StorefrontFailureClass.ambiguousOrUnknown;
+    }
+    if (error is StorefrontConflictException) {
+      return StorefrontFailureClass.domainConflict;
+    }
+    // FormatException (malformed 2xx payload), TimeoutException, http
+    // ClientException / SocketException, and anything unrecognized: the
+    // economic outcome is UNPROVEN. Fail safe as unknown — never "safe to
+    // retry blindly", never "definitive".
+    return StorefrontFailureClass.ambiguousOrUnknown;
+  }
 
   /// Terminal completion / definitive pre-economic release of the ref's
   /// instance: retires THAT instance only and clears the ref.
@@ -282,12 +420,26 @@ class StorefrontService {
     try {
       final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
       final parsed = _parseResponse(response) as Map<String, dynamic>;
+      // Malformed-success guard (deep-dive step 2, tightened by
+      // independent review): a 2xx must carry an AUTHORITATIVE order —
+      // not merely an `order` key. {order: {}} would previously pass, be
+      // surfaced as success, retire the instance and let the caller treat
+      // an unconfirmed order as placed. Anything short of the minimum
+      // authoritative shape (non-empty id + orderRef) is an unknown
+      // economic state: never success, never definitive; the durable
+      // instance stays armed for a same-key retry.
+      if (!_carriesAuthoritativeOrder(parsed)) {
+        throw const FormatException(
+            'Order response was successful but carried no authoritative '
+            'order result (id/orderRef).');
+      }
       // Answered success — this order instance is complete.
       await _releaseOperation(ref);
       return parsed;
     } on ApiException catch (e) {
       // Disposition mirrors checkoutCart / postFinancial: definitive
-      // pre-economic 4xx (everything except 401/409/429) → terminal;
+      // pre-economic 4xx (everything except 401/408/409/425/429) →
+      // terminal;
       // retained otherwise so a same-key retry converges on the committed
       // order. ApiClient.post throws ApiException for every non-2xx — this
       // is the type that actually reaches the seam.
@@ -356,13 +508,30 @@ class StorefrontService {
       try {
         final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
         final parsed = _parseResponse(response) as Map<String, dynamic>;
+        // Malformed-success guard (deep-dive step 2, tightened by
+        // independent review): an answered 2xx whose payload does not carry
+        // an AUTHORITATIVE order — a non-empty id + orderRef, the minimum
+        // shape both backend success paths guarantee and the caller's
+        // confirmation contract requires — is an UNKNOWN economic state:
+        // the order may or may not have committed. Never surface it as
+        // success (the caller would clear the cart and claim completion on
+        // an unconfirmed order) and never as a definitive failure. The
+        // FormatException stays outside every disposition clause → the
+        // durable instance stays armed for a same-key retry;
+        // classifyStorefrontFailure maps it to ambiguousOrUnknown.
+        if (!_carriesAuthoritativeOrder(parsed)) {
+          throw const FormatException(
+              'Checkout response was successful but carried no authoritative '
+              'order result (id/orderRef).');
+        }
         // Answered success — this checkout instance is complete.
         await _releaseOperation(ref);
         return parsed;
       } on ApiException catch (e) {
         // Disposition mirrors postFinancial: definitive pre-economic 4xx
-        // (everything except 401/409/429) → the instance is terminal; the
-        // backend released the claim. 401/409/429 (and every 5xx and
+        // (everything except 401/408/409/425/429) → the instance is
+        // terminal; the backend released the claim. 401/408/409/425/429
+        // (and every 5xx and
         // transport loss) → retained (the mutation may be committed/
         // in-flight; a same-key retry converges).
         // 2026-10-01 recovery audit: ApiClient.post throws ApiException
