@@ -364,12 +364,19 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
   /// shell hosts, so identity — glass, LiquidTabBackdrop, badges — is
   /// preserved), with a collapse affordance in the trailing slot the shell
   /// reserves for a control beside the nav.
+  ///
+  /// The retap override is the review blocker fix: inside the contextual
+  /// pill, a tap on the ALREADY-SELECTED tab must still return to the
+  /// shell (pop + tab hand-off), exactly like any other tab tap. Only
+  /// '…'/'Hide tabs' collapses the pill in place. This override is local
+  /// to the band's pill; the shell's own depth-0 retap contract
+  /// (scroll-to-top / lift) is untouched.
   Widget _buildPill() {
     return PremiumBottomNav(
       key: const Key('contextual-nav-pill'),
       selectedIndex: appShellBus.activeTab,
       onItemSelected: _onBandTabTap,
-      onActiveTabRetap: _collapsePill,
+      onActiveTabRetap: () => _onBandTabTap(appShellBus.activeTab),
       trailing: _BandTextAction(
         label: '…',
         semanticLabel: 'Hide tabs',

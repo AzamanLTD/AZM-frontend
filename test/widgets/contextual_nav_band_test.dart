@@ -233,6 +233,39 @@ void main() {
     expect(_bandOpacity(tester), 0.0); // the band left with the depth
   });
 
+  // Review-blocker regression: inside the REOPENED pill, a tap on the
+  // already-selected tab must return to the shell (pop + bus hand-off),
+  // not merely collapse the pill in place.
+  testWidgets(
+      'the reopened pill: tapping the ALREADY-SELECTED tab still returns to the shell',
+      (tester) async {
+    final requested = <int>[];
+    appShellBus.engage(onTabRequest: requested.add, initialTab: 0);
+    await _pumpApp(tester);
+
+    final router = _routerOf(tester);
+    router.push('/transactions');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('contextual-nav-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('contextual-nav-pill')), findsOneWidget);
+
+    // Active tab is Home (0) — the same tab the pill marks selected.
+    final pill = tester.widget<PremiumBottomNav>(
+      find.byKey(const Key('contextual-nav-pill')),
+    );
+    expect(pill.selectedIndex, 0);
+
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // shell base
+    expect(requested, [0]); // same tab handed to the shell bus
+    expect(_bandOpacity(tester), 0.0); // the band left with the depth
+    expect(find.byKey(const Key('contextual-nav-pill')), findsNothing); // pill gone with it
+  });
+
   testWidgets(
       'a sanctioned imperative route above the top router page hides the band',
       (tester) async {
