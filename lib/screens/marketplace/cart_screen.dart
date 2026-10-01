@@ -18,6 +18,8 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:azaman/storefront/core/checkout_failure_message.dart';
+import 'package:azaman/storefront/services/storefront_service.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -94,7 +96,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
       if (mounted) {
         AzamanHaptics.confirm();
-        final orderData = result['data']?['order'] as Map<String, dynamic>?;
+        // The service returns the backend's UNWRAPPED data map
+        // ({order: {...}, idempotent?}) — the durable path's malformed-
+        // success guard guarantees ['order'] is a Map, so the orderRef
+        // reaches the confirmation dialog (it was previously read at
+        // result['data']['order'], which is always null after unwrap).
+        final orderData = result['order'] as Map<String, dynamic>?;
         _showOrderConfirmation(
           cart.items.length,
           cart.businessName,
@@ -106,10 +113,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (e) {
       if (mounted) {
         AzamanHaptics.warn();
+        // Deep-dive step 2: the failure is classified by its ECONOMIC
+        // meaning, not collapsed into one generic "Order failed" — a
+        // definitive validation failure is actionable, an unconfirmed
+        // outcome must never be worded as "the order definitely failed",
+        // and an identity-bearing retry stays armed with the same key.
+        final failure = StorefrontService.classifyStorefrontFailure(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Order failed: $e'),
-            backgroundColor: colors.danger,
+            content: Text(storefrontFailureMessage(failure, e)),
+            backgroundColor: failure.isUnconfirmed ? colors.warning : colors.danger,
           ),
         );
       }

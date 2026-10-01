@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../storefront/providers/storefront_provider.dart';
+import '../storefront/core/checkout_failure_message.dart';
+import '../storefront/services/storefront_service.dart';
 import '../providers/theme_provider.dart';
 import '../services/api_client.dart';
 import '../utils/azaman_haptics.dart';
@@ -78,8 +80,17 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
     } catch (e) {
       if (mounted) {
         AzamanHaptics.warn();
+        // Deep-dive step 2: classify the failure by its ECONOMIC meaning
+        // (same taxonomy as CartScreen's checkout) — an unconfirmed
+        // outcome must never be worded as "the order definitely failed",
+        // and the durable identity for a same-intent retry stays armed.
+        final failure = StorefrontService.classifyStorefrontFailure(e);
+        final colors = ref.read(themeProvider).colors;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order failed: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(storefrontFailureMessage(failure, e)),
+            backgroundColor: failure.isUnconfirmed ? colors.warning : colors.danger,
+          ),
         );
         setState(() => _submitting = false);
       }

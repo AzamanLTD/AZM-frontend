@@ -26,6 +26,51 @@ class StorefrontApiException implements Exception {
   String toString() => 'StorefrontApiException($statusCode${code == null ? '' : ', $code'}): $message';
 }
 
+/// Failure classification for the LIVE durable storefront economic
+/// paths (checkoutCart / placeStorefrontOrder via [operationType] + [ref]).
+/// Deep-dive step 2 (2026-10-01): callers must not treat every exception
+/// as one generic "order failed" — the class tells the UI which action is
+/// economically safe:
+///
+/// - [StorefrontFailureClass.definitivePreEconomic] — the backend PROVED
+///   no economic mutation happened (validation / business 4xx). The order
+///   did NOT go through; safe to correct the cart and retry. The durable
+///   instance was already retired by the disposition (step 1), so a
+///   corrected retry begins a new identity — never blind-repeat the same
+///   request.
+/// - [StorefrontFailureClass.authenticationRequired] — a 401 that survived
+///   ApiClient's automatic token refresh. Re-auth, then retry the same
+///   logical operation (instance stays armed, same key).
+/// - [StorefrontFailureClass.rateLimited] — 429. Wait, then retry the same
+///   logical operation (instance stays armed, same key).
+/// - [StorefrontFailureClass.domainConflict] — 409: the backend answered
+///   that this durable key was already used for DIFFERENT cart contents.
+///   Neither a transport failure nor safely retryable: reconcile against
+///   the existing order (check orders / refresh) before placing again.
+/// - [StorefrontFailureClass.ambiguousOrUnknown] — transport loss,
+///   timeout, 5xx, or a malformed 2xx payload. The order MAY have
+///   committed; the durable instance stays armed and a retry of the SAME
+///   logical operation reuses the SAME key so the backend converges
+///   instead of duplicating. The UI must not claim the order "failed".
+///
+/// This classification is a read-only projection for callers and the UI.
+/// It never decides the durable identity lifecycle — the in-method
+/// disposition and DurableOperationRegistry own that (deep-dive step 1).
+enum StorefrontFailureClass {
+  definitivePreEconomic,
+  authenticationRequired,
+  rateLimited,
+  domainConflict,
+  ambiguousOrUnknown,
+}
+
+extension StorefrontFailureClassIsUnconfirmed on StorefrontFailureClass {
+  /// True when the economic outcome is UNPROVEN — the order may have
+  /// committed. UI must warn (check your orders) instead of asserting
+  /// the order definitely failed.
+  bool get isUnconfirmed => this == StorefrontFailureClass.ambiguousOrUnknown;
+}
+
 class StorefrontService {
   /// [apiClient] is injectable so tests can pass a recording client and
   /// assert the exact durable-identity wire behaviour of the production
@@ -86,6 +131,60 @@ class StorefrontService {
       statusCode != 401 &&
       statusCode != 409 &&
       statusCode != 429;
+
+  /// Maps a thrown failure of the live durable storefront economic paths
+  /// to its economic class. Pure projection: reuses the SAME definitive
+  /// predicate as the disposition ([_isDefinitivePreEconomic]), so the
+  /// classification can never contradict the identity lifecycle.
+  ///
+  /// Traced wire semantics (backend routes/storefrontRoutes.js, 2026-10-01):
+  /// - 401 'TOKEN_EXPIRED' is already auto-refreshed inside
+  ///   ApiClient._executeWithRefresh; a 401 surfacing HERE means the
+  ///   refresh failed or the account is genuinely unauthorized.
+  /// - 409 on these routes is a FINGERPRINT-MISMATCH answer: the durable
+  ///   key was already used for different cart contents. (An exact replay
+  ///   answers 200 with `idempotent: true` — the success path, not 409.)
+  /// - 400/403/404 are the backend's explicit pre-economic validations
+  ///   (empty items, >50 items, paused business, unavailable product,
+  ///   escrow not offered). Residual gap, recorded in the deep-dive: the
+  ///   backend `wrap` catch-all also surfaces uncaught internal errors as
+  ///   400 with no machine-readable code — in current source every such
+  ///   throw precedes the order commit, so 400 stays de-facto
+  ///   pre-economic, but that contract is implicit; the backend should
+  ///   make it explicit (dedicated status/code) rather than Flutter
+  ///   guessing.
+  /// - 5xx / transport loss / malformed 2xx payload: outcome UNPROVEN —
+  ///   always [StorefrontFailureClass.ambiguousOrUnknown], fail-safe.
+  static StorefrontFailureClass classifyStorefrontFailure(Object error) {
+    if (error is ApiException) {
+      if (error.statusCode == 401) {
+        return StorefrontFailureClass.authenticationRequired;
+      }
+      if (error.statusCode == 429) return StorefrontFailureClass.rateLimited;
+      if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
+      if (_isDefinitivePreEconomic(error.statusCode)) {
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      return StorefrontFailureClass.ambiguousOrUnknown; // 5xx / other
+    }
+    if (error is StorefrontApiException) {
+      // Direct-response paths (defense-in-depth; ApiClient.post maps every
+      // non-2xx to ApiException before the service parses anything).
+      if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
+      if (_isDefinitivePreEconomic(error.statusCode)) {
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      return StorefrontFailureClass.ambiguousOrUnknown;
+    }
+    if (error is StorefrontConflictException) {
+      return StorefrontFailureClass.domainConflict;
+    }
+    // FormatException (malformed 2xx payload), TimeoutException, http
+    // ClientException / SocketException, and anything unrecognized: the
+    // economic outcome is UNPROVEN. Fail safe as unknown — never "safe to
+    // retry blindly", never "definitive".
+    return StorefrontFailureClass.ambiguousOrUnknown;
+  }
 
   /// Terminal completion / definitive pre-economic release of the ref's
   /// instance: retires THAT instance only and clears the ref.
@@ -282,6 +381,14 @@ class StorefrontService {
     try {
       final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
       final parsed = _parseResponse(response) as Map<String, dynamic>;
+      // Malformed-success guard (deep-dive step 2): same unknown-state
+      // rule as checkoutCart — a 2xx without the order result is never
+      // surfaced as success and never treated as definitive; the durable
+      // instance stays armed for a same-key retry.
+      if (parsed['order'] is! Map<String, dynamic>) {
+        throw const FormatException(
+            'Order response was successful but carried no order result.');
+      }
       // Answered success — this order instance is complete.
       await _releaseOperation(ref);
       return parsed;
@@ -356,6 +463,18 @@ class StorefrontService {
       try {
         final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
         final parsed = _parseResponse(response) as Map<String, dynamic>;
+        // Malformed-success guard (deep-dive step 2): an answered 2xx whose
+        // payload does not carry the order result is an UNKNOWN economic
+        // state — the order may or may not have committed. Never surface it
+        // as success (the caller would clear the cart and claim completion on
+        // an unconfirmed order) and never as a definitive failure. The
+        // FormatException stays outside every disposition clause → the
+        // durable instance stays armed for a same-key retry;
+        // classifyStorefrontFailure maps it to ambiguousOrUnknown.
+        if (parsed['order'] is! Map<String, dynamic>) {
+          throw const FormatException(
+              'Checkout response was successful but carried no order result.');
+        }
         // Answered success — this checkout instance is complete.
         await _releaseOperation(ref);
         return parsed;
