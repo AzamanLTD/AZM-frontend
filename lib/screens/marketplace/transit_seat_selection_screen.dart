@@ -16,6 +16,8 @@ import 'package:azaman/marketplace/experiences/transit/transit_boarding.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/transit_boarding_pass.dart';
 import 'package:azaman/widgets/seat_selector/transit_hold_ring.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
@@ -60,6 +62,19 @@ class _TransitSeatSelectionScreenState
   /// newer selection.
   int? _activeHoldGeneration;
 
+  /// §r42 (2026-10-01) — durable identity for THIS screen's booking intent:
+  /// the ref binds the seat-booking operation to its journal instance, so
+  /// a retry of the SAME seat selection after an ambiguous failure (lost
+  /// response, 5xx, 408/425/429/409/401) reuses the SAME Idempotency-Key
+  /// and the backend converges on the same booking (exact replay of the
+  /// committed response) instead of turning into an indistinguishable
+  /// 'Seats already booked'. A materially changed selection is a new
+  /// economic intent — the registry gives it its own instance/key, and the
+  /// old unfinished record stays recoverable in the journal. Same lifetime
+  /// model as CartScreen's _checkoutRef.
+  static const _bookingActionId = 'transit.book_seats';
+  final _bookingRef = FinancialOperationRef();
+
   @override
   void initState() {
     super.initState();
@@ -75,11 +90,38 @@ class _TransitSeatSelectionScreenState
       final colors = ref.read(themeProvider.select((t) => t.colors));
       final error = state.error;
       if (error != null) {
+        // §r42 failure presentation (deep-dive step 2 taxonomy, transit
+        // variant): an UNPROVEN outcome (transport loss, 5xx, 408/425,
+        // malformed success) must NOT be asserted as a failed booking —
+        // the seats MAY be booked. The durable ref stays armed, so
+        // retrying the SAME selection reuses the same key and converges
+        // (the backend replays the committed booking exactly). Domain
+        // conflicts (409 — key already used with a different selection)
+        // and 401/429 get their own retry guidance; a definitive
+        // pre-economic 4xx surfaces the backend's own message verbatim.
+        final cls = state.failureClass;
+        String message = error.replaceFirst('MarketplaceBookingException: ', '');
+        if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
+          message =
+              'We couldn\'t confirm your booking. Check your bookings first — '
+              'if the seats aren\'t there, booking the same seats again will '
+              'safely reuse your request.';
+        } else if (cls == TransitBookingFailureClass.domainConflict) {
+          message =
+              'This booking request conflicts with an earlier one. Check your '
+              'bookings before booking again.';
+        } else if (cls == TransitBookingFailureClass.authenticationRequired) {
+          message =
+              'Please sign in again, then book the same seats — your request '
+              'will be safely reused.';
+        } else if (cls == TransitBookingFailureClass.rateLimited) {
+          message =
+              'Too many attempts. Wait a moment, then book the same seats — '
+              'your request will be safely reused.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              error.replaceFirst('MarketplaceBookingException: ', ''),
-            ),
+            content: Text(message),
             backgroundColor: colors.danger,
           ),
         );
@@ -321,6 +363,8 @@ class _TransitSeatSelectionScreenState
           tripId: widget.tripId,
           seatIds: selected.toList(growable: false),
           passengerNames: names.any((name) => name.isNotEmpty) ? names : null,
+          operationType: _bookingActionId,
+          ref: _bookingRef,
         );
   }
 
