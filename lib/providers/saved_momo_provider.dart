@@ -11,9 +11,10 @@ import 'package:azaman/services/api_client.dart';
 class SavedMomoAccount {
   final String id;
   final String nickname;
-  final String provider;       // MTN | TELECEL | AIRTELTIGO (VODAFONE legacy still accepted)
-  final String phoneNumber;    // E.164
-  final String? accountName;   // resolved registered name
+  final String
+  provider; // MTN | TELECEL | AIRTELTIGO (VODAFONE legacy still accepted)
+  final String phoneNumber; // E.164
+  final String? accountName; // resolved registered name
   final bool isVerified;
   final bool isPrimary;
   final DateTime? lastUsedAt;
@@ -32,17 +33,18 @@ class SavedMomoAccount {
   });
 
   factory SavedMomoAccount.fromJson(Map<String, dynamic> j) => SavedMomoAccount(
-        id: j['id'],
-        nickname: j['nickname'],
-        provider: j['provider'],
-        phoneNumber: j['phoneNumber'],
-        accountName: j['accountName'],
-        isVerified: j['isVerified'] as bool? ?? false,
-        isPrimary: j['isPrimary'] as bool? ?? false,
-        lastUsedAt:
-            j['lastUsedAt'] != null ? DateTime.tryParse(j['lastUsedAt']) : null,
-        createdAt: DateTime.parse(j['createdAt']),
-      );
+    id: j['id'],
+    nickname: j['nickname'],
+    provider: j['provider'],
+    phoneNumber: j['phoneNumber'],
+    accountName: j['accountName'],
+    isVerified: j['isVerified'] as bool? ?? false,
+    isPrimary: j['isPrimary'] as bool? ?? false,
+    lastUsedAt: j['lastUsedAt'] != null
+        ? DateTime.tryParse(j['lastUsedAt'])
+        : null,
+    createdAt: DateTime.parse(j['createdAt']),
+  );
 }
 
 class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
@@ -104,29 +106,31 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
           .map((raw) => raw as Map<String, dynamic>)
           .where((w) => momoNetworks.contains((w['network'] ?? '').toString()))
           .map((w) {
-        // Legacy schema → SavedMomoAccount projection
-        final network = (w['network'] ?? '').toString();
-        final providerCanon = switch (network) {
-          'MTN_MOMO' => 'MTN',
-          'VODAFONE_CASH' => 'TELECEL', // legacy
-          'TELECEL_CASH' => 'TELECEL',
-          'AIRTELTIGO' || 'TELECEL_CASH' => 'TELECEL',
-          _ => network,
-        };
-        return SavedMomoAccount(
-          id: 'legacy:${w['id']}',
-          nickname: (w['label'] ?? '').toString(),
-          provider: providerCanon,
-          phoneNumber: (w['address'] ?? '').toString(),
-          accountName: (w['accountName'] ?? '').toString().isEmpty
-              ? null
-              : w['accountName'].toString(),
-          isVerified: (w['accountName'] ?? '').toString().isNotEmpty,
-          isPrimary: false,
-          createdAt: DateTime.tryParse(w['createdAt']?.toString() ?? '') ??
-              DateTime.now(),
-        );
-      }).toList();
+            // Legacy schema → SavedMomoAccount projection
+            final network = (w['network'] ?? '').toString();
+            final providerCanon = switch (network) {
+              'MTN_MOMO' => 'MTN',
+              'VODAFONE_CASH' => 'TELECEL', // legacy
+              'TELECEL_CASH' => 'TELECEL',
+              'AIRTELTIGO' => 'AIRTELTIGO',
+              _ => network,
+            };
+            return SavedMomoAccount(
+              id: 'legacy:${w['id']}',
+              nickname: (w['label'] ?? '').toString(),
+              provider: providerCanon,
+              phoneNumber: (w['address'] ?? '').toString(),
+              accountName: (w['accountName'] ?? '').toString().isEmpty
+                  ? null
+                  : w['accountName'].toString(),
+              isVerified: (w['accountName'] ?? '').toString().isNotEmpty,
+              isPrimary: false,
+              createdAt:
+                  DateTime.tryParse(w['createdAt']?.toString() ?? '') ??
+                  DateTime.now(),
+            );
+          })
+          .toList();
     } catch (_) {
       return const [];
     }
@@ -181,7 +185,10 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
   }
 
   Future<void> setPrimary(String id) async {
-    final res = await apiClient.patch('/saved-momo/$id', body: {'isPrimary': true});
+    final res = await apiClient.patch(
+      '/saved-momo/$id',
+      body: {'isPrimary': true},
+    );
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
@@ -197,4 +204,6 @@ class SavedMomoNotifier extends AsyncNotifier<List<SavedMomoAccount>> {
 }
 
 final savedMomoProvider =
-    AsyncNotifierProvider<SavedMomoNotifier, List<SavedMomoAccount>>(SavedMomoNotifier.new);
+    AsyncNotifierProvider<SavedMomoNotifier, List<SavedMomoAccount>>(
+      SavedMomoNotifier.new,
+    );

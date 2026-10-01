@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/momo_network.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
@@ -141,17 +142,11 @@ class _MomoTile extends ConsumerWidget {
   final AzamanColors colors;
   const _MomoTile({required this.account, required this.colors});
 
-  Color _providerColor() => switch (account.provider) {
-    'MTN' => const Color(0xFFFFCC00),
-    'TELECEL' => const Color(0xFFE60000),
-    'VODAFONE' => const Color(0xFFE60000), // legacy
-    'TELECEL' => const Color(0xFF0066CC),
-    _ => colors.textSecondary,
-  };
+  MomoNetworkInfo get _network => MomoNetwork.of(account.provider);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pcolor = _providerColor();
+    final pcolor = _network.color;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
@@ -168,7 +163,15 @@ class _MomoTile extends ConsumerWidget {
               color: pcolor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.smartphone_outlined, color: pcolor, size: 16),
+            alignment: Alignment.center,
+            child: Text(
+              _network.code,
+              style: TextStyle(
+                color: pcolor,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -376,7 +379,7 @@ class _AddMomoAccountSheetState extends ConsumerState<AddMomoAccountSheet> {
     // of the sheet. The weight owns surface, radius, safe-area and the
     // keyboard inset handling, so the old Container is deleted.
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
