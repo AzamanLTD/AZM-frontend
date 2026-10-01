@@ -124,6 +124,20 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
       duration: MotionTokens.control,
       value: 1,
     );
+    // When the spring-back completes, the builder falls back from the
+    // animated value to [_dragDy]. [_dragDy] must therefore be at rest by
+    // then, or the sheet visibly jumps back to the old dragged offset the
+    // frame after the spring finishes.
+    _settle.addStatusListener((status) {
+      if (status != AnimationStatus.completed) return;
+      if (_dragDy == 0 && _settleFrom == 0) return;
+      if (mounted) {
+        setState(() {
+          _dragDy = 0;
+          _settleFrom = 0;
+        });
+      }
+    });
   }
 
   @override
@@ -143,6 +157,21 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
   }
 
   void _onDragStart(DragStartDetails _) {
+    // A new gesture may land while a spring-back is still running. The
+    // builder renders the animated offset while animating, so the drag
+    // must resume from the on-screen position — NOT from the stale
+    // pre-spring [_dragDy], which would visibly slam the sheet back down.
+    if (_settle.isAnimating) {
+      final visual =
+          _settleFrom * (1.0 - MotionTokens.enter.transform(_settle.value));
+      _settle.stop();
+      setState(() {
+        _dragDy = visual;
+        _settleFrom = 0;
+        _armed = visual >= _commitThreshold;
+      });
+      return;
+    }
     _armed = false;
     _settle.stop();
   }
@@ -301,16 +330,25 @@ class _FiatCryptoSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _switchTab('Fiat', 1),
-          const SizedBox(width: 28),
-          _switchTab('Crypto', 0),
-        ],
-      ),
+    // The selector must track the controller, not just its own taps: a
+    // swipe on the TabBarView (or a programmatic animateTo) changes the
+    // visible content without rebuilding a StatelessWidget sibling —
+    // leaving the selector claiming the wrong tab is selected.
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _switchTab('Fiat', 1),
+              const SizedBox(width: 28),
+              _switchTab('Crypto', 0),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -411,6 +449,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
   // Name-validation dialog + OTP branch (Moolre TP14 returns requiresOtp).
   String? _resolvedName;
+  // The account whose number actually produced [_resolvedName]. The name
+  // may only be shown for, or charged against, THIS account — a stale name
+  // from a previously selected account must never survive a selection
+  // change (release-level review blocker 3).
+  String? _validatedAccountId;
   bool _isValidatingName = false;
   bool _requiresOtp = false;
   String? _pendingReference;
@@ -549,7 +592,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     );
     if (account == null) return;
 
-    setState(() => _isValidatingName = true);
+    // Clear any name from a PREVIOUS validation before this one resolves —
+    // the result below belongs to THIS account and no other.
+    setState(() {
+      _isValidatingName = true;
+      _resolvedName = null;
+      _validatedAccountId = null;
+    });
     try {
       final resp = await apiClient.post('/deposit/validate-name', {
         'phoneNumber': account.phoneNumber,
@@ -557,12 +606,35 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       });
       final body = jsonDecode(resp.body);
       if (resp.statusCode == 200 && body['data'] != null) {
-        setState(() => _resolvedName = body['data'] as String?);
+        if (mounted) {
+          setState(() {
+            _resolvedName = body['data'] as String?;
+            _validatedAccountId = account.id;
+          });
+        }
       }
     } catch (_) {
       // Name validation is optional — proceed without it if it fails.
     } finally {
       if (mounted) setState(() => _isValidatingName = false);
+    }
+
+    // The payment-method row is disabled while validation is in flight, but
+    // defense-in-depth: if the selection is no longer the account that was
+    // validated, abort. The newly selected account must be validated on its
+    // own — a name resolved for account A can never confirm or charge
+    // account B.
+    if (_currentAccount(
+          ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
+        )?.id !=
+        account.id) {
+      if (mounted) {
+        setState(() {
+          _resolvedName = null;
+          _validatedAccountId = null;
+        });
+      }
+      return;
     }
 
     if (_resolvedName != null && mounted) {
@@ -597,10 +669,14 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       if (confirmed != true) return;
     }
 
-    await _initiateDeposit();
+    await _initiateDeposit(account);
   }
 
-  Future<void> _initiateDeposit() async {
+  /// [validatedAccount] is the exact account whose registered name the
+  /// user confirmed (or that failed name-validation best-effort) — the
+  /// deposit initiates against THIS snapshot, never a re-resolved
+  /// "current" selection that might have changed in between.
+  Future<void> _initiateDeposit([SavedMomoAccount? validatedAccount]) async {
     final amount = _amountValue;
     if (amount == null) {
       ScaffoldMessenger.of(
@@ -608,13 +684,25 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
       return;
     }
-    final account = _currentAccount(
-      ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
-    );
+    final account =
+        validatedAccount ??
+        _currentAccount(
+          ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
+        );
     if (account == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Select a payment account')));
+      return;
+    }
+    // Belt and suspenders: a name that was resolved for a different account
+    // must never reach the user or the wire.
+    if (_resolvedName != null && _validatedAccountId != account.id) {
+      setState(() {
+        _resolvedName = null;
+        _validatedAccountId = null;
+      });
+      await _validateAndConfirm();
       return;
     }
 
@@ -750,6 +838,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       _requiresOtp = false;
       _pendingReference = null;
       _resolvedName = null;
+      _validatedAccountId = null;
       _depositConfirmed = false;
       _otpController.clear();
       _amountRaw = '';
@@ -863,22 +952,31 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 ),
                 data: (accounts) {
                   final account = _currentAccount(accounts);
+                  // No payment-method changes while a validation or a
+                  // submission is in flight — a mid-validation switch is
+                  // exactly the race that would confirm one account's name
+                  // and charge another (release-level review blocker 3).
+                  final bool locked = _isSubmitting || _isValidatingName;
                   if (accounts.isEmpty) {
                     return _AddMethodRow(
                       colors: colors,
-                      onTap: () => _openAddAccountSheet(),
+                      onTap: locked ? null : () => _openAddAccountSheet(),
                     );
                   }
                   if (account == null) {
                     return _ChooseMethodRow(
                       colors: colors,
-                      onTap: () => _showPaymentSelector(colors, accounts),
+                      onTap: locked
+                          ? null
+                          : () => _showPaymentSelector(colors, accounts),
                     );
                   }
                   return _SelectedMethodRow(
                     colors: colors,
                     account: account,
-                    onTap: () => _showPaymentSelector(colors, accounts),
+                    onTap: locked
+                        ? null
+                        : () => _showPaymentSelector(colors, accounts),
                   );
                 },
               ),
@@ -1290,7 +1388,10 @@ class _SelectedMethodRow extends StatelessWidget {
 
   final AzamanColors colors;
   final SavedMomoAccount account;
-  final VoidCallback onTap;
+
+  /// Null while a validation or submission is in flight — no method
+  /// changes during that window (see _validateAndConfirm).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1382,7 +1483,10 @@ class _AddMethodRow extends StatelessWidget {
   const _AddMethodRow({required this.colors, required this.onTap});
 
   final AzamanColors colors;
-  final VoidCallback onTap;
+
+  /// Null while a validation or submission is in flight — no method
+  /// changes during that window (see _validateAndConfirm).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1430,7 +1534,10 @@ class _ChooseMethodRow extends StatelessWidget {
   const _ChooseMethodRow({required this.colors, required this.onTap});
 
   final AzamanColors colors;
-  final VoidCallback onTap;
+
+  /// Null while a validation or submission is in flight — no method
+  /// changes during that window (see _validateAndConfirm).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

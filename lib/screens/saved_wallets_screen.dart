@@ -41,6 +41,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/saved_momo_provider.dart';
+import 'package:azaman/widgets/momo_network.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_button.dart';
@@ -422,7 +423,20 @@ class _WalletTile extends StatelessWidget {
     final label = (wallet['label'] ?? '').toString();
     final address = (wallet['address'] ?? '').toString();
     final provider = (wallet['provider'] ?? '').toString();
-    final accent = isCrypto ? colors.accent : colors.success;
+    final accent = colors.accent;
+
+    // MoMo tiles render their network identity from MomoNetwork — the ONE
+    // authoritative provider→brand mapping (deposit picker, saved accounts
+    // and this surface all match) — rather than a generic success-green
+    // phone mark that said nothing about the network. Legacy rows carry
+    // display-form providers ('MTN MOMO'), so normalize spaces before the
+    // lookup; crypto tiles keep the plain accent identity.
+    final identityProvider =
+        ((wallet['network'] ?? '').toString().isNotEmpty
+                ? wallet['network']
+                : provider)
+            .toString()
+            .replaceAll(' ', '_');
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -433,19 +447,18 @@ class _WalletTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+          if (!isCrypto)
+            MomoNetworkBadge(provider: identityProvider)
+          else
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.currency_bitcoin, color: accent, size: 20),
             ),
-            child: Icon(
-              isCrypto ? Icons.currency_bitcoin : Icons.smartphone_outlined,
-              color: accent,
-              size: 20,
-            ),
-          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
