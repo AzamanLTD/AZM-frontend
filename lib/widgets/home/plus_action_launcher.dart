@@ -94,6 +94,12 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   void _sync() {
     if (!mounted) return;
     widget.controller.isOpen ? _rot.forward() : _rot.reverse();
+    // Rebuild on the controller state change itself: in reduced-motion
+    // mode the visual step must land IMMEDIATELY, and `_rot` may have no
+    // value distance to travel (a close from value 0 never fires a value
+    // notification). The per-tick rebuilds in normal-motion mode come
+    // from the AnimatedBuilder listening to `_rot` below.
+    setState(() {});
   }
 
   @override
@@ -113,46 +119,66 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final reduceMotion = !AzMotion.of(context).travel;
-    final turns = reduceMotion
-        ? (widget.controller.isOpen ? 0.125 : 0.0)
-        : _rot.value * 0.125;
 
-    return GestureDetector(
-      key: const ValueKey('plus-launcher-trigger'),
-      onTap: () {
-        if (widget.controller.isOpen) {
-          // Dismissal is silent (the liquid-launcher haptic convention).
-          widget.controller.close();
-        } else {
-          AzamanHaptics.nav();
-          widget.controller.open();
-        }
-      },
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            // The AZM accent identity — no hard-coded marketing colors.
-            colors: [colors.accent, colors.accentSecondary],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: colors.accent.withValues(alpha: 0.4),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
+    // AUDIT (post-merge §2): the trigger rebuilds FROM THE ANIMATION
+    // CONTROLLER, not from incidental parent rebuilds. AnimatedBuilder
+    // listens to `_rot` directly, so the rotation tracks every tick of
+    // the open/close transition in normal-motion mode, and the
+    // controller-driven step mapping still applies instantly in
+    // reduced-motion mode (`_rot` runs either way; only the mapping
+    // differs).
+    return AnimatedBuilder(
+      animation: _rot,
+      builder: (context, _) {
+        final open = widget.controller.isOpen;
+        final turns = reduceMotion ? (open ? 0.125 : 0.0) : _rot.value * 0.125;
+        return Semantics(
+          button: true,
+          excludeSemantics: true,
+          // The trigger is icon-only — the semantic label is the entire
+          // affordance. It announces the CURRENT state honestly.
+          label: open ? 'Close actions' : 'Open actions',
+          child: GestureDetector(
+            key: const ValueKey('plus-launcher-trigger'),
+            onTap: () {
+              if (widget.controller.isOpen) {
+                // Dismissal is silent (the liquid-launcher haptic
+                // convention).
+                widget.controller.close();
+              } else {
+                AzamanHaptics.nav();
+                widget.controller.open();
+              }
+            },
+            child: Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  // The AZM accent identity — no hard-coded marketing
+                  // colors.
+                  colors: [colors.accent, colors.accentSecondary],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.accent.withValues(alpha: 0.4),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Transform.rotate(
+                angle: turns * 2 * 3.141592653589793,
+                child: Icon(Icons.add,
+                    color: colors.onAccent, size: widget.size * 0.52),
+              ),
             ),
-          ],
-        ),
-        child: Transform.rotate(
-          angle: turns * 2 * 3.141592653589793,
-          child: Icon(Icons.add,
-              color: colors.onAccent, size: widget.size * 0.52),
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

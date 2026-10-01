@@ -331,9 +331,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/deposit',
       name: AzRouteNames.deposit,
-      builder: (context, state) => DepositScreen(
-        prefillAmount: state.uri.queryParameters['amount'],
-        memo: state.uri.queryParameters['memo'],
+      // Rise family: deposit is a layered push (the destination rises
+      // from a lower layer) — the same vertical semantics the + launcher's
+      // old imperative helper provided, now at the ROUTE level so every
+      // entry point (launcher, activity, deep link) transitions alike.
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: DepositScreen(
+          prefillAmount: state.uri.queryParameters['amount'],
+          memo: state.uri.queryParameters['memo'],
+        ),
       ),
     ),
 
