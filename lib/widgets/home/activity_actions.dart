@@ -26,8 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/transaction_history_provider.dart';
-import 'package:azaman/screens/account_activity_screen.dart';
-import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -229,11 +228,10 @@ class ActivityActionResolver {
         }
       case ActivityActionType.viewDeposit:
         AzamanHaptics.nav();
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const DepositScreen(
-                    initialTab: DepositTab.fiat)));
+        // CANONICAL ROUTE: /deposit already builds DepositScreen with the
+        // fiat default (its builder passes no initialTab), so this push
+        // preserves the existing behavior while going through the router.
+        context.push(AzRoutes.deposit());
       case ActivityActionType.viewWithdrawal:
         AzamanHaptics.nav();
         Navigator.push(context,
@@ -241,15 +239,17 @@ class ActivityActionResolver {
       case ActivityActionType.viewTrade:
         AzamanHaptics.nav();
         if (action.reference != null) {
-          context.push('/trade/${action.reference}');
+          context.push(AzRoutes.trade(action.reference!));
         } else {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AccountActivityScreen()));
+          // No trade reference → the safe fallback surface is the
+          // canonical activity screen, reached through the router.
+          context.push(AzRoutes.accountActivity);
         }
       case ActivityActionType.viewDetails:
         AzamanHaptics.nav();
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const AccountActivityScreen()));
+        // CANONICAL ROUTE: the activity details surface is /account/activity
+        // (NEW-A) — never a bare MaterialPageRoute.
+        context.push(AzRoutes.accountActivity);
     }
   }
 }
