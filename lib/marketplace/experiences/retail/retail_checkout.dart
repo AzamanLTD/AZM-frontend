@@ -85,6 +85,11 @@ class RetailCheckoutUnavailable extends RetailCheckoutResult {
 /// A checkout operation owns the idempotency key for its immutable cart
 /// snapshot. Retrying an operation therefore reuses the same backend identity;
 /// starting a new operation requires a new snapshot and a new key.
+///
+/// NOT PRODUCTION-REACHABLE — see [RetailCheckoutController]. The durable
+/// identity that production actually retains across retry/recovery is the
+/// [DurableOperationRegistry] instance bound to the caller's
+/// FinancialOperationRef, not this in-memory operation object.
 class RetailCheckoutOperation {
   final RetailCart cart;
   final RetailCheckoutOptions options;
@@ -119,6 +124,20 @@ class RetailCheckoutOperation {
 
 /// Coordinates cart checkout without embedding transport or payment logic in
 /// the widget layer.
+///
+/// NOT PRODUCTION-REACHABLE (retail checkout recovery audit, 2026-10-01).
+/// The production retail checkout is CartScreen →
+/// StorefrontService.checkoutCart(operationType: 'storefront.cart.checkout',
+/// ref: FinancialOperationRef) → DurableOperationRegistry (the shared tray
+/// from TASK-012 onwards). Nothing in lib/ constructs this controller; the
+/// widget registry's last gateway wiring was removed in the same audit.
+///
+/// This chain mints a CALLER-OWNED key here in [begin] and forwards it
+/// through checkoutCart's legacy pre-armed `idempotencyKey` transport —
+/// no durable journal, no recovery, no disposition. It is retained solely
+/// as the Planning deep-dive's contract surface for the upcoming
+/// restaurant/hotel/transit recovery-identity audit, and must never be
+/// wired as a second identity path beside the durable registry.
 class RetailCheckoutController {
   final RetailCheckoutGateway gateway;
 

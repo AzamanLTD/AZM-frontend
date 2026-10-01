@@ -24,7 +24,6 @@ import '../widgets/animated_counter_widget.dart';
 import '../widgets/custom_html_widget.dart';
 import '../widgets/gradient_hero_widget.dart';
 import '../widgets/retail_collection_box_widget.dart';
-import '../../marketplace/experiences/retail/storefront_retail_checkout_gateway.dart';
 import '../widgets/fallback_widget.dart';
 
 typedef StorefrontWidgetBuilder = Widget Function(
@@ -51,14 +50,16 @@ class StorefrontWidgetRegistry {
     'animated_counter': (ctx, props, biz, _) => AnimatedCounterWidget(props: props, business: biz),
     'custom_html': (ctx, props, biz, _) => CustomHtmlWidget(props: props, business: biz),
     'gradient_hero': (ctx, props, biz, _) => GradientHeroWidget(props: props, business: biz),
+    // Retail checkout recovery audit (2026-10-01): the never-read
+    // StorefrontRetailCheckoutGateway construction is gone — checkout runs
+    // through the shared tray (cartProvider → CartScreen → durable
+    // FinancialOperationRef), and the registry no longer makes the dead
+    // identity path constructible from production code.
     'retail_collection_box': (ctx, props, biz, businessProfileId) {
       return RetailCollectionBoxWidget(
         props: props,
         business: biz,
         businessProfileId: businessProfileId,
-        checkoutGateway: businessProfileId != null
-            ? StorefrontRetailCheckoutGateway(businessProfileId: businessProfileId)
-            : null,
       );
     },
   };
