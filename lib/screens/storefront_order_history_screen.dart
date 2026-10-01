@@ -3,9 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storefront/providers/storefront_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:go_router/go_router.dart';
+import 'package:azaman/router/route_registry.dart';
 
 class StorefrontOrderHistoryScreen extends ConsumerStatefulWidget {
   const StorefrontOrderHistoryScreen({super.key});
@@ -162,11 +163,9 @@ class _StorefrontOrderHistoryScreenState
   void _reorder(Map<String, dynamic> order) {
     final bizId = order['businessProfile']?['id'];
     if (bizId != null) {
-      Navigator.pushNamed(
-        context,
-        '/storefront',
-        arguments: {'businessProfileId': bizId},
-      );
+      // NEW-A: canonical storefront route (fixes the latent pushNamed bug
+      // — '/storefront' matched no route name).
+      context.push(AzRoutes.storefront(bizId));
     }
   }
 }

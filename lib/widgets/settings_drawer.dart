@@ -25,30 +25,25 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/worker_provider.dart';
-import 'package:azaman/screens/account_activity_screen.dart';
-import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
-import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
 
@@ -591,6 +586,7 @@ class SettingsDrawer extends ConsumerWidget {
     required IconData icon,
     required Color iconColor,
     Widget? destination,
+    String? route,
     VoidCallback? onTapOverride,
   }) {
     // Phase UI-1 (2026-05-26): slender list-tile pattern that replaces the
@@ -607,7 +603,12 @@ class SettingsDrawer extends ConsumerWidget {
           onTapOverride();
           return;
         }
-        if (destination != null) {
+        if (route != null) {
+          // NEW-A: canonical route is authoritative.
+          HapticFeedback.lightImpact();
+          Navigator.of(context).pop();
+          context.push(route);
+        } else if (destination != null) {
           HapticFeedback.lightImpact();
           Navigator.push(
             context,
@@ -693,10 +694,8 @@ class SettingsDrawer extends ConsumerWidget {
             icon: Icon(Icons.settings_outlined, color: colors.accent),
             onPressed: () {
               HapticFeedback.selectionClick();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              // NEW-A: canonical /settings route.
+              context.push(AzRoutes.settings);
             },
           ),
         ],
@@ -736,17 +735,21 @@ class SettingsDrawer extends ConsumerWidget {
       {
         'icon': Icons.account_balance_wallet_outlined,
         'label': 'Deposit',
-        'destination': const DepositScreen(),
+        // NEW-A: canonical /deposit route.
+        'route': AzRoutes.deposit(),
       },
       {
         'icon': Icons.send_outlined,
         'label': 'Withdraw',
+        // No canonical route yet — widget push retained (see the NEW-A
+        // remaining-call-site inventory).
         'destination': const WithdrawalScreen(),
       },
       {
         'icon': Icons.history,
         'label': 'History',
-        'destination': const AccountActivityScreen(),
+        // NEW-A: canonical account activity route.
+        'route': AzRoutes.accountActivity,
       },
       {
         'icon': Icons.analytics_outlined,
@@ -774,9 +777,14 @@ class SettingsDrawer extends ConsumerWidget {
           // top-of-stack route. Without this the drawer briefly overlays
           // the pushed page.
           Navigator.of(context).pop();
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => items[i]['destination'] as Widget,
-          ));
+          final route = items[i]['route'] as String?;
+          if (route != null) {
+            context.push(route);
+          } else {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => items[i]['destination'] as Widget,
+            ));
+          }
         },
         child: Column(
           children: [
@@ -821,6 +829,7 @@ class SettingsDrawer extends ConsumerWidget {
     String tag,
     AzamanColors colors, {
     Widget? destination,
+    String? route,
   }) {
     // Sprint UI-OVERHAUL (2026-05-27): replaced the bulky ListTile with a
     // slender shimmer-on-tap row. Same hit area, ~30% less vertical chrome,
@@ -832,14 +841,21 @@ class SettingsDrawer extends ConsumerWidget {
       icon: icon,
       title: title,
       tag: tag,
-      onTap: destination == null
+      // NEW-A: when the destination has a canonical route, the route is
+      // authoritative; the widget-instantiation push remains only for
+      // screens that don't have a GoRoute yet.
+      onTap: destination == null && route == null
           ? null
           : () {
               HapticFeedback.lightImpact();
               Navigator.of(context).pop();
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => destination,
-              ));
+              if (route != null) {
+                context.push(route);
+              } else {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => destination!,
+                ));
+              }
             },
     );
   }
@@ -899,7 +915,7 @@ class SettingsDrawer extends ConsumerWidget {
             'AZM Auction',
             'Vendor',
             colors,
-            destination: const AzmAuctionScreen(),
+            route: AzRoutes.azmAuction,
           ),
           _buildMenuItem(
             context,
@@ -915,7 +931,7 @@ class SettingsDrawer extends ConsumerWidget {
             'Referral Rewards',
             '10%',
             colors,
-            destination: const ReferralScreen(),
+            route: AzRoutes.referral,
           ),
         ],
       ),

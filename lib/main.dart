@@ -18,21 +18,28 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/withdrawal_screen.dart';
+import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/widgets/home/plus_action_launcher.dart';
+import 'package:azaman/widgets/nav_transitions.dart'
+    as nav_transitions_pkg;
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
-import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/router/app_router.dart';
+import 'package:azaman/router/route_depth.dart';
 
 import 'package:azaman/providers/auth_provider.dart' as auth_pkg;
-import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
 import 'package:azaman/providers/trade_provider.dart' as trade_pkg;
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/providers/home_shell_active_provider.dart';
+import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
+import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/services/az_sound.dart';
 
 import 'package:azaman/services/socket_service.dart';
@@ -248,11 +255,18 @@ class AzamanApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: themeData,
         routerConfig: appRouter,
-        builder: (context, child) => AzMotionScope(
-          notifier: sensory,
-          child: ThemedAppBackdrop(
-            child: AzamanConnectivityBanner(
-              child: child ?? const SizedBox.shrink(),
+        // NEW-A (Step 4): enables Flutter's restoration system for the
+        // router's page stack and any widget that opts in via
+        // restorationId / RestorationMixin (scroll offsets, page state).
+        restorationScopeId: 'root',
+        builder: (context, child) => RouteDepthTrackerHost(
+          tracker: routeDepthTracker,
+          child: AzMotionScope(
+            notifier: sensory,
+            child: ThemedAppBackdrop(
+              child: AzamanConnectivityBanner(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
@@ -281,8 +295,10 @@ class AzamanApp extends ConsumerWidget {
 // unusable region at any screen size.
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// The Market tab's index in the shell (Home 0 · Chat 1 · P2P 2 · Market 3).
-const int kMarketTabIndex = 3;
+/// The Marketplace tab's index in the shell (Home 0 · Chat 1 · Marketplace 2)
+/// — NEW-HOME §15: P2P left the primary nav; it is reachable via the Home
+/// P2P module and its canonical routes.
+const int kMarketTabIndex = 2;
 
 /// The launcher's five targets — exactly the wires TASK-011's launch allowlist
 /// guards (`MarketplaceHomeScreen._launchableCategoryWires`), so a launcher
@@ -459,6 +475,10 @@ class MainWrapper extends ConsumerStatefulWidget {
 class _MainWrapperState extends ConsumerState<MainWrapper>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+
+  /// The + launcher open/close state, shared between the trigger (in the
+  /// nav band) and the overlay (in the body stack).
+  final PlusLauncherController _plus = PlusLauncherController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget?> _pages;
@@ -475,7 +495,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     super.initState();
     _shellSocketService = ref.read(socketServiceProvider);
 
-    _pages = [const AzamanHomePage(), null, null, null];
+    _pages = [const AzamanHomePage(), null, null];
 
     _transitionCtrl = AnimationController(
       vsync: this,
@@ -501,8 +521,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       case 1:
         return const FriendsHubScreen();
       case 2:
-        return const P2PMarketplaceScreen();
-      case 3:
         return const MarketplaceHomeScreen();
       default:
         return const AzamanHomePage();
@@ -517,6 +535,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
+    // NEW-HOME audit §3: switching shell tabs CLOSES the + launcher. The
+    // overlay belongs to the tab that opened it — an open launcher over
+    // a mid-flight page transition would strand a modal on an unrelated
+    // page, and the trigger sits in the nav band, not in the page, so
+    // nothing else would ever close it.
+    if (_plus.isOpen) _plus.close();
+    // NEW-HOME audit §7: Home-local security state (unlocked card
+    // details) and Home-local machines (the typewriter) must know when
+    // Home stops being the displayed tab — pages stay MOUNTED, so only
+    // this explicit signal separates "mounted" from "active".
+    ref.read(homeShellActiveProvider.notifier).state = i == 0;
     final page = _pages[i] ?? _pageFor(i);
     // TASK-010: compression tracks the CURRENT page's offset. The incoming
     // page starts at its top, so the pill must start at rest — otherwise a
@@ -745,6 +774,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(
+        // NEW-HOME §8/§10 (audit): the + action trigger sits STRUCTURALLY
+        // BESIDE the nav pill — [navigation] [+] — themed by the AZM
+        // accent identity, sharing the pill's band and safe-area handling.
+        trailing: PlusLauncherTrigger(controller: _plus),
         selectedIndex: _selectedIndex,
         onItemSelected: _onNavItemSelected,
         // TASK-010b: a long-press on the Market tab opens the vertical
@@ -791,11 +824,53 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               ),
               child: const SizedBox.expand(),
             ),
-            if (_displayedIndex == 2 &&
+            // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
+            // pull tag (vendor → dashboard, non-vendor → 3-pull apply
+            // flow) keeps its configured home on the HOME tab, the shell's
+            // primary surface in the 3-tab layout. The settings toggle
+            // (`vendorTagEnabled`) still decides whether it appears.
+            if (_displayedIndex == 0 &&
                 ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
               const VendorPullTab(),
             DrawerPeekHint(
               onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
+            ),
+            // NEW-HOME §8: the floating + action launcher, topmost in the
+            // shell stack. It means "things I can DO" (Recent Activity is
+            // "things that HAPPENED"). The + sits beside the bottom nav;
+            // opening de-emphasizes the content and the actions appear
+            // directly on screen — never inside a boxed modal.
+            Positioned.fill(
+              child: PlusActionLauncher(
+                controller: _plus,
+                actions: [
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.moneySend01,
+                    label: 'Send',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context, const SendMoneyScreen()),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.moneyReceiveFlow01,
+                    label: 'Receive',
+                    onTap: () => showReceiveSheet(context),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.wallet01,
+                    label: 'Add Cash',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context,
+                        const DepositScreen(
+                            initialTab: DepositTab.fiat)),
+                  ),
+                  PlusLauncherAction(
+                    icon: HugeIconsSolid.bank,
+                    label: 'Withdraw',
+                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
+                        context, const WithdrawalScreen()),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

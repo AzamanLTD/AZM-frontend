@@ -64,6 +64,14 @@ class DemoInterceptor {
     // Strip query params for matching
     final path = endpoint.split('?').first;
 
+    // Paginated demo endpoint — needs the raw query, not just the path.
+    if (path == '/users/me/security-logs') {
+      final query = Uri.parse(endpoint).queryParameters;
+      final page = int.tryParse(query['page'] ?? '') ?? 1;
+      final limit = int.tryParse(query['limit'] ?? '') ?? 20;
+      return DemoSeedData.securityLogs(page, limit);
+    }
+
     // ── Exact matches ────────────────────────────────────────────────────
     switch (path) {
       // ── Health/version gate (fail-open in demo) ──────────────────────
@@ -138,7 +146,9 @@ class DemoInterceptor {
       case '/storefront/me/published':
         return DemoSeedData.nullData();
       case '/storefront/me/eligibility':
-        return {'data': {'eligible': false}};
+        return {
+          'data': {'eligible': false},
+        };
       case '/storefront/me/history':
         return DemoSeedData.emptyData();
       case '/storefront/templates':
@@ -156,7 +166,9 @@ class DemoInterceptor {
       case '/saved-momo':
         return DemoSeedData.savedMomoAccounts();
       case '/wallet/saved':
-        return {'wallets': []}; // No legacy wallets in demo — all MoMo via /saved-momo
+        return {
+          'wallets': [],
+        }; // No legacy wallets in demo — all MoMo via /saved-momo
       case '/smart-routes':
         return DemoSeedData.emptyData();
       case '/round-up':
@@ -166,13 +178,17 @@ class DemoInterceptor {
       case '/security/sessions':
         return DemoSeedData.emptyData();
       case '/security/data-export':
-        return {'data': {'status': 'NONE'}};
+        return {
+          'data': {'status': 'NONE'},
+        };
       case '/contacts/recent':
         return DemoSeedData.emptyData();
       case '/contacts':
         return DemoSeedData.emptyData();
       case '/contacts/invite':
-        return {'data': {'link': 'https://azaman.app/invite/kwesi123'}};
+        return {
+          'data': {'link': 'https://azaman.app/invite/kwesi123'},
+        };
       case '/vendor/applications':
         return DemoSeedData.emptyData();
       case '/users/onboarding':
@@ -186,7 +202,9 @@ class DemoInterceptor {
       case '/users/dashboard':
         return DemoSeedData.dashboard();
       case '/users/proof-of-residency/me':
-        return {'data': {'status': 'VERIFIED'}};
+        return {
+          'data': {'status': 'VERIFIED'},
+        };
       case '/susu/vouches/pending':
         return DemoSeedData.emptyData();
       case '/friends/transfer/pending':
@@ -257,13 +275,17 @@ class DemoInterceptor {
     }
 
     // /friends/chat/{friendshipId}/messages
-    final friendMsgMatch = RegExp(r'^/friends/chat/(\d+)/messages$').firstMatch(path);
+    final friendMsgMatch = RegExp(
+      r'^/friends/chat/(\d+)/messages$',
+    ).firstMatch(path);
     if (friendMsgMatch != null) {
       return DemoSeedData.friendMessages(friendMsgMatch.group(1)!);
     }
 
     // /group-chats/{groupId}/messages
-    final groupMsgMatch = RegExp(r'^/group-chats/([^/]+)/messages$').firstMatch(path);
+    final groupMsgMatch = RegExp(
+      r'^/group-chats/([^/]+)/messages$',
+    ).firstMatch(path);
     if (groupMsgMatch != null) {
       return DemoSeedData.groupMessages(groupMsgMatch.group(1)!);
     }
@@ -303,7 +325,9 @@ class DemoInterceptor {
 
     // /vaults/{vaultId}/yield/earnings
     if (path.contains('/vaults/') && path.endsWith('/yield/earnings')) {
-      return {'data': {'totalEarned': 85.00, 'apy': 8.5}};
+      return {
+        'data': {'totalEarned': 85.00, 'apy': 8.5},
+      };
     }
 
     // /susu/{susuId}
@@ -313,8 +337,15 @@ class DemoInterceptor {
     }
 
     // /susu/{susuId}/members, /cycles, /contract
-    if (path.contains('/susu/') && (path.endsWith('/members') || path.endsWith('/cycles') || path.endsWith('/contract'))) {
-      if (path.endsWith('/contract')) return {'data': {'signed': true}};
+    if (path.contains('/susu/') &&
+        (path.endsWith('/members') ||
+            path.endsWith('/cycles') ||
+            path.endsWith('/contract'))) {
+      if (path.endsWith('/contract')) {
+        return {
+          'data': {'signed': true},
+        };
+      }
       return DemoSeedData.emptyData();
     }
 
@@ -325,42 +356,64 @@ class DemoInterceptor {
     }
 
     // /friends/{friendshipId}/profile, /media, /receipts, /trust-metrics, /docs-links
-    if (path.contains('/friends/') && !path.startsWith('/friends/chat') && !path.startsWith('/friends/requests') && !path.startsWith('/friends/search') && !path.startsWith('/friends/transfer')) {
-      if (path.endsWith('/profile')) return {'data': {'trustScore': 0.85, 'totalTrades': 12, 'sharedGroups': 1}};
-      if (path.endsWith('/media') || path.endsWith('/receipts') || path.endsWith('/docs-links')) return DemoSeedData.emptyData();
-      if (path.endsWith('/trust-metrics')) return {'data': {'trustScore': 0.85, 'totalTrades': 12}};
+    if (path.contains('/friends/') &&
+        !path.startsWith('/friends/chat') &&
+        !path.startsWith('/friends/requests') &&
+        !path.startsWith('/friends/search') &&
+        !path.startsWith('/friends/transfer')) {
+      if (path.endsWith('/profile')) {
+        return {
+          'data': {'trustScore': 0.85, 'totalTrades': 12, 'sharedGroups': 1},
+        };
+      }
+      if (path.endsWith('/media') ||
+          path.endsWith('/receipts') ||
+          path.endsWith('/docs-links')) {
+        return DemoSeedData.emptyData();
+      }
+      if (path.endsWith('/trust-metrics')) {
+        return {
+          'data': {'trustScore': 0.85, 'totalTrades': 12},
+        };
+      }
     }
 
     // /marketplace/business/{bizId}/stories — same rail as /stories/business/.
-    final bizStoriesMatch =
-        RegExp(r'^/marketplace/business/([^/]+)/stories$').firstMatch(path);
+    final bizStoriesMatch = RegExp(
+      r'^/marketplace/business/([^/]+)/stories$',
+    ).firstMatch(path);
     if (bizStoriesMatch != null) {
       return DemoMarketplaceSeed.getBusinessStories(bizStoriesMatch.group(1)!);
     }
 
     // /marketplace/business/dine-in/{tabId} (legacy booking-service path).
-    final dineInMatch =
-        RegExp(r'^/marketplace/business/dine-in/([^/]+)$').firstMatch(path);
+    final dineInMatch = RegExp(
+      r'^/marketplace/business/dine-in/([^/]+)$',
+    ).firstMatch(path);
     if (dineInMatch != null) {
       return DemoMarketplaceSeed.getDineInTab(dineInMatch.group(1)!);
     }
 
     // /marketplace/trust-score/{azamanId}
-    final trustScoreMatch =
-        RegExp(r'^/marketplace/trust-score/([^/]+)$').firstMatch(path);
+    final trustScoreMatch = RegExp(
+      r'^/marketplace/trust-score/([^/]+)$',
+    ).firstMatch(path);
     if (trustScoreMatch != null) {
       return DemoMarketplaceSeed.getTrustScore(trustScoreMatch.group(1)!);
     }
 
     // /business/products/{productId} (public single-product lookup).
-    final productMatch =
-        RegExp(r'^/business/products/([^/]+)$').firstMatch(path);
+    final productMatch = RegExp(
+      r'^/business/products/([^/]+)$',
+    ).firstMatch(path);
     if (productMatch != null) {
       return DemoMarketplaceSeed.getProductById(productMatch.group(1)!);
     }
 
     // /marketplace/business/{bizId}
-    final bizMatch = RegExp(r'^/marketplace/business/([^/]+)$').firstMatch(path);
+    final bizMatch = RegExp(
+      r'^/marketplace/business/([^/]+)$',
+    ).firstMatch(path);
     if (bizMatch != null) {
       return DemoMarketplaceSeed.getBusinessByBizId(bizMatch.group(1)!);
     }
@@ -372,19 +425,25 @@ class DemoInterceptor {
     }
 
     // /business/{bizId}/products
-    final productsMatch = RegExp(r'^/business/([^/]+)/products$').firstMatch(path);
+    final productsMatch = RegExp(
+      r'^/business/([^/]+)/products$',
+    ).firstMatch(path);
     if (productsMatch != null) {
       return DemoMarketplaceSeed.getProducts(productsMatch.group(1)!);
     }
 
     // /business/{bizId}/locations
-    final locationsMatch = RegExp(r'^/business/([^/]+)/locations$').firstMatch(path);
+    final locationsMatch = RegExp(
+      r'^/business/([^/]+)/locations$',
+    ).firstMatch(path);
     if (locationsMatch != null) {
       return DemoMarketplaceSeed.getLocations(locationsMatch.group(1)!);
     }
 
     // /business/{bizId}/reviews — real seeded reviews per business.
-    final reviewsMatch = RegExp(r'^/business/([^/]+)/reviews$').firstMatch(path);
+    final reviewsMatch = RegExp(
+      r'^/business/([^/]+)/reviews$',
+    ).firstMatch(path);
     if (reviewsMatch != null) {
       return DemoMarketplaceSeed.getReviews(reviewsMatch.group(1)!);
     }
@@ -427,21 +486,28 @@ class DemoInterceptor {
     }
 
     // /marketplace/transit/trips/{tripId}/seats
-    final transitSeatsMatch = RegExp(r'^/marketplace/transit/trips/([^/]+)/seats$').firstMatch(path);
+    final transitSeatsMatch = RegExp(
+      r'^/marketplace/transit/trips/([^/]+)/seats$',
+    ).firstMatch(path);
     if (transitSeatsMatch != null) {
       return DemoMarketplaceSeed.getTripSeats(transitSeatsMatch.group(1)!);
     }
 
     // /marketplace/reservations/{reservationId}/checkin-qr — seeded
     // reservation only; unknown refs are not seeded, not faked.
-    if (path.contains('/marketplace/reservations/') && path.endsWith('/checkin-qr')) {
+    if (path.contains('/marketplace/reservations/') &&
+        path.endsWith('/checkin-qr')) {
       final reservationId = path
           .split('/marketplace/reservations/')[1]
           .split('/checkin-qr')[0];
       if (!DemoMarketplaceSeed.isSeededId(
-          reservationId, DemoMarketplaceSeed.seededReservationRefs)) {
+        reservationId,
+        DemoMarketplaceSeed.seededReservationRefs,
+      )) {
         throw DemoEndpointNotSeededException(
-            'GET', '/marketplace/reservations/$reservationId/checkin-qr');
+          'GET',
+          '/marketplace/reservations/$reservationId/checkin-qr',
+        );
       }
       return {
         'success': true,
@@ -449,12 +515,16 @@ class DemoInterceptor {
         'qrPayload': 'azaman:checkin:demo',
         'azamanId': 'AZM-000123456',
         'reservationRef': 'AZM-RES-001',
-        'expiresAt': DateTime.now().add(const Duration(hours: 24)).toUtc().toIso8601String(),
+        'expiresAt': DateTime.now()
+            .add(const Duration(hours: 24))
+            .toUtc()
+            .toIso8601String(),
       };
     }
 
     // /storefront/{id}/render, /theme
-    if (path.contains('/storefront/') && (path.endsWith('/render') || path.endsWith('/theme'))) {
+    if (path.contains('/storefront/') &&
+        (path.endsWith('/render') || path.endsWith('/theme'))) {
       return DemoSeedData.nullData();
     }
 
@@ -467,7 +537,9 @@ class DemoInterceptor {
     if (path.startsWith('/follows/check/')) {
       final bizId = path.substring('/follows/check/'.length);
       if (!DemoMarketplaceSeed.isSeededId(
-          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        bizId,
+        DemoMarketplaceSeed.seededBusinessIds,
+      )) {
         throw DemoEndpointNotSeededException('GET', '/follows/check/$bizId');
       }
       return {'isFollowing': false};
@@ -477,11 +549,17 @@ class DemoInterceptor {
     if (path.startsWith('/stories/analytics/business/')) {
       final bizId = path.substring('/stories/analytics/business/'.length);
       if (!DemoMarketplaceSeed.isSeededId(
-          bizId, DemoMarketplaceSeed.seededBusinessIds)) {
+        bizId,
+        DemoMarketplaceSeed.seededBusinessIds,
+      )) {
         throw DemoEndpointNotSeededException(
-            'GET', '/stories/analytics/business/$bizId');
+          'GET',
+          '/stories/analytics/business/$bizId',
+        );
       }
-      return {'data': {'views': 340, 'replies': 12, 'boosts': 5}};
+      return {
+        'data': {'views': 340, 'replies': 12, 'boosts': 5},
+      };
     }
 
     // /trades/{tradeId}
@@ -502,7 +580,15 @@ class DemoInterceptor {
 
     // /oracle/yellowcard-rate
     if (path == '/oracle/yellowcard-rate') {
-      return {'data': {'rate': 15.42, 'lastSync': DateTime.now().subtract(const Duration(minutes: 3)).toUtc().toIso8601String()}};
+      return {
+        'data': {
+          'rate': 15.42,
+          'lastSync': DateTime.now()
+              .subtract(const Duration(minutes: 3))
+              .toUtc()
+              .toIso8601String(),
+        },
+      };
     }
 
     // Admin endpoints
@@ -549,15 +635,21 @@ class DemoInterceptor {
   }
 
   // ── POST endpoint matching ────────────────────────────────────────────
-  static Map<String, dynamic>? _matchPost(String endpoint, Map<String, dynamic> body) {
+  static Map<String, dynamic>? _matchPost(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) {
     final path = endpoint.split('?').first;
 
     // /marketplace/transit/trips/{tripId}/book
-    final bookMatch = RegExp(r'^/marketplace/transit/trips/([^/]+)/book$').firstMatch(path);
+    final bookMatch = RegExp(
+      r'^/marketplace/transit/trips/([^/]+)/book$',
+    ).firstMatch(path);
     if (bookMatch != null) {
       return {
         'success': true,
-        'bookingRef': 'AZM-BOOK-${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}',
+        'bookingRef':
+            'AZM-BOOK-${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}',
         'seatIds': ['1A', '1B'],
       };
     }
@@ -565,11 +657,18 @@ class DemoInterceptor {
     // /business/invoices/{invoiceId}/pay
     final payMatch = RegExp(r'^/business/invoices/(.+)/pay$').firstMatch(path);
     if (payMatch != null) {
-      return {'invoice': DemoMarketplaceSeed.getInvoice(payMatch.group(1)!)['invoice']};
+      return {
+        'invoice': DemoMarketplaceSeed.getInvoice(
+          payMatch.group(1)!,
+        )['invoice'],
+      };
     }
 
     // Stories view/reply/boost
-    if (path.startsWith('/stories/') && (path.endsWith('/view') || path.endsWith('/reply') || path.endsWith('/boost'))) {
+    if (path.startsWith('/stories/') &&
+        (path.endsWith('/view') ||
+            path.endsWith('/reply') ||
+            path.endsWith('/boost'))) {
       return DemoSeedData.okSuccess();
     }
 

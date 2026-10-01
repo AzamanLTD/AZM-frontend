@@ -4,18 +4,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/contacts_screen.dart';
 import 'package:azaman/providers/story_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
-import 'package:azaman/screens/story_creation_screen.dart';
-import 'package:azaman/screens/story_camera_screen.dart';
-import 'package:azaman/screens/story_editor_screen.dart';
-import 'dart:io';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:go_router/go_router.dart';
 class PersonalChat {
   final String id;
   final String contactId;
@@ -95,27 +93,9 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
   }
 
   Future<void> _pickAndCreateStory() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StoryCameraScreen(
-          onCaptured: (File mediaFile, bool isVideo, StoryFilter filter) {
-            Navigator.pushReplacement(context, MaterialPageRoute(
-              builder: (_) => StoryEditorScreen(
-                mediaFile: mediaFile,
-                isVideo: isVideo,
-                initialFilter: filter,
-                onPublish: (File file, bool isVid) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                    builder: (_) => StoryCreationScreen(mediaFile: file, isVideo: isVid),
-                  ));
-                },
-              ),
-            ));
-          },
-        ),
-      ),
-    );
+    // NEW-A: the whole camera → editor → creation chain now lives in the
+    // router (/story-camera owns it); this screen just enters the flow.
+    context.push(AzRoutes.storyCamera);
   }
 
   Future<void> _fetchChats() async {

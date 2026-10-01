@@ -1,7 +1,9 @@
 // =============================================================================
-// AZAMAN — 4-Tab Adaptive Bottom Navigation with Per-Tab Badges
+// AZAMAN — 3-Tab Adaptive Bottom Navigation with Per-Tab Badges
 //
-// Tabs: Home · Chat · P2P · Market
+// Tabs: Home · Chat · Marketplace  (NEW-HOME §15: P2P is no longer a
+// permanent primary destination — it lives behind the Home P2P module and
+// its canonical routes.)
 // Each tab shows a live badge (unread counts, active trades, vault goals, etc.)
 // The nav is a floating glass pill that adapts to safe-area.
 //
@@ -17,7 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/chat_provider.dart';
-import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -129,14 +130,9 @@ const _kNavItems = [
     label: 'Chat',
   ),
   _NavItem(
-    icon: HugeIconsStroke.creditCard,
-    activeIcon: HugeIconsSolid.creditCard,
-    label: 'P2P',
-  ),
-  _NavItem(
     icon: HugeIconsStroke.store01,
     activeIcon: HugeIconsSolid.store01,
-    label: 'Market',
+    label: 'Marketplace',
   ),
 ];
 
@@ -147,10 +143,18 @@ class PremiumBottomNav extends ConsumerWidget {
   /// Long-press on a tab. Wired for TASK-010b (vertical launcher); optional so
   /// callers that do not implement it simply get the default press feedback.
   final ValueChanged<int>? onTabLongPress;
+
+  /// NEW-HOME §8/§10 (audit): a control placed STRUCTURALLY BESIDE the
+  /// nav — [navigation] [+] — not a FAB floating above it. The shell
+  /// passes the + launcher trigger here; it shares the pill's band,
+  /// vertical center and safe-area handling, so the layout stays stable
+  /// across device sizes.
+  final Widget? trailing;
   const PremiumBottomNav({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    this.trailing,
     this.onTabLongPress,
   });
 
@@ -205,14 +209,21 @@ class PremiumBottomNav extends ConsumerWidget {
         final labelOpacity = (1.0 - (t / NavScrollCompression.labelCollapseAt))
             .clamp(0.0, 1.0);
 
+        // NEW-HOME §10: the pill and any `trailing` control share ONE
+        // bottom band. The trailing control sits in the row at the pill's
+        // right, vertically centered on the pill, and the safe-area
+        // padding below is computed ONCE for the whole band.
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-            inset,
-            0,
-            inset,
-            bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg,
+          padding: EdgeInsets.only(
+            bottom: bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg,
           ),
-          child: Opacity(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: inset),
+                  child: Opacity(
             // Never below `compressedOpacity` (0.92): the page must not show
             // through a floating pill, or it reads as a rendering bug.
             opacity:
@@ -264,7 +275,15 @@ class PremiumBottomNav extends ConsumerWidget {
                   );
                 },
               ),
-            ),
+                  ),
+                ),
+              ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: AzSpace.sm),
+                trailing!,
+              ],
+            ],
           ),
         );
       },
@@ -394,24 +413,8 @@ class _NavButton extends StatelessWidget {
       );
     }
 
-    // Tab 2 (P2P) — active trade count (dot indicator)
+    // Tab 2 (Marketplace) — notification count for marketplace orders
     if (index == 2) {
-      return Consumer(
-        builder: (_, ref, child) {
-          final c = ref.watch(activeTradeCountProvider).value ?? 0;
-          return _BadgeStack(
-            icon: child!,
-            count: c,
-            showNumber: false,
-            color: colors,
-          );
-        },
-        child: icon,
-      );
-    }
-
-    // Tab 3 (Market) — notification count for marketplace orders
-    if (index == 3) {
       return Consumer(
         builder: (_, ref, child) {
           final c = ref.watch(unreadCountProvider);

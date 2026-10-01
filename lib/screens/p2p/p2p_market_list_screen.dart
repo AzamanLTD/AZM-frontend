@@ -5,17 +5,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/vendor_ad_creator.dart';
-import 'package:azaman/screens/waiting_room_screen.dart';
-import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/screens/p2p/p2p_filter_sheet.dart';
 import 'package:azaman/widgets/vendor_ad_card.dart';
 import 'package:azaman/widgets/ad_detail_flip_card.dart';
 import 'package:azaman/widgets/p2p_market_summary_bar.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:go_router/go_router.dart';
 
 
 const double _kSegmentHeaderHeight = 56.0;
@@ -258,26 +258,25 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
 
       if (result.queued) {
         ScaffoldMessenger.of(ctx).clearSnackBars();
-        Navigator.of(ctx).push(
-          MaterialPageRoute(
-            builder: (_) => WaitingRoomScreen(
-              queuePosition: result.queuePosition ?? 1,
-              queueId: result.queueId ?? '',
-              adId: result.adId ?? ad.id.toString(),
-            ),
-          ),
-        );
+        // NEW-A: canonical /queue route — same parameters as query params,
+        // so the waiting room is deep-linkable and swap-safe.
+        ctx.push(AzRoutes.queue(
+          queueId: result.queueId ?? '',
+          position: result.queuePosition ?? 1,
+          adId: result.adId ?? ad.id.toString(),
+        ));
       } else {
         ScaffoldMessenger.of(ctx).clearSnackBars();
         if (result.tradeId != null && result.tradeId!.isNotEmpty) {
-          Navigator.of(ctx).push(
-            MaterialPageRoute(
-              builder: (_) => ActiveTradeScreen(
-                orderId: '#${result.tradeId}',
-                amount: amountFiat,
-                paymentMethod: ad.paymentMethod,
-              ),
-            ),
+          // NEW-A: canonical /trade route; amount + paymentMethod travel
+          // as extra so the route stays parameter-clean (the '#'-prefix
+          // display form is derived by the screen, not baked into callers).
+          ctx.push(
+            AzRoutes.trade(result.tradeId!),
+            extra: {
+              'amount': amountFiat,
+              'paymentMethod': ad.paymentMethod,
+            },
           );
         } else {
           final colors = ref.read(themeProvider).colors;

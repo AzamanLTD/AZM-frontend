@@ -18,9 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/services/socket_service.dart';
-import 'package:azaman/screens/active_trade_screen.dart';
+import 'package:go_router/go_router.dart';
 
 
 class WaitingRoomScreen extends ConsumerStatefulWidget {
@@ -110,11 +111,9 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
 
     if (tradeId.isNotEmpty) {
       // If the BE created a trade for us, navigate directly to it
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ActiveTradeScreen(orderId: '#$tradeId'),
-        ),
-      );
+      // NEW-A: canonical /trade route (the '#' display prefix lives in the
+      // route builder, not at every call site).
+      context.pushReplacement(AzRoutes.trade(tradeId));
     } else {
       // Slot opened but no trade created yet — pop back so buyer can
       // re-initiate from the marketplace. Show success message.
@@ -145,11 +144,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       final tradeId = raw['tradeId']?.toString() ?? '';
 
       if (tradeId.isNotEmpty) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ActiveTradeScreen(orderId: '#$tradeId'),
-          ),
-        );
+        context.pushReplacement(AzRoutes.trade(tradeId));
       } else {
         // Slot opened — pop back to marketplace for re-initiation
         Navigator.of(context).pop();

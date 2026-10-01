@@ -24,7 +24,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/main.dart'
-    show kVerticalLauncherEntries, openVerticalLauncherForTab;
+    show kMarketTabIndex, kVerticalLauncherEntries,
+    openVerticalLauncherForTab;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/services/business_service.dart';
@@ -115,7 +116,7 @@ Future<_RouteRecorder> _pumpHarness(
               child: ElevatedButton(
                 key: const ValueKey('open_launcher'),
                 onPressed: () => openVerticalLauncherForTab(
-                  3,
+                  kMarketTabIndex,
                   context,
                   selectTab: tabSelections == null ? (_) {} : tabSelections.add,
                 ),
@@ -164,7 +165,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final opened = <bool>[];
-      for (final index in [0, 1, 2]) {
+      for (var index = 0; index < kMarketTabIndex; index++) {
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(
@@ -279,7 +280,7 @@ void main() {
         );
         expect(marketplace.initialCategory, entry.wire);
         expect(tabSelections, [
-          3,
+          kMarketTabIndex,
         ], reason: 'the Market tab is selected underneath the landing');
         // Sheet route + exactly one filtered marketplace route.
         expect(recorder.pushes, 2);
@@ -379,7 +380,7 @@ void main() {
       // marketplace2 → pushes 4 (2 sheets + 2 pages), pops 3.
       expect(recorder.pushes, 4);
       expect(recorder.pops, 3);
-      expect(tabSelections, [3, 3]);
+      expect(tabSelections, [kMarketTabIndex, kMarketTabIndex]);
       expect(_sheetRouteFinder, findsNothing);
       expect(
         tester

@@ -24,7 +24,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/trades_tab_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -130,12 +130,8 @@ class TodayWidget extends ConsumerWidget {
                   error: summary.friendsError,
                   onTap: () {
                     AzamanHaptics.nav();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FriendsHubScreen(),
-                      ),
-                    );
+                    // NEW-A: canonical /friends route.
+                    context.push(AzRoutes.friends);
                   },
                 ),
                 _StatTile(

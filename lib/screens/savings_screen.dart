@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/savings_overview_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/vault/vault_list_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -23,41 +23,22 @@ class SavingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SavingsScreenState extends ConsumerState<SavingsScreen> {
-  Map<String, dynamic>? _overview;
-  bool _isLoading = true;
+  // NEW-HOME audit: the overview now lives in the shared cached provider —
+  // the SAME signal the Home "Save" notice reads when it already exists —
+  // so Savings and Home never disagree, and Home never fetches.
+  Map<String, dynamic>? get _overview =>
+      ref.watch(savingsOverviewProvider).valueOrNull?.data;
+  bool get _isLoading =>
+      ref.watch(savingsOverviewProvider.select((a) => a.isLoading));
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchOverview();
-  }
-
-  Future<void> _fetchOverview() async {
-    try {
-      final response = await apiClient.get('/savings/overview');
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (mounted) {
-          setState(() {
-            _overview = body['data'];
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      debugPrint('[Savings] Fetch error: $e');
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  Future<void> _fetchOverview() =>
+      ref.read(savingsOverviewProvider.notifier).reload();
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
-    if (_isLoading) {
+    if (_isLoading && _overview == null) {
       return const SkeletonList(itemHeight: 100, count: 4);
     }
 
@@ -403,7 +384,7 @@ class _CreateGoalSheetState extends ConsumerState<_CreateGoalSheet> {
     // is pinned below the scroll area (§I.8.3) — this form is keyboard-bound
     // and the keyboard will otherwise cover the commit.
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

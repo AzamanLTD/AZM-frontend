@@ -4,12 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:go_router/go_router.dart';
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -178,12 +179,8 @@ class _State extends ConsumerState<NotificationOverlay>
             behavior: HitTestBehavior.opaque,
             onTap: () {
               widget.onClose();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const BusinessNotificationsScreen(),
-                ),
-              );
+              // NEW-A: canonical business notifications route.
+              context.push(AzRoutes.businessNotifications);
             },
             child: Container(
               padding: const EdgeInsets.all(16),

@@ -1,23 +1,17 @@
-// NEW-D — Home's 3-pill structure and the History→Withdraw demotion.
+// NEW-HOME — the resting-Home contract (replaces the NEW-D pill pins).
 //
-// Pins §G.8's §10.10 decision on the live page: FOUR quick actions became
-// THREE — "fewer, larger, better". Withdraw is a rare, considered action
-// (and WithdrawalScreen commits through its own slide-to-confirm), so it
-// moves one tap deeper behind History. These tests pin both halves:
+// The pill row (Add Money / Send / History) is GONE from Home (§7): those
+// actions live in the + launcher. The three transaction rows (§10), the
+// Susu shortcut card, the horizontal card rail and the LiveMarket /
+// TODAY'S RATE section (§14) are gone from the resting Home too.
 //
-//   1. The pill row is exactly Add Money / Send / History — no Withdraw
-//      pill on the page surface.
-//   2. History opens the sheet, and the sheet exposes the two-tap path
-//      back to Withdraw — the demotion must be a relocation, not a loss.
-//      (Navigation is pinned on the Transaction history tile; both tiles
-//      share the same pop-then-push seam.)
+// This suite pins what remains: the five-block resting hierarchy — header,
+// typewriter heading, card deck, three wallet modules, activity doorway —
+// and the absence of everything the brief removed.
 //
-// The harness mirrors test/widgets/home_entrance_test.dart: an inert
-// AuthProvider (user null → greeting degrades to "there"), zeroed unread
-// count, stubbed balance/oracle, and the real app theme with the Inter
-// face loaded (the fixed-width default test font overflows layouts that
-// fit). The empty history also pins the honesty gate end-to-end: no
-// loaded history means NO insight card in the deck.
+// The harness mirrors the previous NEW-D home tests: an inert AuthProvider
+// (user null → greeting degrades to "there"), zeroed unread count, stubbed
+// balance/oracle, and the real app theme with the Inter face loaded.
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -26,9 +20,15 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/screens/transaction_history_screen.dart';
-import 'package:azaman/widgets/home/az_insight_card.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/live_market_section.dart';
+import 'package:azaman/widgets/recent_activity_section.dart';
+import 'package:azaman/widgets/home/az_typewriter_heading.dart';
+import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
+import 'package:azaman/widgets/home/wallet_modules.dart';
+import 'package:azaman/widgets/home/activity_doorway.dart';
+import 'package:azaman/widgets/home/azm_visa_card.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,8 +75,6 @@ Future<ProviderContainer> _pumpHome(WidgetTester tester) async {
       ),
     ),
   );
-  // Fire the entrance start timer + the choreography, then settle the
-  // network-idle sections (same cadence as home_entrance_test).
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 600));
   await tester.pump(const Duration(milliseconds: 200));
@@ -84,46 +82,51 @@ Future<ProviderContainer> _pumpHome(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Home shows exactly the three pills — Add Money, Send, History',
+  testWidgets('the pill row is gone — actions belong to the + launcher',
       (tester) async {
     await _pumpHome(tester);
 
-    expect(find.text('Add Money'), findsOneWidget);
-    expect(find.text('Send'), findsOneWidget);
-    expect(find.text('History'), findsOneWidget);
-
-    // The demotion: no Withdraw PILL on the page surface anymore.
-    expect(find.text('Withdraw'), findsNothing);
-
-    // Honesty gate, end to end: no loaded history → no insight card in
-    // the deck, and no fabricated insight to fill the slot.
-    expect(find.byType(AzInsightCard), findsNothing);
+    expect(find.text('Add Money'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+    expect(find.text('History'), findsNothing);
   });
 
-  testWidgets('History opens the sheet with the two-tap path back to Withdraw',
+  testWidgets(
+      'the five-block resting hierarchy is exactly the NEW-HOME order',
       (tester) async {
     await _pumpHome(tester);
 
-    await tester.tap(find.text('History'));
-    // Fixed pumps, never pumpAndSettle: Home carries repeating controllers
-    // (bell fade, live-market ticker) that never settle — the same reason
-    // home_entrance_test pumps fixed durations.
-    await tester.pump(); // tap
-    await tester.pump(const Duration(milliseconds: 400)); // sheet entrance
+    // 1 — header (identity row).
+    expect(find.byType(AzamanHomePage), findsOneWidget);
+    expect(find.byType(AzTypewriterHeading), findsOneWidget);
 
-    // The sheet is the relocated home for the rare action: both tiles
-    // visible at once.
-    expect(find.text('Transaction history'), findsOneWidget);
-    expect(find.text('Withdraw'), findsOneWidget);
+    // 2 — balance card still the hero, now inside the pull-reveal deck.
+    expect(find.byType(FlippableBalanceCard), findsOneWidget);
+    expect(find.byType(PullRevealCardDeck), findsOneWidget);
 
-    // Both tiles must actually navigate: the sheet is a router, not a
-    // dead end. (WithdrawalScreen's background services crash the test
-    // shell, so the navigation is pinned on the lighter Transaction
-    // history tile — the same pop-then-push seam both tiles share.)
-    await tester.tap(find.text('Transaction history'));
-    await tester.pump(); // sheet pop
-    await tester.pump(const Duration(milliseconds: 600)); // route transition
+    // 3 — the Visa card exists UNDER the balance card (peeking at rest).
+    expect(find.byType(AzmVisaCard), findsOneWidget);
 
-    expect(find.byType(TransactionHistoryScreen), findsOneWidget);
+    // 4 — exactly the three wallet modules.
+    expect(find.byType(WalletModulesRow), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('P2P'), findsOneWidget);
+    expect(find.text('Susu'), findsOneWidget);
+
+    // 5 — the Recent Activity doorway, and NO rows beneath it.
+    expect(find.byType(RecentActivityDoorway), findsOneWidget);
+    // Two headings at rest: the doorway's plus the (opacity-0) activity
+    // surface's — mounted but faded out, like the deck's under-card.
+    expect(find.text('Recent Activity'), findsNWidgets(2));
+    expect(find.byType(RecentActivitySection), findsNothing);
+    expect(find.byType(SkeletonBlock), findsNothing);
+  });
+
+  testWidgets('the LiveMarket / TODAY\'S RATE section is gone from Home',
+      (tester) async {
+    await _pumpHome(tester);
+
+    expect(find.byType(LiveMarketSection), findsNothing);
+    expect(find.textContaining("TODAY'S RATE"), findsNothing);
   });
 }

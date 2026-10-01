@@ -232,13 +232,13 @@ void main() {
   });
 
   group('PremiumBottomNav widget', () {
-    testWidgets('at rest: full height, full opacity, four labels', (tester) async {
+    testWidgets('at rest: full height, full opacity, three labels', (tester) async {
       await _pumpNav(tester);
       await tester.pumpAndSettle();
 
       expect(_navHeight(tester), 62 + 16);
       expect(_pillOpacity(tester), 1.0);
-      for (final label in ['Home', 'Chat', 'P2P', 'Market']) {
+      for (final label in ['Home', 'Chat', 'Marketplace']) {
         expect(find.text(label), findsOneWidget);
       }
     });
@@ -250,7 +250,7 @@ void main() {
 
       expect(_navHeight(tester), 52 + 16);
       expect(_pillOpacity(tester), closeTo(0.92, 0.001));
-      for (final label in ['Home', 'Chat', 'P2P', 'Market']) {
+      for (final label in ['Home', 'Chat', 'Marketplace']) {
         expect(find.text(label), findsNothing);
       }
       // Icons survive the compression — the pill is icon-only, not empty.

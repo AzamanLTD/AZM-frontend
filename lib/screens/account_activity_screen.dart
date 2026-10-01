@@ -27,7 +27,6 @@ import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/staggered_item.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class AccountActivityScreen extends ConsumerStatefulWidget {
   const AccountActivityScreen({super.key});
 
@@ -36,11 +35,20 @@ class AccountActivityScreen extends ConsumerStatefulWidget {
       _AccountActivityScreenState();
 }
 
-class _AccountActivityScreenState
-    extends ConsumerState<AccountActivityScreen> {
+class _AccountActivityScreenState extends ConsumerState<AccountActivityScreen>
+    with RestorationMixin {
   static const int _pageSize = 20;
 
   final ScrollController _scroll = ScrollController();
+
+  // ── NEW-A restoration ──────────────────────────────────────────────────
+  // The scroll position of this long list survives widget subtree / app
+  // reconstruction through Flutter's own restoration system (no custom
+  // cache). The route's page declares a stable restorationId (its route
+  // name, via the rise transition family), so ModalRoute wraps this
+  // subtree in a RestorationScope and this bucket is claimed under it.
+  late final RestorableDouble _restoredOffset = RestorableDouble(0);
+  double _lastRecordedOffset = 0;
   final List<_ActivityEntry> _entries = [];
 
   int _page = 1;
@@ -52,6 +60,7 @@ class _AccountActivityScreenState
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    _scroll.addListener(_recordOffsetForRestoration);
     // Defer the first fetch to the next frame so the scaffold is mounted
     // before any setState calls fire.
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitial());
@@ -60,14 +69,66 @@ class _AccountActivityScreenState
   @override
   void dispose() {
     _scroll.removeListener(_onScroll);
+    _scroll.removeListener(_recordOffsetForRestoration);
+    _restoredOffset.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
+  // ── NEW-A restoration ──────────────────────────────────────────────────
+
+  @override
+  String? get restorationId => 'account-activity-scroll';
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    registerForRestoration(_restoredOffset, 'scroll_offset');
+    // The list has no clients yet (build has not happened). Apply the
+    // restored offset on the first frame where the scroll view is
+    // attached and the content is tall enough to hold it.
+    if (_restoredOffset.value > 0) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyRestoredOffset(),
+      );
+    }
+  }
+
+  void _recordOffsetForRestoration() {
+    if (!_scroll.hasClients) return;
+    final offset = _scroll.position.pixels;
+    if (offset == _lastRecordedOffset) return;
+    _lastRecordedOffset = offset;
+    // RestorableDouble writes into the restoration bucket (when the
+    // restoration system is active) — the framework owns the storage.
+    _restoredOffset.value = offset;
+  }
+
+  void _applyRestoredOffset() {
+    if (!mounted) return;
+    if (!_scroll.hasClients) {
+      // Not attached yet — retry on the next frame.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyRestoredOffset(),
+      );
+      return;
+    }
+    final target = _restoredOffset.value;
+    final extent = _scroll.position.maxScrollExtent;
+    if (extent >= target) {
+      _scroll.jumpTo(target);
+      _lastRecordedOffset = target;
+    } else if (extent > 0) {
+      // Content still shorter than the restored offset (a page is still
+      // loading) — wait for the next growth.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyRestoredOffset(),
+      );
+    }
+  }
+
   void _onScroll() {
     if (!_hasMore || _loading) return;
-    if (_scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 200) {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
       _loadNextPage();
     }
   }
@@ -87,8 +148,9 @@ class _AccountActivityScreenState
     setState(() => _loading = true);
 
     try {
-      final response = await apiClient
-          .get('/users/me/security-logs?page=$_page&limit=$_pageSize');
+      final response = await apiClient.get(
+        '/users/me/security-logs?page=$_page&limit=$_pageSize',
+      );
       final data = jsonDecode(response.body);
 
       if (data is Map<String, dynamic> && data['success'] == true) {
@@ -108,10 +170,11 @@ class _AccountActivityScreenState
           _error = null;
         });
       } else {
-        setState(() => _error =
-            (data is Map<String, dynamic>)
-                ? (data['message']?.toString() ?? 'Could not load activity.')
-                : 'Could not load activity.');
+        setState(
+          () => _error = (data is Map<String, dynamic>)
+              ? (data['message']?.toString() ?? 'Could not load activity.')
+              : 'Could not load activity.',
+        );
       }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -145,10 +208,7 @@ class _AccountActivityScreenState
           ),
         ),
       ),
-      body: AzPullToRefresh(
-        onRefresh: _loadInitial,
-        child: _buildBody(colors),
-      ),
+      body: AzPullToRefresh(onRefresh: _loadInitial, child: _buildBody(colors)),
     );
   }
 
@@ -163,19 +223,35 @@ class _AccountActivityScreenState
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              SkeletonBlock(height: 40, width: 40, borderRadius: BorderRadius.circular(20)),
+              SkeletonBlock(
+                height: 40,
+                width: 40,
+                borderRadius: BorderRadius.circular(20),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SkeletonBlock(height: 14, width: double.infinity, borderRadius: BorderRadius.circular(4)),
+                    SkeletonBlock(
+                      height: 14,
+                      width: double.infinity,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     const SizedBox(height: 6),
-                    SkeletonBlock(height: 12, width: 120, borderRadius: BorderRadius.circular(4)),
+                    SkeletonBlock(
+                      height: 12,
+                      width: 120,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ],
                 ),
               ),
-              SkeletonBlock(height: 16, width: 60, borderRadius: BorderRadius.circular(4)),
+              SkeletonBlock(
+                height: 16,
+                width: 60,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ],
           ),
         ),
@@ -187,8 +263,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(Icons.error_outline,
-              color: colors.danger, size: 48),
+          Icon(Icons.error_outline, color: colors.danger, size: 48),
           const SizedBox(height: 12),
           Center(
             child: Padding(
@@ -204,8 +279,7 @@ class _AccountActivityScreenState
           Center(
             child: TextButton(
               onPressed: _loadInitial,
-              child: Text('Retry',
-                  style: TextStyle(color: colors.accent)),
+              child: Text('Retry', style: TextStyle(color: colors.accent)),
             ),
           ),
         ],
@@ -217,8 +291,7 @@ class _AccountActivityScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(Icons.history,
-              color: colors.textTertiary, size: 56),
+          Icon(Icons.history, color: colors.textTertiary, size: 56),
           const SizedBox(height: 12),
           Center(
             child: Text(
@@ -234,8 +307,7 @@ class _AccountActivityScreenState
           Center(
             child: Text(
               'Sign-ins, password changes, and security events show here.',
-              style:
-                  TextStyle(color: colors.textTertiary, fontSize: 12),
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
             ),
           ),
         ],
@@ -266,10 +338,7 @@ class _AccountActivityScreenState
             ),
           );
         }
-        return StaggeredItem(
-          index: i,
-          child: _entryCard(_entries[i], colors),
-        );
+        return StaggeredItem(index: i, child: _entryCard(_entries[i], colors));
       },
     );
   }
@@ -294,11 +363,7 @@ class _AccountActivityScreenState
               borderRadius: BorderRadius.circular(11),
             ),
             alignment: Alignment.center,
-            child: Icon(
-              _iconFor(e.title),
-              color: colors.accent,
-              size: 20,
-            ),
+            child: Icon(_iconFor(e.title), color: colors.accent, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -325,10 +390,7 @@ class _AccountActivityScreenState
                 const SizedBox(height: 6),
                 Text(
                   _formatTimestamp(e.createdAt),
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
             ),
@@ -394,9 +456,7 @@ class _ActivityEntry {
     return _ActivityEntry(
       id: json['id']?.toString() ?? '',
       title: (json['title']?.toString() ?? 'Account event'),
-      body: (json['body']?.toString() ??
-          json['message']?.toString() ??
-          ''),
+      body: (json['body']?.toString() ?? json['message']?.toString() ?? ''),
       createdAt: ts,
       isRead: json['isRead'] == true,
     );
