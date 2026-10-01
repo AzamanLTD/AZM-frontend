@@ -45,13 +45,11 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_button.dart';
 
-
 class SavedWalletsScreen extends ConsumerStatefulWidget {
   const SavedWalletsScreen({super.key});
 
   @override
-  ConsumerState<SavedWalletsScreen> createState() =>
-      _SavedWalletsScreenState();
+  ConsumerState<SavedWalletsScreen> createState() => _SavedWalletsScreenState();
 }
 
 enum _Bucket { mobileMoney, crypto }
@@ -105,7 +103,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
             'MTN' => 'MTN_MOMO',
             'VODAFONE' => 'TELECEL_CASH', // legacy mapping
             'TELECEL' => 'TELECEL_CASH',
-            'TELECEL' => 'AIRTELTIGO',
+            'AIRTELTIGO' => 'AIRTELTIGO',
             _ => 'MTN_MOMO',
           };
           merged.add({
@@ -181,14 +179,22 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
     // recognised crypto network. Anything else (UNKNOWN, miscategorised
     // legacy rows) is hidden.
     const allowed = {
-      'MTN_MOMO', 'TELECEL_CASH', 'AIRTELTIGO',
-      'BINANCE_ID', 'TRC20', 'ERC20_BEP20', 'POLYGON',
+      'MTN_MOMO',
+      'TELECEL_CASH',
+      'AIRTELTIGO',
+      'BINANCE_ID',
+      'TRC20',
+      'ERC20_BEP20',
+      'POLYGON',
     };
     if (allowed.contains(network)) return true;
     // Provider-based fallback for older rows that don't set `network`.
     const allowedProviders = {
-      'MTN MOMO', 'TELECEL CASH', 'AIRTELTIGO',
-      'BINANCE PAY', 'EXTERNAL WALLET',
+      'MTN MOMO',
+      'TELECEL CASH',
+      'AIRTELTIGO',
+      'BINANCE PAY',
+      'EXTERNAL WALLET',
     };
     return allowedProviders.contains(provider);
   }
@@ -216,14 +222,18 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
       if (res.statusCode == 200) {
         await _fetchSavedWallets();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Removed'),
-            backgroundColor: colors.success,
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Removed'),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
-    } catch (_) {/* swallow */}
+    } catch (_) {
+      /* swallow */
+    }
   }
 
   @override
@@ -239,8 +249,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -278,9 +287,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
           const SizedBox(height: 4),
           Expanded(
             child: _isLoading
-                ? Center(
-                    child:
-                        CircularProgressIndicator(color: colors.accent))
+                ? Center(child: CircularProgressIndicator(color: colors.accent))
                 : TabBarView(
                     controller: _tabController,
                     children: [
@@ -294,8 +301,11 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
     );
   }
 
-  Widget _buildList(List<dynamic> items, AzamanColors colors,
-      {required bool isCrypto}) {
+  Widget _buildList(
+    List<dynamic> items,
+    AzamanColors colors, {
+    required bool isCrypto,
+  }) {
     if (items.isEmpty) {
       return Center(
         child: Padding(
@@ -304,9 +314,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                isCrypto
-                    ? Icons.currency_bitcoin
-                    : Icons.smartphone_outlined,
+                isCrypto ? Icons.currency_bitcoin : Icons.smartphone_outlined,
                 size: 44,
                 color: colors.textTertiary,
               ),
@@ -315,14 +323,12 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
                 isCrypto
                     ? 'No crypto payout wallets yet'
                     : 'No mobile money accounts yet',
-                style:
-                    TextStyle(color: colors.textSecondary, fontSize: 14),
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 6),
               Text(
                 'Tap + to add one.',
-                style:
-                    TextStyle(color: colors.textTertiary, fontSize: 12),
+                style: TextStyle(color: colors.textTertiary, fontSize: 12),
               ),
             ],
           ),
@@ -347,10 +353,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
 
   // ── Add sheet ─────────────────────────────────────────────────────────────
   void _showAddSheet(AzamanColors colors) {
-    AddPayoutSheet.show(
-      context,
-      onSaved: _fetchSavedWallets,
-    );
+    AddPayoutSheet.show(context, onSaved: _fetchSavedWallets);
   }
 }
 
@@ -384,9 +387,14 @@ class _SegmentedTabs extends StatelessWidget {
         labelColor: colors.isDark ? Colors.black : Colors.white,
         unselectedLabelColor: colors.textSecondary,
         labelStyle: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4),
-        unselectedLabelStyle:
-            const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
         dividerColor: Colors.transparent,
         splashFactory: NoSplash.splashFactory,
         overlayColor: WidgetStateProperty.all(Colors.transparent),
@@ -433,9 +441,7 @@ class _WalletTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              isCrypto
-                  ? Icons.currency_bitcoin
-                  : Icons.smartphone_outlined,
+              isCrypto ? Icons.currency_bitcoin : Icons.smartphone_outlined,
               color: accent,
               size: 20,
             ),
@@ -468,8 +474,7 @@ class _WalletTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline,
-                color: colors.danger, size: 18),
+            icon: Icon(Icons.delete_outline, color: colors.danger, size: 18),
             onPressed: onDelete,
           ),
         ],
@@ -534,9 +539,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
   bool _submitting = false;
 
   static const _momos = [
-    {'id': 'MTN_MOMO',     'name': 'MTN MoMo',     'color': Color(0xFFFFCC00)},
-    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash',  'color': Color(0xFFE60000)},
-    {'id': 'AIRTELTIGO',   'name': 'AirtelTigo',    'color': Color(0xFFD62828)},
+    {'id': 'MTN_MOMO', 'name': 'MTN MoMo', 'color': Color(0xFFFFCC00)},
+    {'id': 'TELECEL_CASH', 'name': 'Telecel Cash', 'color': Color(0xFFE60000)},
+    {'id': 'AIRTELTIGO', 'name': 'AirtelTigo', 'color': Color(0xFFD62828)},
   ];
 
   @override
@@ -607,11 +612,13 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           HapticFeedback.heavyImpact();
           Navigator.of(context).pop();
           widget.onSaved();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Payout destination saved'),
-            backgroundColor: colors.success,
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Payout destination saved'),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       } else {
         final body = jsonDecode(res.body);
@@ -626,11 +633,13 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
 
   void _showError(String msg) {
     final colors = ref.read(themeProvider).colors;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: colors.danger,
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: colors.danger,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   /// Master Sprint v2: inline password prompt for the security gate. The
@@ -645,7 +654,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: colors.card,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           title: Row(
             children: [
               Icon(Icons.lock_outline, color: colors.warning, size: 18),
@@ -667,14 +678,21 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               children: [
                 Text(
                   'Saving a payout destination requires re-entering your password.',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: ctrl,
                   autofocus: true,
                   obscureText: true,
-                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: colors.background.withValues(alpha: 0.6),
@@ -697,13 +715,20 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, null),
-              child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textSecondary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text('Confirm',
-                  style: TextStyle(
-                      color: colors.accent, fontWeight: FontWeight.w800)),
+              child: Text(
+                'Confirm',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
         );
@@ -720,8 +745,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -737,7 +761,8 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
             // Drag handle
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: colors.divider,
                   borderRadius: BorderRadius.circular(2),
@@ -749,28 +774,40 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
             Row(
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: colors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(Icons.account_balance_wallet_outlined,
-                    color: colors.accent, size: 22),
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: colors.accent,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Add Payout Destination',
+                      Text(
+                        'Add Payout Destination',
                         style: TextStyle(
                           color: colors.textPrimary,
-                          fontSize: 17, fontWeight: FontWeight.w900,
-                          letterSpacing: -0.3)),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('Saved accounts for quick withdrawals',
+                      Text(
+                        'Saved accounts for quick withdrawals',
                         style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11)),
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -791,14 +828,20 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
               children: [
                 Expanded(
                   child: _segmentButton(
-                      colors, 'Mobile Money', _category == 'mobileMoney',
-                      () => setState(() => _category = 'mobileMoney')),
+                    colors,
+                    'Mobile Money',
+                    _category == 'mobileMoney',
+                    () => setState(() => _category = 'mobileMoney'),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _segmentButton(
-                      colors, 'Crypto', _category == 'crypto',
-                      () => setState(() => _category = 'crypto')),
+                    colors,
+                    'Crypto',
+                    _category == 'crypto',
+                    () => setState(() => _category = 'crypto'),
+                  ),
                 ),
               ],
             ),
@@ -814,11 +857,11 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                 onPressed: _submitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
-                  foregroundColor:
-                      colors.isDark ? Colors.black : Colors.white,
+                  foregroundColor: colors.isDark ? Colors.black : Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
                 child: _submitting
@@ -826,9 +869,14 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.black))
-                    : const Text('Save',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
+                          strokeWidth: 2,
+                          color: Colors.black,
+                        ),
+                      )
+                    : const Text(
+                        'Save',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
               ),
             ),
           ],
@@ -838,7 +886,11 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
   }
 
   Widget _segmentButton(
-      AzamanColors colors, String label, bool selected, VoidCallback onTap) {
+    AzamanColors colors,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -866,12 +918,15 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
 
   List<Widget> _momoForm(AzamanColors colors) {
     return [
-      Text('Network',
-          style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8)),
+      Text(
+        'Network',
+        style: TextStyle(
+          color: colors.textTertiary,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
+      ),
       const SizedBox(height: 8),
       Row(
         children: _momos.map((m) {
@@ -881,12 +936,17 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
             child: Padding(
               padding: const EdgeInsets.only(right: 6),
               child: GestureDetector(
-                onTap: () { HapticFeedback.selectionClick(); setState(() => _momoNetwork = m['id'] as String); },
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _momoNetwork = m['id'] as String);
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: selected ? c.withValues(alpha: 0.13) : colors.softSurface,
+                    color: selected
+                        ? c.withValues(alpha: 0.13)
+                        : colors.softSurface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected ? c : colors.divider,
@@ -897,14 +957,16 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 10, height: 10,
+                        width: 10,
+                        height: 10,
                         decoration: BoxDecoration(
                           color: c,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(m['name'] as String,
+                      Text(
+                        m['name'] as String,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: selected ? c : colors.textSecondary,
@@ -970,9 +1032,9 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                   });
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(e.toString())));
                   }
                 }
               },
@@ -1038,8 +1100,7 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
         'Tip: Binance Pay IDs incur zero gas fees. External chains '
         '(TRC20 / ERC20) carry network fees that may be split per the '
         'platform fee schedule.',
-        style: TextStyle(
-            color: colors.textTertiary, fontSize: 11, height: 1.4),
+        style: TextStyle(color: colors.textTertiary, fontSize: 11, height: 1.4),
       ),
     ];
   }
@@ -1067,12 +1128,15 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8)),
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -1084,16 +1148,17 @@ class _Field extends StatelessWidget {
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle:
-                TextStyle(color: colors.textTertiary, fontSize: 13),
+            hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
           ),
         ),
       ],

@@ -1,45 +1,64 @@
 // =============================================================================
-// AZAMAN — UNIFIED DEPOSIT SCREEN
+// AZAMAN — ADD CASH  (deposit redesign, 2026-10)
 //
-// Replaces the old bottom-sheet chooser + two separate screens with a single,
-// slender, Binance-style screen with two top-segmented tabs:
+// The deposit surface redesigned as ONE composed product sheet:
 //
-//   • Crypto       — user's dedicated Polygon USDC sub-wallet address +
-//                    QR + copy + share. The address is derived once per
-//                    user from the platform's HD wallet xpub (backend:
-//                    GET /api/wallet/deposit-address/polygon).
+//   [X] Add Cash            ← the single authoritative close affordance
+//   Fiat | Crypto           ← the switch, immediately below the header
+//   GH₵ 0                   ← odometer amount, huge, the visual anchor
+//   [50][100][200][500]     ← quick amounts
+//   1 2 3 / 4 5 6 / 7 8 9 / . 0 ⌫   ← custom keypad
+//   [network] Name / 024 … / ˅      ← ONE payment-method row → selector sheet
+//   [ Add Cash ]            ← CTA, bottom safe area
 //
-//   • Mobile Money — fiat top-up via MTN / Telecel / AirtelTigo
-//                    or bank transfer. Posts to /api/deposit/fiat/initiate
-//                    and the gateway webhook credits the user once funds
-//                    settle.
+// The canonical `/deposit` route (NEW-A) is unchanged: the rise transition at
+// route level is what makes this surface arrive from the bottom, and a
+// deliberate downward pull dismisses it (see _DepositScreenState).
 //
-// Design intent: ALL deposit affordances on the dashboard ("Deposit" quick
-// action, settings drawer shortcut, anywhere else) route here. The user
-// gets one coherent surface with both options instead of guessing which
-// flow to pick from a chooser sheet.
+// ── FINANCIAL CONTRACT (do not weaken) ────────────────────────────────────────
+// The visual layer changed completely in the 2026-10 redesign; the financial
+// layer did NOT:
+//   • /deposit/validate-name confirmation before mutation
+//   • /deposit/fiat/initiate/moolre via postFinancial with a durable
+//     FinancialOperationRef (one key per logical initiation, retried safely)
+//   • the OTP branch (requiresOtp=true → /deposit/fiat/initiate/moolre/otp)
+//   • socket confirmation (SocketService.onDepositSuccess)
+//   • demo-mode auto-confirmation
+//   • ?amount= pre-fill + ?memo= trace (Susu reminder deep links)
+// The UI may change; this contract may not.
 // =============================================================================
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-
-import 'package:azaman/screens/saved_wallets_screen.dart'; // For AddPayoutSheet
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:azaman/config.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/amount_input.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/amount_keypad.dart';
+import 'package:azaman/widgets/animated_qr_dust.dart';
+import 'package:azaman/widgets/momo_network.dart';
+import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/scale_tap.dart';
-import 'package:azaman/config.dart';
+import 'package:azaman/screens/saved_wallets_screen.dart' show AddPayoutSheet;
 
+// =============================================================================
+// DEPOSIT SCREEN — the Add Cash surface
+// =============================================================================
 
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({
@@ -51,16 +70,16 @@ class DepositScreen extends ConsumerStatefulWidget {
 
   final DepositTab initialTab;
 
-  /// Pre-fill amount for the Mobile Money tab. Set when the screen is
-  /// reached via a deep link such as `/deposit?amount=12.34&memo=susu:abc`,
-  /// most often the Susu T-24h reminder notification (Req 12.3 / 12.4).
-  /// The value must be a positive decimal with at most two fractional
-  /// digits, otherwise we ignore it and leave the input blank.
+  /// Pre-fill amount for the Fiat tab. Set when the screen is reached via a
+  /// deep link such as `/deposit?amount=12.34&memo=susu:abc`, most often the
+  /// Susu T-24h reminder notification (Req 12.3 / 12.4). The value must be a
+  /// positive decimal with at most two fractional digits, otherwise we
+  /// ignore it and leave the input blank.
   final String? prefillAmount;
 
   /// Opaque memo string (e.g. `susu:<susuId>`). Logged into the resulting
-  /// deposit's metadata server-side so operators can trace deposits back
-  /// to the cycle that prompted them. Not surfaced visually.
+  /// deposit's metadata server-side so operators can trace deposits back to
+  /// the cycle that prompted them. Not surfaced visually.
   final String? memo;
 
   @override
@@ -70,29 +89,98 @@ class DepositScreen extends ConsumerStatefulWidget {
 enum DepositTab { crypto, fiat }
 
 class _DepositScreenState extends ConsumerState<DepositScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final TabController _tabController;
+
+  // ── Pull-down dismissal ─────────────────────────────────────────────────
+  // The Add Cash surface follows a downward finger pull with resistance and
+  // pops the route once the pull is committed (threshold or fling velocity).
+  // Below threshold it springs back to rest. Reduced motion keeps the
+  // interaction semantics and drops the travel choreography.
+  double _dragDy = 0;
+  double _settleFrom = 0;
+  bool _armed = false;
+  late final AnimationController _settle;
+
+  static const double _dragResistance = 0.55;
+  static const double _maxDragTravel = 240;
+  static const double _commitThreshold = 110;
+  static const double _flingVelocity = 700;
 
   @override
   void initState() {
     super.initState();
-    // Phase 4 (Susu Sprint, 2026-05-31): when the screen is opened via
-    // a deep link carrying ?amount=… (e.g. the T-24h reminder), force
-    // the Mobile Money tab so the pre-filled amount is immediately
-    // visible. Without this, a deposit reminder for $12.34 would land
-    // on the Crypto tab and the user would have to tap over manually.
+    // Phase 4 (Susu Sprint, 2026-05-31): when the screen is opened via a
+    // deep link carrying ?amount=… (e.g. the T-24h reminder), force the Fiat
+    // tab so the pre-filled amount is immediately visible.
     final hasPrefill = (widget.prefillAmount?.isNotEmpty ?? false);
     _tabController = TabController(
       length: 2,
       initialIndex: hasPrefill || widget.initialTab == DepositTab.fiat ? 1 : 0,
       vsync: this,
     );
+    _settle = AnimationController(
+      vsync: this,
+      duration: MotionTokens.control,
+      value: 1,
+    );
   }
 
   @override
   void dispose() {
+    _settle.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _closeSurface() {
+    AzamanHaptics.navigation();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
+  void _onDragStart(DragStartDetails _) {
+    _armed = false;
+    _settle.stop();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (details.delta.dy <= 0 && _dragDy == 0) return;
+    final next = (_dragDy + details.delta.dy * _dragResistance).clamp(
+      0.0,
+      _maxDragTravel,
+    );
+    if (next == _dragDy) return;
+    // The threshold haptic fires EXACTLY ONCE per crossing (see
+    // AzamanHaptics.threshold) — not on every frame past the line.
+    if (!_armed && next >= _commitThreshold) {
+      _armed = true;
+      AzamanHaptics.threshold();
+    } else if (_armed && next < _commitThreshold) {
+      _armed = false;
+    }
+    setState(() => _dragDy = next);
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final committed =
+        _dragDy >= _commitThreshold ||
+        details.velocity.pixelsPerSecond.dy >= _flingVelocity;
+    if (committed) {
+      _closeSurface(); // keep the current offset; the route animates out
+      return;
+    }
+    if (_dragDy <= 0) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      setState(() => _dragDy = 0);
+      return;
+    }
+    // Spring back to rest.
+    _settleFrom = _dragDy;
+    _settle.forward(from: 0);
   }
 
   @override
@@ -101,49 +189,171 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
 
     return Scaffold(
       backgroundColor: colors.surface,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: colors.textPrimary,
-            size: 18,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Deposit',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
+      body: SafeArea(
+        bottom: false,
+        child: GestureDetector(
+          // Translucent so taps pass through to buttons beneath; this
+          // recognizer only claims *vertical drag* gestures.
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragStart: _onDragStart,
+          onVerticalDragUpdate: _onDragUpdate,
+          onVerticalDragEnd: _onDragEnd,
+          child: AnimatedBuilder(
+            animation: _settle,
+            builder: (context, child) {
+              final double dy = _settle.isAnimating
+                  ? _settleFrom *
+                        (1.0 - MotionTokens.enter.transform(_settle.value))
+                  : _dragDy;
+              return Transform.translate(offset: Offset(0, dy), child: child);
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _AddCashHeader(colors: colors, onClose: _closeSurface),
+                _FiatCryptoSwitch(controller: _tabController, colors: colors),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      const _CryptoDepositPanel(),
+                      _FiatDepositPanel(
+                        prefillAmount: widget.prefillAmount,
+                        memo: widget.memo,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _SegmentedTabs(
-              controller: _tabController,
-              colors: colors,
-              labels: const ['Crypto', 'Mobile Money'],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEADER — [X] Add Cash. The X is the ONE close affordance: no back arrow,
+// no duplicate close controls.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AddCashHeader extends StatelessWidget {
+  const _AddCashHeader({required this.colors, required this.onClose});
+
+  final AzamanColors colors;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Row(
+        children: [
+          Semantics(
+            button: true,
+            label: 'Close Add Cash',
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: onClose,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
+              ),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  const _CryptoDepositPanel(),
-                  _FiatDepositPanel(
-                    prefillAmount: widget.prefillAmount,
-                    memo: widget.memo,
-                  ),
-                ],
+          ),
+          const SizedBox(width: 14),
+          Text(
+            'Add Cash',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIAT | CRYPTO SWITCH — a restrained two-way switch. The selected side
+// carries the accent underline; there is no heavy segmented container. The
+// TabController keeps the selection stable across rebuilds, and TabBarView
+// keeps the Crypto panel lazy: landing on Fiat does NOT fetch the Polygon
+// deposit address.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FiatCryptoSwitch extends StatelessWidget {
+  const _FiatCryptoSwitch({required this.controller, required this.colors});
+
+  final TabController controller;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _switchTab('Fiat', 1),
+          const SizedBox(width: 28),
+          _switchTab('Crypto', 0),
+        ],
+      ),
+    );
+  }
+
+  Widget _switchTab(String label, int index) {
+    final selected = controller.index == index;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label tab',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (controller.index == index) return;
+          AzamanHaptics.toggle();
+          controller.animateTo(
+            index,
+            duration: MotionTokens.control,
+            curve: MotionTokens.enter,
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? colors.textPrimary : colors.textTertiary,
+                fontSize: 15,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 5),
+            AnimatedContainer(
+              duration: MotionTokens.control,
+              curve: MotionTokens.enter,
+              width: 26,
+              height: 3,
+              decoration: BoxDecoration(
+                color: selected ? colors.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ],
@@ -153,59 +363,1362 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Segmented tab strip — Binance/Robinhood style, slender pill above content.
-// ─────────────────────────────────────────────────────────────────────────────
-class _SegmentedTabs extends StatelessWidget {
-  final TabController controller;
-  final AzamanColors colors;
-  final List<String> labels;
+// =============================================================================
+// FIAT PANEL — odometer amount, quick pills, keypad, method row, CTA.
+// =============================================================================
 
-  const _SegmentedTabs({
-    required this.controller,
-    required this.colors,
-    required this.labels,
-  });
+class _FiatDepositPanel extends ConsumerStatefulWidget {
+  const _FiatDepositPanel({this.prefillAmount, this.memo});
+
+  final String? prefillAmount;
+  final String? memo;
+
+  @override
+  ConsumerState<_FiatDepositPanel> createState() => _FiatDepositPanelState();
+}
+
+class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
+    with AutomaticKeepAliveClientMixin {
+  // ── Amount state machine ────────────────────────────────────────────────
+  // The keypad writes into a raw digits string; the odometer renders it.
+  // Invariants, enforced here (the ONLY place that can produce an amount):
+  //   • '' renders as 0 and parses to "no amount"
+  //   • at most one decimal point
+  //   • at most two fractional digits
+  //   • no leading-zero buildup ('0' + '5' → '5')
+  //   • no negative values (no sign key exists)
+  //   • at most 7 integer digits (GH₵ 9,999,999.99 covers every product cap)
+  String _amountRaw = '';
+
+  // The user's EXPLICIT payment-method choice (survives selector open/close
+  // and every rebuild). Auto-selection (primary account / lone account) is
+  // derived, never silently stored.
+  String? _selectedAccountId;
+  bool _isSubmitting = false;
+
+  // r42: one key per LOGICAL deposit initiation, reused across retries
+  // (a lost response may mean the initiation already committed); retired
+  // on any answered non-409 outcome.
+  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
+  // Each genuinely new deposit initiation gets a fresh durable instance;
+  // the ref is this flow's retry handle — a re-tap after a lost response
+  // retries the SAME instance (same key), and a materially different body
+  // begins a genuinely new instance without disturbing the old one.
+  static const _initiateActionId = 'deposit.fiat.moolre.initiate';
+  final _initiateRef = FinancialOperationRef();
+  Map<String, dynamic>? _depositResult;
+
+  // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
+  // Name-validation dialog + OTP branch (Moolre TP14 returns requiresOtp).
+  String? _resolvedName;
+  bool _isValidatingName = false;
+  bool _requiresOtp = false;
+  String? _pendingReference;
+  final _otpController = TextEditingController();
+  bool _isConfirmingOtp = false;
+  bool _depositConfirmed = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  /// Map the canonical saved-account provider (MTN | TELECEL | AIRTELTIGO,
+  /// VODAFONE legacy still accepted) to the enum the backend's
+  /// `initiateMoolreFiatDeposit` MOMO set accepts
+  /// (MTN_MOMO | TELECEL_CASH | AIRTELTIGO). Telecel is the Vodafone Ghana
+  /// rebrand — the backend treats VODAFONE and TELECEL as the same channel —
+  /// so both map to TELECEL_CASH. The same enum is accepted by
+  /// `/deposit/validate-name`, so one mapping serves both calls.
+  String _backendProvider(String provider) {
+    if (provider == 'MTN_MOMO' ||
+        provider == 'VODAFONE_CASH' ||
+        provider == 'AIRTELTIGO') {
+      return provider;
+    }
+    switch (provider) {
+      case 'MTN':
+        return 'MTN_MOMO';
+      case 'TELECEL':
+      case 'VODAFONE': // legacy
+        return 'TELECEL_CASH';
+      case 'AIRTELTIGO':
+        return 'AIRTELTIGO';
+      default:
+        return '${provider}_MOMO';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Phase 4 (Susu Sprint, 2026-05-31) — Req 12.4 / 12.6: pre-fill the
+    // amount when the screen was opened with `?amount=…`. Validate the value
+    // has at most two fractional digits and is strictly > 0; anything else
+    // is dropped silently and the input stays empty so the user notices and
+    // re-enters.
+    final raw = widget.prefillAmount?.trim();
+    if (raw != null && raw.isNotEmpty) {
+      final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
+      final v = double.tryParse(raw);
+      if (ok && v != null && v > 0) {
+        _amountRaw = raw;
+      }
+    }
+    SocketService.instance.onDepositSuccess((
+      amountGhs,
+      amountUsdc,
+      provider,
+      reference,
+    ) {
+      if (!mounted) return;
+      final pendingRef =
+          _pendingReference ?? (_depositResult?['reference']?.toString() ?? '');
+      if (pendingRef.isEmpty || reference != pendingRef) return;
+      setState(() => _depositConfirmed = true);
+      final colors = ref.read(themeProvider).colors;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✓ Deposit confirmed — GH₵ ${amountGhs.toStringAsFixed(2)} credited to your wallet',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: colors.success,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.onDepositSuccess((a, b, c, d) {});
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  // ── Amount input state machine ──────────────────────────────────────────
+
+  void _onKeypadKey(String key) {
+    if (_isSubmitting || _isValidatingName) return;
+    setState(() => _amountRaw = AmountInput.applyKey(_amountRaw, key));
+  }
+
+  /// The amount as the user entered it, or null when there is no amount.
+  /// Every invalid-state rule (single decimal point, two fractional digits,
+  /// leading zeros, 7-digit integer cap) is enforced by the pure
+  /// [AmountInput] state machine — the same code the unit tests exercise.
+  double? get _amountValue => AmountInput.value(_amountRaw);
+
+  /// The odometer string: grouped integer part, fraction exactly as typed.
+  /// Empty input displays as '0'.
+  String get _amountDisplay => AmountInput.display(_amountRaw);
+
+  // ── Payment-method selection ─────────────────────────────────────────────
+
+  /// The account that actually backs this deposit. Priority:
+  ///   1. the user's explicit choice (if it still exists),
+  ///   2. the primary account,
+  ///   3. the ONLY account when exactly one exists,
+  ///   4. null — never an arbitrary first account.
+  SavedMomoAccount? _currentAccount(List<SavedMomoAccount> accounts) {
+    if (_selectedAccountId != null) {
+      for (final a in accounts) {
+        if (a.id == _selectedAccountId) return a;
+      }
+    }
+    SavedMomoAccount? primary;
+    for (final a in accounts) {
+      if (a.isPrimary) {
+        primary = a;
+        break;
+      }
+    }
+    if (primary != null) return primary;
+    if (accounts.length == 1) return accounts.single;
+    return null;
+  }
+
+  // ── Financial flow (unchanged contract) ───────────────────────────────────
+
+  /// Resolve the registered account name via Moolre, show a confirmation
+  /// dialog, then proceed to the deposit. Name validation is best-effort —
+  /// if it fails we proceed without it rather than block the deposit.
+  Future<void> _validateAndConfirm() async {
+    final account = _currentAccount(
+      ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
+    );
+    if (account == null) return;
+
+    setState(() => _isValidatingName = true);
+    try {
+      final resp = await apiClient.post('/deposit/validate-name', {
+        'phoneNumber': account.phoneNumber,
+        'provider': _backendProvider(account.provider),
+      });
+      final body = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && body['data'] != null) {
+        setState(() => _resolvedName = body['data'] as String?);
+      }
+    } catch (_) {
+      // Name validation is optional — proceed without it if it fails.
+    } finally {
+      if (mounted) setState(() => _isValidatingName = false);
+    }
+
+    if (_resolvedName != null && mounted) {
+      final colors = ref.read(themeProvider).colors;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text(
+            'Confirm account',
+            style: TextStyle(color: colors.textPrimary),
+          ),
+          content: Text(
+            'Paying to: $_resolvedName\nIs this correct?',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textTertiary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Confirm', style: TextStyle(color: colors.accent)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    await _initiateDeposit();
+  }
+
+  Future<void> _initiateDeposit() async {
+    final amount = _amountValue;
+    if (amount == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
+      return;
+    }
+    final account = _currentAccount(
+      ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
+    );
+    if (account == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a payment account')));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      // All saved accounts in this picker are Mobile Money (MTN / Telecel /
+      // AirtelTigo), so every deposit routes through the Moolre PIN-push
+      // on-ramp.
+      final body = <String, dynamic>{
+        'amountGhs': amount,
+        'provider': _backendProvider(account.provider),
+        'phoneNumber': account.phoneNumber,
+        // Susu memo trace (Req 12.4) — persisted into the deposit's
+        // metadata server-side so operators can tie a deposit back to the
+        // cycle reminder that prompted it.
+        if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
+      };
+      // r42: initiating a fiat deposit is a protected mutation — one key
+      // per LOGICAL initiation (the OTP confirmation is a separate route),
+      // reused across retries of the same initiation.
+      final response = await apiClient.postFinancial(
+        '/deposit/fiat/initiate/moolre',
+        body,
+        operationType: _initiateActionId,
+        ref: _initiateRef,
+      );
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        AzamanHaptics.commit();
+        if (data['requiresOtp'] == true) {
+          setState(() {
+            _isSubmitting = false;
+            _requiresOtp = true;
+            _pendingReference = data['data']?['reference']?.toString();
+          });
+        } else {
+          setState(() {
+            _depositResult = (data['data'] is Map<String, dynamic>)
+                ? data['data'] as Map<String, dynamic>
+                : data as Map<String, dynamic>;
+            _isSubmitting = false;
+          });
+          // In demo mode there's no real Moolre prompt to approve —
+          // auto-confirm after a short delay so the user sees the full
+          // deposit success flow.
+          if (AppConfig.demoMode) {
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted && _depositResult != null && !_depositConfirmed) {
+                setState(() => _depositConfirmed = true);
+              }
+            });
+          }
+        }
+      } else {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                data['message']?.toString() ?? 'Failed to initiate deposit',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        String msg;
+        if (e is SocketException || e is TimeoutException) {
+          msg = 'Connection failed. Check your internet and retry.';
+        } else if (e is ApiException) {
+          msg = e.message;
+        } else {
+          msg = 'Something went wrong. Please try again.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
+        );
+      }
+    }
+  }
+
+  /// Confirm a Moolre deposit that came back requiresOtp=true.
+  Future<void> _confirmOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.isEmpty) return;
+    setState(() => _isConfirmingOtp = true);
+    try {
+      final resp = await apiClient.post('/deposit/fiat/initiate/moolre/otp', {
+        'reference': _pendingReference,
+        'otpCode': otp,
+      });
+      final body = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && body['success'] == true) {
+        AzamanHaptics.commit();
+        setState(() {
+          _isConfirmingOtp = false;
+          _requiresOtp = false;
+          _depositResult = {'reference': _pendingReference};
+        });
+      } else {
+        setState(() => _isConfirmingOtp = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                body['message']?.toString() ?? 'OTP verification failed',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isConfirmingOtp = false);
+      if (mounted) {
+        final msg = (e is ApiException)
+            ? e.message
+            : (e is SocketException || e is TimeoutException)
+            ? 'Connection failed. Check your internet and retry.'
+            : 'Something went wrong. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
+        );
+      }
+    }
+  }
+
+  void _reset() {
+    setState(() {
+      _depositResult = null;
+      _requiresOtp = false;
+      _pendingReference = null;
+      _resolvedName = null;
+      _depositConfirmed = false;
+      _otpController.clear();
+      _amountRaw = '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
-        child: TabBar(
-          controller: controller,
-          isScrollable: true,
-          indicatorSize: TabBarIndicatorSize.label,
-          indicator: UnderlineTabIndicator(
-            borderSide: BorderSide(color: colors.accent, width: 2.5),
+    super.build(context);
+    final colors = ref.watch(themeProvider).colors;
+
+    return _requiresOtp
+        ? _buildOtpEntry(colors)
+        : _depositResult != null
+        ? _buildResult(colors)
+        : _buildForm(colors);
+  }
+
+  // ── Resting form: the composed Add Cash instrument ──────────────────────
+
+  Widget _buildForm(AzamanColors colors) {
+    final accountsAsync = ref.watch(savedMomoProvider);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 620;
+        final bottomInset = MediaQuery.of(context).padding.bottom;
+
+        return Column(
+          children: [
+            // Negative space above the amount — deliberate, proportional.
+            Expanded(
+              flex: compact ? 1 : 3,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          AzMoney.ghsSymbol,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: compact ? 24 : 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // The amount is the visual anchor. Empty input
+                      // renders as 0; only changed digits roll.
+                      OdometerNumber(
+                        value: _amountDisplay,
+                        style: AzText.money(
+                          colors.textPrimary,
+                          size: compact ? 52 : 64,
+                        ),
+                        semanticsLabel: '${AzMoney.ghsSymbol} $_amountDisplay',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Quick amounts — replace the current amount, roll the odometer.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final amt in const [50, 100, 200, 500])
+                    _QuickAmountPill(
+                      colors: colors,
+                      amount: amt,
+                      selected: _amountRaw == amt.toString(),
+                      onTap: () {
+                        if (_isSubmitting || _isValidatingName) return;
+                        AzamanHaptics.toggle();
+                        setState(() => _amountRaw = amt.toString());
+                      },
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: compact ? 10 : 16),
+
+            // The keypad stays fixed while the amount changes — it never
+            // scrolls independently and never moves under the CTA.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: AmountKeypad(
+                onKey: _onKeypadKey,
+                enabled: !_isSubmitting && !_isValidatingName,
+                rowHeight: compact ? 46 : 54,
+              ),
+            ),
+
+            // Payment method — ONE row, not a list.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: accountsAsync.when(
+                loading: () => const _MethodRowSkeleton(),
+                error: (e, _) => _MethodErrorRow(
+                  colors: colors,
+                  onRetry: () => ref.invalidate(savedMomoProvider),
+                ),
+                data: (accounts) {
+                  final account = _currentAccount(accounts);
+                  if (accounts.isEmpty) {
+                    return _AddMethodRow(
+                      colors: colors,
+                      onTap: () => _openAddAccountSheet(),
+                    );
+                  }
+                  if (account == null) {
+                    return _ChooseMethodRow(
+                      colors: colors,
+                      onTap: () => _showPaymentSelector(colors, accounts),
+                    );
+                  }
+                  return _SelectedMethodRow(
+                    colors: colors,
+                    account: account,
+                    onTap: () => _showPaymentSelector(colors, accounts),
+                  );
+                },
+              ),
+            ),
+
+            // CTA — bottom safe area, never obscured by the keypad.
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 14, 20, 12 + bottomInset),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _PrimaryButton(
+                    colors: colors,
+                    label: _isValidatingName
+                        ? 'Checking account…'
+                        : _isSubmitting
+                        ? 'Sending prompt…'
+                        : 'Add Cash',
+                    onTap:
+                        (_isSubmitting ||
+                            _isValidatingName ||
+                            _amountValue == null ||
+                            _currentAccount(
+                                  accountsAsync.valueOrNull ??
+                                      const <SavedMomoAccount>[],
+                                ) ==
+                                null)
+                        ? null
+                        : _validateAndConfirm,
+                    isBusy: _isSubmitting || _isValidatingName,
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: _ctaHint(
+                      colors,
+                      accounts:
+                          accountsAsync.valueOrNull ??
+                          const <SavedMomoAccount>[],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _ctaHint(
+    AzamanColors colors, {
+    required List<SavedMomoAccount> accounts,
+  }) {
+    final hasAccount = _currentAccount(accounts) != null;
+    final String text;
+    if (accounts.isEmpty) {
+      text = 'Add a mobile money account to continue.';
+    } else if (!hasAccount) {
+      text = 'Choose a payment method to continue.';
+    } else if (_amountValue == null) {
+      text = 'Enter an amount to continue.';
+    } else {
+      text = 'Approve to complete the deposit.';
+    }
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: colors.textTertiary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
+      ),
+    );
+  }
+
+  void _openAddAccountSheet() {
+    AzamanHaptics.navigation();
+    AddPayoutSheet.show(
+      context,
+      onSaved: () {
+        if (!mounted) return;
+        ref.invalidate(savedMomoProvider);
+      },
+      initialTab: 'mobileMoney',
+    );
+  }
+
+  Future<void> _showPaymentSelector(
+    AzamanColors colors,
+    List<SavedMomoAccount> accounts,
+  ) async {
+    AzamanHaptics.navigation();
+    final maxHeight = MediaQuery.of(context).size.height * 0.72;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => _PaymentSelectorSheet(
+        colors: colors,
+        accounts: accounts,
+        selectedId: _selectedAccountId ?? _currentAccount(accounts)?.id,
+        maxHeight: maxHeight,
+        onSelect: (account) {
+          Navigator.pop(sheetCtx);
+          setState(() => _selectedAccountId = account.id);
+        },
+        onAdd: () {
+          Navigator.pop(sheetCtx);
+          _openAddAccountSheet();
+        },
+      ),
+    );
+  }
+
+  // ── Result ────────────────────────────────────────────────────────────
+  Widget _buildResult(AzamanColors colors) {
+    final reference = _depositResult?['reference'] ?? '';
+    final instructions =
+        _depositResult?['instructions']?.toString() ??
+        'Follow the prompt on your device to complete payment.';
+    final account = _currentAccount(
+      ref.read(savedMomoProvider).valueOrNull ?? const <SavedMomoAccount>[],
+    );
+    final networkName = account != null
+        ? MomoNetwork.of(account.provider).displayName
+        : '';
+    final amount = _depositResult?['amountGhs']?.toString() ?? _amountDisplay;
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PanelHeading(
+            colors: colors,
+            eyebrow: 'Deposit status',
+            title: 'Prompt sent',
+            body: 'Approve it on your phone to complete the deposit.',
           ),
-          labelColor: colors.accent,
-          unselectedLabelColor: colors.textPrimary,
-          labelStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.2,
+          const SizedBox(height: 18),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            transitionBuilder: (child, anim) => ScaleTransition(
+              scale: anim,
+              child: FadeTransition(opacity: anim, child: child),
+            ),
+            child: _depositConfirmed
+                ? Column(
+                    key: const ValueKey("confirmed"),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Lottie.asset(
+                        "assets/animations/success.json",
+                        width: 110,
+                        height: 110,
+                        repeat: false,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Deposit Confirmed!",
+                        style: TextStyle(
+                          color: colors.success,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Your wallet has been funded.",
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    key: const ValueKey("waiting"),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _PulsingDots(color: colors.accent),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Waiting for confirmation...",
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Approve the prompt on your phone.",
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
+          if (_depositConfirmed) ...[
+            const SizedBox(height: 12),
+            _PanelCard(
+              colors: colors,
+              fillColor: colors.success.withValues(alpha: 0.10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GH₵ $amount',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Prompt sent to $networkName',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SelectableText(
+                    reference.toString(),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              instructions,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
+          _PrimaryButton(
+            colors: colors,
+            label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
+            onTap: _reset,
           ),
-          labelPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-          dividerColor: Colors.transparent,
-          splashFactory: NoSplash.splashFactory,
-          overlayColor: WidgetStateProperty.all(Colors.transparent),
-          tabs: labels.map((label) => Tab(text: label, height: 44)).toList(),
+        ],
+      ),
+    );
+  }
+
+  // ── OTP entry ───────────────────────────────────────────────────────────
+  // Shown when Moolre returns requiresOtp=true (TP14). The user enters the
+  // code sent to their registered phone; _confirmOtp posts it to the OTP
+  // endpoint.
+  Widget _buildOtpEntry(AzamanColors colors) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PanelHeading(
+            colors: colors,
+            eyebrow: 'Verification',
+            title: 'Enter OTP',
+            body:
+                'Enter the code sent to your registered phone to authorise '
+                'this deposit.',
+          ),
+          const SizedBox(height: 18),
+          _PanelCard(
+            colors: colors,
+            child: TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              maxLength: 6,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4,
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '••••••',
+                hintStyle: TextStyle(
+                  color: colors.textTertiary,
+                  letterSpacing: 4,
+                ),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _PrimaryButton(
+            colors: colors,
+            label: _isConfirmingOtp ? 'Verifying…' : 'Confirm deposit',
+            onTap: _isConfirmingOtp ? null : _confirmOtp,
+            isBusy: _isConfirmingOtp,
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton(
+              onPressed: _isConfirmingOtp
+                  ? null
+                  : () => setState(() {
+                      _requiresOtp = false;
+                      _pendingReference = null;
+                      _otpController.clear();
+                    }),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUICK AMOUNT PILL
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickAmountPill extends StatelessWidget {
+  const _QuickAmountPill({
+    required this.colors,
+    required this.amount,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+  final int amount;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '${AzMoney.ghsSymbol} $amount',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: MotionTokens.control,
+          curve: MotionTokens.enter,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected
+                ? colors.accent.withValues(alpha: 0.14)
+                : colors.softSurface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selected
+                  ? colors.accent
+                  : colors.border.withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            '${AzMoney.ghsSymbol} $amount',
+            style: TextStyle(
+              color: selected ? colors.accent : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// =============================================================================
-// CRYPTO PANEL  ── Polygon USDC, dedicated sub-address per user.
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT METHOD ROW — the single selected-method surface.
+// Primary identity: the verified registered name (accountName) when one
+// exists; the nickname is the fallback, never the other way around.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SelectedMethodRow extends StatelessWidget {
+  const _SelectedMethodRow({
+    required this.colors,
+    required this.account,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+  final SavedMomoAccount account;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = MomoNetwork.of(account.provider);
+    // Verified registered name wins; nickname is the fallback.
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+    final phone = MomoNetwork.formatPhone(account.phoneNumber);
+
+    return ScaleTap(
+      onTap: onTap,
+      child: Semantics(
+        button: true,
+        label:
+            'Payment method: $name, ${network.displayName}, $phone. '
+            'Double tap to change.',
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              MomoNetworkBadge(provider: account.provider, showLabel: false),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (account.isPrimary) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.star_rounded,
+                            color: colors.warning,
+                            size: 14,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      phone,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// No saved accounts at all: an honest call-to-add, never a fabricated
+/// payment method.
+class _AddMethodRow extends StatelessWidget {
+  const _AddMethodRow({required this.colors, required this.onTap});
+
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTap(
+      onTap: onTap,
+      child: Semantics(
+        button: true,
+        label: 'Add mobile money account',
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.softSurface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: colors.accent.withValues(alpha: 0.35),
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: colors.accent, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Add mobile money account',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Accounts exist but none is auto-selectable (multiple, none primary):
+/// the user must choose — we never silently pick the first.
+class _ChooseMethodRow extends StatelessWidget {
+  const _ChooseMethodRow({required this.colors, required this.onTap});
+
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTap(
+      onTap: onTap,
+      child: Semantics(
+        button: true,
+        label: 'Choose a payment method',
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: colors.softSurface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: colors.textTertiary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Choose a payment method',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MethodRowSkeleton extends ConsumerWidget {
+  const _MethodRowSkeleton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    return Container(
+      height: 62,
+      decoration: BoxDecoration(
+        color: colors.softSurface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+  }
+}
+
+class _MethodErrorRow extends StatelessWidget {
+  const _MethodErrorRow({required this.colors, required this.onRetry});
+
+  final AzamanColors colors;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.danger.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: colors.danger, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Couldn’t load saved accounts.',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT SELECTOR — compact bottom sheet listing saved accounts + the
+// add-account action. The user's choice survives opening and closing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PaymentSelectorSheet extends StatelessWidget {
+  const _PaymentSelectorSheet({
+    required this.colors,
+    required this.accounts,
+    required this.selectedId,
+    required this.maxHeight,
+    required this.onSelect,
+    required this.onAdd,
+  });
+
+  final AzamanColors colors;
+  final List<SavedMomoAccount> accounts;
+  final String? selectedId;
+  final double maxHeight;
+  final ValueChanged<SavedMomoAccount> onSelect;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Payment method',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  Semantics(
+                    button: true,
+                    label: 'Close payment methods',
+                    excludeSemantics: true,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close,
+                        color: colors.textTertiary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: accounts.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'No saved mobile money accounts yet. Add one to '
+                        'deposit with MoMo.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13.5,
+                          height: 1.5,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                      children: [
+                        for (final account in accounts)
+                          _PaymentOptionRow(
+                            colors: colors,
+                            account: account,
+                            selected: account.id == selectedId,
+                            onTap: () => onSelect(account),
+                          ),
+                      ],
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              child: _AddMethodRow(colors: colors, onTap: onAdd),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentOptionRow extends StatelessWidget {
+  const _PaymentOptionRow({
+    required this.colors,
+    required this.account,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+  final SavedMomoAccount account;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = MomoNetwork.of(account.provider);
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label:
+          '$name, ${network.displayName}, '
+          '${MomoNetwork.formatPhone(account.phoneNumber)}',
+      excludeSemantics: true,
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: MomoNetworkBadge(provider: account.provider, showLabel: false),
+        title: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          '${network.displayName} · ${MomoNetwork.formatPhone(account.phoneNumber)}',
+          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+        ),
+        trailing: AnimatedContainer(
+          duration: MotionTokens.microInteraction,
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? colors.accent
+                  : colors.border.withValues(alpha: 0.8),
+              width: 1.6,
+            ),
+          ),
+          child: selected
+              ? const Icon(Icons.check, size: 15, color: Colors.black)
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRYPTO PANEL — deposit USDC on Polygon.
+// A deliberately different composition from Fiat: the QR is the main visual,
+// the address is copyable/shareable, and the network statement is explicit,
+// never buried.
+// Fetch is lazy: the TabBarView inflates this panel only when the user
+// switches to Crypto, so landing on Fiat never fetches the address.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _CryptoDepositPanel extends ConsumerStatefulWidget {
   const _CryptoDepositPanel();
 
@@ -266,7 +1779,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
   void _copyAddress(AzamanColors colors) {
     if (_address == null) return;
     Clipboard.setData(ClipboardData(text: _address!));
-    HapticFeedback.mediumImpact();
+    AzamanHaptics.confirm();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Address copied'),
@@ -279,7 +1792,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
 
   void _shareAddress() {
     if (_address == null) return;
-    HapticFeedback.lightImpact();
+    AzamanHaptics.navigation();
     Share.share(
       'My Azaman deposit address (Polygon USDC):\n$_address\n\n'
       'IMPORTANT: send only USDC on the Polygon network. '
@@ -294,7 +1807,30 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
     final colors = ref.watch(themeProvider).colors;
 
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: colors.accent));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(
+                color: colors.accent,
+                strokeWidth: 2.6,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading your deposit address…',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
     }
     if (_error != null) {
       return Center(
@@ -303,7 +1839,7 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 48, color: colors.danger),
+              Icon(Icons.error_outline, size: 44, color: colors.danger),
               const SizedBox(height: 12),
               Text(
                 _error!,
@@ -325,834 +1861,168 @@ class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
       );
     }
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PanelHeading(
-            colors: colors,
-            title: 'Deposit USDC',
-          ),
-          const SizedBox(height: 18),
-          _CryptoAddressCard(
-            colors: colors,
-            address: _address ?? '',
-            onCopy: () => _copyAddress(colors),
-            onShare: _shareAddress,
-          ),
-          const SizedBox(height: 20),
-          FutureBuilder<List<Map<String,dynamic>>>(
-            future: _fetchRecentCryptoDeposits(),
-            builder: (context, snap) {
-              if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("Recent Deposits",
-                  style: TextStyle(color: colors.textTertiary,
-                    fontSize: 11, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                ...snap.data!.map((d) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(children: [
-                    Icon(Icons.check_circle, color: colors.success, size: 14),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(
-                      "${(d["amountUsdc"] as num?)?.toStringAsFixed(2) ?? "0"} USDC",
-                      style: TextStyle(color: colors.textPrimary,
-                        fontSize: 13, fontWeight: FontWeight.w600))),
-                    Text(_formatCryptoDate(DateTime.parse(d["createdAt"] ?? "")),
-                      style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                  ]),
-                )),
-              ]);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<List<Map<String,dynamic>>> _fetchRecentCryptoDeposits() async {
-    try {
-      final resp = await apiClient.get("/finance/transactions?type=DEPOSIT_CRYPTO&limit=2");
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        return List<Map<String,dynamic>>.from(data["items"] ?? []);
-      }
-      return [];
-    } catch (_) { return []; }
-  }
-
-  String _formatCryptoDate(DateTime dt) {
-    final diff = DateTime.now().difference(dt).inDays;
-    if (diff == 0) return "Today";
-    if (diff == 1) return "Yesterday";
-    return "${dt.day}/${dt.month}/${dt.year}";
-  }
-}
-
-// =============================================================================
-// FIAT PANEL  ── Mobile Money / Bank Transfer.
-// =============================================================================
-class _FiatDepositPanel extends ConsumerStatefulWidget {
-  const _FiatDepositPanel({this.prefillAmount, this.memo});
-
-  /// Pre-fill amount (GHS string) propagated from the parent
-  /// [DepositScreen] when the route carries `?amount=…`. Susu reminder
-  /// notifications use this path (Req 12.4 / 12.6).
-  final String? prefillAmount;
-
-  /// Opaque memo string (e.g. `susu:<susuId>`). Forwarded to the BE in
-  /// the initiate request so operators can trace deposits back.
-  final String? memo;
-
-  @override
-  ConsumerState<_FiatDepositPanel> createState() => _FiatDepositPanelState();
-}
-
-class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
-    with AutomaticKeepAliveClientMixin {
-  final _amountController = TextEditingController();
-  String _selectedProvider = 'MTN_MOMO';
-  String? _selectedAccountId;
-  SavedMomoAccount? _selectedAccount;
-  bool _isSubmitting = false;
-
-  // r42: one key per LOGICAL deposit initiation, reused across retries
-  // (a lost response may mean the initiation already committed); retired
-  // on any answered non-409 outcome.
-  // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
-  // Each genuinely new deposit initiation gets a fresh durable instance;
-  // the ref is this flow's retry handle — a re-tap after a lost response
-  // retries the SAME instance (same key), and a materially different body
-  // begins a genuinely new instance without disturbing the old one.
-  static const _initiateActionId = 'deposit.fiat.moolre.initiate';
-  final _initiateRef = FinancialOperationRef();
-  Map<String, dynamic>? _depositResult;
-
-  // ── Moolre on-ramp (2026-06-23) ──────────────────────────────────────────
-  // Name-validation dialog + OTP branch (Moolre TP14 returns requiresOtp).
-  String? _resolvedName;
-  bool _isValidatingName = false;
-  bool _requiresOtp = false;
-  String? _pendingReference;
-  final _otpController = TextEditingController();
-  bool _isConfirmingOtp = false;
-  bool _depositConfirmed = false;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  /// Map the canonical saved-account provider (MTN | VODAFONE | TELECEL) to the
-  /// enum the backend's `initiateMoolreFiatDeposit` MOMO set accepts
-  /// (MTN_MOMO | TELECEL_CASH | AIRTELTIGO). Telecel is the Vodafone Ghana
-  /// rebrand — the backend treats VODAFONE and TELECEL as the same channel —
-  /// so both map to TELECEL_CASH. The same enum is accepted by
-  /// `/deposit/validate-name`, so one mapping serves both calls.
-  String _backendProvider(String provider) {
-    if (provider == 'MTN_MOMO' || provider == 'VODAFONE_CASH' || provider == 'AIRTELTIGO') {
-      return provider;
-    }
-    switch (provider) {
-      case 'MTN':
-        return 'MTN_MOMO';
-      case 'TELECEL':
-      case 'VODAFONE': // legacy
-        return 'TELECEL_CASH';
-      case 'AIRTELTIGO':
-        return 'AIRTELTIGO';
-      default:
-        return '${provider}_MOMO';
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Phase 4 (Susu Sprint, 2026-05-31) — Req 12.4 / 12.6: pre-fill the
-    // amount input when the screen was opened with `?amount=…`. Validate
-    // the value has at most two fractional digits and is strictly > 0;
-    // anything else is dropped silently and the input stays empty so the
-    // user notices and re-enters.
-    final raw = widget.prefillAmount?.trim();
-    if (raw != null && raw.isNotEmpty) {
-      final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
-      final v = double.tryParse(raw);
-      if (ok && v != null && v > 0) {
-        _amountController.text = raw;
-      }
-    }
-    SocketService.instance.onDepositSuccess(
-      (amountGhs, amountUsdc, provider, reference) {
-        if (!mounted) return;
-        final pendingRef = _pendingReference ??
-            (_depositResult?['reference']?.toString() ?? '');
-        if (pendingRef.isEmpty || reference != pendingRef) return;
-        setState(() => _depositConfirmed = true);
-        final colors = ref.read(themeProvider).colors;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✓ Deposit confirmed — GH₵ ${amountGhs.toStringAsFixed(2)} credited to your wallet',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: colors.success,
-            duration: const Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    SocketService.instance.onDepositSuccess((a, b, c, d) {});
-    _amountController.dispose();
-    _otpController.dispose();
-    super.dispose();
-  }
-
-  /// Resolve the registered account name via Moolre, show a confirmation
-  /// dialog, then proceed to the deposit. Name validation is best-effort —
-  /// if it fails we proceed without it rather than block the deposit.
-  Future<void> _validateAndConfirm() async {
-    final account = _selectedAccount;
-    if (account == null) return;
-
-    setState(() => _isValidatingName = true);
-    try {
-      final resp = await apiClient.post('/deposit/validate-name', {
-        'phoneNumber': account.phoneNumber,
-        'provider': _backendProvider(account.provider),
-      });
-      final body = jsonDecode(resp.body);
-      if (resp.statusCode == 200 && body['data'] != null) {
-        setState(() => _resolvedName = body['data'] as String?);
-      }
-    } catch (_) {
-      // Name validation is optional — proceed without it if it fails.
-    } finally {
-      if (mounted) setState(() => _isValidatingName = false);
-    }
-
-    if (_resolvedName != null && mounted) {
-      final colors = ref.read(themeProvider).colors;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: colors.surface,
-          title: Text('Confirm account',
-              style: TextStyle(color: colors.textPrimary)),
-          content: Text(
-            'Paying to: $_resolvedName\nIs this correct?',
-            style: TextStyle(color: colors.textSecondary),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Confirm', style: TextStyle(color: colors.accent)),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
-
-    await _initiateDeposit();
-  }
-
-  Future<void> _initiateDeposit() async {
-    final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
-      return;
-    }
-    final account = _selectedAccount;
-    if (account == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a payment account')));
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-    try {
-      // All saved accounts in this picker are Mobile Money (MTN / Vodafone /
-      // Telecel), so every deposit routes through the Moolre PIN-push on-ramp.
-      final body = <String, dynamic>{
-        'amountGhs': amount,
-        'provider': _backendProvider(account.provider),
-        'phoneNumber': account.phoneNumber,
-        // Susu memo trace (Req 12.4) — persisted into the deposit's metadata
-        // server-side so operators can tie a deposit back to the cycle
-        // reminder that prompted it.
-        if (widget.memo != null && widget.memo!.isNotEmpty) 'memo': widget.memo,
-      };
-      // r42: initiating a fiat deposit is a protected mutation — one key
-      // per LOGICAL initiation (the OTP confirmation is a separate route),
-      // reused across retries of the same initiation.
-      final response =
-          await apiClient.postFinancial('/deposit/fiat/initiate/moolre', body,
-              operationType: _initiateActionId, ref: _initiateRef);
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        HapticFeedback.heavyImpact();
-        if (data['requiresOtp'] == true) {
-          setState(() {
-            _isSubmitting = false;
-            _requiresOtp = true;
-            _pendingReference = data['data']?['reference']?.toString();
-          });
-        } else {
-          setState(() {
-            _depositResult = (data['data'] is Map<String, dynamic>)
-                ? data['data'] as Map<String, dynamic>
-                : data as Map<String, dynamic>;
-            _isSubmitting = false;
-          });
-          // In demo mode there's no real Moolre prompt to approve — auto-confirm
-          // after a short delay so the user sees the full deposit success flow.
-          if (AppConfig.demoMode) {
-            Future.delayed(const Duration(seconds: 3), () {
-              if (mounted && _depositResult != null && !_depositConfirmed) {
-                setState(() => _depositConfirmed = true);
-              }
-            });
-          }
-        }
-      } else {
-        setState(() => _isSubmitting = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                data['message']?.toString() ?? 'Failed to initiate deposit',
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _isSubmitting = false);
-      if (mounted) {
-        String msg;
-        if (e is SocketException || e is TimeoutException) {
-          msg = 'Connection failed. Check your internet and retry.';
-        } else if (e is ApiException) {
-          msg = e.message;
-        } else {
-          msg = 'Something went wrong. Please try again.';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
-        );
-      }
-    }
-  }
-
-  /// Confirm a Moolre deposit that came back requiresOtp=true.
-  Future<void> _confirmOtp() async {
-    final otp = _otpController.text.trim();
-    if (otp.isEmpty) return;
-    setState(() => _isConfirmingOtp = true);
-    try {
-      final resp = await apiClient.post('/deposit/fiat/initiate/moolre/otp', {
-        'reference': _pendingReference,
-        'otpCode': otp,
-      });
-      final body = jsonDecode(resp.body);
-      if (resp.statusCode == 200 && body['success'] == true) {
-        HapticFeedback.heavyImpact();
-        setState(() {
-          _isConfirmingOtp = false;
-          _requiresOtp = false;
-          _depositResult = {'reference': _pendingReference};
-        });
-      } else {
-        setState(() => _isConfirmingOtp = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text(body['message']?.toString() ?? 'OTP verification failed')),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _isConfirmingOtp = false);
-      if (mounted) {
-        final msg = (e is ApiException) ? e.message
-            : (e is SocketException || e is TimeoutException)
-                ? 'Connection failed. Check your internet and retry.'
-                : 'Something went wrong. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
-        );
-      }
-    }
-  }
-
-  void _reset() {
-    setState(() {
-      _depositResult = null;
-      _requiresOtp = false;
-      _pendingReference = null;
-      _resolvedName = null;
-      _depositConfirmed = false;
-      _otpController.clear();
-      _amountController.clear();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final colors = ref.watch(themeProvider).colors;
-
-    return _requiresOtp
-        ? _buildOtpEntry(colors)
-        : _depositResult != null
-            ? _buildResult(colors)
-            : _buildForm(colors);
-  }
-
-  // ── Form ───────────────────────────────────────────────────────────────────
-  Widget _buildForm(AzamanColors colors) {
-    final accountsAsync = ref.watch(savedMomoProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 48, // Accounts for padding (16 + 32)
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _PanelHeading(
-                    colors: colors,
-                    title: 'Deposit with MoMo',
-                  ),
-                  const SizedBox(height: 18),
-                  accountsAsync.when(
-                    loading: () => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 28),
-                      child: Center(
-                        child: CircularProgressIndicator(color: colors.accent),
+        final compact = constraints.maxHeight < 620;
+        final qrSize = (constraints.maxWidth - 110)
+            .clamp(compact ? 160.0 : 190.0, 250.0)
+            .toDouble();
+
+        return Column(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Deposit USDC',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: compact ? 20 : 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
                       ),
                     ),
-                    error: (e, _) => _NoticeCard(
-                      colors: colors,
-                      icon: Icons.error_outline,
-                      accent: colors.danger,
-                      text: e.toString(),
-                    ),
-                    data: (accounts) {
-                      if (accounts.isEmpty) {
-                        return _InlineAddMomoCard(
-                          colors: colors,
-                          onAdded: () => ref.invalidate(savedMomoProvider),
-                        );
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                    const SizedBox(height: 10),
+                    // Network identity — explicit, not decorative.
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.softSurface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF8247E5).withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _PanelCard(
-                            colors: colors,
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              children: accounts
-                                  .map(
-                                    (a) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: _SavedAccountTile(
-                                        account: a,
-                                        colors: colors,
-                                        selected: _selectedAccountId == a.id,
-                                        onTap: () => setState(() {
-                                          _selectedAccountId = a.id;
-                                          _selectedAccount = a;
-                                          _selectedProvider = a.provider;
-                                        }),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
+                          const Icon(
+                            Icons.hexagon_outlined,
+                            color: Color(0xFF8247E5),
+                            size: 13,
                           ),
-                          const SizedBox(height: 10),
-                          // ── Add Account pill button ──────────────────────
-                          ScaleTap(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              AddPayoutSheet.show(
-                                context,
-                                onSaved: () {
-                                  if (!mounted) return;
-                                  ref.invalidate(savedMomoProvider);
-                                },
-                                initialTab: 'mobileMoney',
-                              );
-                            },
-                            child: Container(
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: colors.accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(
-                                  color: colors.accent.withValues(alpha: 0.35),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_circle_outline,
-                                      color: colors.accent, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Add Account',
-                                    style: TextStyle(
-                                      color: colors.accent,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Polygon',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _PanelCard(
-                    colors: colors,
-                    fillColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Amount',
-                          style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(
-                                'GH₵ ',
-                                style: TextStyle(
-                                  color: colors.textSecondary,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 100),
-                              child: IntrinsicWidth(
-                                child: TextField(
-                                  controller: _amountController,
-                                  keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                  style: TextStyle(
-                                    color: colors.textPrimary,
-                                    fontSize: 56,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -1.0,
-                                  ),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    filled: false,
-                                    hintText: '0.00',
-                                    hintStyle: TextStyle(
-                                      color: colors.textTertiary,
-                                      fontSize: 56,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -1.0,
-                                    ),
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8, runSpacing: 6,
-                          children: [50, 100, 200, 500].map((amt) {
-                            final isSelected = _amountController.text == amt.toString();
-                            return GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() {
-                                  _amountController.text = amt.toString();
-                                  _amountController.selection = TextSelection.fromPosition(
-                                    TextPosition(offset: _amountController.text.length));
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? colors.accent : colors.card,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: isSelected ? colors.accent : colors.accent.withValues(alpha: 0.3)),
-                                ),
-                                child: Text("GH₵ $amt",
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : colors.accent,
-                                    fontSize: 13, fontWeight: FontWeight.w700)),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  const SizedBox(height: 16),
-                  _PrimaryButton(
-                    colors: colors,
-                    label: _isValidatingName
-                        ? 'Checking account...'
-                        : _isSubmitting
-                            ? 'Sending prompt...'
-                            : 'Send deposit prompt',
-                    onTap: (_isSubmitting ||
-                            _isValidatingName ||
-                            _selectedAccountId == null)
-                        ? null
-                        : _validateAndConfirm,
-                    isBusy: _isSubmitting || _isValidatingName,
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: Text(
-                      _selectedAccountId == null
-                          ? 'Choose a saved number to continue.'
-                          : 'Approve to complete the deposit.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            // The QR is the main visual.
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: AnimatedQrDust(
+                  data: _address ?? '',
+                  size: qrSize,
+                  inkColor: const Color(0xFF141416),
+                  backgroundColor: Colors.white,
+                  errorCorrectLevel: 0, // QrErrorCorrectLevel.M = 0
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Shortened visually; the FULL address stays available to
+            // semantics, copy and share.
+            Semantics(
+              label: 'Polygon USDC deposit address: ${_address ?? ''}',
+              // A standalone node: the full address must never merge with
+              // neighbouring announcements.
+              container: true,
+              excludeSemantics: true,
+              child: Text(
+                _short(_address ?? ''),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'monospace',
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _PrimaryButton(
+                      colors: colors,
+                      label: 'Copy address',
+                      onTap: _address == null
+                          ? null
+                          : () => _copyAddress(colors),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _IconActionButton(
+                    colors: colors,
+                    icon: Icons.share_outlined,
+                    tooltip: 'Share address',
+                    onTap: _address == null ? null : _shareAddress,
                   ),
                 ],
               ),
             ),
-          ),
+
+            Expanded(
+              flex: 1,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Send only USDC on the Polygon network. '
+                    'Other tokens or networks will be lost.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  // ── Result ────────────────────────────────────────────────────────────────
-  Widget _buildResult(AzamanColors colors) {
-    final reference = _depositResult?['reference'] ?? '';
-    final instructions =
-        _depositResult?['instructions']?.toString() ??
-        'Follow the prompt on your device to complete payment.';
-    final amount =
-        _depositResult?['amountGhs']?.toString() ?? _amountController.text;
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PanelHeading(
-            colors: colors,
-            eyebrow: 'Deposit status',
-            title: 'Prompt sent',
-            body: 'Approve it on your phone to complete the deposit.',
-          ),
-          const SizedBox(height: 18),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 600),
-            transitionBuilder: (child, anim) => ScaleTransition(
-              scale: anim, child: FadeTransition(opacity: anim, child: child)),
-            child: _depositConfirmed
-              ? Column(key: const ValueKey("confirmed"),
-                  mainAxisSize: MainAxisSize.min, children: [
-                  Lottie.asset("assets/animations/success.json",
-                    width: 110, height: 110, repeat: false),
-                  const SizedBox(height: 8),
-                  Text("Deposit Confirmed!", style: TextStyle(
-                    color: colors.success, fontSize: 20, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text("Your wallet has been funded.", style: TextStyle(
-                    color: colors.textSecondary, fontSize: 13)),
-                ])
-              : Column(key: const ValueKey("waiting"),
-                  mainAxisSize: MainAxisSize.min, children: [
-                  _PulsingDots(color: colors.accent),
-                  const SizedBox(height: 14),
-                  Text("Waiting for confirmation...", style: TextStyle(
-                    color: colors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text("Approve the prompt on your phone.", style: TextStyle(
-                    color: colors.textTertiary, fontSize: 12)),
-                ]),
-          ),
-          if (_depositConfirmed) ...[
-            const SizedBox(height: 12),
-            _PanelCard(
-              colors: colors,
-              fillColor: colors.success.withValues(alpha: 0.10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GH₵ $amount',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Prompt sent to $_selectedProvider',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  SelectableText(
-                    reference.toString(),
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              instructions,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
-          _PrimaryButton(
-            colors: colors,
-            label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
-            onTap: _reset,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── OTP entry ───────────────────────────────────────────────────────────────
-  // Shown when Moolre returns requiresOtp=true (TP14). The user enters the code
-  // sent to their registered phone; _confirmOtp posts it to the OTP endpoint.
-  Widget _buildOtpEntry(AzamanColors colors) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PanelHeading(
-            colors: colors,
-            eyebrow: 'Verification',
-            title: 'Enter OTP',
-            body: 'Enter the code sent to your registered phone to authorise '
-                'this deposit.',
-          ),
-          const SizedBox(height: 18),
-          _PanelCard(
-            colors: colors,
-            child: TextField(
-              controller: _otpController,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              maxLength: 6,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 4,
-              ),
-              decoration: InputDecoration(
-                counterText: '',
-                hintText: '••••••',
-                hintStyle: TextStyle(
-                  color: colors.textTertiary,
-                  letterSpacing: 4,
-                ),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          _PrimaryButton(
-            colors: colors,
-            label: _isConfirmingOtp ? 'Verifying...' : 'Confirm deposit',
-            onTap: _isConfirmingOtp ? null : _confirmOtp,
-            isBusy: _isConfirmingOtp,
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: TextButton(
-              onPressed: _isConfirmingOtp
-                  ? null
-                  : () => setState(() {
-                        _requiresOtp = false;
-                        _pendingReference = null;
-                        _otpController.clear();
-                      }),
-              child: Text('Cancel',
-                  style: TextStyle(color: colors.textTertiary)),
-            ),
-          ),
-        ],
-      ),
-    );
+  static String _short(String addr) {
+    if (addr.length < 14) return addr;
+    return '${addr.substring(0, 6)}…${addr.substring(addr.length - 4)}';
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED LOW-LEVEL PANEL PIECES (OTP / result views reuse these)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PanelHeading extends StatelessWidget {
   final AzamanColors colors;
@@ -1214,20 +2084,14 @@ class _PanelCard extends StatelessWidget {
   final AzamanColors colors;
   final Widget child;
   final Color? fillColor;
-  final EdgeInsetsGeometry? padding;
 
-  const _PanelCard({
-    required this.colors,
-    required this.child,
-    this.fillColor,
-    this.padding,
-  });
+  const _PanelCard({required this.colors, required this.child, this.fillColor});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: fillColor ?? colors.softSurface,
         borderRadius: BorderRadius.circular(24),
@@ -1252,136 +2116,43 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colors.accent,
-          foregroundColor: Colors.black,
-          disabledBackgroundColor: colors.softSurface,
-          disabledForegroundColor: colors.textTertiary,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999),
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Material(
+          color: enabled ? colors.accent : colors.accent.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
+            child: Container(
+              height: 56,
+              alignment: Alignment.center,
+              child: isBusy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+            ),
           ),
         ),
-        child: isBusy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.black,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _CryptoAddressCard extends StatelessWidget {
-  final AzamanColors colors;
-  final String address;
-  final VoidCallback onCopy;
-  final VoidCallback onShare;
-
-  const _CryptoAddressCard({
-    required this.colors,
-    required this.address,
-    required this.onCopy,
-    required this.onShare,
-  });
-
-  String _short(String addr) {
-    if (addr.length < 14) return addr;
-    return '${addr.substring(0, 6)}…${addr.substring(addr.length - 4)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final qrSize = (MediaQuery.of(context).size.width - 130)
-        .clamp(190.0, 250.0)
-        .toDouble();
-
-    return _PanelCard(
-      colors: colors,
-      fillColor: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 308),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: AnimatedQrDust(
-                  data: address,
-                  size: qrSize,
-                  inkColor: const Color(0xFF141416),
-                  backgroundColor: Colors.white,
-                  errorCorrectLevel: 0, // QrErrorCorrectLevel.M = 0
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            _short(address),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'monospace',
-              letterSpacing: 0.1,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _PrimaryButton(
-                  colors: colors,
-                  label: 'Copy address',
-                  onTap: onCopy,
-                ),
-              ),
-              const SizedBox(width: 10),
-              _IconActionButton(
-                colors: colors,
-                icon: Icons.share_outlined,
-                tooltip: 'Share address',
-                onTap: onShare,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Polygon USDC only',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1391,7 +2162,7 @@ class _IconActionButton extends StatelessWidget {
   final AzamanColors colors;
   final IconData icon;
   final String tooltip;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _IconActionButton({
     required this.colors,
@@ -1402,335 +2173,28 @@ class _IconActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: colors.textPrimary),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  final AzamanColors colors;
-  final IconData icon;
-  final Color accent;
-  final String text;
-
-  const _NoticeCard({
-    required this.colors,
-    required this.icon,
-    required this.accent,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _PanelCard(
-      colors: colors,
-      fillColor: accent.withValues(alpha: 0.08),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: accent, size: 15),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13.5,
-                height: 1.45,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SavedAccountTile extends StatelessWidget {
-  final SavedMomoAccount account;
-  final AzamanColors colors;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _SavedAccountTile({
-    required this.account,
-    required this.colors,
-    required this.selected,
-    required this.onTap,
-  });
-
-  Color _providerColor() => switch (account.provider) {
-    'MTN' => const Color(0xFFFFCC00),
-    'TELECEL' => const Color(0xFFE60000),
-    'VODAFONE' => const Color(0xFFE60000), // legacy
-    'TELECEL' => const Color(0xFF0066CC),
-    _ => colors.textSecondary,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final pcolor = _providerColor();
-    return ScaleTap(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-        decoration: BoxDecoration(
-          color: selected ? colors.accentSurface : colors.softSurface,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: pcolor.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.smartphone_outlined, color: pcolor, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          account.nickname,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                      if (account.isPrimary) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.star_outline,
-                          color: colors.warning,
-                          size: 12,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${account.provider} · ${account.phoneNumber}',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                  ),
-                  if (account.accountName != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      account.accountName!,
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Container(
-              width: 28,
-              height: 28,
+    return Semantics(
+      button: true,
+      label: tooltip,
+      enabled: onTap != null,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
+            child: Container(
+              width: 56,
+              height: 56,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? colors.accent : colors.surface,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                selected
-                    ? Icons.check_circle_outline
-                    : Icons.circle_outlined,
-                color: selected ? Colors.black : colors.textTertiary,
-                size: 16,
-              ),
+              child: Icon(icon, color: colors.textPrimary, size: 20),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineAddMomoCard extends ConsumerStatefulWidget {
-  final AzamanColors colors;
-  final VoidCallback onAdded;
-  const _InlineAddMomoCard({required this.colors, required this.onAdded});
-  @override
-  ConsumerState<_InlineAddMomoCard> createState() => _InlineAddMomoCardState();
-}
-
-class _InlineAddMomoCardState extends ConsumerState<_InlineAddMomoCard> {
-  final _phoneCtrl = TextEditingController();
-  String _provider = "MTN_MOMO";
-  bool _loading = false;
-  String? _resolvedName;
-  String? _error;
-  final _providers = ["MTN_MOMO", "TELECEL_CASH", "AIRTELTIGO"];
-
-  Future<void> _validateName() async {
-    if (_phoneCtrl.text.trim().length < 9) {
-      setState(() => _error = "Enter a valid phone number"); return;
-    }
-    setState(() { _loading = true; _error = null; _resolvedName = null; });
-    try {
-      final resp = await apiClient.post("/deposit/validate-name", {
-        "phoneNumber": _phoneCtrl.text.trim(), "provider": _provider });
-      final body = jsonDecode(resp.body);
-      if (body["success"] == true && body["data"] != null) {
-        // /api/deposit/validate-name returns data as a plain string (the name),
-        // not a nested object. Read it directly.
-        setState(() { _resolvedName = body["data"].toString(); _loading = false; });
-      } else {
-        setState(() { _error = body["message"] ?? "Could not verify"; _loading = false; });
-      }
-    } on ApiException catch (e) {
-      setState(() { _error = e.message; _loading = false; });
-    } catch (_) {
-      setState(() { _error = "Network error"; _loading = false; });
-    }
-  }
-
-  Future<void> _saveAndContinue() async {
-    if (_resolvedName == null) return;
-
-    // Backend requires password (security gate) before persisting any payout
-    // destination. Prompt the user inline — same as AddPayoutSheet does.
-    final passwordCtrl = TextEditingController();
-    final password = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm password'),
-        content: TextField(
-          controller: passwordCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Your Azaman password'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, passwordCtrl.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-    if (password == null || password.isEmpty) return;
-    if (!mounted) return;
-
-    setState(() => _loading = true);
-    try {
-      final notifier = ref.read(savedMomoProvider.notifier);
-      await notifier.create(
-        nickname: _resolvedName!,
-        provider: _provider,
-        phoneNumber: _phoneCtrl.text.trim(),
-        password: password,
-      );
-      widget.onAdded();
-    } catch (e) {
-      setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  void dispose() { _phoneCtrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.colors;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.divider)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("Add Mobile Money Number", style: TextStyle(color: c.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: _provider,
-          dropdownColor: c.card,
-          decoration: InputDecoration(labelText: "Provider", labelStyle: TextStyle(color: c.textSecondary),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.divider))),
-          items: _providers.map((p) => DropdownMenuItem(value: p, child: Text(p.replaceAll("_"," "), style: TextStyle(color: c.textPrimary)))).toList(),
-          onChanged: (v) => setState(() => _provider = v!),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _phoneCtrl,
-          keyboardType: TextInputType.phone,
-          style: TextStyle(color: c.textPrimary),
-          decoration: InputDecoration(
-            labelText: "Phone number", labelStyle: TextStyle(color: c.textSecondary),
-            hintText: "024 XXX XXXX", hintStyle: TextStyle(color: c.textTertiary),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.divider))),
-        ),
-        if (_resolvedName != null) ...[
-          const SizedBox(height: 8),
-          Row(children: [
-            Icon(Icons.check_circle, color: c.success, size: 16), 
-            const SizedBox(width: 6),
-            Expanded(child: Text(_resolvedName!, style: TextStyle(color: c.success, fontWeight: FontWeight.w700)))
-          ]),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: 6), Text(_error!, style: TextStyle(color: c.danger, fontSize: 12)),
-        ],
-        const SizedBox(height: 14),
-        SizedBox(width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: c.accent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: _loading ? null : (_resolvedName == null ? _validateName : _saveAndContinue),
-            child: _loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(_resolvedName == null ? "Verify Number" : "Save & Continue",
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ),
-      ]),
+      ),
     );
   }
 }
@@ -1749,8 +2213,13 @@ class _PulsingDotsState extends State<_PulsingDots>
   @override
   void initState() {
     super.initState();
-    _ctrls = List.generate(3, (i) => AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 600)));
+    _ctrls = List.generate(
+      3,
+      (i) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      ),
+    );
     for (var i = 0; i < 3; i++) {
       Future.delayed(Duration(milliseconds: i * 180), () {
         if (mounted) _ctrls[i].repeat(reverse: true);
@@ -1768,19 +2237,25 @@ class _PulsingDotsState extends State<_PulsingDots>
 
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (i) => AnimatedBuilder(
-        animation: _ctrls[i],
-        builder: (_, __) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: 10,
-          height: 10 + (_ctrls[i].value * 10),
-          decoration: BoxDecoration(
-            color: widget.color.withValues(alpha: 0.4 + _ctrls[i].value * 0.6),
-            borderRadius: BorderRadius.circular(5),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        3,
+        (i) => AnimatedBuilder(
+          animation: _ctrls[i],
+          builder: (_, __) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: 10,
+            height: 10 + (_ctrls[i].value * 10),
+            decoration: BoxDecoration(
+              color: widget.color.withValues(
+                alpha: 0.4 + _ctrls[i].value * 0.6,
+              ),
+              borderRadius: BorderRadius.circular(5),
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 }

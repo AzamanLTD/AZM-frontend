@@ -146,6 +146,10 @@ class _OdometerNumberState extends State<OdometerNumber> {
       label: widget.semanticsLabel ?? current,
       // The per-cell text below would otherwise be announced digit by digit.
       excludeSemantics: true,
+      // A boundary of its own: without this the label merges with whatever
+      // is announced next to the figure (the currency symbol, tab labels…)
+      // and the value stops being one coherent string.
+      container: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
