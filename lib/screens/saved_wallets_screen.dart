@@ -1025,14 +1025,15 @@ class _AddPayoutSheetState extends ConsumerState<AddPayoutSheet> {
                   _showError('Enter the phone number first.');
                   return;
                 }
-                // Map the legacy MTN_MOMO/VODAFONE_CASH/AIRTELTIGO id back
-                // to the canonical provider strings the lookup service
-                // expects (MTN / VODAFONE / TELECEL).
+                // Map the legacy MTN_MOMO/TELECEL_CASH/AIRTELTIGO id
+                // back to the canonical provider strings the lookup
+                // service expects (MTN / TELECEL / AIRTELTIGO; Vodafone
+                // legacy aliases resolve to TELECEL).
                 final providerStr = switch (_momoNetwork) {
                   'MTN_MOMO' => 'MTN',
-                  'VODAFONE_CASH' => 'TELECEL', // legacy
+                  'VODAFONE_CASH' => 'TELECEL', // legacy alias
                   'TELECEL_CASH' => 'TELECEL',
-                  'AIRTELTIGO' || 'TELECEL_CASH' => 'TELECEL',
+                  'AIRTELTIGO' => 'AIRTELTIGO',
                   _ => 'MTN',
                 };
                 try {
