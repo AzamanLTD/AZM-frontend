@@ -26,6 +26,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/liquid/liquid_engine.dart';
 import 'package:azaman/widgets/liquid_tab_backdrop.dart';
 import 'package:azaman/theme/az_text.dart';
 
@@ -108,6 +109,140 @@ class NavScrollCompression {
   }
 }
 
+/// NEW-C — the per-tab scroll registry behind tap-active-tab scroll-to-top.
+///
+/// The shell has ONE `NotificationListener` above every page, so no page
+/// needs a controller threaded through it. Each vertical scroll notification
+/// is offered here, keyed by the CURRENT shell tab. Only the OUTERMOST
+/// scrollable of a tab is recorded: a notification whose scrollable has a
+/// `ScrollableState` ancestor is nested inside a bigger list (its scrolling
+/// belongs to the outer list's contract) and is ignored. The most recently
+/// scrolled outermost scrollable wins — the one the user perceives as "the
+/// page".
+class TabScrollRegistry {
+  TabScrollRegistry._();
+
+  /// The app-scoped registry the shell writes into. A singleton because the
+  /// shell and the nav are the only writers/readers and both are app-scoped.
+  static final TabScrollRegistry instance = TabScrollRegistry._();
+
+  /// The tab → its outermost vertical scrollable. A [ScrollableState] (not
+  /// a position) is stored so liveness is a plain `mounted` check — a
+  /// position outlives inspection only while its scrollable is mounted.
+  final Map<int, ScrollableState> _primary = {};
+
+  /// Records [n] for [tab]. Returns false so the notification keeps bubbling
+  /// to any other listener (the shell composes this with
+  /// [NavScrollCompression.applyTo]).
+  ///
+  /// A notification's context sits INSIDE the scrollable that emitted it,
+  /// so [Scrollable.maybeOf] from there resolves THAT scrollable. It is
+  /// the tab's primary only when no vertical scrollable exists ABOVE it —
+  /// nested lists defer to their outer list.
+  bool record(int tab, ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final ctx = n.context;
+    if (ctx == null) return false;
+    final scrollable = Scrollable.maybeOf(ctx, axis: Axis.vertical);
+    if (scrollable == null) return false;
+    if (identical(_primary[tab], scrollable)) return false;
+    if (Scrollable.maybeOf(scrollable.context, axis: Axis.vertical) != null) {
+      return false; // nested — the outer list owns the tab's scroll-to-top
+    }
+    _primary[tab] = scrollable;
+    return false;
+  }
+
+  /// The tab's outermost scrollable position, or null when it has none
+  /// recorded or the recorded scrollable has been unmounted. Dead entries
+  /// are dropped.
+  ScrollPosition? primaryFor(int tab) {
+    final state = _primary[tab];
+    if (state == null) return null;
+    if (!state.mounted) {
+      _primary.remove(tab);
+      return null;
+    }
+    // A mounted scrollable that has emitted a notification always has its
+    // position built (the position exists before the first scroll event).
+    return state.position;
+  }
+
+  /// Test-only: forget everything (the singleton survives across tests).
+  @visibleForTesting
+  void debugReset() => _primary.clear();
+}
+
+/// NEW-C — the tap-active-tab contract owner (§2.3):
+///
+///   * the tab page is scrolled  → spring its outermost scrollable to the
+///     top with `kHouseSpring` (a haptic `selectionClick` confirms the tap)
+///   * the page is already at the top → the subtle "already here" lift of
+///     the whole content (scale 1.0 → 0.985 → 1.0) as the acknowledgement
+///
+/// Reduced motion: the spring becomes an instant jump and the lift does
+/// not play — the information ("you are at the top") is unchanged.
+///
+/// The shell (MainWrapper) owns the instance, wires it into
+/// [PremiumBottomNav.onActiveTabRetap] and scales its content by
+/// [lift]. Living here as one production unit means the contract is the
+/// same code in the app and in the regression tests.
+class NavRetapController {
+  NavRetapController({required TickerProvider vsync})
+      : liftCtrl = AnimationController(
+          vsync: vsync,
+          duration: MotionTokens.control,
+          value: 1.0,
+        );
+
+  final AnimationController liftCtrl;
+
+  /// The lift: scale 1.0 → 0.985 (fast out) → 1.0 (settling ease). Subtle
+  /// by design — it acknowledges the tap, it does not perform.
+  static final Animatable<double> _liftTween = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween(begin: 1.0, end: 0.985)
+          .chain(CurveTween(curve: Curves.easeOut)),
+      weight: 35,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 0.985, end: 1.0)
+          .chain(CurveTween(curve: Curves.easeOutCubic)),
+      weight: 65,
+    ),
+  ]);
+
+  /// The scale animation the shell applies to its content. Rests at 1.0.
+  Animation<double> get lift => liftCtrl.drive(_liftTween);
+
+  /// Handles a tap on the already-active tab.
+  void handleRetap({
+    required int tab,
+    required TabScrollRegistry registry,
+    required BuildContext context,
+  }) {
+    final position = registry.primaryFor(tab);
+    if (position == null || position.pixels <= 0) {
+      // Already at the top (or nothing scrollable): the lift is the whole
+      // signal — no haptic, the motion itself confirms the tap.
+      if (AzMotion.of(context).travel) liftCtrl.forward(from: 0);
+      return;
+    }
+    AzamanHaptics.selection();
+    if (AzMotion.of(context).travel) {
+      position.animateTo(
+        0,
+        duration: MotionTokens.emphasized,
+        curve: kHouseSpring,
+      );
+    } else {
+      position.jumpTo(0);
+    }
+  }
+
+  void dispose() => liftCtrl.dispose();
+}
+
 class _NavItem {
   final IconData icon, activeIcon;
   final String label;
@@ -144,6 +279,12 @@ class PremiumBottomNav extends ConsumerWidget {
   /// callers that do not implement it simply get the default press feedback.
   final ValueChanged<int>? onTabLongPress;
 
+  /// NEW-C: a tap on the ALREADY-ACTIVE tab. When null the nav keeps its
+  /// legacy acknowledgement (a haptic only); the shell supplies the real
+  /// contract (scroll-to-top with `kHouseSpring` + the already-here lift)
+  /// through [NavRetapController].
+  final VoidCallback? onActiveTabRetap;
+
   /// NEW-HOME §8/§10 (audit): a control placed STRUCTURALLY BESIDE the
   /// nav — [navigation] [+] — not a FAB floating above it. The shell
   /// passes the + launcher trigger here; it shares the pill's band,
@@ -156,14 +297,19 @@ class PremiumBottomNav extends ConsumerWidget {
     required this.onItemSelected,
     this.trailing,
     this.onTabLongPress,
+    this.onActiveTabRetap,
   });
 
   void _handleTap(int i) {
     if (i == selectedIndex) {
-      // Re-tapping the active tab. The nav has no handle on the page's
-      // ScrollController (pages own their own scrollables), so it cannot
-      // scroll to top. What it CAN do is acknowledge the tap, which beats the
-      // previous silent no-op. See F-025 for the scroll-to-top follow-up.
+      // NEW-C: a real retap contract (scroll-to-top + lift) when the caller
+      // supplies one; the haptic-only acknowledgement remains only as the
+      // default for callers that do not (F-025 is closed by the shell).
+      final retap = onActiveTabRetap;
+      if (retap != null) {
+        retap();
+        return;
+      }
       AzamanHaptics.selection();
       return;
     }

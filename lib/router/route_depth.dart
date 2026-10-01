@@ -87,6 +87,13 @@ class RouteDepthTracker with ChangeNotifier {
 
   final GoRouter _router;
 
+  /// The router this tracker reads. NEW-C's contextual nav band lives in
+  /// the MaterialApp builder, ABOVE the Router widget, so `GoRouter.of`
+  /// cannot resolve from the band's context — band actions (back chevron,
+  /// pop-to-shell) route through the tracker instead, keeping the tracker
+  /// the single router-owned seam.
+  GoRouter get router => _router;
+
   int _depth = 0;
   List<String> _routeNames = const [];
 

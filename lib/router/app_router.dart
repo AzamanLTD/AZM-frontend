@@ -106,6 +106,7 @@ import 'package:azaman/screens/orders/order_tracking_screen.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
 import 'package:azaman/config.dart';
+import 'package:azaman/router/top_route_observer.dart';
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -124,6 +125,9 @@ final GoRouter appRouter = GoRouter(
   // transition families) routes are deemed restorable and each route
   // subtree gets its own RestorationScope from ModalRoute.
   restorationScopeId: 'azm-router',
+  // NEW-C: the top-route kind signal for the contextual nav band — is the
+  // current topmost route a router-owned page, or an imperative overlay?
+  observers: [topRouteObserver],
   redirect: (context, state) {
     // NEW-A (Step 5): normalize azaman:// deep links into app paths BEFORE
     // any other check, so a cold-start or runtime deep link resolves

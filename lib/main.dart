@@ -31,6 +31,7 @@ import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
+import 'package:azaman/widgets/contextual_nav_band.dart';
 import 'package:azaman/router/app_router.dart';
 import 'package:azaman/router/route_depth.dart';
 
@@ -267,7 +268,23 @@ class AzamanApp extends ConsumerWidget {
             notifier: sensory,
             child: ThemedAppBackdrop(
               child: AzamanConnectivityBanner(
-                child: child ?? const SizedBox.shrink(),
+                // NEW-C: the depth-aware contextual nav band mounts ABOVE
+                // the navigator so it can own the bottom edge while a
+                // pushed route owns the screen (the shell's own pill is
+                // covered by any router push). The band hides itself at
+                // depth 0, when no shell is engaged, and whenever an
+                // imperative route covers the top router page.
+                child: Stack(
+                  children: [
+                    child ?? const SizedBox.shrink(),
+                    const Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: ContextualNavBand(),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -475,7 +492,7 @@ class MainWrapper extends ConsumerStatefulWidget {
 }
 
 class _MainWrapperState extends ConsumerState<MainWrapper>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   int _selectedIndex = 0;
 
   /// The + launcher open/close state, shared between the trigger (in the
@@ -485,6 +502,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   late final List<Widget?> _pages;
   late final AnimationController _transitionCtrl;
+
+  /// NEW-C: the tap-active-tab contract (scroll-to-top with the house
+  /// spring + the already-here lift) and the shell's engagement on the
+  /// app shell bus.
+  late final NavRetapController _retap;
   // Cached in initState: `ref` is unusable from dispose() (riverpod asserts),
   // and deactivate() can fire for temporary removals that later re-insert the
   // State — deregistering there could drop listeners that are never reregistered.
@@ -498,6 +520,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     _shellSocketService = ref.read(socketServiceProvider);
 
     _pages = [const AzamanHomePage(), null, null];
+
+    _retap = NavRetapController(vsync: this);
+    // NEW-C: publish the shell's presence + active tab to the contextual
+    // nav band; tab requests route through the shell's OWN handler so the
+    // whole switch contract (launcher close, home-active signal,
+    // compression reset, ticker budget) applies unchanged.
+    appShellBus.engage(
+      onTabRequest: _onNavItemSelected,
+      initialTab: _selectedIndex,
+    );
 
     _transitionCtrl = AnimationController(
       vsync: this,
@@ -571,6 +603,20 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     if (!midTransition) {
       _transitionCtrl.forward(from: 0);
     }
+
+    // NEW-C: the contextual band's reopened pill mirrors the live tab.
+    appShellBus.setActiveTab(i);
+  }
+
+  /// NEW-C (§2.3): a tap on the already-active tab springs the page's
+  /// outermost scrollable to the top with `kHouseSpring`, or lifts the
+  /// content (1.0 → 0.985 → 1.0) when it is already there.
+  void _onActiveTabRetap() {
+    _retap.handleRetap(
+      tab: _selectedIndex,
+      registry: TabScrollRegistry.instance,
+      context: context,
+    );
   }
 
   /// Ticker budget (milestone 2026-09-30): only the page participating in
@@ -634,6 +680,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     _shellSocketService.removeBizNotificationListener();
     _shellSocketService.removeBizNotificationsUpdatedListener();
     _transitionCtrl.dispose();
+    _retap.dispose();
+    appShellBus.disengage();
     super.dispose();
   }
 
@@ -782,6 +830,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         trailing: PlusLauncherTrigger(controller: _plus),
         selectedIndex: _selectedIndex,
         onItemSelected: _onNavItemSelected,
+        // NEW-C (§2.3): tap on the already-active tab springs the page to
+        // the top (or lifts it when already there) — closes F-025.
+        onActiveTabRetap: _onActiveTabRetap,
         // TASK-010b: a long-press on the Market tab opens the vertical
         // launcher; the gating (Market is the only launcher-owned tab) lives
         // in [openVerticalLauncherForTab], so the shell stays a one-line
@@ -805,10 +856,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // returning to the top restores it. Reduced motion is honoured by the
       // reader in the nav, not here.
       body: NotificationListener<ScrollNotification>(
-        onNotification: NavScrollCompression.applyTo,
-        child: Stack(
-          children: [
-            AnimatedBuilder(
+        // TASK-010 compression + NEW-C per-tab scroll recording share this
+        // one listener above every page. The registry keeps each tab's
+        // OUTERMOST vertical scrollable so the retap contract can spring
+        // the page to the top without any page owning a controller seam.
+        onNotification: (n) {
+          NavScrollCompression.applyTo(n);
+          TabScrollRegistry.instance.record(_selectedIndex, n);
+          return false;
+        },
+        child: ScaleTransition(
+          // NEW-C: the already-here lift — a subtle 1.0 → 0.985 → 1.0
+          // scale of the whole content, driven by the retap controller.
+          // Rests at 1.0 and never plays under reduced motion.
+          scale: _retap.lift,
+          child: Stack(
+            children: [
+              AnimatedBuilder(
               animation: _transitionCtrl,
               builder: (context, child) => Stack(
                 fit: StackFit.expand,
@@ -876,7 +940,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
