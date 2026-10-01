@@ -535,6 +535,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   void _onNavItemSelected(int i) {
     if (i == _selectedIndex) return;
+    // NEW-HOME audit §3: switching shell tabs CLOSES the + launcher. The
+    // overlay belongs to the tab that opened it — an open launcher over
+    // a mid-flight page transition would strand a modal on an unrelated
+    // page, and the trigger sits in the nav band, not in the page, so
+    // nothing else would ever close it.
+    if (_plus.isOpen) _plus.close();
     // NEW-HOME audit §7: Home-local security state (unlocked card
     // details) and Home-local machines (the typewriter) must know when
     // Home stops being the displayed tab — pages stay MOUNTED, so only

@@ -81,6 +81,24 @@ class TransactionRecord {
   /// UI-facing category: `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER`.
   String get category => _categorize(rawType);
 
+  /// Centralised direction semantics (audit §4): ONE source of truth for
+  /// whether a record moves funds OUT of the wallet or INTO it, consumed
+  /// by BOTH rendering (the +/- sign and colour on the activity surface)
+  /// and actions (Send-Again eligibility). An explicit metadata
+  /// `direction` flag wins ('out'/'outbound'/'in'/'inbound') so backends
+  /// that normalise amounts to absolute values stay truthful; otherwise
+  /// the sign of [amountUsdc] decides. No consumer may re-derive this.
+  bool get isOutbound {
+    final direction = metadata?['direction']?.toString().toLowerCase();
+    if (direction == 'out' || direction == 'outbound') return true;
+    if (direction == 'in' || direction == 'inbound') return false;
+    return amountUsdc < 0;
+  }
+
+  /// The complement of [isOutbound] — a record with no direction signal
+  /// and a non-negative amount reads as a credit.
+  bool get isInbound => !isOutbound;
+
   String get provider => metadata?['provider']?.toString() ?? '';
   double get amountGhs => (metadata?['amountGhs'] as num?)?.toDouble() ?? 0;
   double get rateAtInitiation =>

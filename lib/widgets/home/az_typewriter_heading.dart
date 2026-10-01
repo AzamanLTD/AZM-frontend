@@ -484,6 +484,16 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
     } else {
       _machine.showMessage(message.text);
     }
+    // AUDIT §7: the scheduling path itself honours shell visibility —
+    // if Home is NOT the active tab at the moment a message is armed,
+    // the machine pauses immediately (timers cancelled, text kept).
+    // Realistically reachable only when a message arms between builds
+    // (the post-frame first schedule, or a contextual supersede landing
+    // on a rebuild where the tab already switched); the shell must
+    // never see rotation from an inactive tab.
+    if (!ref.read(homeShellActiveProvider) && !_machine.paused) {
+      _machine.pause();
+    }
     if (mounted) setState(() {});
   }
 

@@ -158,7 +158,13 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   }
 
   void _onDoorwayDragUpdate(DragUpdateDetails d) {
-    _handoffDragPx += d.delta.dy;
+    // AUDIT §1 (gesture direction): the physical gesture must match the
+    // surface being revealed. The activity surface rises from BELOW, so
+    // the finger drags UP and the content follows the finger — wallet
+    // up, activity up. (The reverse handoff keeps the same grammar:
+    // dragging DOWN from the activity top walks the stack back up to
+    // the wallet.) An upward delta is negative dy, hence the negation.
+    _handoffDragPx -= d.delta.dy;
     final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
     _handoff.value = ActivityHandoffPhysics.revealFor(progress);
   }

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_async/fake_async.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/home_shell_active_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
@@ -187,6 +188,108 @@ void main() {
         find.textContaining(RegExp('Good (morning|afternoon|evening)')),
         findsOneWidget,
       );
+    });
+  });
+
+  group('AzTypewriterHeading — shell inactive/resume lifecycle (audit §7)',
+      () {
+    String headingText(WidgetTester tester) {
+      final t = find.descendant(
+        of: find.byType(AzTypewriterHeading),
+        matching: find.byType(Text),
+      );
+      return tester.widget<Text>(t.first).data ?? '';
+    }
+
+    Future<void> pumpHeading(
+        WidgetTester tester, ProviderContainer container) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeProvider.getThemeData(AzamanTheme.light),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(400, 900)),
+              child: Scaffold(body: AzTypewriterHeading()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(); // the post-frame _syncMessage arms the message
+      await tester.pump(const Duration(milliseconds: 200)); // typing runs
+    }
+
+    testWidgets('the cycle runs while the shell tab is ACTIVE, freezes '
+        'completely when it goes INACTIVE (even past the hold), and '
+        'resumes from the same message', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith((ref) => AuthProvider()),
+          unreadCountProvider.overrideWith((ref) => 0),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await pumpHeading(tester, container);
+
+      // ACTIVE: the cycle advances — the greeting types in.
+      final active1 = headingText(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      final active2 = headingText(tester);
+      expect(active2 != active1, isTrue,
+          reason: 'while the Home tab is active, the machine types');
+      expect(active2.length >= active1.length, isTrue);
+
+      // INACTIVE (the shell writes false on tab switch): every timer is
+      // cancelled — typing stops AND the hold that would follow the
+      // completed message never fires, however long the user is away.
+      container.read(homeShellActiveProvider.notifier).state = false;
+      await tester.pump(const Duration(milliseconds: 100));
+      final paused = headingText(tester);
+      expect(paused, isNotEmpty, reason: 'the paused text is kept');
+      await tester.pump(const Duration(seconds: 30));
+      expect(headingText(tester), paused,
+          reason: 'inactive → no typing, no hold expiry, no rotation — '
+              '30s is 3× the hold duration and nothing fired');
+
+      // RESUME (the shell writes true on re-entry): a held message
+      // re-arms its hold from zero; when it elapses the ladder rotates —
+      // a paused machine would never have fired.
+      container.read(homeShellActiveProvider.notifier).state = true;
+      await tester.pump(const Duration(seconds: 2));
+      expect(headingText(tester), paused,
+          reason: 'resume re-arms the hold — the text is kept');
+      await tester.pump(const Duration(seconds: 10));
+      final rotated = headingText(tester);
+      expect(rotated != paused, isTrue,
+          reason: 'hold elapsed after resume → the ladder rotates again');
+    });
+
+    testWidgets('a message armed while the shell is ALREADY inactive '
+        'pauses before typing a single character, then types on resume',
+        (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith((ref) => AuthProvider()),
+          unreadCountProvider.overrideWith((ref) => 0),
+          homeShellActiveProvider.overrideWith((ref) => false),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await pumpHeading(tester, container);
+      expect(headingText(tester), isEmpty,
+          reason: 'armed while inactive → nothing types, no timer runs');
+
+      // The shell reports Home active again: the armed message types now.
+      // (The zero-duration pump builds the resume frame — a pump advances
+      // the clock BEFORE building, so the typing timer only arms once the
+      // rebuild has actually run.)
+      container.read(homeShellActiveProvider.notifier).state = true;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(headingText(tester), isNotEmpty,
+          reason: 'resume types the armed message');
     });
   });
 }

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/providers/savings_overview_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -18,6 +19,15 @@ import 'package:azaman/widgets/home/wallet_modules.dart';
 class _NeverBuiltVaults extends VaultsNotifier {
   @override
   Future<List<Vault>> build() async => const [];
+}
+
+/// A cached savings overview WITHOUT triggering the real HTTP fetch —
+/// the same provider the Savings screen writes through.
+class _FakeSavingsOverview extends SavingsOverviewNotifier {
+  _FakeSavingsOverview(this.overviewData);
+  final Map<String, dynamic> overviewData;
+  @override
+  Future<SavingsOverview> build() async => SavingsOverview(overviewData);
 }
 
 class _FakeSusuListNotifier extends SusuListNotifier {
@@ -72,6 +82,87 @@ void main() {
     final p2p = container.read(p2pModuleNoticeProvider);
     expect(p2p.populated, isFalse);
     expect(p2p.line, 'Buy or sell directly with verified vendors.');
+  });
+
+  testWidgets('AUDIT §6 (regression): a cached savings overview produces '
+      'the REAL Save notice — goal name and progress from the SAVINGS '
+      'product, never vault semantics', (tester) async {
+    var vaultsInitialised = false;
+    final container = ProviderContainer(
+      overrides: [
+        vaultsProvider.overrideWith(() {
+          vaultsInitialised = true;
+          return _NeverBuiltVaults();
+        }),
+        savingsOverviewProvider.overrideWith(
+          () => _FakeSavingsOverview({
+            'goals': [
+              {
+                'name': 'Laptop Fund',
+                'currentAmountGhs': 250,
+                'targetAmountGhs': 1000,
+              },
+              {
+                'name': 'Trip to Tamale',
+                'currentAmountGhs': 50,
+                'targetAmountGhs': 1000,
+              },
+            ],
+          }),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // The user has opened the Savings product: the overview provider is
+    // INITIALISED and resolved to data (exactly what the Savings screen
+    // does by writing through this same provider).
+    await container.read(savingsOverviewProvider.future);
+    await tester.pump();
+
+    final notice = container.read(saveModuleNoticeProvider);
+
+    expect(notice.populated, isTrue,
+        reason: 'the savings overview IS loaded — the real copy shows');
+    // The most-relevant goal (least remaining to target) drives the
+    // line: Laptop Fund (750 left) beats Trip to Tamale (950 left).
+    expect(notice.line, contains('Laptop'),
+        reason: 'the notice names the most relevant savings goal');
+    expect(notice.line, contains('25%'),
+        reason: 'the notice shows the real progress (250/1000)');
+    expect(notice.line, isNot(contains('vault')),
+        reason: 'vault semantics never leak into the Save notice');
+    expect(vaultsInitialised, isFalse,
+        reason: 'a populated savings notice still never touches vaults');
+  });
+
+  testWidgets('AUDIT §6 (regression): a cached overview with no usable '
+      'goal falls back to the educational copy — never a fabricated '
+      'figure', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        savingsOverviewProvider.overrideWith(
+          () => _FakeSavingsOverview({
+            'goals': [
+              {'name': 'No Target', 'currentAmountGhs': 40},
+            ],
+          }),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // Savings is initialised (cached), but the cached overview carries no
+    // goal with a real target — the honest copy is still educational.
+    await container.read(savingsOverviewProvider.future);
+    await tester.pump();
+
+    final notice = container.read(saveModuleNoticeProvider);
+    expect(notice.populated, isFalse,
+        reason: 'a goal without a target carries no real progress to '
+            'show');
+    expect(
+        notice.line, "Put money aside for something you're building.");
   });
 
   test('a populated Susu notice reads real cycle data', () async {

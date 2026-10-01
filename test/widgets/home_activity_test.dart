@@ -197,9 +197,12 @@ Future<
 
 /// Enters the activity state from the wallet rest: scroll the doorway into
 /// view, WAIT OUT the ensureVisible scroll animation (dragging mid-scroll
-/// lands the pointer on the wrong widget), then a deliberate 120px pull.
-/// Self-verifies the commit so a flaky hit can never poison the assertions
-/// downstream: a drag that somehow missed is retried once.
+/// lands the pointer on the wrong widget), then a deliberate 120px UPWARD
+/// drag — the physical gesture that matches the surface being revealed
+/// (AUDIT §1: the activity surface rises from below, so the finger drags
+/// up and the content follows). Self-verifies the commit so a flaky hit
+/// can never poison the assertions downstream: a drag that somehow missed
+/// is retried once.
 Future<void> _enterActivity(WidgetTester tester) async {
   await tester.ensureVisible(find.byType(RecentActivityDoorway));
   // Scroll animation (600ms) + any settle frames.
@@ -208,7 +211,7 @@ Future<void> _enterActivity(WidgetTester tester) async {
   }
   for (var attempt = 0; attempt < 2; attempt++) {
     await tester.drag(
-        find.byType(RecentActivityDoorway), const Offset(0, 120));
+        find.byType(RecentActivityDoorway), const Offset(0, -120));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
     if (_activityOpacity(tester) > 0.99) return;
@@ -346,7 +349,7 @@ void main() {
       await tester.ensureVisible(find.byType(RecentActivityDoorway));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.drag(
-          find.byType(RecentActivityDoorway), const Offset(0, 60));
+          find.byType(RecentActivityDoorway), const Offset(0, -60));
       await tester.pump(const Duration(milliseconds: 900));
       await tester.pump(const Duration(milliseconds: 900));
 

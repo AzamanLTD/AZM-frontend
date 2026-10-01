@@ -82,4 +82,40 @@ void main() {
       );
     },
   );
+
+  test(
+    'AUDIT §3: switching shell tabs closes the + launcher before the '
+    'page transition starts',
+    () {
+      final source = File('lib/main.dart').readAsStringSync();
+
+      // The handler is _onNavItemSelected; the launcher close must be
+      // INSIDE it, before the transition controller fires.
+      final fnStart = source.indexOf('void _onNavItemSelected(int i) {');
+      expect(fnStart, greaterThan(0), reason: 'the tab-select handler exists');
+      final fnEnd = source.indexOf('void ', fnStart + 10);
+      final body = source.substring(
+          fnStart, fnEnd > 0 ? fnEnd : source.length);
+
+      expect(body, contains('if (_plus.isOpen) _plus.close();'),
+          reason: 'the shared launcher controller is closed on every '
+              'genuine tab switch');
+
+      // The close happens BEFORE the transition animation is armed —
+      // the overlay never rides a mid-flight page transition.
+      final closeAt = body.indexOf('_plus.close()');
+      final transitionAt = body.indexOf('_transitionCtrl.forward(from: 0)');
+      expect(closeAt, greaterThan(0));
+      expect(transitionAt, greaterThan(0));
+      expect(closeAt, lessThan(transitionAt),
+          reason: 'close precedes the transition animation');
+
+      // And only on a genuine switch — the same-tab early return above
+      // the close keeps re-taps inert.
+      final returnAt = body.indexOf('if (i == _selectedIndex) return;');
+      expect(returnAt, greaterThan(0));
+      expect(returnAt, lessThan(closeAt),
+          reason: 'same-tab taps return before touching the launcher');
+    },
+  );
 }

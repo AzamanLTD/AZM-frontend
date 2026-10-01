@@ -341,6 +341,12 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
   bool _busy = false;
   String? _error;
 
+  /// FIRST-PIN confirmation (audit §8): entry one CHOOSES the value,
+  /// entry two CONFIRMS it. A single mistyped entry can never silently
+  /// become the credential — [AzmCardProgramme.setPin] only ever
+  /// receives a confirmed pair, so the seam contract is unchanged.
+  String? _firstEntry;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -351,13 +357,56 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
     final programme = ref.read(azmCardProgrammeProvider);
     final pin = _controller.text;
     if (pin.isEmpty) return;
+
+    // FIRST PIN — the two-stage confirmation (audit §8). Stage one
+    // stores the candidate and asks again; stage two must repeat it
+    // exactly. Only a matching pair reaches the programme's setPin.
+    if (!programme.hasPin) {
+      if (_firstEntry == null) {
+        AzamanHaptics.threshold();
+        setState(() {
+          _firstEntry = pin;
+          _error = null;
+        });
+        _controller.clear();
+        return;
+      }
+      if (_firstEntry != pin) {
+        AzamanHaptics.warn();
+        setState(() {
+          _firstEntry = null;
+          _error = 'Those PINs did not match. Choose your card PIN again.';
+        });
+        _controller.clear();
+        return;
+      }
+      setState(() => _busy = true);
+      final ok = await programme.setPin(pin);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (ok) {
+        AzamanHaptics.success();
+        widget.onVerified();
+      } else {
+        // Defensive: the field caps at 6 digits and digits-only, so a
+        // malformed candidate should be unreachable — but the seam is
+        // still never bypassed: a rejected pair restarts stage one.
+        AzamanHaptics.warn();
+        setState(() {
+          _firstEntry = null;
+          _error = 'Use 4-6 digits for your card PIN.';
+        });
+        _controller.clear();
+      }
+      return;
+    }
+
+    // Existing PIN: verify.
     setState(() {
       _busy = true;
       _error = null;
     });
-    final ok = programme.hasPin
-        ? await programme.verifyPin(pin)
-        : await programme.setPin(pin);
+    final ok = await programme.verifyPin(pin);
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
@@ -366,9 +415,7 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
     } else {
       AzamanHaptics.warn();
       _controller.clear();
-      setState(() => _error = programme.hasPin
-          ? 'That PIN does not match. Try again.'
-          : 'Use 4-6 digits for your card PIN.');
+      setState(() => _error = 'That PIN does not match. Try again.');
     }
   }
 
@@ -377,6 +424,7 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
     final colors = ref.watch(themeProvider).colors;
     final programme = ref.watch(azmCardProgrammeProvider);
     final isNewPin = !programme.hasPin;
+    final confirmingPin = isNewPin && _firstEntry != null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -395,7 +443,11 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
               const SizedBox(width: AzSpace.sm),
               Expanded(
                 child: Text(
-                  isNewPin ? 'Set your card PIN' : 'Enter your card PIN',
+                  confirmingPin
+                      ? 'Confirm your card PIN'
+                      : isNewPin
+                          ? 'Set your card PIN'
+                          : 'Enter your card PIN',
                   style: AzText.titleXl.copyWith(color: colors.textPrimary),
                 ),
               ),
@@ -403,7 +455,10 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
           ),
           const SizedBox(height: AzSpace.sm),
           Text(
-            'The card PIN is separate from your AZM account PIN.',
+            confirmingPin
+                ? 'Re-enter the same PIN to confirm it. The card PIN is '
+                    'separate from your AZM account PIN.'
+                : 'The card PIN is separate from your AZM account PIN.',
             style: AzText.bodyS.copyWith(color: colors.textTertiary),
           ),
           const SizedBox(height: AzSpace.lg),
@@ -415,7 +470,11 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 6,
             decoration: InputDecoration(
-              hintText: isNewPin ? 'Choose 4-6 digits' : 'Card PIN',
+              hintText: confirmingPin
+                  ? 'Re-enter the same PIN'
+                  : isNewPin
+                      ? 'Choose 4-6 digits'
+                      : 'Card PIN',
               counterText: '',
               errorText: _error,
             ),
@@ -432,7 +491,11 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(isNewPin ? 'Set PIN' : 'Unlock card details'),
+                  : Text(confirmingPin
+                      ? 'Confirm PIN'
+                      : isNewPin
+                          ? 'Set PIN'
+                          : 'Unlock card details'),
             ),
           ),
         ],

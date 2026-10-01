@@ -404,7 +404,10 @@ class _ActivityActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = ActivityActionResolver.resolve(txn);
     final failed = txn.status == 'FAILED' || txn.status == 'CANCELLED';
-    final isCredit = txn.amountUsdc > 0;
+    // AUDIT §4: rendering reads the SAME centralised direction semantics
+    // the actions read (TransactionRecord.isInbound) — the metadata
+    // direction flag is honoured here exactly as it is by Send Again.
+    final isCredit = txn.isInbound;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AzSpace.md),

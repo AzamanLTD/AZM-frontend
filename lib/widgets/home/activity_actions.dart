@@ -15,8 +15,10 @@
 //     are never Send Again — only a deliberate outbound peer transfer is.
 //   * The resolved action carries an explicit payload (the recipient's
 //     AZM ID + name) into the send flow; nothing is re-derived downstream.
-//   * Raw backend types are normalised at THIS boundary (the resolver),
-//     and the UI consumes only the typed [ActivityAction].
+//   * Raw backend types are normalised at THIS boundary
+//     ([ActivityKindNormalizer] → [ActivityRecordKind]) and the UI
+//     consumes only the typed enum + typed [ActivityAction] — no
+//     substring inference anywhere downstream.
 //   * Unknown or incomplete activity data → Details. Never guess.
 // =============================================================================
 
@@ -88,6 +90,57 @@ class ActivityRecipient {
 /// metadata — never the title string. Unknown kinds, and records whose
 /// action needs a payload the record does not carry, resolve to the safe
 /// Details fallback.
+/// The normalised transaction kind (audit §5): raw backend type strings
+/// are mapped to a CLOSED enum at THIS boundary — the single seam between
+/// the backend's type vocabulary and the UI. [ActivityActionResolver]
+/// switches on the enum only; an unmappable type normalises to
+/// [ActivityRecordKind.other], whose action is always Details.
+enum ActivityRecordKind {
+  transfer,
+  susu,
+  deposit,
+  withdrawal,
+  trade,
+  other,
+}
+
+class ActivityKindNormalizer {
+  const ActivityKindNormalizer._();
+
+  /// Exact backend enums — the authoritative vocabulary. New backend
+  /// enums belong HERE first; the token table is the compatibility
+  /// fallback, not the primary path.
+  static const _exactKinds = <String, ActivityRecordKind>{
+    'INTERNAL_TRANSFER': ActivityRecordKind.transfer,
+    'SMART_ROUTE_RUN': ActivityRecordKind.transfer,
+    'DEPOSIT_FIAT': ActivityRecordKind.deposit,
+    'DEPOSIT_CRYPTO': ActivityRecordKind.deposit,
+    'WITHDRAWAL_FIAT': ActivityRecordKind.withdrawal,
+    'WITHDRAWAL_CRYPTO': ActivityRecordKind.withdrawal,
+  };
+
+  /// Documented token fallback for backend enums added before the
+  /// frontend enumerates them. Explicit, ordered, and confined to this
+  /// normalizer — string shapes are never inspected in UI code.
+  static const _tokenKinds = <String, ActivityRecordKind>{
+    'SUSU': ActivityRecordKind.susu,
+    'DEPOSIT': ActivityRecordKind.deposit,
+    'WITHDRAW': ActivityRecordKind.withdrawal,
+    'TRADE': ActivityRecordKind.trade,
+    'P2P': ActivityRecordKind.trade,
+  };
+
+  static ActivityRecordKind normalize(String rawType) {
+    final k = rawType.toUpperCase();
+    final exact = _exactKinds[k];
+    if (exact != null) return exact;
+    for (final token in _tokenKinds.keys) {
+      if (k.contains(token)) return _tokenKinds[token]!;
+    }
+    return ActivityRecordKind.other;
+  }
+}
+
 class ActivityActionResolver {
   const ActivityActionResolver._();
 
@@ -105,68 +158,52 @@ class ActivityActionResolver {
     return ActivityRecipient(azamanId: azamId, displayName: name);
   }
 
-  static const _sendAgainTypes = <String>{
-    'INTERNAL_TRANSFER',
-    'SMART_ROUTE_RUN',
-  };
-
   static ActivityAction resolve(TransactionRecord t) {
-    final kind = t.rawType.toUpperCase();
-
-    // SEND AGAIN — the strictest contract in the file:
-    //   1. only deliberate OUTBOUND peer transfers qualify (never credits:
-    //      an incoming transfer is not a "send again" without a product
-    //      contract saying so);
-    //   2. the authoritative recipient must exist in the metadata — a
-    //      display title never counts;
-    //   3. the payload is carried explicitly into the action.
-    if (_sendAgainTypes.contains(kind)) {
-      if (_amountIsOutbound(t)) {
-        final recipient = _recipientFrom(t);
-        if (recipient != null) {
-          return ActivityAction(ActivityActionType.sendAgain,
-              recipient: recipient);
+    // AUDIT §5: the UI consumes a CLOSED enum. Raw backend type strings
+    // are normalised exactly once, at this boundary; nothing downstream
+    // infers an action from string shapes.
+    switch (ActivityKindNormalizer.normalize(t.rawType)) {
+      case ActivityRecordKind.transfer:
+        // SEND AGAIN — the strictest contract in the file:
+        //   1. only deliberate OUTBOUND peer transfers qualify (never
+        //      credits: an incoming transfer is not a "send again"
+        //      without a product contract saying so);
+        //   2. the authoritative recipient must exist in the metadata — a
+        //      display title never counts;
+        //   3. the payload is carried explicitly into the action.
+        if (t.isOutbound) {
+          final recipient = _recipientFrom(t);
+          if (recipient != null) {
+            return ActivityAction(ActivityActionType.sendAgain,
+                recipient: recipient);
+          }
         }
-      }
-      // Outbound transfer without an authoritative recipient, or an
-      // incoming transfer: Details. Never guess who to send to.
-      return const ActivityAction(ActivityActionType.viewDetails);
+        // Outbound transfer without an authoritative recipient, or an
+        // incoming transfer: Details. Never guess who to send to.
+        return const ActivityAction(ActivityActionType.viewDetails);
+      case ActivityRecordKind.susu:
+        final susuId = t.metadata?['susuGroupId']?.toString();
+        if (susuId != null && susuId.isNotEmpty) {
+          return ActivityAction(ActivityActionType.viewSusu,
+              reference: susuId);
+        }
+        return const ActivityAction(ActivityActionType.viewSusu);
+      case ActivityRecordKind.deposit:
+        return const ActivityAction(ActivityActionType.viewDeposit);
+      case ActivityRecordKind.withdrawal:
+        return const ActivityAction(ActivityActionType.viewWithdrawal);
+      case ActivityRecordKind.trade:
+        // Only a REAL trade reference can open the trade route; without
+        // one the safe fallback is the details surface (§13 "never guess").
+        final ref = t.metadata?['tradeId']?.toString() ?? t.providerRef;
+        if (ref != null && ref.isNotEmpty) {
+          return ActivityAction(ActivityActionType.viewTrade, reference: ref);
+        }
+        return const ActivityAction(ActivityActionType.viewDetails);
+      case ActivityRecordKind.other:
+        // Unmappable type: Details. Never guess.
+        return const ActivityAction(ActivityActionType.viewDetails);
     }
-
-    if (kind.contains('SUSU')) {
-      final susuId = t.metadata?['susuGroupId']?.toString();
-      if (susuId != null && susuId.isNotEmpty) {
-        return ActivityAction(ActivityActionType.viewSusu,
-            reference: susuId);
-      }
-      return const ActivityAction(ActivityActionType.viewSusu);
-    }
-    if (kind.contains('DEPOSIT')) {
-      return const ActivityAction(ActivityActionType.viewDeposit);
-    }
-    if (kind.contains('WITHDRAW')) {
-      return const ActivityAction(ActivityActionType.viewWithdrawal);
-    }
-    if (kind.contains('TRADE') || kind.contains('P2P')) {
-      // Only a REAL trade reference can open the trade route; without one
-      // the safe fallback is the details surface (§13 "never guess").
-      final ref = t.metadata?['tradeId']?.toString() ?? t.providerRef;
-      if (ref != null && ref.isNotEmpty) {
-        return ActivityAction(ActivityActionType.viewTrade, reference: ref);
-      }
-      return const ActivityAction(ActivityActionType.viewDetails);
-    }
-    return const ActivityAction(ActivityActionType.viewDetails);
-  }
-
-  /// Direction test: positive amounts are inflow (credit), negative are
-  /// outflow. Records normalised to absolute amounts (some backends do)
-  /// fall back to an explicit metadata direction flag when present.
-  static bool _amountIsOutbound(TransactionRecord t) {
-    final direction = t.metadata?['direction']?.toString().toLowerCase();
-    if (direction == 'out' || direction == 'outbound') return true;
-    if (direction == 'in' || direction == 'inbound') return false;
-    return t.amountUsdc < 0;
   }
 
   /// Dispatches a resolved action. Never guesses: an action whose payload
