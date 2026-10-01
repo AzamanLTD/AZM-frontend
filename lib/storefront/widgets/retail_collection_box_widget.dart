@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../marketplace/experiences/retail/retail_checkout.dart';
 import '../../marketplace/experiences/retail/retail_experience.dart';
 import '../../widgets/marketplace/retail_tray_commit.dart';
 import '../models/storefront_models.dart';
@@ -20,17 +19,17 @@ class RetailCollectionBoxWidget extends ConsumerStatefulWidget {
   /// [StorefrontBusinessInfo] does not carry it (F-034).
   final String? businessProfileId;
 
-  /// Kept for constructor compatibility. Since TASK-012, checkout runs
-  /// through the shared tray (cartProvider → CartScreen); this widget no
-  /// longer reads the gateway.
-  final RetailCheckoutGateway? checkoutGateway;
+  // The `checkoutGateway` constructor parameter (unread since TASK-012) was
+  // removed in the retail checkout recovery audit: checkout runs through the
+  // shared tray (cartProvider → CartScreen → durable FinancialOperationRef),
+  // and a never-read gateway field kept a dead identity path constructible
+  // from production code.
 
   const RetailCollectionBoxWidget({
     super.key,
     required this.props,
     required this.business,
     this.businessProfileId,
-    this.checkoutGateway,
   });
 
   @override

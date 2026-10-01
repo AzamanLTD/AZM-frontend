@@ -7,7 +7,6 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:azaman/config.dart';
 import 'package:azaman/services/api_client.dart';
 
 import '../models/storefront_models.dart';
@@ -28,6 +27,11 @@ class StorefrontApiException implements Exception {
 }
 
 class StorefrontService {
+  /// [apiClient] is injectable so tests can pass a recording client and
+  /// assert the exact durable-identity wire behaviour of the production
+  /// checkout path. Production callers use the default.
+  StorefrontService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+
   // r42 DURABLE key lifecycle: per-escrow funding identities drawn from the
   // durable registry — the SAME key survives service/app recreation, so a
   // lost-response retry after process death converges on the server-side
@@ -63,6 +67,26 @@ class StorefrontService {
     return op;
   }
 
+  /// r42 disposition, shared by the durable storefront economic paths
+  /// (checkoutCart / placeStorefrontOrder): definitive pre-economic 4xx —
+  /// everything except 401 / 409 / 429 — releases the ref's instance;
+  /// every other answered outcome (and every transport loss) stays armed
+  /// for a same-key retry.
+  ///
+  /// The 2026-10-01 recovery audit found the disposition catch previously
+  /// listened for StorefrontApiException, which ApiClient._handleResponse
+  /// makes UNREACHABLE on the error path: ApiClient.post throws its own
+  /// ApiException for every non-2xx BEFORE StorefrontService ever sees the
+  /// response. The classification now runs on the type that actually
+  /// flows (parity with ApiClient.postFinancial); the StorefrontApiException
+  /// clause is kept as defense-in-depth for any direct-response caller.
+  static bool _isDefinitivePreEconomic(int statusCode) =>
+      statusCode >= 400 &&
+      statusCode < 500 &&
+      statusCode != 401 &&
+      statusCode != 409 &&
+      statusCode != 429;
+
   /// Terminal completion / definitive pre-economic release of the ref's
   /// instance: retires THAT instance only and clears the ref.
   Future<void> _releaseOperation(FinancialOperationRef? ref) async {
@@ -73,7 +97,7 @@ class StorefrontService {
     if (ref != null) ref.operationId = null;
   }
 
-  final ApiClient _apiClient = ApiClient();
+  final ApiClient _apiClient;
 
   Future<List<StorefrontTheme>> listThemes({String? category}) async {
     final query = category != null ? '?category=$category' : '';
@@ -247,29 +271,56 @@ class StorefrontService {
           ref: ref);
       body['idempotencyKey'] = op.key;
     }
-    final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
     if (operationType == null) {
+      final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
       return _parseResponse(response) as Map<String, dynamic>;
     }
+    // 2026-10-01 recovery audit: the POST must be INSIDE the disposition
+    // scope (as in ApiClient.postFinancial). Previously it sat outside the
+    // try, so no answered error could ever reach the disposition — a
+    // definitive 4xx silently left the instance armed.
     try {
+      final response = await _apiClient.post('/storefront/$businessProfileId/order', body);
       final parsed = _parseResponse(response) as Map<String, dynamic>;
       // Answered success — this order instance is complete.
       await _releaseOperation(ref);
       return parsed;
+    } on ApiException catch (e) {
+      // Disposition mirrors checkoutCart / postFinancial: definitive
+      // pre-economic 4xx (everything except 401/409/429) → terminal;
+      // retained otherwise so a same-key retry converges on the committed
+      // order. ApiClient.post throws ApiException for every non-2xx — this
+      // is the type that actually reaches the seam.
+      if (_isDefinitivePreEconomic(e.statusCode)) {
+        await _releaseOperation(ref);
+      }
+      rethrow;
     } on StorefrontApiException catch (e) {
-      // Disposition mirrors checkoutCart: definitive pre-economic 4xx
-      // (everything except 401/409/429) → terminal; retained otherwise so a
-      // same-key retry converges on the committed order.
-      final definitive = e.statusCode >= 400 &&
-          e.statusCode < 500 &&
-          e.statusCode != 401 &&
-          e.statusCode != 409 &&
-          e.statusCode != 429;
-      if (definitive) await _releaseOperation(ref);
+      // Defense-in-depth (unreachable via ApiClient.post today): same
+      // disposition if a direct-response path ever throws here.
+      if (_isDefinitivePreEconomic(e.statusCode)) {
+        await _releaseOperation(ref);
+      }
       rethrow;
     }
   }
 
+  /// CANONICAL IDENTITY BOUNDARY (retail checkout recovery, 2026-10-01
+  /// audit): one logical cart checkout owns ONE durable identity, and the
+  /// ONLY authoritative path to it is [operationType] + [ref] →
+  /// [_resolveOperation] → [DurableOperationRegistry] (account-fenced
+  /// journal, request fingerprint, retry-same-instance, new-instance on a
+  /// materially different cart, disposition on answered outcomes). The
+  /// LIFETIME owner is the UI/application operation — CartScreen's
+  /// [FinancialOperationRef] — never this service or a gateway.
+  ///
+  /// The [idempotencyKey] parameter is the LEGACY PRE-ARMED transport kept
+  /// for the non-production retail gateway chain
+  /// (RetailCheckoutController → RetailCheckoutOperation →
+  /// StorefrontRetailCheckoutGateway — unreachable from production UI
+  /// since TASK-012). It journals nothing, recovers nothing and disposes
+  /// nothing: a key armed this way has no retry/recovery semantics. It
+  /// must never become a second identity path for production callers.
   Future<Map<String, dynamic>> checkoutCart({required String businessProfileId, required List<Map<String, dynamic>> items, String? customerNotes, String? deliveryNotes, String? operationType, FinancialOperationRef? ref, String? idempotencyKey, String paymentMode = 'DIRECT'}) async {
     final body = {'items': items, if (customerNotes != null) 'customerNotes': customerNotes, if (deliveryNotes != null) 'deliveryNotes': deliveryNotes, 'paymentMode': paymentMode};
     // r42 OPERATION-INSTANCE MODEL: the body's legacy `idempotencyKey`
@@ -297,27 +348,44 @@ class StorefrontService {
           ref: ref);
       body['idempotencyKey'] = op.key;
     }
-    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
     if (idempotencyKey == null && operationType != null) {
+      // 2026-10-01 recovery audit: the POST must be INSIDE the disposition
+      // scope (as in ApiClient.postFinancial). Previously it sat outside the
+      // try, so no answered error could ever reach the disposition — a
+      // definitive 4xx silently left the instance armed.
       try {
+        final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
         final parsed = _parseResponse(response) as Map<String, dynamic>;
         // Answered success — this checkout instance is complete.
         await _releaseOperation(ref);
         return parsed;
-      } on StorefrontApiException catch (e) {
+      } on ApiException catch (e) {
         // Disposition mirrors postFinancial: definitive pre-economic 4xx
         // (everything except 401/409/429) → the instance is terminal; the
-        // backend released the claim. 401/409/429 → retained (the mutation
-        // may be committed/in-flight; a same-key retry converges).
-        final definitive = e.statusCode >= 400 &&
-            e.statusCode < 500 &&
-            e.statusCode != 401 &&
-            e.statusCode != 409 &&
-            e.statusCode != 429;
-        if (definitive) await _releaseOperation(ref);
+        // backend released the claim. 401/409/429 (and every 5xx and
+        // transport loss) → retained (the mutation may be committed/
+        // in-flight; a same-key retry converges).
+        // 2026-10-01 recovery audit: ApiClient.post throws ApiException
+        // for every non-2xx BEFORE StorefrontService parses anything, so
+        // the classification must run on THIS type — the previous
+        // StorefrontApiException catch never fired, silently keeping
+        // definitive-failure instances armed.
+        if (_isDefinitivePreEconomic(e.statusCode)) {
+          await _releaseOperation(ref);
+        }
+        rethrow;
+      } on StorefrontApiException catch (e) {
+        // Defense-in-depth (unreachable via ApiClient.post today): same
+        // disposition if a direct-response path ever throws here.
+        if (_isDefinitivePreEconomic(e.statusCode)) {
+          await _releaseOperation(ref);
+        }
         rethrow;
       }
     }
+    // Legacy paths (pre-armed key or no identity at all): no durable
+    // lifecycle — plain transport.
+    final response = await _apiClient.post('/storefront/$businessProfileId/checkout', body);
     return _parseResponse(response) as Map<String, dynamic>;
   }
 

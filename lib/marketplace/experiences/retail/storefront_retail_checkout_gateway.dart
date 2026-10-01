@@ -5,9 +5,17 @@ import '../../../storefront/services/storefront_conflict_exception.dart';
 
 /// Concrete [RetailCheckoutGateway] backed by [StorefrontService].
 ///
+/// NOT PRODUCTION-REACHABLE (retail checkout recovery audit, 2026-10-01):
+/// no live code constructs this gateway — checkout runs through the shared
+/// tray (cartProvider → CartScreen → StorefrontService.checkoutCart with a
+/// durable FinancialOperationRef). Retained only as the Planning deep-dive's
+/// gateway contract surface.
+///
 /// The controller owns the operation identity. This gateway deliberately does
-/// not generate a new key, so retries/recovery can reuse the same economic
-/// operation identity.
+/// not generate a new key, so retries can reuse the same economic operation
+/// identity. Note this pre-armed transport has no durable journal, recovery
+/// or disposition — those semantics live exclusively in the durable registry
+/// path the CartScreen uses.
 class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
   StorefrontRetailCheckoutGateway({
     required this.businessProfileId,
@@ -50,9 +58,10 @@ class StorefrontRetailCheckoutGateway implements RetailCheckoutGateway {
         businessProfileId: businessProfileId,
         items: items,
         paymentMode: paymentMode,
-        // r42: the pre-armed DURABLE registry key (armed by the retail
-        // collection box) — the same identity across retries of the same
-        // unfinished checkout.
+        // The CALLER-OWNED pre-armed key (the operation object holds it).
+        // The gateway transports identity; it never generates one. There is
+        // no registry journal on this legacy path — recovery semantics are
+        // exclusive to the durable checkoutCart(operationType, ref) path.
         idempotencyKey: idempotencyKey,
       );
 
