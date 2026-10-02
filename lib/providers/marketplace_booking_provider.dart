@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
+import 'package:azaman/services/api_client.dart';
 import 'package:azaman/models/business_models.dart';
 
 // ── TRIP LIST ────────────────────────────────────────────────────────────────
@@ -52,11 +53,20 @@ final businessStoriesProvider =
 class BookingActionState {
   final bool isLoading;
   final String? error;
+
+  /// Economic classification of the last [BookingActionNotifier.bookSeats]
+  /// failure (§r42, 2026-10-01): tells the UI whether the outcome is
+  /// UNPROVEN (the booking may have committed — warn and reconcile) or
+  /// definitively pre-economic (the backend's own message is safe to
+  /// surface verbatim). Null on success / while loading.
+  final TransitBookingFailureClass? failureClass;
   final BookSeatResult? result;
 
-  const BookingActionState({this.isLoading = false, this.error, this.result});
+  const BookingActionState(
+      {this.isLoading = false, this.error, this.failureClass, this.result});
 
-  BookingActionState copyWith({bool? isLoading, String? error, BookSeatResult? result}) {
+  BookingActionState copyWith(
+      {bool? isLoading, String? error, BookSeatResult? result}) {
     return BookingActionState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -75,6 +85,8 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
     List<String>? passengerNames,
     String? customerNote,
     String? businessProfileId,
+    String? operationType,
+    FinancialOperationRef? ref,
   }) async {
     state = const BookingActionState(isLoading: true);
     try {
@@ -84,10 +96,22 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
         passengerNames: passengerNames,
         customerNote: customerNote,
         businessProfileId: businessProfileId,
+        operationType: operationType,
+        ref: ref,
       );
       state = BookingActionState(result: result);
     } catch (e) {
-      state = BookingActionState(error: e.toString());
+      // Classify the failure's ECONOMIC class for the UI (§r42): the same
+      // seat-selection retry with the same ref reuses the same durable key
+      // on the wire, so the classification must never contradict the
+      // identity lifecycle — it is a pure projection of the service's
+      // classifyTransitBookingFailure, which reuses the SAME predicate as
+      // the in-service disposition.
+      state = BookingActionState(
+        error: e.toString(),
+        failureClass:
+            MarketplaceBookingService.classifyTransitBookingFailure(e),
+      );
     }
   }
 

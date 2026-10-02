@@ -16,6 +16,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/utils/durable_operation_registry.dart';
+import 'package:azaman/data/demo_interceptor.dart';
+import 'package:azaman/config.dart';
 import 'package:azaman/models/business_models.dart';
 
 // ── PROVIDER ─────────────────────────────────────────────────────────────────
@@ -34,10 +37,64 @@ class MarketplaceBookingException implements Exception {
   String toString() => 'MarketplaceBookingException: $message';
 }
 
+// ── TRANSIT BOOKING FAILURE CLASSIFICATION (§r42, 2026-10-01) ────────────────
+//
+// Deep-dive step 5 found transit seat booking had NO durable identity and
+// NO failure classification: a booking that committed while its HTTP
+// response was lost turned the customer's same-seat retry into an
+// indistinguishable 'Seats already booked' (their own committed seats vs
+// another customer's), and the UI asserted a generic 'Booking failed' on
+// every error — even an ambiguous transport loss where the booking MAY
+// have gone through.
+//
+// This classification is a read-only projection for the UI, mirroring the
+// storefront taxonomy adopted in the retail checkout deep-dive (step 2).
+// It NEVER decides the durable identity lifecycle — the in-method
+// disposition and DurableOperationRegistry own that (parity with
+// ApiClient.postFinancial / StorefrontService.checkoutCart).
+//
+// Traced wire semantics (AZM-backend routes/marketplaceRoutes.js +
+// middleware/idempotency.js, 2026-10-01):
+// - 401: protect / require2FA reject BEFORE any booking mutation (auth
+//   runs ahead of the idempotency claim). Re-auth, then retry the SAME
+//   logical operation (instance stays armed, same key).
+// - 409: IDEMPOTENCY_PAYLOAD_CONFLICT — the durable key was already used
+//   with a DIFFERENT seat selection. The registry gives a materially
+//   changed selection its OWN key, so a 409 on the wire is a reconciliation
+//   signal: check your bookings before booking again.
+// - 400/403/404: the backend's explicit pre-economic validations (empty
+//   seats, trip not found, seats taken by another customer). Residual gap
+//   (same as storefront, recorded): the controller catch-all also surfaces
+//   uncaught internal errors as 400 with no machine-readable code — in
+//   current source every such throw precedes the booking commit, so 400
+//   stays de-facto pre-economic, but that contract is implicit.
+// - 408 / 425 / 429 / 5xx / transport loss / malformed 2xx payload: the
+//   economic outcome is UNPROVEN — the booking MAY have committed. Fail
+//   safe as ambiguousOrUnknown; the instance stays ARMED and a retry of
+//   the SAME seat selection reuses the SAME key so the backend converges
+//   (exact replay of the committed booking) instead of duplicating.
+enum TransitBookingFailureClass {
+  definitivePreEconomic,
+  authenticationRequired,
+  rateLimited,
+  domainConflict,
+  ambiguousOrUnknown,
+}
+
+extension TransitBookingFailureClassIsUnconfirmed
+    on TransitBookingFailureClass {
+  /// True when the economic outcome is UNPROVEN — the booking may have
+  /// committed. The UI must warn (check your bookings) instead of asserting
+  /// the booking definitely failed.
+  bool get isUnconfirmed => this == TransitBookingFailureClass.ambiguousOrUnknown;
+}
+
 // ── SERVICE ──────────────────────────────────────────────────────────────────
 
 class MarketplaceBookingService {
-  final ApiClient _client = ApiClient();
+  MarketplaceBookingService({ApiClient? apiClient})
+      : _client = apiClient ?? ApiClient();
+  final ApiClient _client;
 
   // ── QR CHECK-IN ────────────────────────────────────────────────────────────
 
@@ -109,24 +166,210 @@ class MarketplaceBookingService {
   }
 
   /// Book seats on a trip.
+  ///
+  /// The [operationType] + [ref] pair is the durable identity path (§r42,
+  /// 2026-10-01): ONE logical seat-booking intent → ONE durable identity
+  /// per (account, endpoint, key). A retry of the SAME seat selection
+  /// (same ref, matching fingerprint) reuses the SAME key so the backend
+  /// converges on the same booking (exact replay of the committed
+  /// response) instead of duplicating; a materially changed selection
+  /// begins a GENUINELY NEW instance (the old unfinished record stays
+  /// recoverable in the journal). Mirrors the contract of
+  /// [StorefrontService.checkoutCart] / [ApiClient.postFinancial].
+  ///
+  /// Without [operationType] the call is the legacy unkeyed path: plain
+  /// transport, no journal, no recovery — the DB-level
+  /// `TransitBookingSeat @@unique([tripId, seatId])` still prevents
+  /// duplicate seat claims structurally, so a keyless request keeps today's
+  /// behavior (the exposure is reconciliation UX only, not duplicate
+  /// economics).
   Future<BookSeatResult> bookSeats({
     required String tripId,
     required List<String> seatIds,
     List<String>? passengerNames,
     String? customerNote,
     String? businessProfileId,
+    String? operationType,
+    FinancialOperationRef? ref,
   }) async {
-    final res = await _client.post('/marketplace/transit/trips/$tripId/book', {
+    final endpoint = '/marketplace/transit/trips/$tripId/book';
+    final body = <String, dynamic>{
       'seatIds': seatIds,
       'passengerNames': passengerNames,
       'customerNote': customerNote,
       'businessProfileId': businessProfileId,
-    });
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (body['success'] != true) {
-      throw MarketplaceBookingException(body['message'] ?? 'Booking failed');
+    };
+
+    if (operationType == null) {
+      // Legacy unkeyed path: no durable lifecycle — plain transport.
+      final res = await _client.post(endpoint, body);
+      final parsed = jsonDecode(res.body) as Map<String, dynamic>;
+      if (parsed['success'] != true) {
+        throw MarketplaceBookingException(parsed['message'] ?? 'Booking failed');
+      }
+      return BookSeatResult.fromJson(parsed);
     }
-    return BookSeatResult.fromJson(body);
+
+    // Demo mode short-circuits before economics: no durable entry needed
+    // (the SAME policy as [ApiClient.postFinancial]). The demo book
+    // response is not the authoritative wire shape, so it must never flow
+    // through the durable instance or the malformed-success guard — it
+    // keeps today's legacy parse exactly. An endpoint the demo interceptor
+    // does not handle falls through to the real durable path below.
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryPost(endpoint, body);
+      if (m != null) {
+        final parsed = jsonDecode(m.body) as Map<String, dynamic>;
+        if (parsed['success'] != true) {
+          throw MarketplaceBookingException(
+              parsed['message'] ?? 'Booking failed');
+        }
+        return BookSeatResult.fromJson(parsed);
+      }
+    }
+
+    // r42 OPERATION-INSTANCE MODEL (parity with StorefrontService.checkoutCart):
+    // resolve the durable instance from the ref-bound journal — retry the
+    // ref's unfinished instance when the seat selection matches its
+    // fingerprint, begin a genuinely new one otherwise. Arm the caller's
+    // ref BEFORE the request leaves the device so a failure here is a RETRY
+    // of this instance on the caller's next attempt.
+    final op = await _resolveOperation(
+        type: operationType, endpoint: endpoint, request: body, ref: ref);
+    try {
+      final res = await _client.post(endpoint, body,
+          headers: {'Idempotency-Key': op.key});
+      final parsed = jsonDecode(res.body) as Map<String, dynamic>;
+      // Malformed-success guard (deep-dive step 2, parity with checkoutCart):
+      // an answered 2xx that does not carry an AUTHORITATIVE booking —
+      // success:true AND a non-empty booking id + bookingRef, the minimum
+      // shape the backend guarantees on BOTH the fresh 201 and the exact
+      // replay 201 — is an UNKNOWN economic state. Never surface it as
+      // success (the caller would confirm an unconfirmed booking) and never
+      // as a definitive failure. The FormatException stays OUTSIDE every
+      // disposition clause → the durable instance stays armed for a
+      // same-key retry; classifyTransitBookingFailure maps it to
+      // ambiguousOrUnknown.
+      if (!_carriesAuthoritativeBooking(parsed)) {
+        throw const FormatException(
+            'Booking response was successful but carried no authoritative '
+            'booking result (id/bookingRef).');
+      }
+      // Answered success — this booking instance is complete.
+      await _releaseOperation(ref);
+      return BookSeatResult.fromJson(parsed);
+    } on ApiException catch (e) {
+      // Disposition mirrors postFinancial / checkoutCart: definitive
+      // pre-economic 4xx (everything except 401/408/409/425/429) → the
+      // instance is terminal; the backend released the claim.
+      // 401/408/409/425/429 (and every 5xx and transport loss) → retained
+      // (the booking may be committed/in-flight; a same-key retry
+      // converges). ApiClient.post throws ApiException for every non-2xx
+      // before this service parses anything (2026-10-01 recovery audit).
+      if (_isDefinitivePreEconomic(e.statusCode)) {
+        await _releaseOperation(ref);
+      }
+      rethrow;
+    }
+  }
+
+  // ── DURABLE IDENTITY HELPERS (parity with StorefrontService) ───────────────
+
+  /// Resolves the durable operation instance for a service-owned booking
+  /// flow (the SAME policy as [ApiClient.postFinancial]): retry the ref's
+  /// instance when it is still pending and the body matches its recorded
+  /// fingerprint; otherwise begin a GENUINELY NEW instance (the old record
+  /// stays untouched and recoverable — never silently replaced).
+  Future<DurableOperation> _resolveOperation({
+    required String type,
+    required String endpoint,
+    required Map<String, dynamic> request,
+    FinancialOperationRef? ref,
+  }) async {
+    final account = await _client.operationAccount(failClosed: true);
+    final retryId = ref?.operationId;
+    if (retryId != null) {
+      try {
+        return await DurableOperationRegistry.retry(retryId,
+            account: account, request: request);
+      } on DurableOperationException {
+        // Not retryable as that instance (terminal, or a materially
+        // different request): a genuinely new action.
+      }
+    }
+    final op = await DurableOperationRegistry.begin(
+        account: account, type: type, endpoint: endpoint, request: request);
+    if (ref != null) ref.operationId = op.operationId;
+    return op;
+  }
+
+  /// Terminal completion / definitive pre-economic release of the ref's
+  /// instance: retires THAT instance only and clears the ref.
+  Future<void> _releaseOperation(FinancialOperationRef? ref) async {
+    final id = ref?.operationId;
+    if (id == null) return;
+    await DurableOperationRegistry.retire(id,
+        account: await _client.operationAccount(failClosed: true));
+    if (ref != null) ref.operationId = null;
+  }
+
+  /// Minimum authoritative booking shape guaranteed by the backend on BOTH
+  /// success paths (fresh 201 and exact replay 201): `success:true` AND a
+  /// non-empty string `booking.id` AND a non-empty string `booking.bookingRef`
+  /// (both generated at commit in transitBookingService.bookSeats). Anything
+  /// less is NOT a confirmed booking: treat as malformed success → the
+  /// caller never claims completion, the durable instance stays armed.
+  static bool _carriesAuthoritativeBooking(Map<String, dynamic> parsed) {
+    if (parsed['success'] != true) return false;
+    final booking = parsed['booking'];
+    if (booking is! Map<String, dynamic>) return false;
+    final id = booking['id'];
+    final bookingRef = booking['bookingRef'];
+    return id is String &&
+        id.isNotEmpty &&
+        bookingRef is String &&
+        bookingRef.isNotEmpty;
+  }
+
+  /// r42 disposition predicate (parity with StorefrontService): definitive
+  /// pre-economic 4xx — everything except 401 / 408 / 409 / 425 / 429 —
+  /// releases the ref's instance; every other answered outcome (and every
+  /// transport loss) stays armed for a same-key retry. 408 (request timeout)
+  /// and 425 (too early) are EXCLUDED from terminal disposition: an answered
+  /// 408/425 does not prove the backend never received the request (a
+  /// proxy/gateway can answer after the upstream commit), so the safe
+  /// default keeps the instance ARMED.
+  static bool _isDefinitivePreEconomic(int statusCode) =>
+      statusCode >= 400 &&
+      statusCode < 500 &&
+      statusCode != 401 &&
+      statusCode != 408 &&
+      statusCode != 409 &&
+      statusCode != 425 &&
+      statusCode != 429;
+
+  /// Maps a thrown failure of the durable seat-booking path to its economic
+  /// class. Pure projection: reuses the SAME definitive predicate as the
+  /// disposition ([_isDefinitivePreEconomic]), so the classification can
+  /// never contradict the identity lifecycle.
+  static TransitBookingFailureClass classifyTransitBookingFailure(
+      Object error) {
+    if (error is ApiException) {
+      if (error.statusCode == 401) {
+        return TransitBookingFailureClass.authenticationRequired;
+      }
+      if (error.statusCode == 429) return TransitBookingFailureClass.rateLimited;
+      if (error.statusCode == 409) return TransitBookingFailureClass.domainConflict;
+      if (_isDefinitivePreEconomic(error.statusCode)) {
+        return TransitBookingFailureClass.definitivePreEconomic;
+      }
+      return TransitBookingFailureClass.ambiguousOrUnknown; // 5xx / other
+    }
+    // FormatException (malformed 2xx payload), TimeoutException, http
+    // ClientException / SocketException, and anything unrecognized: the
+    // economic outcome is UNPROVEN. Fail safe as unknown — never "safe to
+    // retry blindly", never "definitive".
+    return TransitBookingFailureClass.ambiguousOrUnknown;
   }
 
   /// Cancel a transit booking.
