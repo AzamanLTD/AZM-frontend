@@ -32,7 +32,6 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/marketplace/market_storefront_shell.dart';
@@ -52,15 +51,20 @@ import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
-  const BusinessProfileScreen({super.key, required this.bizId});
+
+  /// Injectable business-data seam. Production leaves this null (a real
+  /// BusinessService is created); widget tests pass a counting fake so
+  /// load-once invariants (e.g. invoices) can be proven.
+  final BusinessService? service;
+
+  const BusinessProfileScreen({super.key, required this.bizId, this.service});
 
   @override
   ConsumerState<BusinessProfileScreen> createState() =>
       _BusinessProfileScreenState();
 }
 
-class _BusinessProfileScreenState
-    extends ConsumerState<BusinessProfileScreen> {
+class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   bool _loading = true;
   String? _error;
   BusinessProfile? _business;
@@ -79,7 +83,14 @@ class _BusinessProfileScreenState
   bool _menuLoading = false;
 
   // Signed-in user's unpaid invoices from this business (Pay invoice action).
+  // The DETAILS are cached in stable parent state by _loadUnpaidInvoices()
+  // exactly once per load: the storefront shell rebuilds its product subtree
+  // on every draggable-sheet extent tick, so no widget below the screen may
+  // ever create a Future / start network work during a rebuild. The section
+  // renders purely from this state.
   int _unpaidInvoices = 0;
+  List<BusinessInvoice> _unpaidInvoiceDetails = const [];
+  BusinessService get _service => widget.service ?? BusinessService();
 
   @override
   void initState() {
@@ -92,7 +103,7 @@ class _BusinessProfileScreenState
       _loading = true;
       _error = null;
     });
-    final service = BusinessService();
+    final service = _service;
     try {
       final business = await service.getBusinessByBizId(widget.bizId);
       if (business == null) {
@@ -172,16 +183,22 @@ class _BusinessProfileScreenState
     } catch (_) {}
   }
 
-  /// Best-effort count of the signed-in user's unpaid invoices from this
-  /// business — drives the conditional "Pay Invoice" action. Silent on error
-  /// (e.g. signed-out browsing) so the page still renders.
+  /// Best-effort load of the signed-in user's unpaid invoices from this
+  /// business — drives the "Outstanding Bills" section and the conditional
+  /// "Pay Invoice" action. Runs ONCE per screen load and caches the details
+  /// in parent state: sheet-extent rebuilds must never initiate network work.
+  /// Silent on error (e.g. signed-out browsing) so the page still renders.
   Future<void> _loadUnpaidInvoices(BusinessProfile business) async {
     try {
-      final page = await BusinessService().getMyInvoices(status: 'SENT');
-      final count = page.invoices
+      final page = await _service.getMyInvoices(status: 'SENT');
+      if (!mounted) return;
+      final invoices = page.invoices
           .where((i) => i.businessProfileId == business.id)
-          .length;
-      if (mounted) setState(() => _unpaidInvoices = count);
+          .toList(growable: false);
+      setState(() {
+        _unpaidInvoiceDetails = invoices;
+        _unpaidInvoices = invoices.length;
+      });
     } catch (_) {}
   }
 
@@ -191,7 +208,8 @@ class _BusinessProfileScreenState
       final response = await apiClient.get('/business/$bizId/menu');
       final body = jsonDecode(response.body);
       final sections = body['sections'] as List<dynamic>? ?? [];
-      final uncategorised = body['uncategorisedProducts'] as List<dynamic>? ?? [];
+      final uncategorised =
+          body['uncategorisedProducts'] as List<dynamic>? ?? [];
       if (!mounted) return;
       setState(() {
         _menuSections = sections
@@ -328,23 +346,41 @@ class _BusinessProfileScreenState
   static ({IconData icon, String text}) _catalogEmptyState(String? category) {
     switch (category) {
       case 'FOOD_BEVERAGE':
-        return (icon: Icons.restaurant_outlined, text: 'Menu not yet available');
+        return (
+          icon: Icons.restaurant_outlined,
+          text: 'Menu not yet available',
+        );
       case 'RETAIL':
       case 'TECHNOLOGY':
-        return (icon: Icons.shopping_bag_outlined, text: 'No products listed yet');
+        return (
+          icon: Icons.shopping_bag_outlined,
+          text: 'No products listed yet',
+        );
       case 'HEALTH_WELLNESS':
       case 'FREELANCE_SERVICES':
       case 'FINANCIAL_SERVICES':
-        return (icon: Icons.design_services_outlined, text: 'No services listed yet');
+        return (
+          icon: Icons.design_services_outlined,
+          text: 'No services listed yet',
+        );
       case 'EDUCATION':
         return (icon: Icons.school_outlined, text: 'No courses listed yet');
       case 'ENTERTAINMENT':
-        return (icon: Icons.confirmation_number_outlined, text: 'No experiences listed yet');
+        return (
+          icon: Icons.confirmation_number_outlined,
+          text: 'No experiences listed yet',
+        );
       case 'HOSPITALITY':
       case 'REAL_ESTATE':
-        return (icon: Icons.holiday_village_outlined, text: 'No amenities listed yet');
+        return (
+          icon: Icons.holiday_village_outlined,
+          text: 'No amenities listed yet',
+        );
       case 'LOGISTICS':
-        return (icon: Icons.directions_bus_outlined, text: 'No add-ons listed yet');
+        return (
+          icon: Icons.directions_bus_outlined,
+          text: 'No add-ons listed yet',
+        );
       default:
         return (icon: Icons.storefront_outlined, text: 'Nothing listed yet');
     }
@@ -354,8 +390,7 @@ class _BusinessProfileScreenState
   String? get _bannerUrl {
     final business = _business;
     if (business == null) return null;
-    String? clean(String? url) =>
-        (url != null && url.isNotEmpty) ? url : null;
+    String? clean(String? url) => (url != null && url.isNotEmpty) ? url : null;
     final showcase = _showcaseSlides.isNotEmpty
         ? clean(_showcaseSlides.first['mediaUrl'] as String?)
         : null;
@@ -384,13 +419,15 @@ class _BusinessProfileScreenState
 
     if (_menuLoading && !_hasCatalog) {
       children.add(const SizedBox(height: 12));
-      children.addAll(List.generate(
-        3,
-        (i) => const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: SkeletonBlock(height: 64),
+      children.addAll(
+        List.generate(
+          3,
+          (i) => const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: SkeletonBlock(height: 64),
+          ),
         ),
-      ));
+      );
     }
 
     // Catalog sections inline for quick browsing.
@@ -398,16 +435,23 @@ class _BusinessProfileScreenState
       if (business.category == 'FOOD_BEVERAGE' && _menuSections.isEmpty) {
         children.add(_sectionHeader('Menu', colors));
       } else {
-        children.addAll(_menuSections.map((s) => Padding(
+        children.addAll(
+          _menuSections.map(
+            (s) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _menuSection(s, colors),
-            )));
+            ),
+          ),
+        );
       }
       if (_uncategorisedProducts.isNotEmpty) {
         children.add(_sectionHeader('Other Items', colors));
         children.add(const SizedBox(height: 4));
-        children.addAll(_uncategorisedProducts
-            .map((p) => _menuProductRow(p, business, colors)));
+        children.addAll(
+          _uncategorisedProducts.map(
+            (p) => _menuProductRow(p, business, colors),
+          ),
+        );
       }
       children.add(const SizedBox(height: 12));
       // Shortcut into the vertical's full catalog experience.
@@ -429,11 +473,14 @@ class _BusinessProfileScreenState
   Widget _sectionHeader(String title, AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
-      child: Text(title,
-          style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800)),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 
@@ -447,9 +494,10 @@ class _BusinessProfileScreenState
         if (section.description != null && section.description!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(section.description!,
-                style:
-                    TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+            child: Text(
+              section.description!,
+              style: TextStyle(color: colors.textTertiary, fontSize: 12.5),
+            ),
           ),
         const SizedBox(height: 10),
         ...section.products.map((p) => _menuProductRow(p, business, colors)),
@@ -457,8 +505,11 @@ class _BusinessProfileScreenState
     );
   }
 
-  Widget _menuProductRow(BusinessProduct product, BusinessProfile business,
-      AzamanColors colors) {
+  Widget _menuProductRow(
+    BusinessProduct product,
+    BusinessProfile business,
+    AzamanColors colors,
+  ) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openOrderSheet(product: product),
@@ -474,13 +525,16 @@ class _BusinessProfileScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   if (product.description != null &&
                       product.description!.isNotEmpty)
                     Padding(
@@ -490,7 +544,9 @@ class _BusinessProfileScreenState
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: colors.textTertiary, fontSize: 12),
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                 ],
@@ -500,9 +556,10 @@ class _BusinessProfileScreenState
             Text(
               '${product.priceUsdc.toStringAsFixed(2)} USDC',
               style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800),
+                color: colors.accent,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
@@ -535,13 +592,13 @@ class _BusinessProfileScreenState
               child: Text(
                 'Open the full ${_catalogTabLabel(business.category).toLowerCase()}',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700),
+                  color: colors.textPrimary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: colors.accent),
+            Icon(Icons.chevron_right_rounded, size: 18, color: colors.accent),
           ],
         ),
       ),
@@ -556,9 +613,10 @@ class _BusinessProfileScreenState
         children: [
           Icon(empty.icon, size: 40, color: colors.textTertiary),
           const SizedBox(height: 10),
-          Text(empty.text,
-              style:
-                  TextStyle(color: colors.textSecondary, fontSize: 14)),
+          Text(
+            empty.text,
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -566,57 +624,49 @@ class _BusinessProfileScreenState
 
   // ── Unpaid invoices / receipt cards ──────────────────────────────────────
   Widget _unpaidInvoicesSection(BusinessProfile business, AzamanColors colors) {
-    if (_unpaidInvoices == 0) return const SizedBox.shrink();
+    // Pure render projection of state cached by _loadUnpaidInvoices() — a
+    // NEW Future is NEVER created here, so sheet-drag rebuilds of this
+    // subtree cannot re-fire the invoice request.
+    final invoices = _unpaidInvoiceDetails;
+    if (invoices.isEmpty) return const SizedBox.shrink();
 
-    return FutureBuilder<List<BusinessInvoice>>(
-      future: _loadUnpaidInvoiceDetails(business.id),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        final invoices = snapshot.data!;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Icon(Icons.receipt_long_rounded, size: 18, color: colors.accent),
-                const SizedBox(width: 6),
-                Text('Outstanding Bills',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: colors.textPrimary)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: colors.danger.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('${invoices.length}',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: colors.danger)),
-                ),
-              ],
+            Icon(Icons.receipt_long_rounded, size: 18, color: colors.accent),
+            const SizedBox(width: 6),
+            Text(
+              'Outstanding Bills',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+              ),
             ),
-            const SizedBox(height: 10),
-            ...invoices.map((inv) => _receiptCard(inv, colors)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.danger.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${invoices.length}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: colors.danger,
+                ),
+              ),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 10),
+        ...invoices.map((inv) => _receiptCard(inv, colors)),
+      ],
     );
-  }
-
-  Future<List<BusinessInvoice>> _loadUnpaidInvoiceDetails(String businessId) async {
-    try {
-      final page = await BusinessService().getMyInvoices(status: 'SENT');
-      return page.invoices.where((i) => i.businessProfileId == businessId).toList();
-    } catch (_) {
-      return [];
-    }
   }
 
   Widget _receiptCard(BusinessInvoice invoice, AzamanColors colors) {
@@ -663,8 +713,11 @@ class _BusinessProfileScreenState
                       color: colors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(Icons.receipt_outlined,
-                        size: 16, color: colors.accent),
+                    child: Icon(
+                      Icons.receipt_outlined,
+                      size: 16,
+                      color: colors.accent,
+                    ),
                   )
                 else
                   Container(
@@ -674,30 +727,43 @@ class _BusinessProfileScreenState
                       color: colors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(Icons.receipt_outlined,
-                        size: 16, color: colors.accent),
+                    child: Icon(
+                      Icons.receipt_outlined,
+                      size: 16,
+                      color: colors.accent,
+                    ),
                   ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(invoice.invoiceRef,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary)),
+                      Text(
+                        invoice.invoiceRef,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       if (invoice.locationLabel != null &&
                           invoice.locationLabel!.isNotEmpty)
-                        Text(invoice.locationLabel!,
-                            style: TextStyle(
-                                fontSize: 11, color: colors.textTertiary)),
+                        Text(
+                          invoice.locationLabel!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textTertiary,
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 // Status badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -705,9 +771,10 @@ class _BusinessProfileScreenState
                   child: Text(
                     isPaid ? 'Paid' : 'Unpaid',
                     style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: statusColor),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ],
@@ -756,9 +823,13 @@ class _BusinessProfileScreenState
           backgroundColor: colors.surface,
           elevation: 0,
           iconTheme: IconThemeData(color: colors.textPrimary),
-          title: Text(_catalogTabLabel(business.category),
-              style: TextStyle(
-                  color: colors.textPrimary, fontWeight: FontWeight.w800)),
+          title: Text(
+            _catalogTabLabel(business.category),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
         body: _menuTabBody(business, colors),
       );
@@ -770,7 +841,8 @@ class _BusinessProfileScreenState
       uncategorisedProducts: _uncategorisedProducts,
       colors: colors,
       catalogLabel: _catalogTabLabel(business.category),
-      productRowBuilder: (product) => _menuProductRow(product, business, colors),
+      productRowBuilder: (product) =>
+          _menuProductRow(product, business, colors),
     );
   }
 
@@ -787,8 +859,10 @@ class _BusinessProfileScreenState
             children: [
               Icon(empty.icon, size: 40, color: colors.textTertiary),
               const SizedBox(height: 10),
-              Text(empty.text,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                empty.text,
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
             ],
           ),
         ),
@@ -811,15 +885,18 @@ class _BusinessProfileScreenState
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
         if (hasSections)
-          ..._menuSections.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _menuSection(s, colors),
-              )),
+          ..._menuSections.map(
+            (s) => Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _menuSection(s, colors),
+            ),
+          ),
         if (hasUncat) ...[
           _sectionHeader('Other Items', colors),
           const SizedBox(height: 10),
           ..._uncategorisedProducts.map(
-              (p) => _menuProductRow(p, business, colors)),
+            (p) => _menuProductRow(p, business, colors),
+          ),
         ],
       ],
     );
@@ -830,29 +907,20 @@ class _BusinessProfileScreenState
     if (business == null) return;
     final colors = ref.read(themeProvider).colors;
     AzamanHaptics.nav();
-    Navigator.of(context).push(PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder: (_, animation, secondaryAnimation) =>
-          _catalogRouteScaffold(business, colors),
-      transitionsBuilder: (_, animation, secondaryAnimation, child) =>
-          SharedAxisTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        transitionType: SharedAxisTransitionType.scaled,
-        child: child,
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 420),
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            _catalogRouteScaffold(business, colors),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
+            SharedAxisTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.scaled,
+              child: child,
+            ),
       ),
-    ));
-  }
-
-  void _openStorefront() {
-    final business = _business;
-    if (business == null) return;
-    // NEW-A: canonical storefront route (business name travels as the
-    // 'name' query param — see the /storefront route builder).
-    context.push(AzRoutes.storefront(
-      business.id,
-      name: business.businessName,
-    ));
+    );
   }
 
   void _openReviews() {
@@ -868,9 +936,13 @@ class _BusinessProfileScreenState
             backgroundColor: colors.surface,
             elevation: 0,
             iconTheme: IconThemeData(color: colors.textPrimary),
-            title: Text('Reviews',
-                style: TextStyle(
-                    color: colors.textPrimary, fontWeight: FontWeight.w800)),
+            title: Text(
+              'Reviews',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
@@ -894,17 +966,23 @@ class _BusinessProfileScreenState
             backgroundColor: colors.surface,
             elevation: 0,
             iconTheme: IconThemeData(color: colors.textPrimary),
-            title: Text('Locations',
-                style: TextStyle(
-                    color: colors.textPrimary, fontWeight: FontWeight.w800)),
+            title: Text(
+              'Locations',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
             children: [
-              ..._locations.map((loc) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _locationCard(loc, colors),
-                  )),
+              ..._locations.map(
+                (loc) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _locationCard(loc, colors),
+                ),
+              ),
             ],
           ),
         ),
@@ -933,18 +1011,20 @@ class _BusinessProfileScreenState
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800),
+                    color: colors.textPrimary,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               if (loc.distanceKm != null)
                 Text(
                   '${loc.distanceKm!.toStringAsFixed(1)} km',
                   style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700),
+                    color: colors.textTertiary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
             ],
           ),
@@ -955,8 +1035,7 @@ class _BusinessProfileScreenState
               style: TextStyle(color: colors.textSecondary, fontSize: 13),
             ),
           ],
-          if (loc.operatingHours != null &&
-              loc.operatingHours!.isNotEmpty) ...[
+          if (loc.operatingHours != null && loc.operatingHours!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               _formatHours(loc.operatingHours!),
@@ -975,11 +1054,14 @@ class _BusinessProfileScreenState
               children: [
                 Icon(Icons.widgets_outlined, size: 15, color: colors.accent),
                 const SizedBox(width: 6),
-                Text('Get directions',
-                    style: TextStyle(
-                        color: colors.accent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'Get directions',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1029,7 +1111,11 @@ class _BusinessProfileScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     SizedBox(height: 8),
-                    SkeletonBlock(height: 44, width: 200, borderRadius: BorderRadius.all(Radius.circular(22))),
+                    SkeletonBlock(
+                      height: 44,
+                      width: 200,
+                      borderRadius: BorderRadius.all(Radius.circular(22)),
+                    ),
                     SizedBox(height: 20),
                     SkeletonBlock(height: 120),
                     SizedBox(height: 16),
@@ -1060,8 +1146,11 @@ class _BusinessProfileScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.storefront_outlined,
-                    size: 48, color: colors.textTertiary),
+                Icon(
+                  Icons.storefront_outlined,
+                  size: 48,
+                  color: colors.textTertiary,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   _error ?? 'Business not found.',
@@ -1071,8 +1160,7 @@ class _BusinessProfileScreenState
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: _load,
-                  child: Text('Retry',
-                      style: TextStyle(color: colors.accent)),
+                  child: Text('Retry', style: TextStyle(color: colors.accent)),
                 ),
               ],
             ),
@@ -1097,14 +1185,13 @@ class _BusinessProfileScreenState
       onShare: () => _shareBusiness(business),
       onPrimaryCta: _primaryCtaAction,
       onOpenCatalog: _openCatalogView,
-      onOpenStorefront: _openStorefront,
       onOpenReviews: _openReviews,
       onOpenLocations: _locations.length > 1 ? _openLocations : null,
       onPayInvoice: _unpaidInvoices > 0
           ? () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MyInvoicesScreen()),
-              )
+              context,
+              MaterialPageRoute(builder: (_) => const MyInvoicesScreen()),
+            )
           : null,
       onLaunch: _launch,
     );

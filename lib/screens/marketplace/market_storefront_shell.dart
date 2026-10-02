@@ -5,7 +5,7 @@
 // full-bleed hero identity (arrival) into a locked shopping sheet, with the
 // market's information living BEHIND the sheet.
 //
-// Interaction model (three deliberate snap states, one scroll owner):
+// Interaction model (three deliberate snap states, one shopping scroll owner):
 //   • INFO     (extent 0.46) — sheet pulled down; "About this market" panel
 //               (description / hours / location / contact / showcase) is
 //               revealed behind the sheet; products stay visible below.
@@ -17,8 +17,12 @@
 // Gesture ownership: the sheet's product ListView uses the controller the
 // DraggableScrollableSheet hands the builder. At list offset 0 a downward
 // drag hands control to the sheet (it recedes toward the info snap); an
-// upward drag locks it back at shopping. There is exactly one vertical
-// scrollable in the sheet, so the two systems can never fight.
+// upward drag locks it back at shopping. The product ListView is the ONLY
+// vertical scrollable while the sheet is up (shopping/overview states).
+// The information layer BEHIND the sheet may scroll its own content
+// (SingleChildScrollView) while the info state is explicitly exposed; the
+// sheet's grab handle remains the deterministic way to change snap states.
+// No additional nested vertical scrolling exists anywhere in the shell.
 //
 // The collapse is ONE continuous transform: a normalized progress value is
 // derived from the sheet extent and drives the hero crossfade/scale, the
@@ -92,7 +96,6 @@ class MarketStorefrontShell extends StatefulWidget {
   final VoidCallback? onPrimaryCta;
   final void Function(BusinessProduct product)? onOrderProduct;
   final VoidCallback? onOpenCatalog;
-  final VoidCallback? onOpenStorefront;
   final VoidCallback? onOpenReviews;
   final VoidCallback? onOpenLocations;
   final VoidCallback? onPayInvoice;
@@ -116,7 +119,6 @@ class MarketStorefrontShell extends StatefulWidget {
     this.onPrimaryCta,
     this.onOrderProduct,
     this.onOpenCatalog,
-    this.onOpenStorefront,
     this.onOpenReviews,
     this.onOpenLocations,
     this.onPayInvoice,
@@ -247,7 +249,11 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
   }) {
     Future(() async {
       try {
-        await _sheetController.animateTo(target, duration: duration, curve: curve);
+        await _sheetController.animateTo(
+          target,
+          duration: duration,
+          curve: curve,
+        );
       } catch (_) {
         // The sheet can be disposed mid-flight; never crash the entrance.
       }
@@ -260,8 +266,9 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
   void _onHandleTap() {
     if (!_sheetController.isAttached) return;
     AzamanHaptics.nav();
-    final target =
-        _extent >= (_overviewSnap + _shoppingSnap) / 2 ? _infoSnap : _shoppingSnap;
+    final target = _extent >= (_overviewSnap + _shoppingSnap) / 2
+        ? _infoSnap
+        : _shoppingSnap;
     _sheetController.animateTo(
       target,
       duration: MotionTokens.emphasized,
@@ -294,10 +301,8 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
               snapSizes: const [_overviewSnap],
               snap: true,
               initialChildSize: _overviewSnap,
-              builder: (context, scrollController) => _sheet(
-                colors,
-                scrollController,
-              ),
+              builder: (context, scrollController) =>
+                  _sheet(colors, scrollController),
             ),
           ),
         ],
@@ -352,7 +357,11 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
                     tint: widget.isFollowing ? colors.success : null,
                   ),
                   const SizedBox(width: AzSpace.sm),
-                  _circleButton(colors, Icons.ios_share_rounded, widget.onShare),
+                  _circleButton(
+                    colors,
+                    Icons.ios_share_rounded,
+                    widget.onShare,
+                  ),
                 ],
               ),
             ),
@@ -384,9 +393,7 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
                 opacity: Curves.easeOutCubic.transform(pillT),
                 child: Transform.scale(
                   scale: 0.96 + (0.04 * pillT),
-                  child: Center(
-                    child: _compactPill(business, colors),
-                  ),
+                  child: Center(child: _compactPill(business, colors)),
                 ),
               ),
             ),
@@ -685,7 +692,11 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.location_on_outlined, size: 16, color: colors.textTertiary),
+            Icon(
+              Icons.location_on_outlined,
+              size: 16,
+              color: colors.textTertiary,
+            ),
             const SizedBox(width: AzSpace.sm),
             Expanded(
               child: Text(
@@ -966,22 +977,8 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
               widget.onOpenCatalog,
             ),
           ],
-          if (widget.onOpenStorefront != null) ...[
-            const SizedBox(width: AzSpace.sm),
-            _iconAction(
-              colors,
-              Icons.storefront_outlined,
-              'Storefront',
-              widget.onOpenStorefront,
-            ),
-          ],
           const SizedBox(width: AzSpace.sm),
-          _iconAction(
-            colors,
-            Icons.more_horiz_rounded,
-            'More',
-            _openMoreSheet,
-          ),
+          _iconAction(colors, Icons.more_horiz_rounded, 'More', _openMoreSheet),
         ],
       ),
     );
@@ -1073,50 +1070,62 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
     final rows = <Widget>[];
 
     if ((business.phoneNumber ?? '').isNotEmpty) {
-      rows.add(_moreRow(colors, Icons.call_outlined, 'Call', () {
-        Navigator.pop(context);
-        widget.onLaunch?.call('tel:${business.phoneNumber}');
-      }));
+      rows.add(
+        _moreRow(colors, Icons.call_outlined, 'Call', () {
+          Navigator.pop(context);
+          widget.onLaunch?.call('tel:${business.phoneNumber}');
+        }),
+      );
     }
     if ((business.address ?? '').isNotEmpty) {
-      rows.add(_moreRow(colors, Icons.directions_outlined, 'Directions', () {
-        Navigator.pop(context);
-        widget.onLaunch?.call(
-          'https://maps.google.com/?q=${Uri.encodeComponent(business.address!)}',
-        );
-      }));
+      rows.add(
+        _moreRow(colors, Icons.directions_outlined, 'Directions', () {
+          Navigator.pop(context);
+          widget.onLaunch?.call(
+            'https://maps.google.com/?q=${Uri.encodeComponent(business.address!)}',
+          );
+        }),
+      );
     }
-    rows.add(_moreRow(colors, Icons.share_rounded, 'Share', () {
-      Navigator.pop(context);
-      widget.onShare?.call();
-    }));
-    if (widget.onOpenReviews != null) {
-      rows.add(_moreRow(colors, Icons.star_rounded, 'Reviews', () {
+    rows.add(
+      _moreRow(colors, Icons.share_rounded, 'Share', () {
         Navigator.pop(context);
-        widget.onOpenReviews!();
-      }));
+        widget.onShare?.call();
+      }),
+    );
+    if (widget.onOpenReviews != null) {
+      rows.add(
+        _moreRow(colors, Icons.star_rounded, 'Reviews', () {
+          Navigator.pop(context);
+          widget.onOpenReviews!();
+        }),
+      );
     }
     if (widget.locations.length > 1 && widget.onOpenLocations != null) {
-      rows.add(_moreRow(
-        colors,
-        Icons.place_rounded,
-        'All locations (${widget.locations.length})',
-        () {
-          Navigator.pop(context);
-          widget.onOpenLocations!();
-        },
-      ));
+      rows.add(
+        _moreRow(
+          colors,
+          Icons.place_rounded,
+          'All locations (${widget.locations.length})',
+          () {
+            Navigator.pop(context);
+            widget.onOpenLocations!();
+          },
+        ),
+      );
     }
     if (widget.unpaidInvoices > 0 && widget.onPayInvoice != null) {
-      rows.add(_moreRow(
-        colors,
-        Icons.receipt_long_rounded,
-        'Pay invoice (${widget.unpaidInvoices})',
-        () {
-          Navigator.pop(context);
-          widget.onPayInvoice!();
-        },
-      ));
+      rows.add(
+        _moreRow(
+          colors,
+          Icons.receipt_long_rounded,
+          'Pay invoice (${widget.unpaidInvoices})',
+          () {
+            Navigator.pop(context);
+            widget.onPayInvoice!();
+          },
+        ),
+      );
     }
 
     await showModalBottomSheet<void>(
