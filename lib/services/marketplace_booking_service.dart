@@ -235,30 +235,11 @@ class MarketplaceBookingService {
     );
   }
 
-  // Create hotel reservation
-  Future<dynamic> createReservation({
-    required String bizId,
-    required DateTime checkIn,
-    required DateTime checkOut,
-    required String productId,
-  }) async {
-    final res = await _client.post('/marketplace/business/$bizId/reservations', {
-      'checkInDate': checkIn.toIso8601String(),
-      'checkOutDate': checkOut.toIso8601String(),
-      'productId': productId,
-    });
-    return jsonDecode(res.body)['data'];
-  }
-
   // Fetch dine-in tab
   Future<dynamic> fetchDineInTab(String tabId) async {
     final res = await _client.get('/marketplace/business/dine-in/$tabId');
     return jsonDecode(res.body)['data'];
   }
 
-  // Confirm and pay dine-in tab
-  Future<void> confirmDineInTab(String tabId) async {
-    await _client.post('/marketplace/business/dine-in/$tabId/confirm', {});
-  }
 }
 

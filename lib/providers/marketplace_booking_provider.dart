@@ -231,22 +231,6 @@ class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> 
     }
   }
 
-  // Create hotel reservation with escrow
-  Future<dynamic> createHotelReservation({
-    required String bizId,
-    required DateTime checkIn,
-    required DateTime checkOut,
-    required String productId,
-  }) async {
-    final booking = await _service.createReservation(
-      bizId: bizId,
-      checkIn: checkIn,
-      checkOut: checkOut,
-      productId: productId,
-    );
-    return booking;
-  }
-
   // Load dine-in tab
   Future<void> loadDineInTab(String tabId) async {
     state = state.copyWith(isLoading: true);
@@ -258,10 +242,6 @@ class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> 
     }
   }
 
-  // Confirm and pay dine-in tab
-  Future<void> confirmDineInTab(String tabId) async {
-    await _service.confirmDineInTab(tabId);
-  }
 }
 
 final marketplaceBookingProvider = StateNotifierProvider<MarketplaceBookingNotifier, MarketplaceBookingState>(
