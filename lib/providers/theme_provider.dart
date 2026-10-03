@@ -305,7 +305,10 @@ class ThemeProvider with ChangeNotifier {
       // such parameter, so it cannot be layered on here.
       // TASK-004 — AzText type scale becomes the app-wide text theme so
       // every widget inherits the premium scale instead of Material defaults.
-      textTheme: AzText.theme().apply(
+      // UI-correction Phase A: uiTheme() = the AzText ladder with the
+      // bundled Comic Neue family and DELIBERATE weight mapping (800→700,
+      // 600/500→400) instead of engine closest-weight fallback.
+      textTheme: AzText.uiTheme().apply(
         bodyColor: c.textPrimary,
         displayColor: c.textPrimary,
       ),
@@ -337,7 +340,11 @@ class ThemeProvider with ChangeNotifier {
   /// palette so the two cannot disagree.
   static ThemeData _buildComponentTheme(AzamanColors c, Brightness brightness) {
     return ThemeData(
-      fontFamily: 'Inter', // bundled locally — see pubspec.yaml fonts: section
+      // UI-correction Phase A (2026-10-03): the display/UI family is
+      // Comic Neue, bundled locally — see pubspec.yaml fonts: section. Money
+      // and numeric factories pin Inter themselves (AzText.money/delta), so
+      // currency figures keep tabular-figure stability regardless of this.
+      fontFamily: 'ComicNeue',
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
