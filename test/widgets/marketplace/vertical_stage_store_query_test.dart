@@ -11,12 +11,16 @@ import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
-BusinessProduct _product(String name, {List<String> tags = const []}) => BusinessProduct(
+BusinessProduct _product(
+  String name, {
+  List<String> tags = const [],
+  double priceUsdc = 10,
+}) => BusinessProduct(
       id: name.toLowerCase().replaceAll(' ', '-'),
       businessProfileId: 'bp-1',
       name: name,
       slug: name.toLowerCase(),
-      priceUsdc: 10,
+      priceUsdc: priceUsdc,
       totalRevenue: 0,
       imageUrls: const [],
       isActive: true,
@@ -85,6 +89,24 @@ void main() {
     expect(find.byType(RetailCollectionBox), findsOneWidget);
     expect(find.text('Backpack'), findsOneWidget);
     expect(find.text('Sneakers'), findsNothing);
+    expect(find.text('Bestsellers'), findsNothing);
+    expect(find.text('Shop this store'), findsOneWidget);
+  });
+
+  testWidgets('retail shelf fails closed on an invalid carried price', (tester) async {
+    await _pump(
+      tester,
+      MarketplaceVerticalExperienceStage(
+        business: _business(
+          'RETAIL',
+          products: [_product('Broken Price', priceUsdc: double.nan)],
+        ),
+        colors: _colors,
+        onOpenCatalogView: () {},
+      ),
+    );
+    expect(find.text('Price unavailable'), findsOneWidget);
+    expect(find.text('0.00 USDC'), findsNothing);
   });
 
   testWidgets('transit stage carries the journey thread at the search stage', (tester) async {
