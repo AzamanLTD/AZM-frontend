@@ -15,7 +15,9 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/providers/marketplace_relevance_provider.dart';
 import 'package:azaman/providers/marketplace_resume_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -73,10 +75,33 @@ const _cartIntent = ResumeIntent(
   businessProfileId: 'biz-1',
 );
 
+
+/// PR #142 close-out — a REAL relevance signal (real business, real category).
+const _relevance = MarketplaceRelevance(
+  worldWire: 'FOOD_BEVERAGE',
+  categoryLabel: 'Restaurants',
+  business: BusinessProfile(
+    id: 'biz-rel-1',
+    bizId: 'BIZ-rel1',
+    businessName: 'Auntie Muni',
+    category: 'FOOD_BEVERAGE',
+    isVerified: true,
+    isSuspended: false,
+    kybStatus: 'VERIFIED',
+    totalEscrows: 5,
+    completedEscrows: 5,
+    userId: 7,
+    totalVolume: 900,
+    averageRating: 4.6,
+    username: 'auntie-muni',
+  ),
+);
+
 Future<void> _pumpDeck(
   WidgetTester tester, {
   List<SusuSummary> susu = const [],
   ResumeIntent? intent,
+  MarketplaceRelevance? relevance,
   bool reduceMotion = false,
 }) async {
   await tester.binding.setSurfaceSize(_surfaceSize);
@@ -86,6 +111,7 @@ Future<void> _pumpDeck(
         susuListProvider.overrideWith(
             () => _FakeSusuListNotifier(susu)),
         marketplaceResumeProvider.overrideWithValue(intent),
+        marketplaceRelevanceProvider.overrideWithValue(relevance),
       ],
       child: MaterialApp(
         theme: ThemeProvider.getThemeData(AzamanTheme.light),
@@ -251,5 +277,134 @@ void main() {
     for (final s in sem) {
       expect(s.properties.customSemanticsActions, isNull);
     }
+  });
+
+  testWidgets('relevance — a real business in a visited category renders '
+      'honestly, with no fabricated newness claim', (tester) async {
+    await _pumpDeck(tester, relevance: _relevance);
+    expect(find.text('MARKETPLACE'), findsOneWidget);
+    expect(find.text('Auntie Muni'), findsOneWidget);
+    expect(find.text('Relevant in Restaurants'), findsOneWidget);
+    // Relevance, never "new" — the data model has no trustworthy newness.
+    expect(find.textContaining(RegExp(r'\bnew\b', caseSensitive: false)),
+        findsNothing);
+    expect(_cardKeys(tester), [const ValueKey('reminder-card-relevance-biz-rel-1')]);
+  });
+
+  testWidgets('relevance — suppressed when the resume card already speaks '
+      'for the same world (one memory, one card)', (tester) async {
+    await _pumpDeck(
+      tester,
+      intent: const ResumeIntent(
+        kind: ResumeKind.worldSearch,
+        title: 'Back to "jollof"',
+        subtitle: 'in Restaurants',
+        worldWire: 'FOOD_BEVERAGE',
+      ),
+      relevance: _relevance,
+    );
+    expect(find.text('Back to "jollof"'), findsOneWidget);
+    expect(find.text('Auntie Muni'), findsNothing);
+  });
+
+  testWidgets('relevance — coexists with a different-world resume card',
+      (tester) async {
+    await _pumpDeck(
+      tester,
+      intent: const ResumeIntent(
+        kind: ResumeKind.worldSearch,
+        title: 'Back to "sneakers"',
+        subtitle: 'in Retail',
+        worldWire: 'RETAIL',
+      ),
+      relevance: _relevance,
+    );
+    expect(find.text('Back to "sneakers"'), findsOneWidget);
+    expect(find.text('Auntie Muni'), findsOneWidget);
+    expect(_cardKeys(tester).length, 2);
+  });
+
+  testWidgets('relevance — participates in the shuffle: committed swipe '
+      'rotates the deck, nothing is deleted', (tester) async {
+    await _pumpDeck(tester, relevance: _relevance);
+
+    final before = _cardKeys(tester).toList();
+    expect(before.length, 1);
+
+    await tester.drag(
+        find.byKey(const ValueKey('reminder-card-relevance-biz-rel-1')),
+        const Offset(260, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    // Single-card deck: the shuffle keeps the same card (nothing deleted).
+    final after = _cardKeys(tester).toSet();
+    expect(after, equals(before.toSet()));
+  });
+
+  testWidgets('relevance — participates in the multi-card shuffle with the '
+      'susu card', (tester) async {
+    await _pumpDeck(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      relevance: _relevance,
+    );
+
+    final before = _cardKeys(tester).toList();
+    expect(before.length, 2);
+    expect(before.last, const ValueKey('reminder-card-susu-s1'));
+
+    await tester.drag(
+        find.byKey(const ValueKey('reminder-card-susu-s1')),
+        const Offset(260, -20));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    final after = _cardKeys(tester).toSet();
+    expect(after.length, 2);
+    expect(after, equals(before.toSet()));
+    // Front rotated to the relevance card — same deck, same system.
+    expect(_cardKeys(tester).toList().last,
+        const ValueKey('reminder-card-relevance-biz-rel-1'));
+  });
+
+  testWidgets('relevance — reduced motion: a committed swipe reorders '
+      'instantly', (tester) async {
+    await _pumpDeck(
+      tester,
+      reduceMotion: true,
+      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      relevance: _relevance,
+    );
+
+    await tester.drag(
+        find.byKey(const ValueKey('reminder-card-susu-s1')),
+        const Offset(260, 0));
+    await tester.pump();
+
+    final orderAfter = _cardKeys(tester).toList();
+    expect(orderAfter.length, 2);
+    expect(orderAfter.last,
+        const ValueKey('reminder-card-relevance-biz-rel-1'));
+  });
+
+  testWidgets('relevance — the semantics action advances a deck that '
+      'contains the relevance card', (tester) async {
+    await _pumpDeck(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      relevance: _relevance,
+    );
+
+    final labels = tester
+        .widgetList<Semantics>(find.descendant(
+            of: find.byType(HomeReminderDeck),
+            matching: find.byType(Semantics)))
+        .expand((s) => s.properties.customSemanticsActions?.keys ?? const <CustomSemanticsAction>{})
+        .map((a) => a.label ?? '')
+        .toList();
+    expect(labels, contains('Next reminder'));
   });
 }

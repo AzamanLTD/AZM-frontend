@@ -35,6 +35,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/providers/marketplace_relevance_provider.dart';
 import 'package:azaman/providers/marketplace_resume_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -46,7 +47,6 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:azaman/widgets/scale_tap.dart';
 
 /// A single reminder card's honest content + its destination.
@@ -156,6 +156,24 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
         icon: isCart ? HugeIconsSolid.shoppingCart01 : HugeIconsSolid.store01,
         onTap: () => context.push(
             intent.kind == ResumeKind.cart ? AzRoutes.cart : AzRoutes.marketplace),
+      ));
+    }
+
+    // 3. Marketplace relevance — a REAL store in the category they most
+    //    recently visited (world memory + existing discovery data, both
+    //    already real). Suppressed when the resume card above already
+    //    speaks for the same world: one memory, one card, never two.
+    //    No fresh memory or no real match → no card (§4 honesty).
+    final relevance = ref.watch(marketplaceRelevanceProvider);
+    if (relevance != null && intent?.worldWire != relevance.worldWire) {
+      list.add(HomeReminderCardData(
+        id: 'relevance-${relevance.business.id}',
+        eyebrow: 'MARKETPLACE',
+        title: relevance.business.businessName,
+        subtitle: 'Relevant in ${relevance.categoryLabel}',
+        icon: HugeIconsSolid.store01,
+        onTap: () => context.push(AzRoutes.storefront(
+            relevance.business.id, name: relevance.business.businessName)),
       ));
     }
     return list;
