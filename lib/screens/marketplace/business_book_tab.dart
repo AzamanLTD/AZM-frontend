@@ -11,6 +11,7 @@ import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience_policy.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
+import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/screens/marketplace/cart_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage.dart';
@@ -151,6 +152,11 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
       onOrderModeChanged: (mode) => setState(() => _orderMode = mode),
       dineInAvailable: widget.onDineInAddToTab != null,
       experience: effectiveExperience,
+      // Store-scoped search (Overhaul 03 §1.3): only the text typed while the
+      // search is in `store` scope filters this catalog.
+      storeQuery: ref.watch(marketplaceSearchProvider.select(
+        (s) => s.scope == MarketplaceSearchScope.store ? s.text : '',
+      )),
     );
 
     if (!useRestaurantTray) return stage;

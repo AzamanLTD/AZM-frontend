@@ -18,6 +18,8 @@ import 'package:azaman/widgets/marketplace/restaurant_menu_journey_adapter.dart'
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/marketplace/menu/menu_document.dart';
+import 'package:azaman/marketplace/store_query.dart';
 import 'package:azaman/marketplace/experiences/marketplace_tempo.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
@@ -25,6 +27,7 @@ import 'package:azaman/marketplace/experiences/retail/retail_experience.dart';
 import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
 import 'package:azaman/widgets/marketplace/transit_seat_preview.dart';
+import 'package:azaman/widgets/marketplace/transit/journey_thread.dart';
 
 class MarketplaceVerticalExperienceStage extends StatelessWidget {
   final BusinessProfile business;
@@ -60,9 +63,35 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     this.onOrderModeChanged,
     this.dineInAvailable = true,
     this.experience,
+    this.storeQuery = '',
+    this.now,
   });
 
+  /// Store-scoped search text (Overhaul 03 §1.3). Supplied by the host from
+  /// `marketplaceSearchProvider` while it is in `store` scope; empty when
+  /// nothing is typed. Applied as a local sieve to the loaded catalog.
+  final String storeQuery;
+
+  /// Clock for menu availability windows; defaults to `DateTime.now()`.
+  final DateTime? now;
+
   bool get _hasMenu => menuSections.isNotEmpty || uncategorisedProducts.isNotEmpty;
+
+  /// Canonical menu (§3.1): one document feeds the flip-book and any list
+  /// rendering; the store query filters it before it reaches either.
+  MenuDocument get menuDocument => MenuDocument.build(
+        sections: menuSections,
+        uncategorised: uncategorisedProducts,
+        dishesById: restaurantDishesById,
+        now: now ?? DateTime.now(),
+      ).filtered(storeQuery);
+
+  /// Products that match the store query (identity-preserving when empty).
+  List<BusinessProduct> get visibleProducts => storeQuery.trim().isEmpty
+      ? business.products
+      : business.products
+          .where((p) => matchesStoreQuery(storeQuery, name: p.name, description: p.description, tags: p.tags))
+          .toList(growable: false);
   MarketplaceExperienceBlueprint get _blueprint => MarketplaceExperienceBlueprint.fromJson(experience, business.category);
 
   @override
@@ -184,6 +213,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       style: blueprint.commitStyle,
       motionTempo: blueprint.motionTempo,
       childBuilder: (onCommit) => RestaurantMenuJourneyAdapter(
+        document: menuDocument,
         businessName: business.businessName,
         sections: menuSections,
         uncategorisedProducts: uncategorisedProducts,
@@ -231,7 +261,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
 
   Widget _retailStage(BuildContext context, MarketplaceExperienceBlueprint blueprint) {
     if (business.products.isEmpty) return _bookCtaCard(icon: Icons.shopping_bag_outlined, title: 'Shop the Catalog', subtitle: 'Browse this business\'s full catalog and check out with escrow-backed payment protection.', buttonLabel: 'Shop Now', onTap: onOpenCatalogView, blueprint: blueprint);
-    final products = business.products.take(6).map((product) => RetailProduct(id: product.id, name: product.name, description: product.description, price: product.priceUsdc, currency: 'USDC', imageUrls: product.imageUrls, tags: product.tags, available: product.isActive)).toList(growable: false);
+    final products = visibleProducts.take(6).map((product) => RetailProduct(id: product.id, name: product.name, description: product.description, price: product.priceUsdc, currency: 'USDC', imageUrls: product.imageUrls, tags: product.tags, available: product.isActive)).toList(growable: false);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _stageHeader(blueprint, title: 'Bestsellers'),
       RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Popular items from this store', products: products), onProductTap: (product) => _openRetailDetail(context, blueprint, product)),
@@ -351,7 +381,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   }
 
   Widget _transitStage(MarketplaceExperienceBlueprint blueprint) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_stageHeader(blueprint, title: 'Choose your ride'), TransitSeatPreview(businessProfileId: business.id, colors: colors, onOpenTrips: () => onNavigate?.call('/business-market/${business.bizId}/transit'))]);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_stageHeader(blueprint, title: 'Choose your ride'), JourneyThread(model: JourneyThreadModel.searching(operatorName: business.businessName)), TransitSeatPreview(businessProfileId: business.id, colors: colors, onOpenTrips: () => onNavigate?.call('/business-market/${business.bizId}/transit'))]);
   }
 
   IconData _commitIcon(MarketplaceExperienceBlueprint blueprint) {
