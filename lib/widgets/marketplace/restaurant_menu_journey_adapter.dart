@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/marketplace/menu/menu_document.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_experience.dart';
 import 'package:azaman/marketplace/experiences/restaurant/restaurant_order_mode.dart';
 import 'package:azaman/models/business_models.dart';
@@ -66,8 +67,14 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
   final bool dineInAvailable;
   final MarketplaceDetailPresentation detailPresentation;
 
+  /// Canonical menu (Overhaul 03 §3.2). When supplied, the adapter builds the
+  /// journey from it and ignores `sections`/`uncategorisedProducts`/
+  /// `dishesById`.
+  final MenuDocument? document;
+
   const RestaurantMenuJourneyAdapter({
     super.key,
+    this.document,
     required this.businessName,
     required this.sections,
     required this.uncategorisedProducts,
@@ -86,7 +93,27 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => RestaurantNativeMenuJourney(
+  Widget build(BuildContext context) {
+    final document = this.document;
+    if (document != null) {
+      final dishes = document.items.map((i) => i.dish).whereType<RestaurantDish>();
+      return RestaurantNativeMenuJourney.fromDocument(
+        businessName: businessName,
+        document: document,
+        colors: colors,
+        onAddToTray: onAddToTray,
+        showGallery: showGallery,
+        showSpecifications: showSpecifications,
+        showOptions: showOptions || restaurantRequiresVisibleOptions(dishes),
+        showQuantity: showQuantity,
+        dineInContext: dineInContext,
+        orderMode: orderMode,
+        onOrderModeChanged: onOrderModeChanged,
+        dineInAvailable: dineInAvailable,
+        detailPresentation: detailPresentation,
+      );
+    }
+    return RestaurantNativeMenuJourney(
         businessName: businessName,
         sections: normalizeRestaurantMenuSections(sections: sections, uncategorisedProducts: uncategorisedProducts),
         uncategorisedProducts: const [],
@@ -103,4 +130,5 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
         dineInAvailable: dineInAvailable,
         detailPresentation: detailPresentation,
       );
+  }
 }

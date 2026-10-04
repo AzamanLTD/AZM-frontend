@@ -14,6 +14,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/marketplace/marketplace_detail_surface.dart';
 import 'package:azaman/widgets/marketplace/restaurant_order_mode_switch.dart';
+import 'package:azaman/marketplace/menu/menu_document.dart';
 
 /// Modifier selections for one restaurant dish build (TASK-013 audit
 /// hardening: make the ID/name boundary explicit).
@@ -44,8 +45,14 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
   final bool dineInAvailable;
   final MarketplaceDetailPresentation detailPresentation;
 
+  /// Canonical menu (Overhaul 03 §3.1). When non-null it is the single source
+  /// of pages, cover and dish lookups; the legacy `sections`/
+  /// `uncategorisedProducts`/`dishesById` inputs are ignored.
+  final MenuDocument? document;
+
   const RestaurantNativeMenuJourney({
     super.key,
+    this.document,
     required this.businessName,
     required this.sections,
     required this.uncategorisedProducts,
@@ -62,6 +69,49 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
     this.dineInAvailable = true,
     this.detailPresentation = MarketplaceDetailPresentation.dishDossier,
   });
+
+  /// Document-first constructor (Overhaul 03 §3.2). Legacy inputs are passed
+  /// empty; every read goes through [document].
+  factory RestaurantNativeMenuJourney.fromDocument({
+    Key? key,
+    required String businessName,
+    required MenuDocument document,
+    required AzamanColors colors,
+    required void Function(BusinessProduct product, Map<String, String> selections, int quantity) onAddToTray,
+    bool showGallery = true,
+    bool showSpecifications = true,
+    bool showOptions = true,
+    bool showQuantity = true,
+    String? dineInContext,
+    RestaurantOrderMode orderMode = RestaurantOrderMode.takeaway,
+    ValueChanged<RestaurantOrderMode>? onOrderModeChanged,
+    bool dineInAvailable = true,
+    MarketplaceDetailPresentation detailPresentation = MarketplaceDetailPresentation.dishDossier,
+  }) =>
+      RestaurantNativeMenuJourney(
+        key: key,
+        document: document,
+        businessName: businessName,
+        sections: const [],
+        uncategorisedProducts: const [],
+        dishesById: const {},
+        colors: colors,
+        onAddToTray: onAddToTray,
+        showGallery: showGallery,
+        showSpecifications: showSpecifications,
+        showOptions: showOptions,
+        showQuantity: showQuantity,
+        dineInContext: dineInContext,
+        orderMode: orderMode,
+        onOrderModeChanged: onOrderModeChanged,
+        dineInAvailable: dineInAvailable,
+        detailPresentation: detailPresentation,
+      );
+
+  /// Every product the journey can show, in menu order.
+  List<BusinessProduct> get allProducts => document != null
+      ? document!.items.map((i) => i.product).toList(growable: false)
+      : <BusinessProduct>[...sections.expand((s) => s.products), ...uncategorisedProducts];
 
   @override
   State<RestaurantNativeMenuJourney> createState() => _RestaurantNativeMenuJourneyState();
@@ -103,7 +153,9 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   @override
   void didUpdateWidget(covariant RestaurantNativeMenuJourney oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.sections, widget.sections) || !identical(oldWidget.uncategorisedProducts, widget.uncategorisedProducts)) {
+    if (!identical(oldWidget.document, widget.document) ||
+        !identical(oldWidget.sections, widget.sections) ||
+        !identical(oldWidget.uncategorisedProducts, widget.uncategorisedProducts)) {
       _pages = _buildPages();
     }
   }
@@ -116,6 +168,13 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
         pages.add(_MenuPage(title, start == 0 ? description : null, products.sublist(start, end)));
       }
     }
+    final document = widget.document;
+    if (document != null) {
+      for (final chapter in document.chapters) {
+        addSection(chapter.title, chapter.description, chapter.items.map((i) => i.product).toList(growable: false));
+      }
+      return pages;
+    }
     for (final section in widget.sections) {
       addSection(section.name, section.description, section.products);
     }
@@ -123,7 +182,10 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     return pages;
   }
 
-  RestaurantDish _dishFor(BusinessProduct product) => widget.dishesById[product.id] ?? RestaurantDish(
+  RestaurantDish? _knownDish(BusinessProduct product) =>
+      widget.document != null ? widget.document!.byId(product.id)?.dish : widget.dishesById[product.id];
+
+  RestaurantDish _dishFor(BusinessProduct product) => _knownDish(product) ?? RestaurantDish(
         id: product.id,
         name: product.name,
         description: product.description,
@@ -196,7 +258,7 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   }
 
   Widget _cover() {
-    final products = <BusinessProduct>[...widget.sections.expand((section) => section.products), ...widget.uncategorisedProducts];
+    final products = widget.allProducts;
     BusinessProduct? hero;
     for (final product in products) {
       if (product.primaryImage != null) {

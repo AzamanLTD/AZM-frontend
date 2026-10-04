@@ -15,6 +15,7 @@ import 'package:azaman/marketplace/experiences/transit/demo_transit_hold_gateway
 import 'package:azaman/marketplace/experiences/transit/transit_boarding.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/transit_boarding_pass.dart';
+import 'package:azaman/widgets/marketplace/transit/journey_thread.dart';
 import 'package:azaman/widgets/seat_selector/transit_hold_ring.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
@@ -152,14 +153,26 @@ class _TransitSeatSelectionScreenState
         departureTime: trip?.departureAt ?? DateTime.now(),
         keepsake: trip == null
             ? null
-            : TransitBoardingPassCard(
-                pass: TransitBoardingPass(
-                  bookingId: result.bookingId,
-                  trip: transitExperienceTripFromBooking(trip),
-                  seatIds: result.seatIds,
-                  boardingTime: DateTime.now(),
-                ),
-                colors: colors,
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  JourneyThread(
+                    model: JourneyThreadModel.fromTrip(
+                      trip,
+                      stage: JourneyStage.boarded,
+                      seatLabel: journeySeatLabel(result.seatIds),
+                    ),
+                  ),
+                  TransitBoardingPassCard(
+                    pass: TransitBoardingPass(
+                      bookingId: result.bookingId,
+                      trip: transitExperienceTripFromBooking(trip),
+                      seatIds: result.seatIds,
+                      boardingTime: DateTime.now(),
+                    ),
+                    colors: colors,
+                  ),
+                ],
               ),
       );
     });
@@ -410,6 +423,16 @@ class _TransitSeatSelectionScreenState
 
           return Column(
             children: [
+              // Journey thread (Overhaul 03 §5.1): derived from the trip and
+              // the live selection; never read back to make a decision.
+              if (trip != null)
+                JourneyThread(
+                  model: JourneyThreadModel.fromTrip(
+                    trip,
+                    stage: selected.isEmpty ? JourneyStage.seat : JourneyStage.booking,
+                    seatLabel: journeySeatLabel(selected),
+                  ),
+                ),
               _JourneyStrip(
                 trip: trip,
                 availability: availability,

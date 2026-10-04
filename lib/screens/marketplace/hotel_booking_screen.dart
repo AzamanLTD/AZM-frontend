@@ -15,6 +15,8 @@ import 'package:azaman/widgets/marketplace/hotel_arrival_sheet.dart';
 import 'package:azaman/widgets/marketplace/marketplace_dossier_sheet.dart';
 import 'package:azaman/widgets/marketplace/room_dossier_content.dart';
 import 'package:azaman/widgets/marketplace/stay_date_ribbon.dart';
+import 'package:azaman/marketplace/experiences/hotel/stay_decision.dart';
+import 'package:azaman/widgets/marketplace/stay_step_indicator.dart';
 import 'package:azaman/widgets/marketplace/stay_summary_bar.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
@@ -58,6 +60,18 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
       _checkIn = picked.start;
       _checkOut = picked.end;
     });
+    _syncStayDecision();
+  }
+
+  /// Mirrors the local picks into the UI-only [StayDecision] (Overhaul 03
+  /// §4.1) so the step indicator and docks derive from one object. Price and
+  /// availability authority stays with `hotelMarketplaceProvider`.
+  void _syncStayDecision() {
+    ref.read(stayDecisionProvider(widget.bizId).notifier).state = StayDecision(
+      checkIn: _checkIn,
+      checkOut: _checkOut,
+      roomId: _selectedRoomId,
+    );
   }
 
   int get _nights {
@@ -76,6 +90,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
   void _selectRoom(HotelRoom room) {
     if (!room.isBookable) return;
     setState(() => _selectedRoomId = room.id);
+    _syncStayDecision();
   }
 
   void _openRoomDossier(HotelRoom room) {
@@ -204,6 +219,14 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     ],
                     Text('Stay', style: TextStyle(fontSize: 13, color: colors.textTertiary)),
                   ]),
+                  const SizedBox(height: 12),
+                  // Stay story (Overhaul 03 §4.6), derived — never a second
+                  // source of truth for the booking.
+                  StayStepIndicator(
+                    current: ref
+                        .watch(stayDecisionProvider(widget.bizId))
+                        .stepFor(confirmed: false),
+                  ),
                 ],
               ),
             ),
