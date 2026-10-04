@@ -43,6 +43,9 @@ class RetailEditorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = product.primaryImage;
+    final price = product.priceUsdc.isFinite && product.priceUsdc > 0
+        ? product.priceUsdc
+        : null;
     return RepaintBoundary(
       child: GestureDetector(
         key: ValueKey('retail_editorial_${product.id}'),
@@ -103,8 +106,11 @@ class RetailEditorialCard extends StatelessWidget {
             ),
             const SizedBox(height: AzSpace.xxs),
             Text(
-              AzMoney.usdc(product.priceUsdc),
-              style: AzText.money(colors.textPrimary, size: 14, weight: FontWeight.w700, tracking: 0),
+              price == null ? 'Price unavailable' : AzMoney.usdc(price),
+              style: price == null
+                  ? AzText.caption.copyWith(color: colors.textTertiary)
+                  : AzText.money(colors.textPrimary,
+                      size: 14, weight: FontWeight.w700, tracking: 0),
             ),
           ],
         ),
