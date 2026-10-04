@@ -34,7 +34,7 @@ class StoryFeedNotifier extends StateNotifier<AsyncValue<List<StoryGroup>>> {
         stories: g.stories.map((s) => s.id == storyId
           ? StoryItem(id: s.id, mediaUrl: s.mediaUrl, mediaType: s.mediaType, caption: s.caption,
               linkedBizId: s.linkedBizId, durationSeconds: s.durationSeconds, boosted: s.boosted,
-              seen: true, createdAt: s.createdAt)
+              seen: true, createdAt: s.createdAt, durationSecondsProvided: s.durationSecondsProvided)
           : s).toList(),
       )).toList());
     });
@@ -45,13 +45,4 @@ class StoryFeedNotifier extends StateNotifier<AsyncValue<List<StoryGroup>>> {
     await load();
   }
 
-  /// Reply to a story — sends a DM to the story author with the story attached.
-  Future<bool> replyStory(String storyId, String message) async {
-    try {
-      await apiClient.post('/stories/$storyId/reply', {'message': message});
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
 }
