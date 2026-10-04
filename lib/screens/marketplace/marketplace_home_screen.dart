@@ -38,6 +38,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
@@ -97,9 +98,6 @@ class _MarketplaceHomeScreenState
   Position? _position;
   bool _resolvingLocation = false;
   String? _locationError;
-
-  // §2: Featured rail collapsed by default
-  bool _featuredExpanded = false;
 
   // §1: Google Map controller
   GoogleMapController? _mapController;
@@ -488,10 +486,10 @@ class _MarketplaceHomeScreenState
                         ),
                       ),
                     ),
-                    // ── Eat / Shop / Ride / Stay + Near You (correction H) ──
+                    // ── §11: the category SPEED DIAL is the category
+                    // system (radial fan grammar) + Near You as the only
+                    // additional control. §12: no star/featured surface.
                     _controlRow(colors),
-                    // §2: Featured rail (collapsed by default)
-                    _featuredSection(colors),
                     Expanded(
                       child: _viewMode == _ViewMode.list
                           ? _listMode(colors)
@@ -780,41 +778,66 @@ class _MarketplaceHomeScreenState
     );
   }
 
+  // The category set the marketplace actually supports today (§11):
+  // All is a REAL selectable state (wire null), then every currently
+  // supported primary marketplace category. Icons match the category
+  // system's existing icon treatments.
+  static const List<CategoryDialItem> _dialCategories = [
+    CategoryDialItem(
+        wire: null, icon: Icons.apps_rounded, label: 'All'),
+    CategoryDialItem(
+        wire: 'FOOD_BEVERAGE',
+        icon: Icons.restaurant_rounded,
+        label: 'Eat'),
+    CategoryDialItem(
+        wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Shop'),
+    CategoryDialItem(
+        wire: 'LOGISTICS',
+        icon: Icons.directions_bus_rounded,
+        label: 'Ride'),
+    CategoryDialItem(
+        wire: 'REAL_ESTATE',
+        icon: Icons.apartment_rounded,
+        label: 'Stay'),
+    CategoryDialItem(
+        wire: 'FREELANCE_SERVICES',
+        icon: Icons.handyman_rounded,
+        label: 'Services'),
+    CategoryDialItem(
+        wire: 'HEALTH_WELLNESS',
+        icon: Icons.spa_rounded,
+        label: 'Wellness'),
+  ];
+
+  // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.
+  // The radial fan / goo-morph arms remain the visual grammar; the old row
+  // of standalone category buttons (correction H) is gone — the spec
+  // explicitly rejects a second flat control row. Near You stays as the
+  // ONLY additional control, with a location icon in the same visual
+  // language, driving the existing near-you map machinery.
   Widget _controlRow(AzamanColors colors) {
-    // CORRECTION H: exactly Eat / Shop / Ride / Stay, with Near You as a
-    // peer control beside the selector. The old category dial ("All",
-    // "Restaurants", "Hotels", "Transit", "Retail") and the whole
-    // Sort / Verified / Filter results bar are gone — and NO other noisy
-    // filter/control row replaces them. Tapping a category IMMEDIATELY
-    // changes the result surface; tapping the active category clears back
-    // to all results. Icon treatments are the exact ones the category
-    // system already uses.
     final nearYou = _viewMode == _ViewMode.map;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          _categoryButton(colors,
-              wire: 'FOOD_BEVERAGE',
-              icon: Icons.restaurant_rounded,
-              label: 'Eat'),
+          Expanded(
+            child: CategorySpeedDial(
+              key: const ValueKey('marketplace-category-dial'),
+              categories: _dialCategories,
+              selectedWire: _selectedCategory,
+              colors: colors,
+              onSelected: (wire) {
+                AzamanHaptics.toggle();
+                setState(() => _selectedCategory = wire);
+                _fireSearch();
+              },
+            ),
+          ),
           const SizedBox(width: AzSpace.sm),
-          _categoryButton(colors,
-              wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Shop'),
-          const SizedBox(width: AzSpace.sm),
-          _categoryButton(colors,
-              wire: 'LOGISTICS',
-              icon: Icons.directions_bus_rounded,
-              label: 'Ride'),
-          const SizedBox(width: AzSpace.sm),
-          _categoryButton(colors,
-              wire: 'REAL_ESTATE',
-              icon: Icons.apartment_rounded,
-              label: 'Stay'),
-          const Spacer(),
-          // Near You — a peer control beside the selector, driving the
-          // existing near-you map machinery (location permission, nearby
-          // search). Toggling off returns to the list view.
+          // Near You — the ONLY control outside the category selector
+          // (location icon, same pill language). Toggling off returns to
+          // the list view.
           GestureDetector(
             key: const ValueKey('marketplace-near-you'),
             behavior: HitTestBehavior.opaque,
@@ -860,50 +883,6 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  /// One compact category control. Selecting it changes the result surface
-  /// immediately; selecting the already-active category clears the filter.
-  Widget _categoryButton(AzamanColors colors,
-      {required String wire, required IconData icon, required String label}) {
-    final active = _selectedCategory == wire;
-    return GestureDetector(
-      key: ValueKey('marketplace-category-$label'),
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        AzamanHaptics.toggle();
-        setState(() => _selectedCategory = active ? null : wire);
-        _fireSearch();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? colors.accent.withValues(alpha: 0.12) : colors.card,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active ? colors.accent : colors.divider,
-            width: active ? 1.2 : 0.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 15, color: active ? colors.accent : colors.textTertiary),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                color: active ? colors.accent : colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Opens the story viewer for a business's stories (not their profile).
   /// Both production and demo mode use the same API route — in demo mode the
   /// DemoInterceptor supplies the seeded business-specific story response.
@@ -939,69 +918,6 @@ class _MarketplaceHomeScreenState
   }
 
   // ── Results bar (slim control row) ─────────────────────────────────────────
-
-  // ── Featured rail (§2) — collapsed by default ─────────────────────────────
-
-  Widget _featuredSection(AzamanColors colors) {
-    final featured = ref.watch(featuredBusinessesProvider);
-    if (featured.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            AzamanHaptics.toggle();
-            setState(() => _featuredExpanded = !_featuredExpanded);
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                Icon(Icons.star_rounded, size: 16, color: colors.accent),
-                // CORRECTION H: the "Featured picks near you" wording is
-                // removed and NOT replaced. The collapse affordance keeps
-                // its star identity + chevron only.
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _featuredExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                      color: colors.textTertiary, size: 20),
-                ),
-              ],
-            ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeInOut,
-          child: _featuredExpanded
-              ? _featuredRail(featured, colors)
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
-
-  Widget _featuredRail(
-      List<BusinessProfile> featured, AzamanColors colors) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: featured.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => SizedBox(
-          width: 260,
-          child: _FeaturedCard(business: featured[i], colors: colors),
-        ),
-      ),
-    );
-  }
 
   // ── Real map mode (§1) ─────────────────────────────────────────────────────
 
@@ -1385,156 +1301,3 @@ class _MarketplaceHomeScreenState
 
 /// Immutable view-model for one portal world: the category identity plus a
 /// truthful count and preview derived from the loaded search state.
-class _FeaturedCard extends StatelessWidget {
-  final BusinessProfile business;
-  final AzamanColors colors;
-
-  const _FeaturedCard({required this.business, required this.colors});
-
-  String? _coverUrl(BusinessCategory cat) {
-    if (business.showcaseUrls.isNotEmpty) return business.showcaseUrls.first;
-    if (business.logoUrl != null && business.logoUrl!.isNotEmpty) {
-      return business.logoUrl;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cat = BusinessCategories.fromWire(business.category);
-    final coverUrl = _coverUrl(cat);
-
-    return GestureDetector(
-      onTap: () {
-        AzamanHaptics.nav();
-        context.push('/business/\${business.bizId}');
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: colors.isDark ? 0.22 : 0.07),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cover image (taller)
-              SizedBox(
-                height: 120,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (coverUrl != null)
-                      AzamanNetworkImage(
-                        imageUrl: coverUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => _placeholder(cat),
-                        errorWidget: (_, __, ___) => _placeholder(cat),
-                      )
-                    else
-                      _placeholder(cat),
-                    // Category tag overlay
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        color: cat.color.withValues(alpha: 0.82),
-                        child: Text(
-                          cat.label.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Details
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            business.businessName,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: colors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (business.isVerified)
-                          Icon(Icons.verified_rounded, size: 12, color: colors.accent),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        if (business.averageRating > 0) ...[
-                          Icon(Icons.star_rounded, size: 11, color: const Color(0xFFF59E0B)),
-                          const SizedBox(width: 2),
-                          Text(
-                            business.averageRating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                        if (business.locations.isNotEmpty) ...[
-                          Builder(builder: (_) {
-                            final status = currentOpenStatus(business.locations.first.operatingHours);
-                            if (status == OpenStatus.open)
-                              return StatusDot(color: Colors.green, label: 'Open');
-                            if (status == OpenStatus.closingSoon)
-                              return StatusDot(color: Colors.orange, label: 'Closing soon');
-                            if (status == OpenStatus.closed)
-                              return StatusDot(color: colors.textTertiary, label: 'Closed');
-                            return const SizedBox.shrink();
-                          }),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder(BusinessCategory cat) => Container(
-        color: cat.color.withValues(alpha: 0.12),
-        child: Center(child: Icon(cat.icon, size: 30, color: cat.color.withValues(alpha: 0.5))),
-      );
-}
