@@ -118,6 +118,12 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
   Future<void> submit({bool fetch = true}) async {
     final q = state.text.trim();
     if (q.isEmpty) return;
+
+    // Capture the committed search context before the persistence await. A
+    // scope can change while SharedPreferences is completing; the request
+    // must never silently switch to the newer scope.
+    final committedScope = state.scope;
+    final committedWorldWire = state.worldWire;
     final recent = [q, ...state.recent.where((r) => r != q)].take(kMaxRecent).toList();
     state = state.copyWith(recent: recent, focused: false);
     try {
@@ -125,12 +131,12 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
       await prefs.setStringList(kRecentKey, recent);
     } catch (_) {}
     if (!fetch) return;
-    switch (state.scope) {
+    switch (committedScope) {
       case MarketplaceSearchScope.marketplace:
       case MarketplaceSearchScope.world:
         await ref
             .read(businessSearchProvider.notifier)
-            .search(q, category: state.worldWire);
+            .search(q, category: committedWorldWire);
       case MarketplaceSearchScope.store:
         // Store-scoped search filters the store's already-loaded catalog
         // locally (verticals, 03 §1.3); nothing to fetch.
