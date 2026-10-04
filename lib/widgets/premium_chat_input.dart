@@ -16,6 +16,10 @@ import 'package:azaman/services/chat_media_service.dart';
 import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/liquid/liquid_dropdown_menu.dart';
 import 'package:azaman/widgets/azaman_send_button.dart';
+import 'package:azaman/widgets/premium_bottom_nav.dart'
+    show NavScrollCompression;
+import 'package:azaman/theme/az_elevation.dart';
+import 'package:azaman/theme/az_radius.dart';
 
 class PremiumChatInput extends ConsumerStatefulWidget {
   final ChatMessage? replyTo;
@@ -190,17 +194,24 @@ class _State extends ConsumerState<PremiumChatInput> {
             minHeight: 2),
 
         // ── Floating pill bar ────────────────────────────────────────────
-        // Same style as PremiumBottomNav: floating pill with surface color,
-        // rounded corners, shadow. Contains + button, text field, send/voice.
-        // Dimensions match the nav bar (height 62, radius 31) so the
-        // transition between nav bar and chat input feels seamless.
+        // EXPERIENCE PASS §15 — the chat composer IS the contextual bottom
+        // band, so it consumes the SAME system primitives as the nav pill:
+        // the shared band height token (NavScrollCompression.expandedHeight)
+        // and the shared pill radius (AzRadius.brPill, self-clamping to half
+        // the height), and in dark mode the SAME elevated surface as the nav
+        // band (the card step + rim highlight) rather than the near-black
+        // page surface — so the composer reads as the band continuing, not
+        // as a second, muddier pill. Light mode keeps the shared surface.
         Padding(
           padding: EdgeInsets.fromLTRB(16, 6, 16, bottom > 0 ? bottom + 8 : 16),
           child: Container(
-            height: 62,
+            height: NavScrollCompression.expandedHeight,
             decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(31),
+              color: c.isDark ? c.card : c.surface,
+              borderRadius: AzRadius.brPill,
+              border: c.isDark
+                  ? Border.all(color: AzElevation.rimHighlight(true))
+                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: c.isDark ? 0.45 : 0.13),

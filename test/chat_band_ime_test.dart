@@ -21,6 +21,8 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/widgets/premium_chat_input.dart';
+import 'package:azaman/widgets/premium_bottom_nav.dart'
+    show NavScrollCompression;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,7 +69,17 @@ void main() {
 
     final composerFinder = find.byType(PremiumChatInput);
     expect(composerFinder, findsOneWidget);
-    final restingHeight = tester.getRect(composerFinder).height;
+    // §15 — ONE SYSTEM: the composer PILL (the floating surface, not the
+    // SafeArea wrapper) carries the SAME band height token as the nav
+    // pill (NavScrollCompression.expandedHeight), so the contextual
+    // morph reads as the band continuing, not as two unrelated
+    // surfaces.
+    final pillFinder = find.byWidgetPredicate((w) =>
+        w is Container &&
+        (w.constraints?.maxHeight ?? double.infinity) ==
+            NavScrollCompression.expandedHeight);
+    expect(pillFinder, findsOneWidget);
+    final restingHeight = tester.getRect(pillFinder).height;
 
     // Focus the composer's field, then open a 300px keyboard.
     await tester.tap(find.byType(TextField).first);
@@ -82,7 +94,7 @@ void main() {
     expect(find.byType(TextField).first.hitTestable(), findsOneWidget);
     // Same pill geometry while riding — the surface is attached to the
     // IME movement, not a shrunken/floating strip.
-    expect(tester.getRect(composerFinder).height, restingHeight);
+    expect(tester.getRect(pillFinder).height, restingHeight);
 
     // Unmount the chat screen so its poll/socket timers are disposed,
     // then dispose the container to cancel the chat notifier's periodic
