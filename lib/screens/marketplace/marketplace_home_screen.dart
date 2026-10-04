@@ -143,6 +143,9 @@ class _MarketplaceHomeScreenState
   // Location permission requested flag
   bool _locationRequested = false;
 
+  // Invalidates asynchronous world-entry work when a newer interaction starts.
+  int _exploreGeneration = 0;
+
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
@@ -441,7 +444,9 @@ class _MarketplaceHomeScreenState
       case UtilityFilter.nearMe:
         return true;
       case UtilityFilter.openNow:
-        final now = ref.read(discoveryClockProvider)();
+        // Use the same sampled clock as the portal snapshot so every card in
+        // one render is evaluated against one deterministic instant.
+        final now = ref.read(discoverySnapshotProvider).now;
         return b.openStateAt(now) == OpenState.open;
       case UtilityFilter.topRated:
         return b.averageRating >= 4.0 && b.reviewCount >= 5;
@@ -466,9 +471,13 @@ class _MarketplaceHomeScreenState
   }
 
   void _onIntent(DiscoveryIntentItem item) {
-    if (item.worldWire != null) return _enterExplore(item.worldWire);
+    if (item.worldWire != null) {
+      _enterExplore(item.worldWire);
+      return;
+    }
     if (item.signal == DiscoverySignal.nearby) {
-      return _onUtility(UtilityFilter.nearMe);
+      _onUtility(UtilityFilter.nearMe);
+      return;
     }
     if (item.savesOnly) {
       context.push(AzRoutes.savedBusinesses);
