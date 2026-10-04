@@ -77,6 +77,7 @@ abstract final class AzRouteNames {
   static const businessMarketDashboard = 'business-market-dashboard';
   static const businessSearch = 'business-search';
   static const savedBusinesses = 'saved-businesses';
+  static const cart = 'marketplace-cart';
   static const businessRegister = 'business-register';
   static const businessNotifications = 'business-notifications';
   static const businessProducts = 'business-products';
@@ -204,6 +205,8 @@ abstract final class AzRoutes {
       '/business-market/invoices/$invoiceId';
   static const businessSearch = '/business/search';
   static const savedBusinesses = '/biz/saved';
+  // Mounted under /biz/ (like saved) so it never collides with `/business/:bizId`.
+  static const cart = '/biz/cart';
   static const businessRegister = '/business/register';
   static const businessNotifications = '/business/notifications';
   static String businessProducts(String bizId, {String? name}) =>

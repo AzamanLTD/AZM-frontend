@@ -78,6 +78,7 @@ import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_search_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
+import 'package:azaman/screens/marketplace/cart_screen.dart';
 import 'package:azaman/screens/marketplace/business_register_screen.dart';
 import 'package:azaman/screens/marketplace/business_notifications_screen.dart';
 import 'package:azaman/screens/marketplace/business_products_screen.dart';
@@ -506,6 +507,13 @@ final GoRouter appRouter = GoRouter(
       path: '/biz/saved',
       name: AzRouteNames.savedBusinesses,
       builder: (_, __) => const SavedBusinessesScreen(),
+    ),
+    // Cart as a routable destination (Overhaul 02 — resume card). The
+    // storefront still pushes CartScreen directly; both land on the same screen.
+    GoRoute(
+      path: AzRoutes.cart,
+      name: AzRouteNames.cart,
+      builder: (_, __) => const CartScreen(),
     ),
     GoRoute(
       path: '/business/register',

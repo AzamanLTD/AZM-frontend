@@ -106,7 +106,8 @@ void main() {
       find.byKey(const ValueKey('marketplace_portal_body')),
       findsOneWidget,
     );
-    expect(find.text('Marketplace'), findsOneWidget);
+    // Overhaul 02: the portal's identity is "Discover" (DiscoveryHeader).
+    expect(find.text('Discover'), findsOneWidget);
     expect(find.text('Choose your world'), findsOneWidget);
 
     // One world card per primary category.
