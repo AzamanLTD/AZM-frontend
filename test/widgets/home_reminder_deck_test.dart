@@ -233,8 +233,8 @@ void main() {
         .widgetList<Semantics>(find.descendant(
             of: find.byType(HomeReminderDeck),
             matching: find.byType(Semantics)))
-        .expand((s) => s.properties.customSemanticsActions?.keys ?? const {})
-        .map((a) => a.label)
+        .expand((s) => s.properties.customSemanticsActions?.keys ?? const <CustomSemanticsAction>{})
+        .map((a) => a.label ?? '')
         .toList();
     expect(labels, contains('Next reminder'));
   });
