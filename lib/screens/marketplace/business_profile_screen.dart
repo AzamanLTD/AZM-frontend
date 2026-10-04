@@ -48,6 +48,7 @@ import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
 import 'package:azaman/screens/marketplace/business_reviews_section.dart';
+import 'package:azaman/providers/marketplace_search_provider.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -98,6 +99,28 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    // Leaving the store hands search scope back to its world (or the whole
+    // marketplace when the category is unknown). The notifier was captured
+    // when the scope was claimed; when the whole ProviderScope is being torn
+    // down (app exit, tests) it is already unmounted and there is no scope
+    // left to hand back.
+    final business = _business;
+    final search = _claimedSearch;
+    if (search != null && search.mounted) {
+      if (business != null && business.category.isNotEmpty) {
+        search.setScope(MarketplaceSearchScope.world, worldWire: business.category);
+      } else {
+        search.setScope(MarketplaceSearchScope.marketplace);
+      }
+    }
+    super.dispose();
+  }
+
+  /// The search notifier this screen scoped to its store (null until loaded).
+  MarketplaceSearchNotifier? _claimedSearch;
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -125,6 +148,15 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
         _locations = locations;
         _loading = false;
       });
+      // Overhaul 02 §4.2 — while this store is open, marketplace search is
+      // scoped to it (placeholders: `Search for food in "<store>"`).
+      final search = ref.read(marketplaceSearchProvider.notifier);
+      _claimedSearch = search;
+      search.setScope(
+        MarketplaceSearchScope.store,
+        worldWire: business.category,
+        storeBizId: business.bizId,
+      );
       _loadUnpaidInvoices(business);
       _loadMenu(business.bizId);
       _loadFollowState(business.id);

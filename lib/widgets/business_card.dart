@@ -28,6 +28,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/utils/business_hours.dart';
 import 'package:azaman/widgets/rating_stars.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
@@ -370,35 +371,10 @@ class BusinessCard extends ConsumerWidget {
   }
 
   /// Returns true if the business has any location marked open at the current
-  /// local time. Reads BusinessLocation.operatingHours: {"mon": "08:00-22:00"}.
-  bool _isOpenNow() {
-    final now = DateTime.now();
-    const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    final dayKey = days[now.weekday % 7];
-    for (final loc in business.locations) {
-      final hours = loc.operatingHours;
-      if (hours == null) continue;
-      final range = hours[dayKey]?.toString();
-      if (range == null) continue;
-      final parts = range.split('-');
-      if (parts.length != 2) continue;
-      final open = _parseTime(parts[0].trim());
-      final close = _parseTime(parts[1].trim());
-      if (open == null || close == null) continue;
-      final nowMins = now.hour * 60 + now.minute;
-      if (nowMins >= open && nowMins < close) return true;
-    }
-    return false;
-  }
-
-  int? _parseTime(String s) {
-    final p = s.split(':');
-    if (p.length < 2) return null;
-    final h = int.tryParse(p[0]);
-    final m = int.tryParse(p[1]);
-    if (h == null || m == null) return null;
-    return h * 60 + m;
-  }
+  /// local time. Delegates to the shared [BusinessHours] parser so every
+  /// surface agrees on "open now".
+  bool _isOpenNow() =>
+      business.openStateAt(DateTime.now()) == OpenState.open;
 }
 
 // ── Bookmark button (wired to savedBusinessesProvider) ────────────────────────
