@@ -158,4 +158,51 @@ void main() {
     await tester.pump();
     expect(log, ['hold+', 'hold-']);
   });
+
+  // ── Pointer cancel: a system-interrupted touch is never a user intent ──
+
+  testWidgets('cancel during deciding fires NOTHING (no tap, no hold)',
+      (tester) async {
+    await pumpHost(tester);
+    final gesture = await tester.startGesture(const Offset(100, 400));
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.cancel();
+    await tester.pump();
+    expect(log, isEmpty,
+        reason: 'a cancelled touch (system gesture steal) must not advance the story');
+  });
+
+
+  testWidgets('cancel during vertical settles with zero velocity (never commits)',
+      (tester) async {
+    await pumpHost(tester);
+    final gesture = await tester.startGesture(const Offset(200, 100));
+    await gesture.moveBy(const Offset(0, 60));
+    await tester.pump();
+    expect(log.last, isNot(startsWith('vend')),
+        reason: 'drag is still active');
+    await gesture.cancel();
+    await tester.pump();
+    expect(log.last, 'vend:0.0',
+        reason: 'cancel releases the drag with NO velocity so the shell '
+            'settles dismiss back below the commit line instead of flinging');
+  });
+
+  testWidgets('cancel during horizontal cancels the page drag (no fly)',
+      (tester) async {
+    await pumpHost(tester);
+    final gesture = await tester.startGesture(const Offset(200, 400));
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump();
+    expect(pages.page, greaterThan(0.0));
+    final atCancel = pages.page!;
+    await gesture.cancel();
+    // Settle back to the nearest page — cancel() ends ballistic motion; the
+    // position must not carry the pointer's stale velocity forward.
+    await tester.pumpAndSettle();
+    expect(pages.page, 0.0,
+        reason: 'cancel settles where it is; at-cancel position was '
+            '$atCancel');
+  });
 }

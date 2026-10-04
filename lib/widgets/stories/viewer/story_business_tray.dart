@@ -2,8 +2,11 @@
 // AZAMAN — STORY VIEWER: BUSINESS TRAY
 //
 // Story → store continuity (Overhaul 05 §7). Renders ONLY when the linked
-// business resolves; tapping opens the EXISTING business profile route
-// (AzRoutes.businessProfile, route_registry.dart:211). The vertical's
+// business resolves; tapping opens the business profile imperatively — the
+// viewer itself is an imperative route on the root navigator, so go_router's
+// push would land the profile BELOW it (see onTap). The page pushed is the
+// same one the /business/:bizId route builds (AzRoutes.businessProfile,
+// route_registry.dart:211 → app_router.dart:528). The vertical's
 // primary action label comes from the EXISTING marketplace catalog — nothing
 // invented. No money moves from a story: no pay CTA exists until the backend
 // exposes a story payment-intent object (seam documented below).
@@ -11,12 +14,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -80,9 +82,17 @@ class StoryBusinessTray extends ConsumerWidget {
               onTap: () {
                 AzamanHaptics.selection();
                 onPause();
-                // Resume when the profile route is gone, whatever its
-                // outcome. Canonical go_router push (same as the dashboard).
-                context.push(AzRoutes.businessProfile(biz.bizId)).whenComplete(onResume);
+                // The viewer is an IMPERATIVE route pushed on the root
+                // navigator (StoryViewerScreen.open); go_router's
+                // context.push would add the profile to the router's stack
+                // BELOW the opaque viewer — invisible, and playback would
+                // stay paused forever. Push imperatively with the same page
+                // the /business/:bizId route builds (app_router.dart:528).
+                Navigator.of(context)
+                    .push(MaterialPageRoute(
+                      builder: (_) => BusinessProfileScreen(bizId: biz.bizId),
+                    ))
+                    .whenComplete(onResume);
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(

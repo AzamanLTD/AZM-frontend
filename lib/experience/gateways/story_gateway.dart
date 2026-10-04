@@ -153,7 +153,14 @@ class HttpStoryGateway implements StoryGateway {
       const AzUnsupported('No story share endpoint exists on the backend');
 }
 
-final storyGatewayProvider = Provider<StoryGateway>(
+// autoDispose: storyFeedProvider is autoDispose on purpose (the feed reloads
+// on each hub entry; stories expire server-side after 24h). A NON-autoDispose
+// gateway watching its notifier would pin the feed for the whole app run after
+// the first viewer open — stale stories, no reload ever again. The gateway
+// lives exactly as long as the viewer subtree that reads it; the markViewed
+// dedupe set is then per viewer session, which is all it needs to be (it
+// guards POST spam while paging back and forth; the server is the authority).
+final storyGatewayProvider = Provider.autoDispose<StoryGateway>(
   (ref) => HttpStoryGateway(
     feedPort: RiverpodStoryFeedPort(ref.watch(storyFeedProvider.notifier)),
   ),

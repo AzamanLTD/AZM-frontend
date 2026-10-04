@@ -160,6 +160,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
   }
 
   void _up(PointerEvent e) {
+    if (e is PointerCancelEvent) return _cancel(e);
     _pointers.remove(e.pointer);
     final velocity =
         _velocity?.getVelocity().pixelsPerSecond ?? Offset.zero;
@@ -187,6 +188,38 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
         } else {
           return; // one finger still down: stay in pinch, no accidental flips
         }
+      case StoryGesturePhase.idle:
+        break;
+    }
+    if (_pointers.isEmpty) {
+      _phase = StoryGesturePhase.idle;
+      _origin = null;
+      _downTime = null;
+      _velocity = null;
+    }
+  }
+
+
+  /// A cancelled touch (system gesture steal, notification shade, call) is
+  /// NOT user intent: never a tap, never a fling. The page drag is CANCELLED
+  /// (not ended with the stale finger velocity), a vertical drag releases
+  /// with zero velocity so the shell settles below the commit line, and a
+  /// hold simply ends so playback resumes.
+  void _cancel(PointerEvent e) {
+    _pointers.remove(e.pointer);
+    switch (_phase) {
+      case StoryGesturePhase.deciding:
+        _holdTicker.stop();
+        // Deliberately nothing: a cancelled touch taps nothing.
+      case StoryGesturePhase.holding:
+        widget.callbacks.onHoldEnd();
+      case StoryGesturePhase.horizontal:
+        _pageDrag?.cancel();
+        _pageDrag = null;
+      case StoryGesturePhase.vertical:
+        widget.callbacks.onVerticalEnd(0);
+      case StoryGesturePhase.pinch:
+        if (_pointers.isEmpty) widget.callbacks.onPinchEnd();
       case StoryGesturePhase.idle:
         break;
     }

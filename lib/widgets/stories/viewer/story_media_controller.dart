@@ -43,6 +43,7 @@ class StoryMediaController extends ChangeNotifier {
   VideoPlayerController? video;
   bool ready = false;
   bool _error = false;
+  bool _disposed = false;
   bool get hasError => _error;
 
   /// Media-kind truth: the model's `mediaType` only when the feed actually
@@ -60,12 +61,16 @@ class StoryMediaController extends ChangeNotifier {
   /// Never plays audio from the viewer (existing behaviour; a story should
   /// not blast sound the moment it appears).
   Future<void> prepare() async {
-    if (ready || _error) return;
+    if (ready || _error || _disposed) return;
     try {
       if (isVideo) {
         final controller = VideoPlayerController.networkUrl(Uri.parse(item.mediaUrl));
         video = controller;
         await controller.initialize();
+        // The viewer can be dismissed while initialize() is in flight; the
+        // controller is already disposed and this notifier must never be
+        // touched again.
+        if (_disposed) return;
         await controller.setLooping(false);
         await controller.setVolume(0.0);
         controller.addListener(_onVideoTick);
@@ -73,6 +78,7 @@ class StoryMediaController extends ChangeNotifier {
       }
       ready = true;
     } catch (_) {
+      if (_disposed) return;
       _error = true;
       video?.dispose();
       video = null;
@@ -104,6 +110,7 @@ class StoryMediaController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     video?.removeListener(_onVideoTick);
     video?.dispose();
     video = null;

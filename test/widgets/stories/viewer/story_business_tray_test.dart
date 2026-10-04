@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/widgets/stories/viewer/story_business_tray.dart';
 
 BusinessProfile _hotel() => BusinessProfile(
@@ -86,22 +87,70 @@ void main() {
     expect(find.text('See rooms'), findsOneWidget);
   });
 
-  testWidgets('tap pauses playback, opens the profile route, resumes on return',
+  // REVIEW NOTE (2026-10-04): the former 'tap pauses playback, opens the
+  // profile route' test asserted go_router navigation (a 'PROFILE ROUTE'
+  // scaffold behind a '/business/:bizId' route). It encoded the DEFECT the
+  // review pass found: in production the viewer is an imperative route on
+  // top of the router, and context.push opened the profile UNDER it. The
+  // production-stack test below ('tap from a viewer pushed imperatively…')
+  // supersedes it: same pause/resume contract, honest stack geometry.
+
+  // ── Review pass 2: the production stack is an IMPERATIVE route on top ──
+  // go_router owns the root navigator; StoryViewerScreen.open pushes a plain
+  // PageRouteBuilder ABOVE it. context.push would add the profile to the
+  // go_router stack BELOW the opaque viewer — invisible, and playback stays
+  // paused forever. The tray must push imperatively like the viewer itself.
+
+  testWidgets(
+      'tap from a viewer pushed imperatively opens the profile ABOVE it',
       (tester) async {
     var pauses = 0;
     var resumes = 0;
-    await tester.pumpWidget(
-        _host(_hotel(), onPause: () => pauses++, onResume: () => resumes++));
+    final router = GoRouter(routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => Scaffold(
+                  body: StoryBusinessTray(
+                    bizId: 'BIZ-1',
+                    onPause: () => pauses++,
+                    onResume: () => resumes++,
+                  ),
+                ),
+              )),
+              child: const Text('OPEN VIEWER'),
+            ),
+          ),
+        ),
+      ),
+    ]);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        linkedBusinessProvider('BIZ-1')
+            .overrideWith((ref) async => _hotel()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
     await tester.pump();
+    await tester.tap(find.text('OPEN VIEWER'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Coast Lodge'), findsOneWidget);
+
     await tester.tap(find.text('Coast Lodge'));
     await tester.pump();
-    expect(pauses, 1, reason: 'playback pauses before the route opens');
-    await tester.pumpAndSettle();
-    expect(find.text('PROFILE ROUTE'), findsOneWidget);
-
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(resumes, 1, reason: 'resumes whatever the route outcome was');
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(BusinessProfileScreen), findsOneWidget,
+        reason: 'the profile must land ON TOP of the imperative viewer, '
+            'not inside the go_router stack beneath it');
     expect(pauses, 1);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(resumes, 1, reason: 'playback resumes when the profile closes');
   });
 }

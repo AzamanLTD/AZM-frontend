@@ -8,14 +8,15 @@ import 'package:azaman/experience/gateways/az_gateway_result.dart';
 import 'package:azaman/experience/gateways/story_gateway.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/providers/sensory_provider.dart';
+import 'package:azaman/widgets/stories/viewer/story_details_sheet.dart';
 import 'package:azaman/widgets/stories/viewer/story_viewer_screen.dart';
 
 class _FakeGateway implements StoryGateway {
   @override
-  final Set<StoryCapability> capabilities = const {
-    StoryCapability.view,
-    StoryCapability.boost,
-  };
+  Set<StoryCapability> get capabilities => const {
+        StoryCapability.view,
+        StoryCapability.boost,
+      };
 
   final List<String> viewed = [];
 
@@ -189,4 +190,57 @@ void main() {
     expect(find.text('OPEN VIEWER'), findsNothing,
         reason: 'instant settle keeps 0.2 + 0.3 below the commit line');
   });
+
+  // ── Review pass 2: cancel intent + details-swipe dedupe ─────────────────
+
+  testWidgets('a system-cancelled touch never advances the story',
+      (tester) async {
+    final gateway = _FakeGateway();
+    await tester.pumpWidget(_host(gateway, [_group('ama', ['s0', 's1'])]));
+    await tester.tap(find.text('OPEN VIEWER'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('1 of 2'), findsOneWidget);
+
+    final gesture = await tester.startGesture(const Offset(300, 300));
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.cancel();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('1 of 2'), findsOneWidget,
+        reason: 'pointer cancel (notification shade, system gesture) must '
+            'not act as a tap on the right half');
+  });
+
+  testWidgets('a swipe-up opens the details sheet exactly once per gesture',
+      (tester) async {
+    // Capable gateway: the shell's capability gate passes, so the sheet
+    // really opens — and must not stack per pointer-update.
+    final gateway = _ViewersGateway();
+    await tester.pumpWidget(_host(
+        gateway, [_group('ama', ['s0']), _group('kofi', ['t0'])]));
+    await tester.tap(find.text('OPEN VIEWER'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final gesture = await tester.startGesture(const Offset(300, 300));
+    await gesture.moveBy(const Offset(0, -20));
+    await gesture.moveBy(const Offset(0, -20));
+    await gesture.moveBy(const Offset(0, -20));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(StoryDetailsSheet), findsOneWidget,
+        reason: 'three upward updates must open ONE sheet, not three');
+    await gesture.up();
+    await tester.pump();
+  });
+}
+
+/// Gateway that advertises viewers (as the backend someday will), so the
+/// shell's swipe-up gate passes and the sheet path is exercised.
+class _ViewersGateway extends _FakeGateway {
+  @override
+  final Set<StoryCapability> capabilities = const {
+    StoryCapability.view,
+    StoryCapability.viewers,
+  };
 }
