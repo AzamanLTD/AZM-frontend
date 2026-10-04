@@ -67,6 +67,15 @@ void main() {
     expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
   });
 
+  test('submit keeps the committed scope if scope changes during persistence', () async {
+    n().setScope(MarketplaceSearchScope.world, worldWire: 'FOOD_BEVERAGE');
+    n().changed('waakye');
+    final submitting = n().submit();
+    n().setScope(MarketplaceSearchScope.world, worldWire: 'RETAIL');
+    await submitting;
+    expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
+  });
+
   test('submit(fetch: false) only does the bookkeeping', () async {
     n().changed('waakye');
     await n().submit(fetch: false);
