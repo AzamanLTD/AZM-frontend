@@ -28,6 +28,8 @@ import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/az_motion.dart';
+import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -389,9 +391,15 @@ class _MarketplaceHomeScreenState
 
     // Scroll-driven gradient (0 at top → full when scrolled 120px)
     final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
-    // Story bar: fully expanded at offset 0, fully collapsed at offset 96.
-    // Smooth interpolation — no hard toggle, just like Telegram.
-    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
+    // §16 — the story rail's collapse now speaks the SAME grammar as
+    // chat's story rail: shared travel (StoryRailCollapse.travelPx),
+    // the shared snap threshold, and reduced-motion handling that
+    // lands directly instead of sliding. No second Telegram-like
+    // implementation lives in this file anymore.
+    final storyExpandRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
 
     final searchActive =
         ref.watch(marketplaceSearchProvider.select((s) => s.isActive));
@@ -465,13 +473,13 @@ class _MarketplaceHomeScreenState
                   children: [
                     // ── Stories: smooth scroll-driven height (Telegram-style) ──
                     SizedBox(
-                      height: 96 * storyExpandRatio,
+                      height: StoryRailCollapse.extentPx * storyExpandRatio,
                       width: double.infinity,
                       child: ClipRect(
                         child: OverflowBox(
                           alignment: Alignment.topCenter,
-                          minHeight: 96,
-                          maxHeight: 96,
+                          minHeight: StoryRailCollapse.extentPx,
+                          maxHeight: StoryRailCollapse.extentPx,
                           child: Opacity(
                             opacity: storyExpandRatio.clamp(0.0, 1.0),
                             child: MarketplaceExpandedStories(
@@ -668,7 +676,10 @@ class _MarketplaceHomeScreenState
     // the focused Marketplace nav band owns the search field, bound to the
     // AUTHORITATIVE provider. The header keeps the story avatars slot, the
     // storefront management, order history, and the list/map view toggle.
-    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
+    final storyExpandRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
     final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
 
     return Padding(

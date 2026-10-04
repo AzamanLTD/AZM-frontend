@@ -24,8 +24,13 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+// EXPERIENCE PASS §16 — the marketplace rail speaks the SAME story
+// grammar as chat: metrics come from the shared StoryRailMetrics, and
+// the collapse math lives in StoryRailCollapse.
+import 'package:azaman/widgets/stories/story_rail_strip.dart'
+    show StoryRailMetrics;
+import 'package:azaman/theme/az_space.dart';
 
 class MarketplaceCollapsedAvatars extends ConsumerWidget {
   final VoidCallback onTap;
@@ -90,12 +95,18 @@ class MarketplaceExpandedStories extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 88,
+              // §16 — one scale language: the rail content height is the
+              // shared rail metrics (ring + label gap + label), the same
+              // constants the chat rail renders at.
+              height: StoryRailMetrics.ring +
+                  StoryRailMetrics.labelGap +
+                  StoryRailMetrics.label,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: following.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AzSpace.lg - 2),
                 itemBuilder: (context, index) {
                   final biz = following[index];
                   final id = biz['id']?.toString() ?? '';
@@ -121,7 +132,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                               avatarUrl: logoUrl,
                               hasUnseenStory: hasUnseen,
                               isBoosted: isVerified,
-                              size: 60,
+                              size: StoryRailMetrics.ring,
                             ),
                           )
                           .animate()
@@ -184,12 +195,15 @@ class MarketplaceExpandedStories extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         SizedBox(
-          height: 88,
+          height: StoryRailMetrics.ring +
+              StoryRailMetrics.labelGap +
+              StoryRailMetrics.label,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: 5,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AzSpace.lg - 2),
             itemBuilder: (context, index) {
               if (index == 0) {
                 return GestureDetector(
