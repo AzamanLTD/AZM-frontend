@@ -113,9 +113,13 @@ void main() {
       await tester.pumpWidget(_host('100.00'));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpWidget(_host('999.99'));
-      // '100.00' -> '999.99': positions 0,1,2 (digits) and 4,5 (digits) change;
-      // position 3 ('.') does not.
-      expect(rollingCells(tester), 5);
+      // '100.00' -> '999.99' (slot identity from the RIGHT): five digit
+      // slots roll (2 Texts each, outgoing + incoming) and the unchanged
+      // '.' keeps exactly one — 5 × 2 + 1 = 11 mounted Texts mid-roll.
+      // (Since UI-correction Phase A every cell is a switcher for element
+      // stability, so counting switchers no longer isolates the movers.)
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(staticCells(tester), 11);
     });
 
     testWidgets('identical value produces no rolling cells', (tester) async {
@@ -135,10 +139,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       // Only the last two digits change.
       await tester.pumpWidget(_host('GH¢ 12.99'));
-      // 'GH¢ 12.99' has four digit cells, each a switcher; only two of them
-      // are mid-roll (Text count 8 + 2 outgoing = 10 for an 8-char string).
-      expect(rollingCells(tester), 4);
-      expect(staticCells(tester), 'GH¢ 12.99'.length + 2);
+      // 'GH¢ 12.00' -> 'GH¢ 12.99': ONLY the two cents digits roll — the
+      // symbol, the spaces, the point, the '1' and the '2' keep exactly one
+      // Text each. Mid-roll: 9 chars + 2 outgoing = 11 mounted Texts.
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(staticCells(tester), 11);
     });
 
     testWidgets('length change renders the whole new value', (tester) async {

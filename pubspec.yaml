@@ -213,6 +213,19 @@ flutter:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Variable.ttf
+    # UI-correction Phase A (2026-10-03): Comic Neue becomes the display/UI
+    # family, bundled locally per the repository's font convention (no runtime
+    # fetching — a money app must render deterministically offline). Ships
+    # Regular (400) + Bold (700) only; missing weights are mapped DELIBERATELY
+    # in AzText (800→700, 600/500→400) rather than left to engine fallback.
+    # Money and numeric factories stay on Inter for tabular-figure stability
+    # (see AzText.money / AzText.delta). License: ComicNeue-OFL.txt (SIL OFL 1.1).
+    - family: ComicNeue
+      fonts:
+        - asset: assets/fonts/ComicNeue-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/ComicNeue-Bold.ttf
+          weight: 700
 
 dependency_overrides:
   objective_c: 9.3.0

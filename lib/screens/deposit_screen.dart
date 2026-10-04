@@ -868,12 +868,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
         return Column(
           children: [
-            // Negative space above the amount — deliberate, proportional.
-            Expanded(
-              flex: compact ? 1 : 3,
-              child: Center(
+            // ── Phantom-style top-left amount composition (UI-correction
+            // Phase A): the amount and the selected payment method form the
+            // primary interaction at the top; keypad and CTA anchor the
+            // bottom. Nothing centers the amount anymore.
+            Padding(
+              padding: EdgeInsets.fromLTRB(24, compact ? 6 : 14, 24, 0),
+              child: SizedBox(
+                width: double.infinity,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -881,17 +886,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           AzMoney.ghsSymbol,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: compact ? 24 : 30,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                          style: AzText.money(
+                            colors.textSecondary,
+                            size: compact ? 24 : 30,
+                            tracking: -0.5,
+                            height: 1.2,
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       // The amount is the visual anchor. Empty input
-                      // renders as 0; only changed digits roll.
+                      // renders as 0; only changed slots roll.
                       OdometerNumber(
                         value: _amountDisplay,
                         style: AzText.money(
@@ -906,44 +911,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               ),
             ),
 
-            // Quick amounts — replace the current amount, roll the odometer.
+            // Payment method — ONE row, directly under the amount (NOT
+            // below the keypad): the amount and the method it will be
+            // charged to read as one composed instrument.
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  for (final amt in const [50, 100, 200, 500])
-                    _QuickAmountPill(
-                      colors: colors,
-                      amount: amt,
-                      selected: _amountRaw == amt.toString(),
-                      onTap: () {
-                        if (_isSubmitting || _isValidatingName) return;
-                        AzamanHaptics.toggle();
-                        setState(() => _amountRaw = amt.toString());
-                      },
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(height: compact ? 10 : 16),
-
-            // The keypad stays fixed while the amount changes — it never
-            // scrolls independently and never moves under the CTA.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: AmountKeypad(
-                onKey: _onKeypadKey,
-                enabled: !_isSubmitting && !_isValidatingName,
-                rowHeight: compact ? 46 : 54,
-              ),
-            ),
-
-            // Payment method — ONE row, not a list.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, compact ? 10 : 14, 20, 0),
               child: accountsAsync.when(
                 loading: () => const _MethodRowSkeleton(),
                 error: (e, _) => _MethodErrorRow(
@@ -979,6 +951,44 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                         : () => _showPaymentSelector(colors, accounts),
                   );
                 },
+              ),
+            ),
+
+            // Quick amounts — replace the current amount, roll the odometer.
+            Padding(
+              padding: EdgeInsets.fromLTRB(24, compact ? 10 : 14, 24, 0),
+              child: Wrap(
+                alignment: WrapAlignment.start,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final amt in const [50, 100, 200, 500])
+                    _QuickAmountPill(
+                      colors: colors,
+                      amount: amt,
+                      selected: _amountRaw == amt.toString(),
+                      onTap: () {
+                        if (_isSubmitting || _isValidatingName) return;
+                        AzamanHaptics.toggle();
+                        setState(() => _amountRaw = amt.toString());
+                      },
+                    ),
+                ],
+              ),
+            ),
+
+            // Breathing room: everything below (keypad + CTA) stays anchored
+            // to the bottom of the surface.
+            const Expanded(child: SizedBox(width: double.infinity)),
+
+            // The keypad stays fixed while the amount changes — it never
+            // scrolls independently and never moves under the CTA.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: AmountKeypad(
+                onKey: _onKeypadKey,
+                enabled: !_isSubmitting && !_isValidatingName,
+                rowHeight: compact ? 46 : 54,
               ),
             ),
 
@@ -1073,8 +1083,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     final maxHeight = MediaQuery.of(context).size.height * 0.72;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: colors.surface,
       isScrollControlled: true,
+      // UI-correction Phase A sheet grammar: card surface, translucent
+      // page-coloured barrier, 28dp top radius.
+      backgroundColor: colors.card,
+      barrierColor: colors.background.withValues(alpha: 0.6),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -1084,7 +1097,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         selectedId: _selectedAccountId ?? _currentAccount(accounts)?.id,
         maxHeight: maxHeight,
         onSelect: (account) {
-          Navigator.pop(sheetCtx);
+          // The selection lands in parent state IMMEDIATELY (the check
+          // changes on the very same frame, behind the still-open sheet);
+          // the sheet itself then closes after a tiny acknowledgement
+          // delay — see _PaymentSelectorSheet. No _isSubmitting /
+          // _isValidatingName race: this can only be reached while both
+          // are false, and a submission cannot start beneath the sheet's
+          // modal barrier.
           setState(() => _selectedAccountId = account.id);
         },
         onAdd: () {
@@ -1413,13 +1432,12 @@ class _SelectedMethodRow extends StatelessWidget {
         excludeSemantics: true,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          // UI-correction Phase A: card/surface fill, NO border — the row
+          // reads as one raised surface, separation comes from the fill
+          // against the page, not from a stroked box-in-box.
           decoration: BoxDecoration(
             color: colors.softSurface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: colors.border.withValues(alpha: 0.6),
-              width: 1,
-            ),
           ),
           child: Row(
             children: [
@@ -1549,13 +1567,10 @@ class _ChooseMethodRow extends StatelessWidget {
         excludeSemantics: true,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          // Same no-border surface grammar as the selected-method row.
           decoration: BoxDecoration(
-            color: colors.softSurface.withValues(alpha: 0.5),
+            color: colors.softSurface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: colors.border.withValues(alpha: 0.6),
-              width: 1,
-            ),
           ),
           child: Row(
             children: [
@@ -1650,7 +1665,14 @@ class _MethodErrorRow extends StatelessWidget {
 // add-account action. The user's choice survives opening and closing.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PaymentSelectorSheet extends StatelessWidget {
+/// UI-correction Phase A selection grammar (handoff §4.3):
+///   1. selection haptic fires on the tap;
+///   2. the accent check changes IMMEDIATELY (sheet-local state, same
+///      frame — the parent state was already updated by [onSelect]);
+///   3. the sheet closes after a tiny acknowledgement delay so the check
+///      is actually seen landing;
+/// The close Timer is cancelled on dispose — it never outlives the sheet.
+class _PaymentSelectorSheet extends StatefulWidget {
   const _PaymentSelectorSheet({
     required this.colors,
     required this.accounts,
@@ -1668,9 +1690,41 @@ class _PaymentSelectorSheet extends StatelessWidget {
   final VoidCallback onAdd;
 
   @override
+  State<_PaymentSelectorSheet> createState() => _PaymentSelectorSheetState();
+}
+
+class _PaymentSelectorSheetState extends State<_PaymentSelectorSheet> {
+  static const Duration _acknowledgementDelay = Duration(milliseconds: 160);
+
+  /// The row the user just tapped — drives the check immediately, even
+  /// before the parent rebuild flows a new [widget.selectedId] in.
+  String? _tappedId;
+
+  Timer? _closeTimer;
+
+  @override
+  void dispose() {
+    _closeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _select(SavedMomoAccount account) {
+    if (_closeTimer != null) return; // already acknowledged; closing
+    AzamanHaptics.selection();
+    setState(() => _tappedId = account.id);
+    widget.onSelect(account);
+    _closeTimer = Timer(_acknowledgementDelay, () {
+      if (!mounted) return;
+      Navigator.pop(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final selectedId = _tappedId ?? widget.selectedId;
+    final colors = widget.colors;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
       child: SafeArea(
         top: false,
         child: Column(
@@ -1684,11 +1738,8 @@ class _PaymentSelectorSheet extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Payment method',
-                      style: TextStyle(
+                      style: AzText.titleL.copyWith(
                         color: colors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
@@ -1709,17 +1760,15 @@ class _PaymentSelectorSheet extends StatelessWidget {
               ),
             ),
             Flexible(
-              child: accounts.isEmpty
+              child: widget.accounts.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
                         'No saved mobile money accounts yet. Add one to '
                         'deposit with MoMo.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AzText.body.copyWith(
                           color: colors.textSecondary,
-                          fontSize: 13.5,
-                          height: 1.5,
                         ),
                       ),
                     )
@@ -1727,19 +1776,19 @@ class _PaymentSelectorSheet extends StatelessWidget {
                       shrinkWrap: true,
                       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                       children: [
-                        for (final account in accounts)
+                        for (final account in widget.accounts)
                           _PaymentOptionRow(
                             colors: colors,
                             account: account,
                             selected: account.id == selectedId,
-                            onTap: () => onSelect(account),
+                            onTap: () => _select(account),
                           ),
                       ],
                     ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-              child: _AddMethodRow(colors: colors, onTap: onAdd),
+              child: _AddMethodRow(colors: colors, onTap: widget.onAdd),
             ),
           ],
         ),

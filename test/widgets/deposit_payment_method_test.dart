@@ -231,7 +231,12 @@ void main() {
       await tester.tap(find.text('Kwame Mensah'));
       await _settleSheet(tester);
       await tester.tap(find.text('Ama Boateng'));
-      await _settleSheet(tester);
+      // UI-correction Phase A: the sheet closes after a tiny
+      // acknowledgement delay (the check lands in-sheet first). Cross the
+      // delay explicitly — pumpAndSettle alone stops at the idle frame
+      // BEFORE the close timer fires — then settle the exit animation.
+      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pumpAndSettle();
       expect(find.text('Payment method'), findsNothing); // sheet closed
 
       // The fiat surface now shows the new account.
@@ -297,7 +302,10 @@ void main() {
       await tester.tap(find.text('Choose a payment method'));
       await _settleSheet(tester);
       await tester.tap(find.text('Ama Boateng'));
-      await _settleSheet(tester);
+      // UI-correction Phase A: acknowledge-then-close — cross the delay,
+      // then settle the exit animation.
+      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pumpAndSettle();
       expect(find.text('Ama Boateng'), findsOneWidget);
 
       await tester.tap(find.text('Add Cash').last);
