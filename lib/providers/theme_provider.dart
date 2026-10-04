@@ -31,7 +31,8 @@ enum AzamanTheme {
   // V4 (2026-08-15): Two identities only. The midnight/purple theme was
   // removed per founder request — the dark theme is now the true-black
   // night experience.
-  //   • light — clean white surface with deep navy text + gold accent (default)
+  //   • light — clean white surface with deep navy text + gold accent
+  //     (explicit choice only — the DEFAULT is dark, see _loadSavedTheme)
   //   • dark  — true black with teal/emerald accent (NOT gold, NOT Binance)
   light,
   dark,
@@ -133,16 +134,31 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> _loadSavedTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedIndex = prefs.getInt('azaman_theme') ?? 0; // Default
 
-    // Migration: midnight (old index 2) → dark (new index 1).
-    // Anything else outside range → light (default).
-    if (savedIndex == 2) {
+    // EXPERIENCE PASS §3 — dark is the DEFAULT, but default != forced.
+    // A MISSING preference and an EXPLICIT choice are different states and
+    // must stay distinguishable: `getInt(...) ?? 0` collapsed "never chose"
+    // into "explicitly light", so every first-time user landed on light and
+    // a deliberate light choice could never be told apart from an absent
+    // one. `containsKey` keeps them separate.
+    final hasSavedTheme = prefs.containsKey('azaman_theme');
+    final savedIndex = prefs.getInt('azaman_theme');
+
+    if (!hasSavedTheme) {
+      // No preference on record → the default is DARK. The dark theme is
+      // the product's primary design surface (see QA §17).
       _currentTheme = AzamanTheme.dark;
-    } else if (savedIndex >= 0 && savedIndex < AzamanTheme.values.length) {
+    } else if (savedIndex == 2) {
+      // Migration: midnight (old index 2) → dark (new index 1).
+      _currentTheme = AzamanTheme.dark;
+    } else if (savedIndex != null &&
+        savedIndex >= 0 &&
+        savedIndex < AzamanTheme.values.length) {
+      // An explicit, valid choice always wins — light stays light.
       _currentTheme = AzamanTheme.values[savedIndex];
     } else {
-      _currentTheme = AzamanTheme.light;
+      // Present but out of range (corrupt value): fall back to the default.
+      _currentTheme = AzamanTheme.dark;
     }
     // TASK-025: load the persisted accent identity (azaman_accent).
     // Invalid/missing/out-of-range values must safely fall back to gold —

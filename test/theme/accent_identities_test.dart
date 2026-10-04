@@ -315,7 +315,7 @@ void main() {
       // The shell resolves through the vertical accent while it is active.
       expect(
         container.read(resolvedAzamanColorsProvider).accent,
-        AzAccentFamily.all[AzAccent.rose]!.lightAccent,
+        _shellAccent(AzAccent.rose, p),
       );
       // Unmount the scope while the container is still alive, so the
       // addTearDown(container.dispose) never races the scope's deactivate.
@@ -353,9 +353,13 @@ void main() {
         ),
       );
       expect(container.read(verticalAccentProvider), isNull);
+      // EXPERIENCE PASS §3: the saved identity resolves through the
+      // current theme's brightness, whatever that theme is. The resolver
+      // honours the user's ACCENT FAMILY (gold), not the theme's own
+      // identity accent — hence _shellAccent(p.accent, p).
       expect(
         container.read(resolvedAzamanColorsProvider).accent,
-        ThemeProvider.getColors(AzamanTheme.light).accent,
+        _shellAccent(p.accent, p),
       );
     });
 
@@ -390,7 +394,7 @@ void main() {
         ),
       );
       expect(container.read(resolvedAzamanColorsProvider).accent,
-          AzAccentFamily.all[AzAccent.indigo]!.lightAccent);
+          _shellAccent(AzAccent.indigo, p));
     });
 
   });
@@ -402,6 +406,14 @@ void main() {
 /// Inside testWidgets the binding runs in a fake-async zone where plain
 /// `Future.delayed` timers never fire on their own, so there the loop advances
 /// the fake clock with `tester.pump` instead.
+/// EXPERIENCE PASS §3: the accent resolves through the CURRENT theme's
+/// brightness. The loaded provider has no saved preference, so the default
+/// is now dark — assertions must follow the theme instead of assuming light.
+Color _shellAccent(AzAccent accent, ThemeProvider p) =>
+    p.currentTheme == AzamanTheme.dark
+        ? AzAccentFamily.all[accent]!.darkAccent
+        : AzAccentFamily.all[accent]!.lightAccent;
+
 Future<ThemeProvider> _loadedProvider() async {
   SharedPreferences.setMockInitialValues(<String, Object>{});
   final p = ThemeProvider();

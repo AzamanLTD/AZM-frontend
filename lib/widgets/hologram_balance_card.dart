@@ -9,10 +9,15 @@
 // while the balance is hidden it is not rendered, so a rate or balance refresh
 // cannot leak how much the balance just changed.
 //
-// Existing behaviours preserved on top of the rebuild (spec-silent, see the
-// 009d sign-off): the DisplayCurrency toggle (GHS-first vs USDC-first), the
-// secondary-currency line, the truncated wallet-id line,
-// and the balance-visibility mask driven by balanceVisibleProvider.
+// EXPERIENCE PASS §1: the Home hero is USDC-FIRST — the principal figure
+// reads "USDC 123.45" (AzMoney.usdcFirst), with the GHS equivalent as the
+// smaller secondary figure. The truncated wallet-id line is GONE from the
+// front face (it served no purpose and read as "1" on demo accounts); the
+// underlying user/account data is untouched elsewhere. The live FX rate
+// row + RateRefreshIndicator are BACK ON the card (they belong here, not
+// in a separate below-the-fold section). The balance-visibility mask driven
+// by balanceVisibleProvider is preserved, as are the odometer figure, the
+// delta chip and the flip-to-breakdown behaviour.
 // =============================================================================
 
 import 'dart:async';
@@ -21,8 +26,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-import 'package:azaman/models/currency_model.dart';
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -31,6 +34,7 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
+import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
@@ -47,11 +51,6 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
   /// the value was a moment ago.
   double? _lastValue;
 
-  /// Which currency was primary at the last track. A currency-toggle changes
-  /// the figure's *meaning*, not its *value* — switching must re-baseline
-  /// silently instead of firing a bogus "+GH₵ …" chip.
-  bool? _lastGhsFirst;
-
   /// The signed change to display, or null when there is nothing to show.
   double? _delta;
 
@@ -67,18 +66,11 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
   /// Called during build (before the figure is painted) so the delta is always
   /// computed from the freshest value. Deliberately NOT in `didUpdateWidget`:
   /// the value comes from a provider, so there is no widget-level update hook.
-  void _trackDelta(double value, {required bool ghsFirst}) {
-    if (_lastGhsFirst != ghsFirst) {
-      // Currency switched (or first paint) — re-baseline without a chip. The
-      // mount animation belongs to the screen's entrance choreography.
-      _lastValue = value;
-      _lastGhsFirst = ghsFirst;
-      if (_delta != null) {
-        _delta = null;
-        _deltaTimer?.cancel();
-      }
-      return;
-    }
+  void _trackDelta(double value) {
+    // EXPERIENCE PASS §1: the hero's unit is fixed (USDC-first), so there is
+    // no currency-toggle re-baseline path any more — only the first paint
+    // baselines silently (the mount animation belongs to the screen's
+    // entrance choreography, not to a value change).
     final previous = _lastValue;
     if (previous == null || previous == value) {
       _lastValue = value;
@@ -105,23 +97,20 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
     final balance = ref.watch(balanceDataProvider);
     final isVisible = ref.watch(balanceVisibleProvider);
     final rate = ref.watch(oracleRateProvider);
-    final user = ref.watch(authProvider).user;
-    final ghsFirst = ref.watch(currencyProvider) == DisplayCurrency.ghs;
-
+    // EXPERIENCE PASS §1: the Home hero is ALWAYS USDC-first. The
+    // DisplayCurrency toggle infrastructure survives for other surfaces,
+    // but this presentation is fixed: USDC is the principal, GHS the
+    // secondary equivalent.
     final ghsValue = balance.availableBalance * rate;
-    final primaryValue = ghsFirst ? ghsValue : balance.availableBalance;
-    final primaryLabel =
-        ghsFirst ? AzMoney.ghs(primaryValue) : AzMoney.usdc(primaryValue);
-    final secondaryLabel = ghsFirst
-        ? AzMoney.usdc(balance.availableBalance)
-        : AzMoney.ghs(ghsValue);
-    final secondaryMask =
-        '•••• ${ghsFirst ? AzMoney.usdcSymbol : AzMoney.ghsSymbol}';
+    final primaryValue = balance.availableBalance;
+    final primaryLabel = AzMoney.usdcFirst(primaryValue);
+    final secondaryLabel = AzMoney.ghs(ghsValue);
+    final secondaryMask = '•••• ${AzMoney.ghsSymbol}';
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
     // so this is safe to run inside build.
-    _trackDelta(primaryValue, ghsFirst: ghsFirst);
+    _trackDelta(primaryValue);
 
     // The chip announces a change in the balance, so it must obey the same
     // visibility mask as the figure itself — a hidden balance must not leak
@@ -136,11 +125,6 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
       context,
       MotionTokens.control,
     );
-
-    final uid = user?.id ?? '';
-    final truncatedId = uid.length > 6
-        ? '\u00b7\u00b7 ${uid.substring(uid.length - 4)}'
-        : uid;
 
     return HolographicSurface(
       // `card` is the material's base colour; `accent` drives the iridescence and
@@ -169,12 +153,11 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 style: AzText.eyebrow.copyWith(color: colors.textTertiary),
               ),
               const Spacer(),
-              if (isVisible)
-                Text(
-                  'USDC',
-                  style: AzText.caption.copyWith(color: colors.textTertiary),
-                )
-              else
+              // EXPERIENCE PASS §1: the 'USDC' header chip is gone — the
+              // principal figure itself now reads "USDC 123.45", so a second
+              // unit label above it would be a duplicate. Only the hidden
+              // state keeps a visible affordance.
+              if (!isVisible)
                 Icon(
                   HugeIconsSolid.viewOff,
                   size: 13,
@@ -188,16 +171,6 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // The wallet id — the user's own account fingerprint, carried
-              // over from the previous card so the rebuild loses no information.
-              if (truncatedId.isNotEmpty) ...[
-                Text(
-                  truncatedId,
-                  style: AzText.label.copyWith(color: colors.textSecondary),
-                ),
-                const SizedBox(height: AzSpace.xs),
-              ],
-
               // The delta chip sits ABOVE the figure and fades in/out, so the
               // number itself never moves to make room for it.
               SizedBox(
@@ -228,9 +201,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                               Text(
                                 AzMoney.delta(
                                   chipDelta,
-                                  symbol: ghsFirst
-                                      ? AzMoney.ghsSymbol
-                                      : AzMoney.usdcSymbol,
+                                  symbol: AzMoney.usdcSymbol,
                                 ),
                                 style: AzText.delta(
                                   chipDelta >= 0 ? colors.success : colors.danger,
@@ -272,12 +243,33 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 style: AzText.bodyS.copyWith(color: colors.textSecondary),
               ),
 
-              // Correction D: the exchange-rate row ("1 USDC = GH₵ …")
-              // and its refresh affordance are GONE from the Home balance
-              // card — the card is the user's actual balance and its
-              // primary/secondary currency presentation, nothing else.
-              // The oracle rate PROVIDER survives untouched (the secondary
-              // figure below and other product surfaces still read it).
+              // EXPERIENCE PASS §1: the live FX rate row is BACK ON the
+              // card — "1 USDC = GH₵ …" plus the refresh/countdown
+              // affordance. The rate is public market data, so it stays
+              // rendered even while the balance itself is masked.
+              const SizedBox(height: AzSpace.sm),
+              const SizedBox(height: AzSpace.sm),
+              Row(
+                children: [
+                  // Narrow-screen guard: on a ~320dp device the caption +
+                  // indicator can exceed the card's inner width. The rate
+                  // line is tertiary info — it scales down rather than
+                  // overflowing.
+                  Flexible(
+                    child: FittedBox(
+                      alignment: Alignment.centerLeft,
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '1 USDC = ${AzMoney.ghs(rate)}',
+                        style:
+                            AzText.caption.copyWith(color: colors.textTertiary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AzSpace.xs),
+                  const RateRefreshIndicator(),
+                ],
+              ),
             ],
           ),
         ],

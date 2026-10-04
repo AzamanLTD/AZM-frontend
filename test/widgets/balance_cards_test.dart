@@ -30,6 +30,8 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
 /// A canned susu list the card's watcher will actually receive.
 class _SusuListWithData extends SusuListNotifier {
@@ -182,6 +184,45 @@ void main() {
         expect(find.text('••••••'), findsOneWidget);
       },
     );
+  });
+
+  group('EXPERIENCE PASS §1 — USDC-first hero', () {
+    testWidgets('the front face shows no wallet/user-id line', (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      // The old truncated fingerprint ("·· abcd") must be gone. The only
+      // text children are the label, the figures and the rate row.
+      expect(find.textContaining('··'), findsNothing);
+      expect(find.byType(Text), findsWidgets);
+    });
+
+    testWidgets('the primary figure reads USDC-first', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45);
+      // The figure renders through OdometerNumber's per-slot cells, so the
+      // contract is pinned on the odometer's own value: "USDC 123.45", not
+      // "123.45 USDC" / "$123.45" / a GHS-first hero.
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(odometer.value, 'USDC 123.45');
+      // GHS remains present as the SECONDARY figure (AzMoney uses a
+      // no-break space between symbol and amount).
+      expect(find.text('GH₵ 123.45'), findsOneWidget);
+    });
+
+    testWidgets('the live rate row and refresh affordance sit on the card',
+        (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      expect(find.textContaining('1 USDC = GH₵'), findsOneWidget);
+      expect(find.byType(RateRefreshIndicator), findsOneWidget);
+    });
+
+    testWidgets('the rate row survives the hidden-balance mask', (tester) async {
+      // The FX rate is public market data: masking the balance must not
+      // hide it.
+      await _pumpFrontFace(tester, balance: 100, visible: false);
+      expect(find.text('••••••'), findsOneWidget);
+      expect(find.textContaining('1 USDC ='), findsOneWidget);
+      expect(find.byType(RateRefreshIndicator), findsOneWidget);
+    });
   });
 
   group('reduced motion (audit D-2)', () {
