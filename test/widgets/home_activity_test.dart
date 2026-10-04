@@ -373,8 +373,11 @@ void main() {
 
       expect(_activityOpacity(tester), greaterThan(0.99),
           reason: 'the activity surface snaps into focus');
-      expect(find.text('Wallet'), findsOneWidget,
-          reason: 'the back affordance to the wallet composition');
+      // CORRECTION A: the header is the premium identity + UP arrow only —
+      // the "← Wallet" back affordance is gone; the reverse pull hands back.
+      expect(find.text('← Wallet'), findsNothing);
+      expect(find.byKey(const ValueKey('home-activity-header-title')),
+          findsOneWidget);
       expect(notifier.refreshCalls, 1,
           reason: 'AUDIT §12: entering the activity state does NOT touch '
               'the home summary (rates/friend requests/notifications are '

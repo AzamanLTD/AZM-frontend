@@ -558,7 +558,13 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
                 _machine.shownText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AzText.display.copyWith(color: azColors.textPrimary),
+                // Correction C: the Home heading sits at the existing
+                // titleXl tier (24px) — not a new arbitrary size — so the
+                // line is calmer and never ellipsizes.
+                style: AzText.titleXl.copyWith(
+                  color: azColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],

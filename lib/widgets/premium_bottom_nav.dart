@@ -17,6 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/providers/marketplace_nav_focus.dart';
+import 'package:azaman/providers/marketplace_search_binding.dart';
+import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
@@ -27,7 +30,6 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/liquid/liquid_engine.dart';
-import 'package:azaman/widgets/liquid_tab_backdrop.dart';
 import 'package:azaman/theme/az_text.dart';
 
 /// Scroll-reactive compression of the nav pill.
@@ -327,6 +329,13 @@ class PremiumBottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
+    // Correction I: the focused Marketplace presentation is a provider-
+    // driven REORGANISATION of this band while the Marketplace root tab
+    // is selected — the shell sets the flag on tab selection, "…" clears
+    // it (staying on Marketplace), and Marketplace content taps restore
+    // it.
+    final marketplaceFocused =
+        selectedIndex == 2 && ref.watch(marketplaceNavFocusProvider);
     final bottom = MediaQuery.of(context).padding.bottom;
     // Passed down once so the buttons do not re-read MediaQuery in four
     // places, and so the whole nav agrees on the same mode in one frame.
@@ -417,38 +426,32 @@ class PremiumBottomNav extends ConsumerWidget {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final innerWidth = constraints.maxWidth;
-                  return Stack(
-                    children: [
-                      LiquidTabBackdrop(
-                        selectedIndex: selectedIndex,
-                        tabCount: _kNavItems.length,
-                        totalWidth: innerWidth,
-                        // The backdrop must track the ANIMATED height, not the
-                        // target: a 62px backdrop inside a gliding 52px pill
-                        // would overflow. `constraints.maxHeight` inside this
-                        // LayoutBuilder is the container's live height.
-                        barHeight: constraints.maxHeight,
-                        color: colors.accent,
+                  // Correction I: at the Marketplace ROOT the band
+                  // reorganises around Shopping — [ … Marketplace
+                  // (search field) ] — a contextual presentation of the
+                  // SAME root tab, never a pushed route.
+                  if (marketplaceFocused) {
+                    return _FocusedMarketplaceRow(colors: colors);
+                  }
+                  // Correction G: selected state is communicated by the
+                  // accent COLOR of the active icon/label — no glow, no
+                  // translucent backdrop blob behind the selected tab.
+                  return Row(
+                    children: List.generate(
+                      _kNavItems.length,
+                      (i) => _NavButton(
+                        item: _kNavItems[i],
+                        isSelected: selectedIndex == i,
+                        index: i,
+                        colors: colors,
+                        labelOpacity: labelOpacity,
+                        reduceMotion: reduceMotion,
+                        onTap: () => _handleTap(i),
+                        onLongPress: onTabLongPress == null
+                            ? null
+                            : () => _handleLongPress(i),
                       ),
-                      Row(
-                        children: List.generate(
-                          _kNavItems.length,
-                          (i) => _NavButton(
-                            item: _kNavItems[i],
-                            isSelected: selectedIndex == i,
-                            index: i,
-                            colors: colors,
-                            labelOpacity: labelOpacity,
-                            reduceMotion: reduceMotion,
-                            onTap: () => _handleTap(i),
-                            onLongPress: onTabLongPress == null
-                                ? null
-                                : () => _handleLongPress(i),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   );
                 },
               ),
@@ -458,7 +461,16 @@ class PremiumBottomNav extends ConsumerWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: AzSpace.sm),
-                trailing!,
+                // Correction I: entering the focused Marketplace state
+                // pushes the + horizontally out of the composition to the
+                // right (a subtle easeInBack push/bounce), and it glides
+                // back in with an easeOutBack when the normal nav is
+                // restored.
+                _PlusExit(
+                  visible: !marketplaceFocused,
+                  reduceMotion: reduceMotion,
+                  child: trailing!,
+                ),
               ],
             ],
           ),
@@ -671,6 +683,239 @@ class _BadgeStack extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+// ── CORRECTION I: the focused Marketplace band + the + exit ────────────────
+
+/// The + control's horizontal exit from the focused Marketplace state.
+/// visible=true → in place beside the pill. visible=false → the control
+/// glides right, out of the composition, with an easeInBack push (a subtle
+/// anticipation-back-then-depart), then releases its layout space; the
+/// reverse glide uses easeOutBack for a settling bounce.
+class _PlusExit extends StatefulWidget {
+  const _PlusExit({
+    required this.visible,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  final bool visible;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  State<_PlusExit> createState() => _PlusExitState();
+}
+
+class _PlusExitState extends State<_PlusExit>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  bool _gone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: MotionTokens.standard,
+      value: widget.visible ? 1 : 0,
+    );
+    _gone = !widget.visible;
+    // Reduced motion: the state lands deterministically — no glide, no
+    // pending animation.
+    if (widget.reduceMotion) {
+      _c.value = widget.visible ? 1 : 0;
+      _gone = !widget.visible;
+    }
+    _c.addStatusListener(_onStatus);
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && !widget.visible) {
+      // Fully out: release the layout space so the focused row's search
+      // field owns the remaining width.
+      if (mounted) setState(() => _gone = true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_PlusExit old) {
+    super.didUpdateWidget(old);
+    if (old.visible == widget.visible) return;
+    if (widget.reduceMotion) {
+      _c.value = widget.visible ? 1 : 0;
+      setState(() => _gone = !widget.visible);
+      return;
+    }
+    if (widget.visible) {
+      setState(() => _gone = false);
+      _c.forward();
+    } else {
+      _c.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_gone) return const SizedBox.shrink();
+    final t = _c.value; // 1 = in place, 0 = fully out
+    // Departing: easeInBack (the push). Returning: easeOutBack (the
+    // settle). The tween runs on raw ticks; the curve is applied to the
+    // direction of travel.
+    final curved = CurvedAnimation(
+      parent: _c,
+      curve: widget.visible ? Curves.easeOutBack : Curves.easeInBack,
+    );
+    return IgnorePointer(
+      ignoring: t < 0.99,
+      child: Opacity(
+        opacity: (1.15 * t).clamp(0.0, 1.0),
+        child: AnimatedBuilder(
+          animation: curved,
+          builder: (context, child) => Transform.translate(
+            offset: Offset((1 - curved.value) * 96, 0),
+            child: child,
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// The focused Marketplace band: [ … Marketplace (search field) ].
+/// Marketplace is highlighted in the accent color; the search field binds
+/// to the AUTHORITATIVE marketplace search provider through
+/// [MarketplaceSearchBinding] — the same single owner of search state the
+/// screen uses; no second search provider is invented.
+class _FocusedMarketplaceRow extends ConsumerStatefulWidget {
+  const _FocusedMarketplaceRow({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  ConsumerState<_FocusedMarketplaceRow> createState() =>
+      _FocusedMarketplaceRowState();
+}
+
+class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> {
+  late final TextEditingController _ctrl;
+  late final FocusNode _focus;
+
+  MarketplaceSearchBinding get _binding => MarketplaceSearchBinding(ref);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl =
+        TextEditingController(text: ref.read(marketplaceSearchProvider).text);
+    _focus = FocusNode();
+    _focus.addListener(() {
+      if (mounted) _binding.onFocus(_focus.hasFocus);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _restoreNormalNav() {
+    AzamanHaptics.selection();
+    // "…" restores the normal navigation bar: a PRESENTATION change only.
+    // The user stays on Marketplace, the tab stays selected, the content
+    // is untouched.
+    ref.read(marketplaceNavFocusProvider.notifier).state = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    // Mirror the provider's committed text back into the field (the
+    // provider is the single owner of search state).
+    ref.listen(marketplaceSearchProvider.select((s) => s.text), (_, text) {
+      if (_ctrl.text != text) _ctrl.text = text;
+    });
+    return Row(
+      children: [
+        // "…" — restores the normal navigation bar, staying on Marketplace.
+        Semantics(
+          button: true,
+          label: 'Show full navigation',
+          child: GestureDetector(
+            key: const ValueKey('marketplace-nav-ellipsis'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _restoreNormalNav,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+              child: Text(
+                '…',
+                style: AzText.titleXl.copyWith(
+                  color: colors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Marketplace — the active root tab, identified by the accent
+        // color.
+        Icon(HugeIconsSolid.store01, size: 18, color: colors.accent),
+        const SizedBox(width: AzSpace.sm),
+        Text(
+          'Marketplace',
+          key: const ValueKey('marketplace-nav-title'),
+          style: AzText.title.copyWith(
+            color: colors.accent,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: AzSpace.md),
+        // The search field occupies the remaining right-hand space and
+        // binds to the AUTHORITATIVE search provider.
+        Expanded(
+          child: TextField(
+            key: const ValueKey('marketplace-nav-search'),
+            controller: _ctrl,
+            focusNode: _focus,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _binding.onSubmit,
+            onChanged: (v) => _binding.onChanged(v),
+            style: AzText.bodyS.copyWith(color: colors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Search Marketplace',
+              hintStyle: AzText.caption.copyWith(color: colors.textTertiary),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.md, vertical: 8),
+              filled: true,
+              fillColor: colors.isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.04),
+              prefixIcon: Icon(HugeIconsStroke.search01,
+                  size: 16, color: colors.textTertiary),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 34, minHeight: 34),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: AzSpace.md),
       ],
     );
   }

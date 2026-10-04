@@ -2,10 +2,11 @@
 // AZAMAN — RECENT ACTIVITY DOORWAY + SECOND RESTING STATE  (NEW-HOME §10-12)
 //
 // The resting Home renders NO transaction rows — only the Recent Activity
-// heading/doorway. The doorway is:
-//   * tappable    → the canonical activity screen (/account/activity)
-//   * gesture    → a controlled handoff into Home's SECOND resting state,
-//                  the in-Home activity surface.
+// heading/doorway. Tap and pull are ONE experience (correction A): the
+// doorway enters the SAME second resting state — the in-Home activity
+// surface — never /account/activity. The canonical account-activity route
+// stays reachable from its own surfaces (profile, etc.), but this doorway
+// has exactly one meaning.
 //
 // The handoff is physical and deliberate (§11): resistance below a
 // threshold, a commit that snaps the activity surface into focus while the
@@ -24,7 +25,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
@@ -65,18 +65,24 @@ class ActivityHandoffPhysics {
   static bool commits(double progress) => progress >= commitThreshold;
 }
 
-/// The resting-state heading/doorway. Tapping navigates to the canonical
-/// activity screen; the parent wires the drag handoff around it.
+/// The resting-state heading/doorway. Tapping enters the SAME second
+/// resting state as the upward drag (correction A) — the parent owns the
+/// handoff. Clean and minimal: identity bar, heading, directional arrow.
+/// No instructional sentence.
 class RecentActivityDoorway extends ConsumerWidget {
-  const RecentActivityDoorway({super.key});
+  const RecentActivityDoorway({super.key, required this.onOpen});
+
+  /// Enters the in-Home activity surface — identical to the pull-up handoff.
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     return ScaleTap(
+      key: const ValueKey('recent_activity_doorway'),
       onTap: () {
         AzamanHaptics.nav();
-        context.push('/account/activity');
+        onOpen();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
@@ -111,11 +117,6 @@ class RecentActivityDoorway extends ConsumerWidget {
               HugeIconsSolid.arrowUp01,
               size: 16,
               color: colors.textTertiary,
-            ),
-            const Spacer(),
-            Text(
-              'Pull up',
-              style: AzText.bodyS.copyWith(color: colors.textTertiary),
             ),
           ],
         ),
@@ -272,37 +273,39 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
             padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
             child: Row(
               children: [
-                // The Wallet button remains as the explicit/accessibility
-                // fallback for collapsing (audit §1).
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    widget.onClose();
-                  },
-                  child: Row(
-                    children: [
-                      Icon(HugeIconsSolid.arrowLeft01,
-                          size: 18, color: colors.textPrimary),
-                      const SizedBox(width: AzSpace.xs),
-                      Text(
-                        'Wallet',
-                        style: AzText.bodyL.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                // Correction A: the activity state's heading is the SAME
+                // doorway identity, now at the top of the visible content
+                // — identity bar, heading, directional arrow facing UP.
+                // The old "← Wallet  Recent Activity" composition is gone;
+                // the reverse handoff (pull down / tap) walks the stack
+                // back to the wallet with the same spring grammar.
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  'Recent Activity',
-                  style: AzText.title.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.2,
+                const SizedBox(width: AzSpace.sm),
+                Flexible(
+                  child: Text(
+                    'Recent Activity',
+                    key: const ValueKey('home-activity-header-title'),
+                    style: AzText.titleXl.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
+                ),
+                const SizedBox(width: AzSpace.xs),
+                Icon(
+                  HugeIconsSolid.arrowUp01,
+                  size: 16,
+                  color: colors.textTertiary,
                 ),
               ],
             ),
@@ -316,21 +319,55 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
           const SizedBox.shrink()
         else if (genuineLoading)
           const _ActivitySkeleton()
-        else if (records.isEmpty)
+        else if (history.error != null && records.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AzSpace.xxl),
             child: Center(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                // Tap the message to retry after an error.
+                // Tap the message to retry after an error. This is the
+                // error branch ONLY — the genuine empty state is calm and
+                // premium, never error-styled (correction B).
                 onTap: () => ref
                     .read(transactionHistoryProvider.notifier)
                     .refresh(),
                 child: Text(
-                  history.error != null
-                      ? 'Could not load activity. Tap to retry.'
-                      : 'Nothing yet — your activity will appear here.',
+                  'Could not load activity. Tap to retry.',
                   style: AzText.bodyL.copyWith(color: colors.textTertiary),
+                ),
+              ),
+            ),
+          )
+        else if (records.isEmpty)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AzSpace.xxl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Correction B — the exact semantic structure: one
+                    // bold centered line, one normal centered line.
+                    Text(
+                      'Your activity will appear here',
+                      key: const ValueKey('home-activity-empty-title'),
+                      textAlign: TextAlign.center,
+                      style: AzText.titleL.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AzSpace.sm),
+                    Text(
+                      "Click the plus button and 'Add Money' to make your first deposit to get started.",
+                      key: const ValueKey('home-activity-empty-body'),
+                      textAlign: TextAlign.center,
+                      style: AzText.body.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

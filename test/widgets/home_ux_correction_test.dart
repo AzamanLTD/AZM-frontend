@@ -47,6 +47,7 @@ import 'package:flutter/rendering.dart' show RenderDecoratedBox;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _surfaceSize = Size(400, 900);
@@ -163,9 +164,12 @@ class _NoopHomeSummaryNotifier extends HomeSummaryNotifier {
       : super(ref, service);
 }
 
-/// The follower right-edge target shared by every row: the trigger's
-/// right minus the -6 inset.
-double triggerRowRight(Rect triggerRect) => triggerRect.right - 6;
+/// CORRECTION F: the anchor target — the trigger's CENTER axis. The
+/// cluster's right edge rides the plus button's center line, so the
+/// visual axis back to the control is unmistakable (never the outer
+/// right edge, never a centered modal column).
+double triggerAxisX(Rect triggerRect) =>
+    triggerRect.left + triggerRect.width / 2.0;
 
 double _activityOpacity(WidgetTester tester) {
   final fade = find.ancestor(
@@ -466,7 +470,7 @@ void main() {
   // ── §5 — the + actions originate from the + ───────────────────────────
 
   group('§5 plus actions anchor to the + control', () {
-    testWidgets('the action group rises from the +, right-aligned — '
+    testWidgets('the action group hangs off the + button\'s center axis — '
         'never a centered modal column', (tester) async {
       final controller = await _pumpShell(tester);
       controller.open();
@@ -490,10 +494,12 @@ void main() {
           )
           .first);
 
-      // RIGHT-anchored to the trigger's column: the rows' right edge
-      // tracks the trigger's right edge (within the -6 follower inset).
-      expect(sendRow.right, closeTo(triggerRect.right - 6, 12));
-      expect(withdrawRow.right, closeTo(triggerRowRight(triggerRect), 12));
+      // CORRECTION F: the rows' right edge rides the PLUS AXIS — the
+      // trigger's actual CENTER, measured live. The cluster visually
+      // hangs off the physical + button, never merely satisfying an
+      // outer-right-edge assertion.
+      expect(sendRow.right, closeTo(triggerAxisX(triggerRect), 6));
+      expect(withdrawRow.right, closeTo(triggerAxisX(triggerRect), 6));
 
       // The group RISES ABOVE the + — the last row sits above the
       // trigger's top edge, not below it and not mid-screen.
@@ -514,13 +520,18 @@ void main() {
   // ── §6 — the doorway says "Pull up" and lives low ─────────────────────
 
   group('§6 doorway wording + low placement', () {
-    testWidgets('the doorway says "Pull up" — gesture and words agree',
-        (tester) async {
+    testWidgets('the doorway is minimal — heading identity + UP arrow, '
+        'no "Pull up" call to action', (tester) async {
       await _pumpHome(tester);
 
-      expect(find.text('Pull up'), findsOneWidget,
-          reason: 'the surface rises from BELOW, so the words must say up');
+      // CORRECTION A: the doorway opens the SAME second resting state on
+      // tap. The call-to-action wording is gone; the identity heading +
+      // the UP directional arrow carry the affordance.
+      expect(find.text('Recent Activity'), findsWidgets);
+      expect(find.text('Pull up'), findsNothing);
       expect(find.text('Pull down'), findsNothing);
+      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsWidgets);
+      expect(find.text('← Wallet'), findsNothing);
     });
 
     testWidgets('the doorway sits at the bottom of the first viewport, '

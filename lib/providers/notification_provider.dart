@@ -8,8 +8,12 @@ import 'package:azaman/services/socket_service.dart';
 
 class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   final Ref _ref;
+  // Captured at construction: dispose() must not read providers (the
+  // container may be mid-teardown, which crashes Riverpod).
+  late final SocketService _socketService;
 
   NotificationNotifier(this._ref) : super([]) {
+    _socketService = _ref.read(socketServiceProvider);
     _initSocketListener();
     fetchNotifications();
   }
@@ -26,9 +30,8 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   ///     user (web + phone) stay in sync without pull-to-refresh.
   ///     Two subtypes: `MARKED_READ` (single id) and `MARKED_ALL_READ`.
   void _initSocketListener() {
-    final socketService = _ref.read(socketServiceProvider);
-    socketService.onNewNotification(_handleNewNotification);
-    socketService.onNotificationsUpdated(_handleNotificationsUpdated);
+    _socketService.onNewNotification(_handleNewNotification);
+    _socketService.onNotificationsUpdated(_handleNotificationsUpdated);
   }
 
   void _handleNewNotification(Map<String, dynamic> data) {
@@ -58,9 +61,8 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
 
   @override
   void dispose() {
-    final socketService = _ref.read(socketServiceProvider);
-    socketService.removeNewNotificationListener(_handleNewNotification);
-    socketService.removeNotificationsUpdatedListener(_handleNotificationsUpdated);
+    _socketService.removeNewNotificationListener(_handleNewNotification);
+    _socketService.removeNotificationsUpdatedListener(_handleNotificationsUpdated);
     super.dispose();
   }
 

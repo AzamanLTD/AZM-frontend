@@ -11,7 +11,7 @@
 //
 // Existing behaviours preserved on top of the rebuild (spec-silent, see the
 // 009d sign-off): the DisplayCurrency toggle (GHS-first vs USDC-first), the
-// oracle rate line with RateRefreshIndicator, the truncated wallet-id line,
+// secondary-currency line, the truncated wallet-id line,
 // and the balance-visibility mask driven by balanceVisibleProvider.
 // =============================================================================
 
@@ -32,7 +32,6 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/odometer_number.dart';
-import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
   const HologramBalanceCard({super.key});
@@ -273,33 +272,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 style: AzText.bodyS.copyWith(color: colors.textSecondary),
               ),
 
-              const SizedBox(height: AzSpace.xs),
-
-              // The live oracle rate + its refresh affordance, carried over
-              // from the previous card.
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: colors.success,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      '1 USDC = GH₵ ${rate.toStringAsFixed(2)}',
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          AzText.caption.copyWith(color: colors.textTertiary),
-                    ),
-                  ),
-                  const SizedBox(width: AzSpace.sm),
-                  const RateRefreshIndicator(),
-                ],
-              ),
+              // Correction D: the exchange-rate row ("1 USDC = GH₵ …")
+              // and its refresh affordance are GONE from the Home balance
+              // card — the card is the user's actual balance and its
+              // primary/secondary currency presentation, nothing else.
+              // The oracle rate PROVIDER survives untouched (the secondary
+              // figure below and other product surfaces still read it).
             ],
           ),
         ],

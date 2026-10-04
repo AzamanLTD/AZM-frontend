@@ -7,6 +7,7 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/story_provider.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
+import 'package:azaman/widgets/stories/story_rail_compact.dart';
 import 'package:azaman/widgets/stories/story_rail_strip.dart';
 
 class _FakeFriends extends FriendProvider {
@@ -130,6 +131,46 @@ void main() {
     await tester.drag(_scroll, const Offset(0, 400));
     await tester.pumpAndSettle();
     expect(c.offset, 0);
+  });
+
+  testWidgets('CORRECTION J: the open rail REPLACES the compact strip — '
+      'no smaller story surface underneath', (tester) async {
+    final c = await _pump(tester);
+
+    // At rest the strip is the story surface's collapsed presentation.
+    var stripRect =
+        tester.getRect(find.byKey(const ValueKey('inbox_story_rail_compact')));
+    expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
+
+    // Open the rail.
+    await tester.tap(find.byKey(const ValueKey('inbox_story_rail_compact')));
+    await tester.pumpAndSettle();
+    expect(c.offset, closeTo(c.position.minScrollExtent, 0.5));
+
+    // The strip has fully collapsed — zero height (or culled entirely at
+    // zero extent), so NOTHING remains underneath the expanded story
+    // surface. The expanded rail IS the active story surface.
+    final stripEls =
+        find.byKey(const ValueKey('inbox_story_rail_compact')).evaluate();
+    if (stripEls.isNotEmpty) {
+      stripRect = tester.getRect(
+          find.byKey(const ValueKey('inbox_story_rail_compact')));
+      expect(stripRect.height, closeTo(0, 0.5),
+          reason: 'the ONE story surface: at full reveal the compact strip '
+              'must not remain as a second smaller story strip');
+    }
+    expect(find.byKey(const ValueKey('inbox_story_rail')), findsOneWidget);
+
+    // Closing returns the strip cleanly — the collapsed presentation is
+    // back at its resting height.
+    await tester.drag(_scroll, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.drag(_scroll, const Offset(0, 400));
+    await tester.pumpAndSettle();
+    expect(c.offset, 0);
+    stripRect =
+        tester.getRect(find.byKey(const ValueKey('inbox_story_rail_compact')));
+    expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
   });
 
   testWidgets('reduced motion: the rail toggles without a ballistic settle', (tester) async {

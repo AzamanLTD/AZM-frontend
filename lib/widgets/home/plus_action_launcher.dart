@@ -50,25 +50,41 @@ class PlusLauncherController extends ChangeNotifier {
   bool _isOpen = false;
   bool get isOpen => _isOpen;
 
-  /// UX-CORRECTION §5: the geometry anchor that ties the action group to
-  /// the physical + control. The trigger measures its own GLOBAL rect
-  /// when it opens and hands it to the controller; the overlay positions
-  /// the action group from that measured rect — so the actions visually
-  /// ORIGINATE from the plus at any phone size, never a guessed
-  /// x-coordinate, never a centered modal column.
+  /// CORRECTION F: the geometry anchor that ties the action cluster to
+  /// the physical + control — measured LIVE, every frame. The trigger
+  /// tags its own physical button (the 54px Container) with
+  /// [triggerKey]; the overlay re-measures that render box on every
+  /// build tick, so the cluster tracks the plus even while the nav band
+  /// compresses or moves. The frozen open-time rect is kept only as a
+  /// fallback for hosts that mount the overlay without the trigger.
   ///
   /// Why measured and NOT a CompositedTransformFollower/LayerLink: the
   /// framework requires the leader to paint BEFORE the follower, but the
   /// trigger lives in the nav band, which paints AFTER the body stack
   /// the overlay lives in — leader-after-follower violates the
-  /// LeaderLayer invariant (asserted every frame in debug). Measuring
-  /// the rect at open time keeps the exact same anchor contract with
-  /// zero layer-order hazards.
-  Rect? _triggerRect;
-  Rect? get triggerRect => _triggerRect;
+  /// LeaderLayer invariant (asserted every frame in debug). Measured
+  /// geometry keeps the exact same anchor contract with zero
+  /// layer-order hazards.
+  final GlobalKey triggerKey =
+      GlobalKey(debugLabel: 'plus-launcher-anchor');
+
+  Rect? _storedTriggerRect;
+
+  /// The LIVE global rect of the physical + button, or the last rect the
+  /// trigger reported, or null.
+  Rect? get triggerRect {
+    final ctx = triggerKey.currentContext;
+    if (ctx != null) {
+      final box = ctx.findRenderObject();
+      if (box is RenderBox && box.attached) {
+        return box.localToGlobal(Offset.zero) & box.size;
+      }
+    }
+    return _storedTriggerRect;
+  }
 
   void open({Rect? fromTriggerRect}) {
-    _triggerRect = fromTriggerRect ?? _triggerRect;
+    _storedTriggerRect = fromTriggerRect ?? _storedTriggerRect;
     if (_isOpen) return;
     _isOpen = true;
     notifyListeners();
@@ -178,6 +194,7 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
               }
             },
             child: Container(
+              key: widget.controller.triggerKey,
               width: widget.size,
               height: widget.size,
               decoration: BoxDecoration(
@@ -319,10 +336,17 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     widget.controller.close();
   }
 
-  /// §5 anchor geometry, measured from the trigger's own rect (see
-  /// [PlusLauncherController.triggerRect]). Falls back to the
-  /// bottom-right corner of the screen (beside where the + lives) if the
-  /// rect is somehow unavailable.
+  /// CORRECTION F anchor geometry, measured LIVE from the physical +
+  /// button's render box (see [PlusLauncherController.triggerRect]).
+  ///
+  /// The cluster's RIGHT edge rides the PLUS AXIS — the trigger's actual
+  /// CENTER — not its outer right edge. The column rises immediately
+  /// above the physical + and every row's trailing edge points straight
+  /// down the plus's center line, so the visual axis back to the control
+  /// is unmistakable. (The old form satisfied a right-edge arithmetic
+  /// assertion while a 300px-wide mass floated away from the button.)
+  /// Falls back to the bottom-right corner of the screen (beside where
+  /// the + lives) if the rect is somehow unavailable.
   double _anchorRight(BuildContext context) {
     final local = _localTriggerRect(context);
     if (local == null) return AzSpace.lg;
@@ -330,7 +354,8 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     final width = box is RenderBox && box.attached
         ? box.size.width
         : MediaQuery.sizeOf(context).width;
-    return math.max(AzSpace.sm, width - local.right + 6);
+    final plusAxis = local.left + local.width / 2.0;
+    return (width - plusAxis).clamp(AzSpace.sm, width - AzSpace.lg);
   }
 
   double _anchorBottom(BuildContext context) {
@@ -403,15 +428,15 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
           // never a full-width modal column. Width is bounded (not
           // stretched) so the group reads as an anchored action cluster;
           // the scrim behind still covers the whole screen.
-          // UX-CORRECTION §5: the actions visually ORIGINATE from the +
-          // control. The trigger measured its own rect at open time
+          // CORRECTION F: the actions visually ORIGINATE from the actual
+          // + control. The trigger's physical render box is measured LIVE
           // (controller.triggerRect); the group is Positioned so its
-          // bottom-right pins to the trigger's top-right — the column
-          // rises from the plus itself and stays right-aligned to the
-          // plus-side of the screen. Never centered, never a full-width
-          // modal column. Width is bounded (not stretched) so the group
-          // reads as an anchored action cluster; the scrim behind still
-          // covers the whole screen.
+          // bottom edge rises from just above the + and its RIGHT edge
+          // rides the + button's CENTER axis — the column hangs off the
+          // physical plus, on the plus side of the screen, never
+          // centered, never a full-width modal column. Width is bounded
+          // (not stretched) so the group reads as an anchored action
+          // cluster; the scrim behind still covers the whole screen.
           //
           // (Measured geometry, not a LayerLink follower: the trigger
           // lives in the nav band which paints AFTER this body-stack

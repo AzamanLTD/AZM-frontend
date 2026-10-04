@@ -41,6 +41,7 @@ import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/sensory_provider.dart';
 import 'package:azaman/providers/home_shell_active_provider.dart';
+import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/settings_provider.dart' as settings_pkg;
 import 'package:azaman/widgets/vendor_pull_tab.dart';
 import 'package:azaman/services/az_sound.dart';
@@ -580,6 +581,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     // Home stops being the displayed tab — pages stay MOUNTED, so only
     // this explicit signal separates "mounted" from "active".
     ref.read(homeShellActiveProvider.notifier).state = i == 0;
+    // CORRECTION I: the focused Marketplace nav is a presentation of the
+    // Marketplace ROOT tab. Entering Marketplace turns it on; leaving to
+    // Home/Chat turns it off. (The "…" control and Marketplace content
+    // taps adjust it without navigating.)
+    ref.read(marketplaceNavFocusProvider.notifier).state = i == 2;
     final page = _pages[i] ?? _pageFor(i);
     // TASK-010: compression tracks the CURRENT page's offset. The incoming
     // page starts at its top, so the pill must start at rest — otherwise a

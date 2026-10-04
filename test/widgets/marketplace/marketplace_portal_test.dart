@@ -6,29 +6,23 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/models/business_models.dart';
-import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 
-/// Portal permanent guards (milestone 2026-09-30):
-///   1. The bare marketplace tab is the PORTAL — a destination with an
-///      identity header, a "choose your world" deck (one card per primary
-///      category), the stories rail, featured picks, and an explore-all.
-///   2. Picking a world enters explore mode with that category seeded.
-///   3. "Explore all" enters explore mode unfiltered.
-///   4. The back affordance returns to the portal surface of the SAME tab
-///      instance and refreshes the unfiltered search.
-///   5. A launcher `initialCategory` still lands directly in the
-///      pre-filtered explore view (TASK-010b entry contract).
+/// Marketplace ONE-SCREEN guards (correction H, 2026-10-04):
+///   1. The bare marketplace tab is the ONE result screen — Eat / Shop /
+///      Ride / Stay category controls with Near You as a peer control.
+///   2. The portal machinery (world deck, "choose your world", resume card,
+///      explore-all, back-to-portal bar) is GONE — no duplicated interaction
+///      path exists.
+///   3. Tapping a category IMMEDIATELY changes the result surface; tapping
+///      the active category clears back to all results.
+///   4. The "Featured picks near you" wording is gone.
+///   5. A launcher `initialCategory` still seeds the category filter
+///      (TASK-010b entry contract, unchanged).
 
 class _RecordingSearchNotifier extends BusinessSearchNotifier {
   _RecordingSearchNotifier() : super(BusinessService());
 
   final List<String?> searchedCategories = [];
-
-  /// Places pre-fetched results into the search state without any network,
-  /// so guard tests can reason about the client-side filter path.
-  void seedResults(List<BusinessProfile> businesses, {String? category}) {
-    state = state.copyWith(results: businesses, category: category);
-  }
 
   @override
   Future<void> search(
@@ -60,224 +54,95 @@ Future<_RecordingSearchNotifier> _pumpHome(
   return notifier;
 }
 
-/// A hotel business on the HOSPITALITY wire (what backend records return).
-BusinessProfile _hotelBusiness() => BusinessProfile(
-  id: 'internal-profile-hotel',
-  bizId: 'public-biz-hotel',
-  businessName: 'Accra Grand Hotel',
-  category: 'HOSPITALITY',
-  isVerified: true,
-  isSuspended: false,
-  kybStatus: 'VERIFIED',
-  totalEscrows: 0,
-  completedEscrows: 0,
-  userId: 1,
-  totalVolume: 0,
-  averageRating: 4.8,
-  reviewCount: 2,
-  reviews: const [],
-  amenities: const [],
-  cuisineTypes: const [],
-  username: 'accra-grand',
-  products: const [],
-  locations: const [],
-);
-
-/// Scrolls the portal list until [finder] is built (ListView is lazy —
-/// below-the-fold sections do not exist until scrolled into view).
-Future<void> _reveal(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(
-    finder,
-    200,
-    scrollable: find
-        .descendant(
-          of: find.byKey(const ValueKey('marketplace_portal_body')),
-          matching: find.byType(Scrollable),
-        )
-        .first, // outermost = the portal vertical list itself
-  );
-}
-
 void main() {
-  testWidgets('bare tab opens on the portal destination', (tester) async {
+  testWidgets('the bare tab opens the ONE result screen', (tester) async {
     await _pumpHome(tester);
 
-    expect(
-      find.byKey(const ValueKey('marketplace_portal_body')),
-      findsOneWidget,
-    );
-    // Overhaul 02: the portal's identity is "Discover" (DiscoveryHeader).
-    expect(find.text('Discover'), findsOneWidget);
-    expect(find.text('Choose your world'), findsOneWidget);
+    // Exactly Eat / Shop / Ride / Stay + Near You on the control row.
+    expect(find.text('Eat'), findsOneWidget);
+    expect(find.text('Shop'), findsOneWidget);
+    expect(find.text('Ride'), findsOneWidget);
+    expect(find.text('Stay'), findsOneWidget);
+    expect(find.byKey(const ValueKey('marketplace-near-you')),
+        findsOneWidget);
 
-    // One world card per primary category.
+    // The portal machinery is GONE — every old duplicated interaction path.
+    expect(find.text('Discover'), findsNothing);
+    expect(find.text('Choose your world'), findsNothing);
+    expect(find.byKey(const ValueKey('marketplace_explore_all')),
+        findsNothing);
+    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
+        findsNothing);
     for (final wire in [
       'LOGISTICS',
       'FOOD_BEVERAGE',
       'HOSPITALITY',
       'RETAIL',
     ]) {
-      expect(find.byKey(ValueKey('marketplace_world_$wire')), findsOneWidget);
+      expect(find.byKey(ValueKey('marketplace_world_$wire')), findsNothing);
     }
 
-    await _reveal(
-      tester,
-      find.byKey(const ValueKey('marketplace_explore_all')),
-    );
-    expect(
-      find.byKey(const ValueKey('marketplace_explore_all')),
-      findsOneWidget,
-    );
-    // Explore machinery is NOT on the portal surface.
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsNothing,
-    );
+    // The old category dial labels are gone.
+    expect(find.text('Restaurants'), findsNothing);
+    expect(find.text('Hotels'), findsNothing);
+    expect(find.text('Transit'), findsNothing);
+    expect(find.text('Retail'), findsNothing);
+    expect(find.text('All'), findsNothing);
   });
 
-  testWidgets('tapping a world enters explore seeded with that category', (
-    tester,
-  ) async {
+  testWidgets('tapping Eat immediately changes the result surface',
+      (tester) async {
     final notifier = await _pumpHome(tester);
-    notifier.searchedCategories.clear();
+    final baseline = notifier.searchedCategories.length;
 
-    await tester.tap(find.byKey(const ValueKey('marketplace_world_RETAIL')));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.tap(find.text('Eat'));
+    await tester.pump(const Duration(milliseconds: 400));
 
-    // Explore surface is up: back affordance visible, portal deck gone.
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
+    // The category fires a real search through the existing plumbing —
+    // no second screen, no portal hop.
+    expect(notifier.searchedCategories.length, baseline + 1);
+    expect(notifier.searchedCategories.last, 'FOOD_BEVERAGE');
+    // The control shows its active state by key.
+    expect(find.byKey(const ValueKey('marketplace-category-Eat')),
+        findsOneWidget);
 
-    // The world tap fired a category-seeded search.
-    expect(notifier.searchedCategories, ['RETAIL']);
-    await tester.pump(const Duration(milliseconds: 800));
+    // Tapping the active category clears back to all results.
+    await tester.tap(find.text('Eat'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(notifier.searchedCategories.last, isNull);
   });
 
-  testWidgets('explore-all enters explore unfiltered', (tester) async {
-    final notifier = await _pumpHome(tester);
-    notifier.searchedCategories.clear();
-
-    await _reveal(
-      tester,
-      find.byKey(const ValueKey('marketplace_explore_all')),
-    );
-    await tester.tap(find.byKey(const ValueKey('marketplace_explore_all')));
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
-    // Unfiltered: no additional category search is fired (the unfiltered
-    // seed search from init still stands).
-    expect(notifier.searchedCategories, isEmpty);
-    await tester.pump(const Duration(milliseconds: 800));
-  });
-
-  testWidgets(
-    'back affordance returns to the portal and refreshes the unfiltered search',
-    (tester) async {
-      final notifier = await _pumpHome(tester);
-      notifier.searchedCategories.clear();
-
-      await tester.tap(
-        find.byKey(const ValueKey('marketplace_world_LOGISTICS')),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(notifier.searchedCategories, ['LOGISTICS']);
-
-      await tester.tap(
-        find.byKey(const ValueKey('marketplace_back_to_portal')),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-
-      expect(
-        find.byKey(const ValueKey('marketplace_portal_body')),
-        findsOneWidget,
-      );
-      // The portal refreshes the unfiltered result set so world counts and
-      // featured picks reflect the whole catalog.
-      expect(notifier.searchedCategories, ['LOGISTICS', null]);
-    },
-  );
-
-  testWidgets('initialCategory still lands directly in explore', (
-    tester,
-  ) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'retail');
-
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(notifier.searchedCategories, ['RETAIL']);
-  });
-
-  testWidgets(
-    'REAL_ESTATE selection keeps HOSPITALITY businesses (client-side alias)',
-    (tester) async {
-      // The launcher sends the legacy REAL_ESTATE wire for hotels while
-      // backend records stay HOSPITALITY; the returned hotels must survive
-      // the client-side filter, not be dropped.
-      final notifier = await _pumpHome(tester, initialCategory: 'REAL_ESTATE');
-      notifier.seedResults([_hotelBusiness()], category: 'REAL_ESTATE');
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        find.byKey(const ValueKey('public-biz-hotel')),
-        findsOneWidget,
-        reason: 'HOSPITALITY business must appear under a REAL_ESTATE filter',
-      );
-      expect(find.text('No businesses found'), findsNothing);
-
-      // Let the one-shot child timers fire so no timer stays pending.
-      await tester.pump(const Duration(milliseconds: 800));
-    },
-  );
-
-  testWidgets('world cards promise their blueprint journey, not ad-hoc text', (
-    tester,
-  ) async {
+  testWidgets('the Featured picks wording is gone', (tester) async {
     await _pumpHome(tester);
-
-    // Every phrase comes from the central blueprint, one per preset.
-    expect(find.text('Tables, plates & takeaway'), findsOneWidget);
-    expect(find.text('Shop racks, aisles & drops'), findsOneWidget);
-    expect(find.text('Rooms, suites & stays'), findsOneWidget);
-    expect(find.text('Seats, routes & departures'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Featured picks near you'), findsNothing);
+    expect(find.textContaining('Featured picks'), findsNothing);
   });
 
-  test('every primary category resolves its blueprint from the wire alone', () {
-    for (final cat in BusinessCategories.primary) {
-      final blueprint = MarketplaceExperienceBlueprint.fromJson(null, cat.wire);
-      expect(
-        blueprint.worldPromise,
-        isNotEmpty,
-        reason: '${cat.wire} must carry a category-native promise',
-      );
-      expect(
-        blueprint.worldPromise,
-        isNot(contains('Browse')),
-        reason: '${cat.wire} must not fall back to a generic browse phrase',
-      );
-    }
+  testWidgets('initialCategory still seeds the category filter',
+      (tester) async {
+    final notifier =
+        await _pumpHome(tester, initialCategory: 'retail');
+    // TASK-010b entry contract: the seeding search fires with the
+    // normalised wire — unchanged by the one-screen correction.
+    expect(notifier.searchedCategories.first, 'RETAIL');
+    // Shop (RETAIL) renders as the active category control.
+    expect(find.byKey(const ValueKey('marketplace-category-Shop')),
+        findsOneWidget);
+  });
 
-    final presets = {
-      for (final cat in BusinessCategories.primary)
-        cat.wire: MarketplaceExperienceBlueprint.fromJson(
-          null,
-          cat.wire,
-        ).preset,
-    };
-    expect(presets['FOOD_BEVERAGE'], 'DINING_JOURNEY');
-    expect(presets['RETAIL'], 'SHOP_FLOOR');
-    expect(presets['HOSPITALITY'], 'BUILDING_WALK');
-    expect(presets['LOGISTICS'], 'TRAVEL_JOURNEY');
+  testWidgets('results render on the one screen — no second marketplace '
+      'screen before them', (tester) async {
+    final notifier = _RecordingSearchNotifier();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
+        child: MaterialApp(
+          home: MarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    // The list/map area exists immediately on the bare tab.
+    expect(find.byType(ListView), findsWidgets);
   });
 }

@@ -279,6 +279,22 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     _handoffDragPx = 0;
   }
 
+  /// Correction A — ONE Recent Activity experience: tapping the doorway
+  /// enters the SAME second resting state as the upward drag. Same
+  /// threshold haptic, same spring snap, same surface — never a route push.
+  void _enterActivity() {
+    if (_handoff.value >= 1) return;
+    if (_handoffHapticArmed) {
+      AzamanHaptics.threshold();
+      _handoffHapticArmed = false;
+    }
+    if (_reduceMotion) {
+      _handoff.value = 1;
+    } else {
+      _handoff.animateWith(_handoffSpringTo(1));
+    }
+  }
+
   // REVERSE HANDOFF (audit §1): pulling down from the top of the activity
   // surface walks the handoff back with the same resistance grammar — a
   // small pull moves the wallet barely at all; past the commit threshold
@@ -404,7 +420,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                               onVerticalDragStart: _onDoorwayDragStart,
                               onVerticalDragUpdate: _onDoorwayDragUpdate,
                               onVerticalDragEnd: _onDoorwayDragEnd,
-                              child: const RecentActivityDoorway(),
+                              child: RecentActivityDoorway(
+                                onOpen: _enterActivity,
+                              ),
                             ),
                             reduceMotion,
                           ),

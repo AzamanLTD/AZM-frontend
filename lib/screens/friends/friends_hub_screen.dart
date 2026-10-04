@@ -812,7 +812,15 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
           key: _centerKey,
           slivers: [
             SliverToBoxAdapter(
-              child: StoryRailCompact(onTap: _openRail, railOpen: _railOpenNotifier),
+              // CORRECTION J: the compact strip is the story rail's
+              // COLLAPSED presentation — as the rail reveals, the strip
+              // collapses away, so the open rail is never duplicated by
+              // a smaller strip underneath.
+              child: StoryRailCompact(
+                onTap: _openRail,
+                railOpen: _railOpenNotifier,
+                reveal: _inboxScroll,
+              ),
             ),
             if (entries.isEmpty)
               SliverFillRemaining(
