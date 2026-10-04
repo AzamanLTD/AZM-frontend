@@ -34,7 +34,7 @@ class StoryFeedNotifier extends StateNotifier<AsyncValue<List<StoryGroup>>> {
         stories: g.stories.map((s) => s.id == storyId
           ? StoryItem(id: s.id, mediaUrl: s.mediaUrl, mediaType: s.mediaType, caption: s.caption,
               linkedBizId: s.linkedBizId, durationSeconds: s.durationSeconds, boosted: s.boosted,
-              seen: true, createdAt: s.createdAt)
+              seen: true, createdAt: s.createdAt, durationSecondsProvided: s.durationSecondsProvided)
           : s).toList(),
       )).toList());
     });
