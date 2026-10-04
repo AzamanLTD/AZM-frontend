@@ -268,6 +268,14 @@ class _OdometerNumberState extends State<OdometerNumber> {
       );
     }
 
+    // The cells run, mounted either bare (reduced motion) or inside the
+    // width-animated wrapper below.
+    final cellsRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: cells,
+    );
+
     return Semantics(
       label: widget.semanticsLabel ?? widget.value,
       // The per-cell text below would otherwise be announced digit by digit.
@@ -289,15 +297,24 @@ class _OdometerNumberState extends State<OdometerNumber> {
               alignment: _alignmentFor(widget.textAlign),
               // UI-correction Phase A: the amount WIDTH animates as digits
               // arrive and leave, instead of snapping once the roll ends.
-              child: AnimatedSize(
-                duration: MotionTokens.control,
-                curve: MotionTokens.enter,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: cells,
-                ),
-              ),
+              // Review patch (2026-10-04): the width animation must ALSO
+              // honour reduced motion. The equivalent-zero-duration
+              // behaviour is achieved by NOT MOUNTING the AnimatedSize at
+              // all under `disableAnimations`, for the same reason the
+              // per-cell switchers are dropped (see
+              // [_reducedMotionCell]): RenderAnimatedSize drives its own
+              // controller from inside performLayout, and a zero-duration
+              // controller completes synchronously during layout and
+              // re-dirties the render object mid-layout — a framework
+              // assertion. Dropping the wrapper makes the geometry snap to
+              // its final value in one frame with no layout mutation.
+              child: reduceMotion
+                  ? cellsRow
+                  : AnimatedSize(
+                      duration: MotionTokens.control,
+                      curve: MotionTokens.enter,
+                      child: cellsRow,
+                    ),
             ),
           ),
         ],
@@ -326,24 +343,6 @@ class _OdometerNumberState extends State<OdometerNumber> {
 
   /// One slot, one AnimatedSwitcher — see the element-stability header.
   Widget _slotCell(OdometerSlotPlan plan, Duration duration) {
-    // A deleted slot mounts a zero-size child so the switcher animates the
-    // outgoing digit out; every other slot mounts its current character.
-    final Widget child;
-    if (plan.currentChar == null) {
-      child = SizedBox.shrink(
-        key: ValueKey<String>('slot-${plan.slot}-empty'),
-      );
-    } else {
-      child = Text(
-        plan.currentChar!,
-        // The incoming child key encodes the SLOT and the character, so two
-        // slots showing the same digit never collide and a slot holding its
-        // value keeps the same key (no transition, no wasted animation).
-        key: ValueKey<String>('slot-${plan.slot}-${plan.currentChar}'),
-        style: widget.style,
-      );
-    }
-
     return AnimatedSwitcher(
       key: _cellKey(plan.slot),
       duration: duration,
@@ -358,45 +357,22 @@ class _OdometerNumberState extends State<OdometerNumber> {
           if (currentChild != null) currentChild,
         ],
       ),
-      // The transitionBuilder wraps the INCOMING child (an outgoing child
-      // keeps the transition it was built with, and AnimatedSwitcher
-      // reverses that controller to play the exit — so a deleted digit,
-      // which rolled in from below, reverses and rolls out downward).
-      transitionBuilder: (child, animation) {
-        switch (plan.kind) {
-          case OdometerSlotKind.unchanged:
-          case OdometerSlotKind.deletedDigit:
-            // Unchanged: the child key did not move, this builder only runs
-            // for a re-mounted cell and the value is already identical —
-            // fade is a no-op visually. Deleted: the incoming child is
-            // zero-size, so the wrap is invisible either way.
-            return FadeTransition(opacity: animation, child: child);
-          case OdometerSlotKind.separatorFade:
-            // Separators never slide — they fade in.
-            return FadeTransition(opacity: animation, child: child);
-          case OdometerSlotKind.changedDigit:
-            final rollsUp = plan.currentChar!.codeUnitAt(0) >
-                plan.previousChar!.codeUnitAt(0);
-            return _slide(child, animation, rollsUp ? 1.0 : -1.0);
-          case OdometerSlotKind.newDigit:
-            // New digits roll in from below.
-            return _slide(child, animation, 1.0);
-        }
-      },
-      child: child,
-    );
-  }
-
-  /// Incoming runs 0 → 1, so (begin, end) is (from, to): the new digit
-  /// arrives from [sign] direction.
-  Widget _slide(Widget child, Animation<double> animation, double sign) {
-    return ClipRect(
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: Offset(0, sign),
-          end: Offset.zero,
-        ).animate(animation),
-        child: child,
+      // Review patch (2026-10-04): the transitionBuilder is STABLE — the
+      // same top-level function on every build, never a fresh closure. See
+      // [odometerSlotTransitionBuilder] for the invariant this protects.
+      transitionBuilder: odometerSlotTransitionBuilder,
+      // A deleted slot mounts a zero-size child so the switcher animates the
+      // outgoing digit out; every other slot mounts its current character.
+      // The incoming child key encodes the SLOT and the character, so two
+      // slots showing the same digit never collide and a slot holding its
+      // value keeps the same key (no transition, no wasted animation).
+      child: _OdometerCell(
+        key: ValueKey<String>(
+            'slot-${plan.slot}-${plan.currentChar ?? 'empty'}'),
+        slot: plan.slot,
+        char: plan.currentChar,
+        motion: _OdometerCell.motionFor(plan),
+        style: widget.style,
       ),
     );
   }
@@ -414,4 +390,148 @@ class _OdometerNumberState extends State<OdometerNumber> {
         return Alignment.centerLeft;
     }
   }
+}
+
+
+// ── TRANSITION IDENTITY (review patch 2026-10-04) ────────────────────────────
+// AnimatedSwitcher re-invokes `transitionBuilder` for EVERY live entry —
+// including in-flight OUTGOING ones — whenever the builder property itself
+// changes between builds. A per-build closure therefore lets a later build
+// (a rapid second update, or an unrelated parent rebuild) re-wrap a digit
+// that is mid-roll with the CURRENT plan's semantics: a digit that entered
+// sliding from below could suddenly exit sliding upward, or turn into a
+// fade mid-flight.
+//
+// The fix is architectural, in two halves:
+//
+//   1. the builder passed to AnimatedSwitcher is this STABLE top-level
+//      function, so the builder property never changes and the switcher
+//      never re-wraps live entries on a rebuild;
+//   2. the per-entry transition metadata (fade / slide-from-below /
+//      slide-from-above) lives on the ENTRY'S OWN CHILD widget
+//      ([_OdometerCell]). An entry keeps the child it was created with,
+//      so even if a transition were rebuilt, it would rebuild with the
+//      entry's ORIGINAL metadata — the semantics are frozen at entry
+//      time by construction.
+//
+// Invariant: slot identity stays stable; unchanged slots stay still;
+// changed/new digits roll in their own direction; deleted digits reverse
+// the direction they originally entered with; no rebuild can mutate an
+// in-flight transition's direction.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The stable AnimatedSwitcher transitionBuilder for every odometer slot.
+///
+/// The child of an entry is always an [_OdometerCell] here, but the fade
+/// fallback keeps the builder total (and safe) for any child.
+@visibleForTesting
+Widget odometerSlotTransitionBuilder(
+  Widget child,
+  Animation<double> animation,
+) {
+  if (child is _OdometerCell) {
+    return child.buildTransition(animation);
+  }
+  return FadeTransition(opacity: animation, child: child);
+}
+
+/// How one cell's entry transition moves.
+enum _OdometerCellMotion {
+  /// Fades in (separators; also unchanged/deleted cells, where the wrap is
+  /// a visual no-op).
+  fade,
+
+  /// Rolls up — enters sliding from below (begin offset +1).
+  slideFromBelow,
+
+  /// Rolls down — enters sliding from above (begin offset -1).
+  slideFromAbove,
+}
+
+/// One slot's content plus the transition metadata frozen at entry time.
+///
+/// This widget is the child handed to [AnimatedSwitcher]. AnimatedSwitcher
+/// keeps the exact child widget an entry was created with, so the metadata
+/// here survives any later build — the entry's transition always rebuilds
+/// (if it ever does) with ITS OWN semantics, never the current plan's.
+class _OdometerCell extends StatelessWidget {
+  const _OdometerCell({
+    super.key,
+    required this.slot,
+    required this.char,
+    required this.motion,
+    required this.style,
+  });
+
+  /// The right-keyed slot this cell lives in (0 = last character).
+  final int slot;
+
+  /// The character the cell renders; null for a deleted slot's empty child.
+  final String? char;
+
+  /// How the cell enters (and, reversed, how it exits).
+  final _OdometerCellMotion motion;
+
+  final TextStyle style;
+
+  /// Derives the entry motion from the slot's plan. This runs ONCE, when
+  /// the child is created — the plan of a LATER build can never reach it.
+  static _OdometerCellMotion motionFor(OdometerSlotPlan plan) {
+    switch (plan.kind) {
+      case OdometerSlotKind.unchanged:
+      case OdometerSlotKind.deletedDigit:
+        // Unchanged: the child key did not move, this wrap only applies to
+        // a re-mounted cell and the value is already identical — fade is a
+        // no-op visually. Deleted: the incoming child is zero-size, so the
+        // wrap is invisible either way.
+        return _OdometerCellMotion.fade;
+      case OdometerSlotKind.separatorFade:
+        // Separators never slide — they fade in.
+        return _OdometerCellMotion.fade;
+      case OdometerSlotKind.changedDigit:
+        final rollsUp = plan.currentChar!.codeUnitAt(0) >
+            plan.previousChar!.codeUnitAt(0);
+        return rollsUp
+            ? _OdometerCellMotion.slideFromBelow
+            : _OdometerCellMotion.slideFromAbove;
+      case OdometerSlotKind.newDigit:
+        // New digits roll in from below.
+        return _OdometerCellMotion.slideFromBelow;
+    }
+  }
+
+  /// Builds this cell's OWN entry transition for [animation] (incoming runs
+  /// 0 → 1, so (begin, end) is (from, to): the digit arrives from the
+  /// [motion] side). The transition wraps THE CELL ITSELF — the cell's
+  /// content is never reconstructed by a transition.
+  Widget buildTransition(Animation<double> animation) {
+    switch (motion) {
+      case _OdometerCellMotion.fade:
+        return FadeTransition(opacity: animation, child: this);
+      case _OdometerCellMotion.slideFromBelow:
+        return _slide(animation, 1.0);
+      case _OdometerCellMotion.slideFromAbove:
+        return _slide(animation, -1.0);
+    }
+  }
+
+  Widget _content() {
+    if (char == null) return const SizedBox.shrink();
+    return Text(char!, style: style);
+  }
+
+  Widget _slide(Animation<double> animation, double sign) {
+    return ClipRect(
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: Offset(0, sign),
+          end: Offset.zero,
+        ).animate(animation),
+        child: this,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => _content();
 }
