@@ -42,7 +42,6 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/notification_bell.dart';
-import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -51,6 +50,7 @@ import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
+import 'package:azaman/widgets/home/home_reminder_deck.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
@@ -410,10 +410,21 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                           // hard-coded giant SizedBox.
                           SizedBox(height: _doorwayGap),
 
+                          // EXPERIENCE PASS §4/§5 — the reminder deck:
+                          // real susu + marketplace signals, shuffled by
+                          // swipe. Renders nothing when no signal exists.
+                          _stage(
+                            4,
+                            const HomeReminderDeck(),
+                            reduceMotion,
+                          ),
+
+                          const SizedBox(height: AzSpace.md),
+
                           // Block 4 — the Recent Activity doorway (§10).
                           // No transaction rows live on the resting Home.
                           _stage(
-                            4,
+                            5,
                             GestureDetector(
                               key: _doorwayKey,
                               behavior: HitTestBehavior.opaque,
