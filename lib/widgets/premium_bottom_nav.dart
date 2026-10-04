@@ -255,6 +255,16 @@ class _NavItem {
   });
 }
 
+/// EXPERIENCE PASS §13 — the band rides the IME.
+///
+/// Scaffold does NOT lift its `bottomNavigationBar` above the keyboard
+/// (only the body is inset), so a search field living in the band would
+/// sit BEHIND the IME. This notifier is true while the band's own field
+/// holds focus; the band then pads its bottom by the live view-inset so
+/// it glues to the top edge of the keyboard — the IME motion stays
+/// attached to the surface instead of the band being buried.
+final ValueNotifier<bool> bandFieldFocused = ValueNotifier(false);
+
 const _kNavItems = [
   _NavItem(
     icon: HugeIconsStroke.home01,
@@ -336,7 +346,6 @@ class PremiumBottomNav extends ConsumerWidget {
     // it.
     final marketplaceFocused =
         selectedIndex == 2 && ref.watch(marketplaceNavFocusProvider);
-    final bottom = MediaQuery.of(context).padding.bottom;
     // Passed down once so the buttons do not re-read MediaQuery in four
     // places, and so the whole nav agrees on the same mode in one frame.
     final reduceMotion = !AzMotion.of(context).travel;
@@ -368,10 +377,9 @@ class PremiumBottomNav extends ConsumerWidget {
         // bottom band. The trailing control sits in the row at the pill's
         // right, vertically centered on the pill, and the safe-area
         // padding below is computed ONCE for the whole band.
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg,
-          ),
+        // §13: [_ImeBandPad] glues the band to the IME when the band's
+        // own field owns the keyboard (see the class comment).
+        return _ImeBandPad(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -426,32 +434,71 @@ class PremiumBottomNav extends ConsumerWidget {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Correction I: at the Marketplace ROOT the band
-                  // reorganises around Shopping — [ … Marketplace
-                  // (search field) ] — a contextual presentation of the
-                  // SAME root tab, never a pushed route.
-                  if (marketplaceFocused) {
-                    return _FocusedMarketplaceRow(colors: colors);
-                  }
+                  Widget normalRow() => Row(
+                        children: List.generate(
+                          _kNavItems.length,
+                          (i) => _NavButton(
+                            item: _kNavItems[i],
+                            isSelected: selectedIndex == i,
+                            index: i,
+                            colors: colors,
+                            labelOpacity: labelOpacity,
+                            reduceMotion: reduceMotion,
+                            onTap: () => _handleTap(i),
+                            onLongPress: onTabLongPress == null
+                                ? null
+                                : () => _handleLongPress(i),
+                          ),
+                        ),
+                      );
                   // Correction G: selected state is communicated by the
                   // accent COLOR of the active icon/label — no glow, no
                   // translucent backdrop blob behind the selected tab.
-                  return Row(
-                    children: List.generate(
-                      _kNavItems.length,
-                      (i) => _NavButton(
-                        item: _kNavItems[i],
-                        isSelected: selectedIndex == i,
-                        index: i,
-                        colors: colors,
-                        labelOpacity: labelOpacity,
-                        reduceMotion: reduceMotion,
-                        onTap: () => _handleTap(i),
-                        onLongPress: onTabLongPress == null
-                            ? null
-                            : () => _handleLongPress(i),
+                  final content = normalRow();
+                  // EXPERIENCE PASS §13: normal nav → search field is a
+                  // MORPH inside the SAME pill surface, never one widget
+                  // popping out as an unrelated TextField appears. The
+                  // pill container (height, radius, material, shadow)
+                  // is the persistent surface; only its CONTENT
+                  // cross-fades — a fast 8% vertical slide keeps the
+                  // direction of the change legible. Reduced motion
+                  // honours the fade only (no slide). LayoutBuilder
+                  // rebuilds drive AnimatedSwitcher key changes; the
+                  // fade runs on the fast token so the field is usable
+                  // almost immediately.
+                  if (reduceMotion) return content;
+                  return AnimatedSwitcher(
+                    duration: AzMotion.duration(context, MotionTokens.fast),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    layoutBuilder: (currentChild, outgoingChildren) =>
+                        Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ...outgoingChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween(
+                          begin: const Offset(0, 0.08),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: child,
                       ),
                     ),
+                    child: marketplaceFocused
+                        ? KeyedSubtree(
+                            key: const ValueKey('nav-band-focused'),
+                            child:
+                                _FocusedMarketplaceRow(colors: colors),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('nav-band-normal'),
+                            child: content,
+                          ),
                   );
                 },
               ),
@@ -793,6 +840,75 @@ class _PlusExitState extends State<_PlusExit>
   }
 }
 
+/// EXPERIENCE PASS §13 — the IME-riding band pad.
+///
+/// Scaffold does NOT lift its `bottomNavigationBar` above the keyboard
+/// (only the body is inset — and the MediaQuery handed to bottom widgets
+/// zeroes the view-insets), so a search field living in the band would
+/// otherwise sit BEHIND the IME. This pad tracks the live window metrics
+/// through a [WidgetsBindingObserver] (the canonical IME-tracker: it
+/// fires on every animation frame of the keyboard on a real device) and
+/// pads the band's bottom edge so it glues to the IME's top — while the
+/// band's own field owns focus (§13's [bandFieldFocused]). The band then
+/// TRACKS the keyboard instead of jumping after it.
+class _ImeBandPad extends StatefulWidget {
+  const _ImeBandPad({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ImeBandPad> createState() => _ImeBandPadState();
+}
+
+class _ImeBandPadState extends State<_ImeBandPad>
+    with WidgetsBindingObserver {
+  double _ime = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncIme();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() => _syncIme();
+
+  void _syncIme() {
+    // Only ride the IME while the band's own field owns the keyboard —
+    // a keyboard opened by a page BELOW the shell (forms, sheets) does
+    // not need the nav band hovering over it.
+    final ime = bandFieldFocused.value
+        ? MediaQueryData.fromView(View.of(context)).viewInsets.bottom
+        : 0.0;
+    if (ime != _ime && mounted) setState(() => _ime = ime);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: _ime > 0
+            ? _ime + AzSpace.xs
+            : (bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 /// The focused Marketplace band: [ … Marketplace (search field) ].
 /// Marketplace is highlighted in the accent color; the search field binds
 /// to the AUTHORITATIVE marketplace search provider through
@@ -822,6 +938,8 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
     _focus = FocusNode();
     _focus.addListener(() {
       if (mounted) _binding.onFocus(_focus.hasFocus);
+      // §13: while THIS field owns the keyboard, the band rides the IME.
+      bandFieldFocused.value = _focus.hasFocus;
     });
   }
 

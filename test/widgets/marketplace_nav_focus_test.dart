@@ -11,6 +11,7 @@
 //   * The normal Home/Chat/Marketplace tabs are not visible while focused.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -130,6 +131,62 @@ void main() {
     expect(container.read(marketplaceSearchProvider).isActive, isTrue);
   });
 
+
+  // ── EXPERIENCE PASS §13 ──────────────────────────────────────────────────
+
+  testWidgets('§13: normal → search is a MORPH inside the same pill, not a '
+      'pop-swap', (tester) async {
+    await _pumpNav(tester, selectedIndex: 2);
+
+    // Flip the focused presentation on WITHOUT rebuilding the harness —
+    // exactly the way the shell does.
+    final container = ProviderScope.containerOf(
+        tester.element(find.text('Marketplace')));
+    container.read(marketplaceNavFocusProvider.notifier).state = true;
+
+    // Mid-transition: BOTH presentations live inside the SAME pill
+    // surface (the outgoing nav row is fading out while the focused row
+    // fades in) — the band never unmounts.
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byKey(const ValueKey('nav-band-normal')), findsOneWidget);
+    expect(find.byKey(const ValueKey('nav-band-focused')), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('nav-band-normal')), findsNothing);
+    expect(find.byKey(const ValueKey('nav-band-focused')), findsOneWidget);
+  });
+
+  testWidgets('§13: the band sits directly above the IME — never behind it',
+      (tester) async {
+    await _pumpNav(tester, selectedIndex: 2, focused: true);
+    await tester.pumpAndSettle();
+
+    // Focus the in-band search field, then open a 300px keyboard.
+    await tester.tap(find.byKey(const ValueKey('marketplace-nav-search')));
+    await tester.pump();
+    tester.view.viewInsets =
+        FakeViewPadding(bottom: 300 * tester.view.devicePixelRatio);
+    await tester.pumpAndSettle();
+
+    // The band's CONTENT (the padded pill surface, not the nav's outer
+    // slot) must sit at or above the IME's top edge — never behind it.
+    // The search field and the "…" control both live inside the pill.
+    expect(
+        tester.getRect(
+            find.byKey(const ValueKey('marketplace-nav-search'))).bottom,
+        lessThanOrEqualTo(_surface.height - 300));
+    expect(
+        tester.getRect(
+            find.byKey(const ValueKey('marketplace-nav-ellipsis'))).bottom,
+        lessThanOrEqualTo(_surface.height - 300));
+
+    // The field is still hit-testable where it renders.
+    expect(
+        find
+            .byKey(const ValueKey('marketplace-nav-search'))
+            .hitTestable(),
+        findsOneWidget);
+  });
   testWidgets('selected state is color-only — no glow backdrop widget',
       (tester) async {
     await _pumpNav(tester, selectedIndex: 1);
