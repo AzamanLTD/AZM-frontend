@@ -268,6 +268,7 @@ class _MarketplaceHomeScreenState
   // interpolates smoothly with scroll position, just like Telegram.
 
   void _onQueryChanged(String value) {
+    ++_exploreGeneration;
     _binding.onChanged(value);
     _debounce?.cancel();
     _debounce =
@@ -496,8 +497,9 @@ class _MarketplaceHomeScreenState
   // no extra network traffic beyond the unfiltered search the tab already
   // fires on init / return.
 
-  void _enterExplore(String? wire) {
+  Future<void> _enterExplore(String? wire) async {
     AzamanHaptics.selection();
+    final generation = ++_exploreGeneration;
     setState(() {
       _mode = _MarketplaceHomeMode.explore;
       if (wire != null) {
@@ -510,30 +512,51 @@ class _MarketplaceHomeScreenState
       return;
     }
     search.setScope(MarketplaceSearchScope.world, worldWire: wire);
+
     // World memory (Overhaul 02 §5): coming back to a world within 30 minutes
-    // restores its query (and scroll offset, where safe).
+    // restores its query and scroll offset only after the CURRENT request has
+    // completed. This prevents a stale result set from satisfying the old
+    // "results.isNotEmpty" guard during async navigation.
     final memory = ref.read(worldMemoryProvider.notifier).recall(wire);
     final remembered = memory?.query;
     if (remembered != null && remembered.isNotEmpty) {
       _searchCtrl.text = remembered;
       search.changed(remembered);
-      search.submit();
-    } else {
-      _fireSearch();
+      // The screen's search path owns category/view/verified filters, so do
+      // not bypass it with the notifier's generic fetch.
+      unawaited(search.submit(fetch: false));
     }
+
+    final queryAtRequest = _query;
+    await _fetchExploreResults();
+
+    if (!mounted ||
+        generation != _exploreGeneration ||
+        _mode != _MarketplaceHomeMode.explore ||
+        _selectedCategory != wire ||
+        _query != queryAtRequest) {
+      return;
+    }
+
     final offset = memory?.scrollOffset ?? 0;
-    if (offset > 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_scrollCtrl.hasClients) return;
-        final max = _scrollCtrl.position.maxScrollExtent;
-        if (ref.read(businessSearchProvider).results.isNotEmpty && offset <= max) {
-          _scrollCtrl.jumpTo(offset);
-        }
-      });
+    if (offset <= 0 || !_scrollCtrl.hasClients) return;
+    final max = _scrollCtrl.position.maxScrollExtent;
+    if (offset <= max && ref.read(businessSearchProvider).results.isNotEmpty) {
+      _scrollCtrl.jumpTo(offset);
     }
   }
 
+  Future<void> _fetchExploreResults() {
+    if (_viewMode == _ViewMode.map) return _fireNearby();
+    return ref.read(businessSearchProvider.notifier).search(
+          _query,
+          category: _selectedCategory,
+          verified: _verifiedOnly ? true : null,
+        );
+  }
+
   void _returnToPortal() {
+    ++_exploreGeneration;
     AzamanHaptics.selection();
     final wire = _selectedCategory;
     if (wire != null) {
