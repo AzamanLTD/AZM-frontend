@@ -50,7 +50,13 @@ void main() {
   testWidgets('retail businesses get the shelf experience', (tester) async {
     var catalogOpened = false;
     await _pump(tester, business: _business('RETAIL', products: [_product('Sneakers', orders: 40), _product('Backpack', orders: 12)]), onCatalog: () => catalogOpened = true);
-    expect(find.text('Bestsellers'), findsOneWidget); expect(find.text('Shop the shelf'), findsOneWidget); expect(find.byType(RetailCollectionBox), findsOneWidget);
+    // The vertical no longer claims an authoritative bestseller ordering;
+    // this shelf is a general store collection unless backend popularity data
+    // is explicitly provided.
+    expect(find.text('Shop this store'), findsOneWidget);
+    expect(find.text('Bestsellers'), findsNothing);
+    expect(find.text('Shop the shelf'), findsOneWidget);
+    expect(find.byType(RetailCollectionBox), findsOneWidget);
     await tester.tap(find.text('Open full catalog')); expect(catalogOpened, isTrue);
   });
 
