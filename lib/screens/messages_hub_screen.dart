@@ -68,6 +68,7 @@ extension ChatFolderX on ChatFolder {
   }
 }
 
+@Deprecated('Superseded by FriendsHubScreen (Overhaul 04); remove after the C1 soak')
 class MessagesHubScreen extends ConsumerStatefulWidget {
   const MessagesHubScreen({super.key});
 

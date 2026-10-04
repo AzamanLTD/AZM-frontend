@@ -44,7 +44,6 @@ import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
-import 'package:azaman/screens/messages_hub_screen.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/referral_screen.dart';
@@ -276,7 +275,9 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const MessagesHubScreen(),
+        // Overhaul 04 §4.6: FriendsHubScreen is the one inbox; MessagesHubScreen
+        // is deprecated and removed after the C1 soak.
+        child: const FriendsHubScreen(),
       ),
     ),
     GoRoute(
