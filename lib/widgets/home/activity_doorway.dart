@@ -28,6 +28,8 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/az_elevation.dart';
+import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -103,13 +105,16 @@ class RecentActivityDoorway extends ConsumerWidget {
             ),
             const SizedBox(width: AzSpace.xs),
             Icon(
-              HugeIconsSolid.arrowDown01,
+              // UX-CORRECTION §6: the doorway rises from BELOW, so the
+              // gesture that reaches the activity state is a pull UP —
+              // wording, arrow and gesture direction all agree now.
+              HugeIconsSolid.arrowUp01,
               size: 16,
               color: colors.textTertiary,
             ),
             const Spacer(),
             Text(
-              'Pull down',
+              'Pull up',
               style: AzText.bodyS.copyWith(color: colors.textTertiary),
             ),
           ],
@@ -239,11 +244,18 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final history = ref.watch(transactionHistoryProvider);
-    final records = history.items;
+    // UX-CORRECTION §7: economic activity only. The source is the real
+    // transaction history (/finance/transactions), and the surface keeps
+    // only explicitly supported financial transaction types — unknown or
+    // unmapped records are excluded here rather than presented as
+    // mysterious activity. "These are things that happened to my money."
+    final records = history.items
+        .where((t) => ActivityKindNormalizer.isSupportedOnHome(t.rawType))
+        .toList(growable: false);
     final reduceMotion = !AzMotion.of(context).travel;
 
     final genuineLoading =
-        history.isLoading && records.isEmpty && history.error == null;
+        history.isLoading && history.items.isEmpty && history.error == null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,53 +421,71 @@ class _ActivityActionRow extends StatelessWidget {
     // direction flag is honoured here exactly as it is by Send Again.
     final isCredit = txn.isInbound;
 
+    // UX-CORRECTION §8: a roomy two-line card, never a squeezed single
+    // row. Top: counterparty/title + date/state + amount. Bottom: the
+    // typed action as a WIDE button — full labels like 'View withdrawal'
+    // fit without truncation, so nothing meaningful hides behind ...
     return Padding(
-      padding: const EdgeInsets.only(bottom: AzSpace.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      padding: const EdgeInsets.only(bottom: AzSpace.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AzSpace.lg),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(AzRadius.md),
+          border: Border.all(color: colors.divider, width: 0.5),
+          boxShadow: AzElevation.level1(colors.isDark),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _titleFor(txn),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            AzText.title.copyWith(color: colors.textPrimary),
+                      ),
+                      const SizedBox(height: AzSpace.xs),
+                      Text(
+                        '${_shortDate(txn.createdAt)}${failed ? ' · Failed' : ''}',
+                        style: AzText.bodyS
+                            .copyWith(color: colors.textTertiary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AzSpace.md),
                 Text(
-                  _titleFor(txn),
+                  '${isCredit ? '+' : '-'}${AzMoney.usdc(txn.amountUsdc.abs())}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AzText.title.copyWith(color: colors.textPrimary),
-                ),
-                Text(
-                  _shortDate(txn.createdAt),
-                  style:
-                      AzText.bodyS.copyWith(color: colors.textTertiary),
+                  style: AzText.title.copyWith(
+                    color: failed
+                        ? colors.textTertiary
+                        : isCredit
+                            ? colors.success
+                            : colors.textPrimary,
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: AzSpace.md),
-          Flexible(
-            // The amount may shrink with an ellipsis on narrow screens —
-            // the typed chip never loses its label.
-            child: Text(
-              '${isCredit ? '+' : '-'}${AzMoney.usdc(txn.amountUsdc.abs())}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AzText.title.copyWith(
-                color: failed
-                    ? colors.textTertiary
-                    : isCredit
-                        ? colors.success
-                        : colors.textPrimary,
-              ),
+            const SizedBox(height: AzSpace.lg),
+            // The typed action button — rendered from structured data
+            // only, wide enough for its full label.
+            _ActivityActionButton(
+              label: action.label,
+              accent: colors.accent,
+              onTap: () => ActivityActionResolver.dispatch(context, txn),
             ),
-          ),
-          const SizedBox(width: AzSpace.md),
-          // The typed action chip — rendered from structured data only.
-          _ActionChip(
-            label: action.label,
-            accent: colors.accent,
-            onTap: () => ActivityActionResolver.dispatch(context, txn),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -485,29 +515,36 @@ class _ActivityActionRow extends StatelessWidget {
   }
 }
 
-class _ActionChip extends StatelessWidget {
+/// UX-CORRECTION §8: the activity action is a WIDE button with room for
+/// its full label ('Send again', 'View withdrawal', ...) — the old tiny
+/// pill chip is what squeezed everything onto one line and forced
+/// ellipsized labels.
+class _ActivityActionButton extends StatelessWidget {
   final String label;
   final Color accent;
   final VoidCallback onTap;
 
-  const _ActionChip({required this.label, required this.accent, required this.onTap});
+  const _ActivityActionButton(
+      {required this.label, required this.accent, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg, vertical: 10),
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AzRadius.md),
           border: Border.all(color: accent.withValues(alpha: 0.35)),
         ),
         child: Text(
           label,
           style: AzText.bodyS.copyWith(
             color: accent,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

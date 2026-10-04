@@ -378,10 +378,41 @@ class PremiumBottomNav extends ConsumerWidget {
               duration: AzMotion.duration(context, MotionTokens.fast),
               height: h,
               decoration: BoxDecoration(
-                color: colors.surface,
+                // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
+                // on a #000000 page is one luma step apart — the nav read
+                // as having vanished into the background. The pill now
+                // sits on the CARD step of the dark elevation ramp
+                // (#161616) and carries an explicit rim + a top highlight
+                // so the floating surface is unmistakable even before
+                // its shadow is seen. Light keeps its existing surface +
+                // shadow treatment (the new #F2F3F5 page already gives
+                // it strong separation).
+                color: colors.isDark ? colors.card : colors.surface,
                 // `pill` (999) self-clamps to half the height, so the shape
                 // is a true pill at 62px and at 52px without tracking two radii.
                 borderRadius: AzRadius.brPill,
+                border: colors.isDark
+                    ? Border.all(color: AzElevation.rimHighlight(true))
+                    : null,
+                // Subtle vertical highlight over the card step in dark:
+                // BoxDecoration paints a gradient INSTEAD of its color, so
+                // the ramp is baked into the gradient itself.
+                gradient: colors.isDark
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.05),
+                              colors.card),
+                          colors.card,
+                          Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.02),
+                              colors.card),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      )
+                    : null,
                 boxShadow: AzElevation.level3(colors.isDark),
               ),
               child: LayoutBuilder(

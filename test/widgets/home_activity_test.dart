@@ -403,8 +403,14 @@ void main() {
       expect(find.byKey(const ValueKey('home-activity-list')), findsOneWidget);
 
       // Scroll the list to its bottom: the load-more tile builds and
-      // pulls the second cursor page.
-      for (var i = 0; i < 3; i++) {
+      // pulls the second cursor page. UX-CORRECTION §8 made the cards
+      // roomier two-line rows, so the list is TALLER than when the
+      // fixed 3-drag loop was written — drag until the second cursor
+      // page is pulled (bounded, so broken pagination can't hang). The
+      // trailing tile DISAPPEARS once the last page loads (hasMore
+      // flips false), so the page load — not the tile's presence — is
+      // the done-signal here.
+      for (var i = 0; i < 8 && history.loadMoreCalls < 2; i++) {
         await tester.drag(find.byKey(const ValueKey('home-activity-list')),
             const Offset(0, -600));
         await tester.pump();

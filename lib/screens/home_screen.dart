@@ -20,6 +20,9 @@
 // still navigates to the canonical activity screen.
 // =============================================================================
 
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -75,6 +78,22 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   /// PIN gate has passed for this session.
   final GlobalKey<_DeckHostState> _deckKey = GlobalKey<_DeckHostState>();
 
+  // UX-CORRECTION §6: the Recent Activity doorway sits LOW in the resting
+  // composition — slightly above the bottom navigation — instead of
+  // mid-content with an arbitrary gap. The gap between the wallet
+  // modules and the doorway is MEASURED after the entrance choreography
+  // settles (transforms corrupt localToGlobal mid-entrance), so the
+  // doorway's bottom edge lands at the bottom of the first viewport on
+  // any phone size while scrolling and small screens keep working (the
+  // gap floors at AzSpace.xxl, never goes negative, and never exceeds a
+  // cap — a spacer that grew unbounded would be the same fake-SizedBox
+  // mistake the contract forbids).
+  final GlobalKey _walletModulesKey = GlobalKey();
+  final GlobalKey _doorwayKey = GlobalKey();
+  double _doorwayGap = AzSpace.xxxl;
+  bool _doorwayGapSettled = false;
+  Timer? _doorwayGapTimer;
+
   @override
   void initState() {
     super.initState();
@@ -83,10 +102,78 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       if (!mounted) return;
       ref.read(homeSummaryProvider.notifier).primeIfNeeded();
     });
+    _scheduleDoorwayGapMeasurement();
+  }
+
+  /// Re-measure when the available geometry changes (rotation, font
+  /// scale) — but only after the entrance has settled once.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_doorwayGapSettled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureDoorwayGap());
+    }
+  }
+
+  void _scheduleDoorwayGapMeasurement() {
+    // MotionTokens.staggerDelay(4) + standard travel stays well under a
+    // second; 1200ms lets the last block's entrance settle on any device.
+    // A cancelable Timer, NOT Future.delayed: the measurement belongs to
+    // this State's lifetime, and a bare delayed future would keep a
+    // timer pending after the widget is disposed (leaking the wait into
+    // whoever runs next — exactly what the test invariants flag).
+    _doorwayGapTimer?.cancel();
+    _doorwayGapTimer = Timer(const Duration(milliseconds: 1200), () {
+      _doorwayGapTimer = null;
+      if (mounted) _measureDoorwayGap();
+    });
+  }
+
+  void _measureDoorwayGap() {
+    final modulesCtx = _walletModulesKey.currentContext;
+    final doorwayCtx = _doorwayKey.currentContext;
+    if (modulesCtx == null || doorwayCtx == null) return;
+    final modulesBox = modulesCtx.findRenderObject();
+    final doorwayBox = doorwayCtx.findRenderObject();
+    if (modulesBox is! RenderBox || doorwayBox is! RenderBox) return;
+    final scrollable = Scrollable.maybeOf(modulesCtx);
+    if (scrollable == null) return;
+    final scrollBox = scrollable.context.findRenderObject();
+    if (scrollBox is! RenderBox || !scrollBox.attached) return;
+
+    // Unscrolled layout position: global y shifts with the scroll offset,
+    // so add it back. The scrollable's own origin gives a stable frame.
+    final scrollOrigin = scrollBox.localToGlobal(Offset.zero).dy;
+    final pixels = scrollable.position.hasContentDimensions
+        ? scrollable.position.pixels
+        : 0.0;
+    final modulesBottom = modulesBox.localToGlobal(Offset.zero).dy +
+        pixels -
+        scrollOrigin +
+        modulesBox.size.height;
+    // The first-viewport budget for the wallet column: the scrollable's
+    // own height minus the nav clearance it pads its content with.
+    final firstViewport =
+        scrollBox.size.height - AzSpace.navClearanceHeight;
+    final doorwayHeight = doorwayBox.size.height;
+    // No UPPER cap: the target is bounded by construction — it lands the
+    // doorway's bottom at the first-viewport bottom line. A gap larger
+    // than 160 only ever means the wallet column itself is short (tall
+    // screen), where "low in the composition" IS the requested placement.
+    // The floor keeps small screens from a negative spacer; if the
+    // modules already overflow the first viewport the doorway simply
+    // follows the content flow (mid-scroll), which scrolling handles.
+    final target = math.max(
+        AzSpace.xxl, firstViewport - modulesBottom - doorwayHeight - AzSpace.sm);
+    _doorwayGapSettled = true;
+    if ((target - _doorwayGap).abs() > 0.5) {
+      setState(() => _doorwayGap = target);
+    }
   }
 
   @override
   void dispose() {
+    _doorwayGapTimer?.cancel();
     _handoff.dispose();
     super.dispose();
   }
@@ -293,15 +380,26 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
 
                           // Block 3 — Save / P2P / Susu modules (§9).
                           _stage(
-                              3, const WalletModulesRow(), reduceMotion),
+                            3,
+                            KeyedSubtree(
+                              key: _walletModulesKey,
+                              child: const WalletModulesRow(),
+                            ),
+                            reduceMotion,
+                          ),
 
-                          const SizedBox(height: AzSpace.xxl),
+                          // UX-CORRECTION §6: measured, bounded spacer that
+                          // lands the doorway at the bottom of the first
+                          // viewport (see _measureDoorwayGap). Never a
+                          // hard-coded giant SizedBox.
+                          SizedBox(height: _doorwayGap),
 
                           // Block 4 — the Recent Activity doorway (§10).
                           // No transaction rows live on the resting Home.
                           _stage(
                             4,
                             GestureDetector(
+                              key: _doorwayKey,
                               behavior: HitTestBehavior.opaque,
                               onVerticalDragStart: _onDoorwayDragStart,
                               onVerticalDragUpdate: _onDoorwayDragUpdate,

@@ -29,6 +29,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/premium_card_surface.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -123,127 +124,121 @@ class AzmVisaCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(authProvider).user;
     final name = (user?.username ?? '').toUpperCase();
 
-    return Container(
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.accent, colors.accentSecondary],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: colors.accent.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    // UX-CORRECTION §3: the Visa card now wears the SAME premium
+    // physical-bank-card grammar as the P2P _CashBalanceCard — carbon/
+    // black body, gold rim, controlled gold glow, ring texture and the
+    // slow sheen — via the narrowly-extracted PremiumCardSurface. The
+    // accent-gradient treatment is gone: two different "physical cards"
+    // in the product must share one visual grammar. Every Visa datum,
+    // the SAMPLE/Futterwave marks, the card-programme abstraction and
+    // the PIN gate are UNTOUCHED — this is a surface change only.
+    return PremiumCardFrame(
+      radius: 22,
       child: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
+                Text(
+                  'AZM',
+                  style: AzText.titleL.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const Spacer(),
+                // SAMPLE network mark — Visa-concept visual only. The
+                // production network claim lives with the real card
+                // programme, not this placeholder surface.
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'VISA',
+                    style: AzText.title.copyWith(
+                      color: const Color(0xFF1A1F71),
+                      fontWeight: FontWeight.w900,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 14,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              ref.watch(azmCardProgrammeProvider).maskedNumber,
+              style: AzText.titleXl.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.5,
+              ),
+            ),
+            const SizedBox(height: AzSpace.md),
+            Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'AZM',
-                      style: AzText.titleL.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
+                      'VALID THRU',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
-                    // SAMPLE network mark — Visa-concept visual only. The
-                    // production network claim lives with the real card
-                    // programme, not this placeholder surface.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
+                    Text(
+                      ref.watch(azmCardProgrammeProvider).expiryLabel,
+                      style: AzText.bodyL.copyWith(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'VISA',
-                        style: AzText.title.copyWith(
-                          color: const Color(0xFF1A1F71),
-                          fontWeight: FontWeight.w900,
-                          fontStyle: FontStyle.italic,
-                          fontSize: 14,
-                          letterSpacing: 1,
-                        ),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const Spacer(),
-                Text(
-                  ref.watch(azmCardProgrammeProvider).maskedNumber,
-                  style: AzText.titleXl.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.5,
-                  ),
-                ),
-                const SizedBox(height: AzSpace.md),
-                Row(
+                const SizedBox(width: AzSpace.xl),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'VALID THRU',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          ref.watch(azmCardProgrammeProvider).expiryLabel,
-                          style: AzText.bodyL.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      ref.watch(azmCardProgrammeProvider).cardholderLabel,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    const SizedBox(width: AzSpace.xl),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ref.watch(azmCardProgrammeProvider).cardholderLabel,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          name,
-                          style: AzText.bodyL.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      name,
+                      style: AzText.bodyL.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
+            ],
+          ),
           ),
           // Unmistakably-safe demo tag: this card has NOT been issued.
+          // (Same datum as before the restyle, now stacked over the
+          // premium carbon surface.)
           Positioned(
             top: AzSpace.md,
             right: AzSpace.md,

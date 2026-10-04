@@ -486,15 +486,27 @@ class ThemeProvider with ChangeNotifier {
   /// Shared baseline every palette starts from. Each case below only has to
   /// declare what actually differs, so renaming or re-tuning a field is a
   /// one-line change instead of a 20-line duplicated literal.
+  // UX-CORRECTION §1 (2026-10-04): Light mode previously shipped
+  // #FAFAFB background + white surface + white card — three surfaces a
+  // hair's width apart, which read as a blank/unfinished page. The
+  // palette now encodes a REAL 4-step hierarchy:
+  //   background  #F2F3F5  — the page plane (coolest, darkest step)
+  //   surface     #FCFCFD  — sheets/glass wells, one step up
+  //   card        #FFFFFF  — raised cards, fully separated by contrast
+  //   controls    accent + AzElevation shadows — the active step
+  // softSurface drops BELOW the background so pressed/inset wells read
+  // as recessed, and dividers deepen one notch so hairlines survive on
+  // the new background. Dark mode's ramp (000 → 0A0A0A → 161616) is
+  // untouched — it already carries the depth Light was missing.
   static const AzamanColors _paletteDefaults = AzamanColors(
     isDark: false,
     name: "Light",
     icon: Icons.wb_sunny_outlined,
-    background: Color(0xFFFAFAFB),
-    surface: Colors.white,
+    background: Color(0xFFF2F3F5),
+    surface: Color(0xFFFCFCFD),
     card: Color(0xFFFFFFFF),
-    softSurface: Color(0xFFF1F1F3),
-    divider: Color(0xFFE6E6E9),
+    softSurface: Color(0xFFE9EAEE),
+    divider: Color(0xFFE0E1E6),
     accent: Color(0xFFB8860B),
     accentSecondary: Color(0xFF8B6914),
     accentSurface: Color(0xFFFDF6E3),
@@ -505,8 +517,8 @@ class ThemeProvider with ChangeNotifier {
     textSecondary: Color(0xFF374151),
     textTertiary: Color(0xFF6B7280),
     glow: Color(0xFFB8860B),
-    scaffoldBackground: Color(0xFFFAFAFB),
-    border: Color(0xFFE6E6E9),
+    scaffoldBackground: Color(0xFFF2F3F5),
+    border: Color(0xFFDFE0E5),
   );
 
   static AzamanColors getColors(AzamanTheme theme) {

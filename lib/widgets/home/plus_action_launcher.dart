@@ -17,6 +17,8 @@
 
 import 'dart:ui';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -48,7 +50,25 @@ class PlusLauncherController extends ChangeNotifier {
   bool _isOpen = false;
   bool get isOpen => _isOpen;
 
-  void open() {
+  /// UX-CORRECTION §5: the geometry anchor that ties the action group to
+  /// the physical + control. The trigger measures its own GLOBAL rect
+  /// when it opens and hands it to the controller; the overlay positions
+  /// the action group from that measured rect — so the actions visually
+  /// ORIGINATE from the plus at any phone size, never a guessed
+  /// x-coordinate, never a centered modal column.
+  ///
+  /// Why measured and NOT a CompositedTransformFollower/LayerLink: the
+  /// framework requires the leader to paint BEFORE the follower, but the
+  /// trigger lives in the nav band, which paints AFTER the body stack
+  /// the overlay lives in — leader-after-follower violates the
+  /// LeaderLayer invariant (asserted every frame in debug). Measuring
+  /// the rect at open time keeps the exact same anchor contract with
+  /// zero layer-order hazards.
+  Rect? _triggerRect;
+  Rect? get triggerRect => _triggerRect;
+
+  void open({Rect? fromTriggerRect}) {
+    _triggerRect = fromTriggerRect ?? _triggerRect;
     if (_isOpen) return;
     _isOpen = true;
     notifyListeners();
@@ -147,7 +167,14 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                 widget.controller.close();
               } else {
                 AzamanHaptics.nav();
-                widget.controller.open();
+                // §5 anchor: measure MY OWN rect in global coordinates —
+                // the overlay positions the group from this.
+                final box = context.findRenderObject();
+                Rect? rect;
+                if (box is RenderBox && box.attached) {
+                  rect = box.localToGlobal(Offset.zero) & box.size;
+                }
+                widget.controller.open(fromTriggerRect: rect);
               }
             },
             child: Container(
@@ -292,6 +319,39 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     widget.controller.close();
   }
 
+  /// §5 anchor geometry, measured from the trigger's own rect (see
+  /// [PlusLauncherController.triggerRect]). Falls back to the
+  /// bottom-right corner of the screen (beside where the + lives) if the
+  /// rect is somehow unavailable.
+  double _anchorRight(BuildContext context) {
+    final local = _localTriggerRect(context);
+    if (local == null) return AzSpace.lg;
+    final box = context.findRenderObject();
+    final width = box is RenderBox && box.attached
+        ? box.size.width
+        : MediaQuery.sizeOf(context).width;
+    return math.max(AzSpace.sm, width - local.right + 6);
+  }
+
+  double _anchorBottom(BuildContext context) {
+    final local = _localTriggerRect(context);
+    if (local == null) return AzSpace.navClearanceHeight + AzSpace.lg;
+    final box = context.findRenderObject();
+    final height = box is RenderBox && box.attached
+        ? box.size.height
+        : MediaQuery.sizeOf(context).height;
+    return math.max(AzSpace.sm, height - local.top + 8);
+  }
+
+  Rect? _localTriggerRect(BuildContext context) {
+    final trigger = widget.controller.triggerRect;
+    if (trigger == null) return null;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached) return null;
+    final origin = box.localToGlobal(Offset.zero);
+    return trigger.translate(-origin.dx, -origin.dy);
+  }
+
   void _pick(PlusLauncherAction action) {
     // EXACTLY one confirm per pick — the double-haptic class this codebase
     // already removed elsewhere.
@@ -303,7 +363,6 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final bottom = MediaQuery.of(context).padding.bottom;
 
     if (!widget.controller.isOpen && _open.isDismissed) {
       // Closed at rest: the overlay layer is not alive at all (the
@@ -336,21 +395,45 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
               ),
             ),
           ),
-          // The actions: appear directly on the screen as a generous
-          // vertical column rising toward the nav band — no boxed modal,
-          // staggered with MotionTokens. The column clears the nav band
-          // (pill + safe-area inset) so every row stays reachable.
-          Positioned.fill(
+          // UX-CORRECTION §5: the actions visually ORIGINATE from the +
+          // control. The group is a CompositedTransformFollower of the
+          // trigger's LayerLink — its bottom-right pins to the trigger's
+          // top-right, so the column rises from the plus itself and stays
+          // right-aligned to the plus-side of the screen. Never centered,
+          // never a full-width modal column. Width is bounded (not
+          // stretched) so the group reads as an anchored action cluster;
+          // the scrim behind still covers the whole screen.
+          // UX-CORRECTION §5: the actions visually ORIGINATE from the +
+          // control. The trigger measured its own rect at open time
+          // (controller.triggerRect); the group is Positioned so its
+          // bottom-right pins to the trigger's top-right — the column
+          // rises from the plus itself and stays right-aligned to the
+          // plus-side of the screen. Never centered, never a full-width
+          // modal column. Width is bounded (not stretched) so the group
+          // reads as an anchored action cluster; the scrim behind still
+          // covers the whole screen.
+          //
+          // (Measured geometry, not a LayerLink follower: the trigger
+          // lives in the nav band which paints AFTER this body-stack
+          // overlay, and the framework requires the leader to paint
+          // BEFORE the follower — the link form asserted every frame in
+          // debug.)
+          Positioned(
+            right: _anchorRight(context),
+            bottom: _anchorBottom(context),
             child: IgnorePointer(
               ignoring: t < 0.5,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AzSpace.huge),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: math.min(
+                    MediaQuery.sizeOf(context).width - 2 * AzSpace.lg,
+                    300.0,
+                  ),
+                ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Spacer(),
                     for (var i = 0; i < widget.actions.length; i++)
                       _LauncherRow(
                         action: widget.actions[i],
@@ -359,7 +442,6 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                         reduceMotion: _reduceMotion,
                         onPick: _pick,
                       ),
-                    SizedBox(height: bottom + 140),
                   ],
                 ),
               ),

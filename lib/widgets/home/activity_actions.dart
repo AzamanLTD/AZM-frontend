@@ -138,6 +138,15 @@ class ActivityKindNormalizer {
     }
     return ActivityRecordKind.other;
   }
+
+  /// UX-CORRECTION §7: does this raw backend type belong on the HOME
+  /// financial-activity surface? The surface shows "things that happened
+  /// to my money/account" — mapped, explicitly supported economic types
+  /// only. An unmapped/unknown type is EXCLUDED from this surface (it is
+  /// not presented as mysterious activity); the full transaction history
+  /// screen remains the place where every record is visible.
+  static bool isSupportedOnHome(String rawType) =>
+      normalize(rawType) != ActivityRecordKind.other;
 }
 
 class ActivityActionResolver {
