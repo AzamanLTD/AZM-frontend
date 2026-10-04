@@ -227,6 +227,14 @@ abstract final class OdometerSlots {
 }
 
 class _OdometerNumberState extends State<OdometerNumber> {
+  /// The slot kinds of the CURRENT build, by slot. Drives the per-slot
+  /// transitionBuilder selection in [_slotCell].
+  Map<int, OdometerSlotKind> _kindsBySlot = const {};
+
+  /// The slot kinds of the PREVIOUS build, by slot. Read by the
+  /// continuity guard in [_slotTransition].
+  Map<int, OdometerSlotKind> _previousKindsBySlot = const {};
+
   /// The value as it was on the previous build. Compared slot-by-slot
   /// (from the right) against `widget.value` to decide which cells roll.
   late String _previous;
@@ -258,6 +266,15 @@ class _OdometerNumberState extends State<OdometerNumber> {
     final duration = reduceMotion ? Duration.zero : widget.duration;
 
     final plans = OdometerSlots.plan(widget.value, _previous);
+
+    // The builder selection (see [_slotTransition]) reads these: the slot
+    // kinds of the PREVIOUS build let the continuity guard recognise a
+    // deletion exit that is still in flight after the slot's plan has
+    // already moved on; the current kinds drive the builder selection in
+    // [_slotCell]. Both are pure functions of the value pair, so an
+    // unrelated rebuild recomputes identical maps and nothing flips.
+    _previousKindsBySlot = _kindsBySlot;
+    _kindsBySlot = {for (final plan in plans) plan.slot: plan.kind};
 
     // Slot 0 is the RIGHTMOST character, so the cell list is reversed to
     // render left → right.
@@ -357,10 +374,17 @@ class _OdometerNumberState extends State<OdometerNumber> {
           if (currentChild != null) currentChild,
         ],
       ),
-      // Review patch (2026-10-04): the transitionBuilder is STABLE — the
-      // same top-level function on every build, never a fresh closure. See
-      // [odometerSlotTransitionBuilder] for the invariant this protects.
-      transitionBuilder: odometerSlotTransitionBuilder,
+      // Review patch (2026-10-04): the builder is STABLE — a State
+      // method tear-off, never a fresh closure. Dart guarantees that two
+      // tear-offs of the same method of the same object are equal, so
+      // AnimatedSwitcher sees an UNCHANGED builder on every rebuild and
+      // never re-wraps live entries. The builder property changes exactly
+      // when a slot's plan kind flips — and the ONE deliberate re-wrap
+      // that fires there is where the deletion exit is applied (and
+      // protected). See [_slotTransition] and [_deletedSlotTransition].
+      transitionBuilder: plan.kind == OdometerSlotKind.deletedDigit
+          ? _deletedSlotTransition
+          : _slotTransition,
       // A deleted slot mounts a zero-size child so the switcher animates the
       // outgoing digit out; every other slot mounts its current character.
       // The incoming child key encodes the SLOT and the character, so two
@@ -375,6 +399,97 @@ class _OdometerNumberState extends State<OdometerNumber> {
         style: widget.style,
       ),
     );
+  }
+
+  // ── TRANSITION IDENTITY (review patches 2026-10-04) ─────────────────────
+  // AnimatedSwitcher bakes each entry's transition ONCE — when the entry
+  // is created, by calling the transitionBuilder — and replays it in
+  // REVERSE to retire the entry. It re-wraps live entries ONLY when the
+  // builder property itself changes between builds (didUpdateWidget).
+  // Two consequences drive this design:
+  //
+  //   1. PER-BUILD CLOSURES ARE THE DEFECT (first review patch): a fresh
+  //      closure every build makes the property change on EVERY rebuild,
+  //      so a rapid second update — or any unrelated parent rebuild —
+  //      could re-wrap a digit mid-roll with the CURRENT plan's
+  //      semantics: a digit that entered from below would exit upward,
+  //      or turn into a fade mid-flight.
+  //
+  //   2. THE DELETION EXIT NEEDS THE ONE RE-WRAP (second review patch):
+  //      an exit replays the digit's own baked entry transition in
+  //      reverse, so a deleted digit would always leave by reversing
+  //      the direction it happened to enter with — mount-created digits
+  //      (fade-wrapped, they never slid) would simply vanish, and
+  //      above-entered digits would roll OUT upward. The design
+  //      requires a deleted digit to roll DOWN out of the slot.
+  //
+  // Both are solved with STABLE STATE TEAR-OFFS as the builder. Dart
+  // guarantees that two tear-offs of the same method of the same object
+  // are equal, so a slot whose plan kind has not changed presents the
+  // IDENTICAL builder on every rebuild: no re-wraps, and each entry's
+  // semantics stay frozen at entry time (see [_OdometerCell.motionFor]).
+  // The builder property changes exactly when a slot's kind flips, and
+  // that one deliberate re-wrap is where the deletion exit is applied —
+  // and where it must be protected:
+  //
+  //   * [_deletedSlotTransition] is mounted while the plan says
+  //     deletedDigit. The flip re-wraps the slot's live entries; the
+  //     SETTLED digit (its animation is completed) is re-wrapped to
+  //     slide DOWN — the deletion exit — while anything still in flight
+  //     keeps its own frozen semantics (an interrupted arrival backs
+  //     out the way it came in, a mid-flight change exit keeps its
+  //     own direction).
+  //   * [_slotTransition] is mounted otherwise. Its continuity guard
+  //     recognises a deletion exit that is still in flight when the
+  //     slot's kind flips back (a rapid retype) and keeps it sliding
+  //     DOWN, instead of letting the re-wrap restore the digit's
+  //     original entry motion mid-flight.
+  //
+  // Invariant: slot identity stays stable; unchanged slots stay still;
+  // changed/new digits roll in their own direction and exit reversing
+  // the direction they entered with; DELETED digits always roll
+  // downward; no rebuild can mutate an in-flight transition's
+  // direction.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// The stable transitionBuilder for every slot whose plan is not
+  /// deletedDigit.
+  ///
+  /// The child of an entry is always an [_OdometerCell] here, but the
+  /// fade fallback keeps the builder total (and safe) for any child.
+  Widget _slotTransition(Widget child, Animation<double> animation) {
+    if (child is! _OdometerCell) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // Continuity guard: this exit was STARTED by a deletion (the slot's
+    // kind was deletedDigit on the previous build), and the kind has
+    // since flipped back — e.g. the user retyped into the slot before
+    // the exit finished. Keep it rolling downward; re-deriving the
+    // digit's original entry motion here would mutate the in-flight
+    // exit's direction.
+    if (animation.status == AnimationStatus.reverse &&
+        _previousKindsBySlot[child.slot] == OdometerSlotKind.deletedDigit) {
+      return _OdometerCell.slide(child, animation, 1.0);
+    }
+    return child.buildTransition(animation);
+  }
+
+  /// The stable transitionBuilder mounted while the slot's plan is
+  /// deletedDigit — the one build where the outgoing digit's exit must
+  /// be pinned to the deletion semantics.
+  Widget _deletedSlotTransition(Widget child, Animation<double> animation) {
+    if (child is! _OdometerCell) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // The settled digit of a deleted slot rolls DOWN out of the slot —
+    // deterministically, regardless of the direction it entered with
+    // (a mount-created digit never slid, an above-entered digit would
+    // otherwise reverse upward). In-flight entries are untouched: they
+    // keep their own frozen semantics.
+    if (animation.status == AnimationStatus.completed) {
+      return _OdometerCell.slide(child, animation, 1.0);
+    }
+    return child.buildTransition(animation);
   }
 
   AlignmentGeometry _alignmentFor(TextAlign align) {
@@ -393,47 +508,6 @@ class _OdometerNumberState extends State<OdometerNumber> {
 }
 
 
-// ── TRANSITION IDENTITY (review patch 2026-10-04) ────────────────────────────
-// AnimatedSwitcher re-invokes `transitionBuilder` for EVERY live entry —
-// including in-flight OUTGOING ones — whenever the builder property itself
-// changes between builds. A per-build closure therefore lets a later build
-// (a rapid second update, or an unrelated parent rebuild) re-wrap a digit
-// that is mid-roll with the CURRENT plan's semantics: a digit that entered
-// sliding from below could suddenly exit sliding upward, or turn into a
-// fade mid-flight.
-//
-// The fix is architectural, in two halves:
-//
-//   1. the builder passed to AnimatedSwitcher is this STABLE top-level
-//      function, so the builder property never changes and the switcher
-//      never re-wraps live entries on a rebuild;
-//   2. the per-entry transition metadata (fade / slide-from-below /
-//      slide-from-above) lives on the ENTRY'S OWN CHILD widget
-//      ([_OdometerCell]). An entry keeps the child it was created with,
-//      so even if a transition were rebuilt, it would rebuild with the
-//      entry's ORIGINAL metadata — the semantics are frozen at entry
-//      time by construction.
-//
-// Invariant: slot identity stays stable; unchanged slots stay still;
-// changed/new digits roll in their own direction; deleted digits reverse
-// the direction they originally entered with; no rebuild can mutate an
-// in-flight transition's direction.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// The stable AnimatedSwitcher transitionBuilder for every odometer slot.
-///
-/// The child of an entry is always an [_OdometerCell] here, but the fade
-/// fallback keeps the builder total (and safe) for any child.
-@visibleForTesting
-Widget odometerSlotTransitionBuilder(
-  Widget child,
-  Animation<double> animation,
-) {
-  if (child is _OdometerCell) {
-    return child.buildTransition(animation);
-  }
-  return FadeTransition(opacity: animation, child: child);
-}
 
 /// How one cell's entry transition moves.
 enum _OdometerCellMotion {
@@ -509,9 +583,9 @@ class _OdometerCell extends StatelessWidget {
       case _OdometerCellMotion.fade:
         return FadeTransition(opacity: animation, child: this);
       case _OdometerCellMotion.slideFromBelow:
-        return _slide(animation, 1.0);
+        return slide(this, animation, 1.0);
       case _OdometerCellMotion.slideFromAbove:
-        return _slide(animation, -1.0);
+        return slide(this, animation, -1.0);
     }
   }
 
@@ -520,14 +594,23 @@ class _OdometerCell extends StatelessWidget {
     return Text(char!, style: style);
   }
 
-  Widget _slide(Animation<double> animation, double sign) {
+  /// Slides [child] in from [sign] (the incoming animation runs 0 → 1,
+  /// so (begin, end) is (from, to): the child arrives from the [sign]
+  /// side). The SAME geometry played in reverse — which is exactly what
+  /// AnimatedSwitcher does to retire an entry — rolls the child OUT
+  /// toward [sign]: sign +1 exits downward.
+  static Widget slide(
+    Widget child,
+    Animation<double> animation,
+    double sign,
+  ) {
     return ClipRect(
       child: SlideTransition(
         position: Tween<Offset>(
           begin: Offset(0, sign),
           end: Offset.zero,
         ).animate(animation),
-        child: this,
+        child: child,
       ),
     );
   }
