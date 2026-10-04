@@ -200,6 +200,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
     final reduceMotion = !AzMotion.of(context).travel;
     final radius = BorderRadius.circular(widget.borderRadius);
     final intensity = widget.intensity.clamp(0.0, 1.0);
+    // EXPERIENCE PASS §2 — the light-mode gate. Light mode is not an inverted
+    // dark card: the iridescence and the specular band are damped so the accent
+    // reads as a restrained sheen on premium paper rather than a full-strength
+    // holographic wash. Dark mode — the primary target — stays at 1.0.
+    final tintGate = isDark ? 1.0 : 0.55;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -213,8 +218,14 @@ class _HolographicSurfaceState extends State<HolographicSurface>
           child: Stack(
             children: [
               // ── LAYER 1: the material ──────────────────────────────────────
-              // A vertical base gradient so the top edge is lit and the bottom
-              // falls away, agreeing with the app's single top-left light source.
+              // EXPERIENCE PASS §2. The base is a three-facet vertical gradient
+              // agreeing with the app's single top-left light source. Dark mode
+              // (the primary target) gets a genuinely deeper fall-away — the
+              // bottom facet now drops 22% toward black so the surface reads
+              // as a slab with thickness, not a flat fill. Light mode is NOT an
+              // inverted dark card: it keeps a lit top facet and a soft but
+              // visible base-facet shade, because on near-white material depth
+              // comes from the shadow side, not from darkening everything.
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -222,20 +233,78 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: <Color>[
-                        Color.lerp(widget.base, Colors.white, isDark ? 0.06 : 0.10)!,
+                        Color.lerp(widget.base, Colors.white,
+                            isDark ? 0.08 : 0.14)!,
                         widget.base,
-                        Color.lerp(widget.base, Colors.black, isDark ? 0.10 : 0.03)!,
+                        Color.lerp(widget.base, Colors.black,
+                            isDark ? 0.22 : 0.06)!,
                       ],
-                      stops: const <double>[0.0, 0.55, 1.0],
+                      stops: const <double>[0.0, 0.52, 1.0],
                     ),
                   ),
                 ),
               ),
 
+              // ── LAYER 1b: the ceiling light (FIXED — never animates) ─────
+              // A radial catch-light anchored at the top-left corner. This is
+              // the room's light hitting the material's edge — it stays put; only
+              // the specular band (layer 3) follows the finger. In dark mode it
+              // gives the rim area something to read against; in light mode it
+              // keeps the top edge from reading washed-out.
+              if (intensity > 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(-0.72, -0.85),
+                          radius: 1.15,
+                          colors: <Color>[
+                            Colors.white.withValues(
+                                alpha: (isDark ? 0.10 : 0.35) * intensity),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                          stops: const <double>[0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ── LAYER 1c: the figure plate (dark only, FIXED) ────────────
+              // EXPERIENCE PASS §2: contrast behind the balance figure. A soft
+              // vignette that darkens the plate where the principal figure
+              // sits, so the light material never competes with the number. In
+              // light mode the figure already reads on near-white; a dark
+              // vignette there would read as a stain, so it is omitted.
+              if (isDark && intensity > 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0.0, 0.35),
+                          radius: 0.95,
+                          colors: <Color>[
+                            Colors.black.withValues(alpha: 0.14 * intensity),
+                            Colors.black.withValues(alpha: 0.0),
+                          ],
+                          stops: const <double>[0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               // ── LAYER 2: the iridescence (FIXED — never animates) ──────────
-              // An anisotropic gradient in the accent's hue family. This is the
-              // material's own colour shift and it must not move: if it did, the
-              // surface would read as a cheap animated gradient.
+              // EXPERIENCE PASS §2: an anisotropic brush in the accent's hue
+              // family — the material's own colour shift. Two refinements:
+              // (a) the white mid-band that made the surface read muddy is
+              //     gone; the shift now stays inside ONE hue family, which is
+              //     what makes it read as iridescence rather than as noise;
+              // (b) light mode damps it to 55% — on near-white material a
+              //     full-strength accent wash reads as a sticker, and the
+              //     spec's light-mode brief is 'restrained accent treatment'.
               if (intensity > 0)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -245,13 +314,18 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: <Color>[
-                            widget.tint.withValues(alpha: 0.00 * intensity),
-                            widget.tint.withValues(alpha: 0.10 * intensity),
-                            Colors.white.withValues(alpha: 0.05 * intensity),
-                            widget.tint.withValues(alpha: 0.14 * intensity),
-                            widget.tint.withValues(alpha: 0.02 * intensity),
+                            widget.tint.withValues(
+                                alpha: 0.00 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.09 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.04 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.13 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.02 * intensity * tintGate),
                           ],
-                          stops: const <double>[0.0, 0.28, 0.50, 0.72, 1.0],
+                          stops: const <double>[0.0, 0.26, 0.50, 0.72, 1.0],
                         ),
                       ),
                     ),
@@ -259,7 +333,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                 ),
 
               // ── LAYER 3: the specular band (THE ONLY MOVING PART) ──────────
-              // Drawn before the content so it can never wash out text.
+              // EXPERIENCE PASS §2: the band is narrower (0.34→0.66) so it
+              // reads as a single bar of light sweeping the material rather
+              // than as a broad brightening, and its peak respects the light-
+              // mode gate. Still drawn before the content so it can never wash
+              // out text, and still the ONLY moving part.
               if (intensity > 0 && widget.sheenPeak > 0)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -271,11 +349,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           colors: <Color>[
                             Colors.white.withValues(alpha: 0.0),
                             Colors.white.withValues(
-                              alpha: widget.sheenPeak * intensity,
+                              alpha: widget.sheenPeak * intensity * tintGate,
                             ),
                             Colors.white.withValues(alpha: 0.0),
                           ],
-                          stops: const <double>[0.30, 0.50, 0.70],
+                          stops: const <double>[0.34, 0.50, 0.66],
                           transform: _SheenTransform(dx, dy),
                         ),
                       ),
@@ -287,37 +365,61 @@ class _HolographicSurfaceState extends State<HolographicSurface>
               // Directional rim: top/left catches the light, bottom/right falls
               // away. Plus a 1px inset hairline along the bottom so the surface
               // reads as THICK rather than as a flat fill.
+              // ── LAYER 4: rim + thickness ──────────────────────────────────
+              // EXPERIENCE PASS §2. The rim is the card's edge separation and it
+              // is now mode-aware:
+              //   DARK  — a slightly stronger 1.0px lit top/left edge (the light
+              //           catching the rim of a dark object) against a deeper
+              //           base facet, so the silhouette survives even on
+              //           near-black screens.
+              //   LIGHT — a crisp 1.0px neutral stroke all round. The old
+              //           white-on-white rim is why the light card melted into
+              //           the page: a white rim highlight is invisible on a
+              //           near-white card. Definition now comes from the
+              //           stroke; the white highlight survives as a thin inner
+              //           catch-light inset on the top edge only.
+              // No borderRadius here: BoxDecoration forbids a radius with a
+              // non-uniform-color Border. The outer ClipRRect already clips
+              // these hairlines to the rounded corners.
               Positioned.fill(
                 child: IgnorePointer(
                   child: DecoratedBox(
-                    // No borderRadius here: BoxDecoration forbids a radius with
-                    // a non-uniform-color Border, and this rim is deliberately
-                    // two-tone (top/left lit, bottom/right shaded). The outer
-                    // ClipRRect already clips these hairlines to the rounded
-                    // corners, so the painted result is identical.
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
-                          color: AzElevation.rimHighlight(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x33FFFFFF)
+                              : const Color(0x14000000),
+                          width: 1.0,
                         ),
                         left: BorderSide(
-                          color: AzElevation.rimHighlight(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x2EFFFFFF)
+                              : const Color(0x10000000),
+                          width: 1.0,
                         ),
                         bottom: BorderSide(
-                          color: AzElevation.rimShade(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x0AFFFFFF)
+                              : const Color(0x16000000),
+                          width: 1.0,
                         ),
                         right: BorderSide(
-                          color: AzElevation.rimShade(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x0AFFFFFF)
+                              : const Color(0x12000000),
+                          width: 1.0,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
+              // The inset hairline along the bottom edge that makes the surface
+              // read as THICK rather than as a flat fill. In dark mode it is
+              // joined by a top inner catch-light — the last sliver of the
+              // ceiling light — which is what keeps the dark card's top edge
+              // reading as material rather than as a cut-out.
               Positioned(
                 left: 0,
                 right: 0,
@@ -325,10 +427,24 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                 child: IgnorePointer(
                   child: Container(
                     height: 1,
-                    color: AzElevation.innerBottomShade(isDark),
+                    color: isDark
+                        ? const Color(0x24000000)
+                        : const Color(0x0D000000),
                   ),
                 ),
               ),
+              if (isDark)
+                Positioned(
+                  left: 1,
+                  right: 1,
+                  top: 1,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
+                  ),
+                ),
 
               // ── LAYER 5: content ──────────────────────────────────────────
               if (widget.padding != null)
@@ -352,13 +468,28 @@ class _HolographicSurfaceState extends State<HolographicSurface>
               )
             : surface;
 
+        // EXPERIENCE PASS §2 — light mode needs the card to survive against a
+        // near-white page. The standard level-3 recipe is kept, and light mode
+        // gains one tight contact shadow directly under the card — the shadow a
+        // real object resting on paper casts — which is what stops the hero
+        // from reading as "blank white boxes floating on white". Dark mode
+        // already separates by luminance and keeps the unmodified recipe.
+        final shadows = <BoxShadow>[
+          if (widget.enableShadow) ...AzElevation.level3(isDark, color: widget.shadowColor),
+          if (widget.enableShadow && !isDark)
+            BoxShadow(
+              color: (widget.shadowColor ?? const Color(0xFF000000))
+                  .withValues(alpha: 0.06),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+        ];
+
         return Container(
           margin: widget.margin,
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: widget.enableShadow
-                ? AzElevation.level3(isDark, color: widget.shadowColor)
-                : null,
+            boxShadow: shadows.isEmpty ? null : shadows,
           ),
           child: interactiveSurface,
         );
