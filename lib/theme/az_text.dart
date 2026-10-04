@@ -70,6 +70,33 @@ abstract final class AzText {
     FontFeature.tabularFigures(),
   ];
 
+  // ── FONT FAMILIES (UI-correction Phase A, 2026-10-03) ─────────────────────
+  // The display/UI family is Comic Neue (the requested Comic-Sans-like feel
+  // WITHOUT Comic Sans MS), bundled locally in pubspec.yaml — never fetched
+  // at runtime, so a money app renders deterministically offline. The
+  // numeric family stays Inter: money figures need tabular-figure stability
+  // (every digit the same width) so a counting balance never jitters.
+  static const String uiFamily = 'ComicNeue';
+  static const String numericFamily = 'Inter';
+
+  /// Comic Neue ships Regular (400) + Bold (700) only. Rather than leaving
+  /// unavailable weights to the engine's closest-weight fallback, the theme
+  /// maps them DELIBERATELY: 800/900 → 700, 600/500 → 400. W400 and W700
+  /// ship as-is. Used by [uiTheme]; the Inter-based ladder ([theme]) is
+  /// untouched so money surfaces keep their exact weights.
+  static FontWeight mapUiWeight(FontWeight w) {
+    switch (w) {
+      case FontWeight.w800:
+      case FontWeight.w900:
+        return FontWeight.w700;
+      case FontWeight.w500:
+      case FontWeight.w600:
+        return FontWeight.w400;
+      default:
+        return w; // w400, w700 (and lighter) exist in the family as-is
+    }
+  }
+
   // â”€â”€ THE LADDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Colors are intentionally null so these merge cleanly with whatever
   // DefaultTextStyle / colorScheme is in effect. Use `.copyWith(color: ...)`
@@ -196,6 +223,9 @@ abstract final class AzText {
       letterSpacing: tracking,
       height: height,
       color: color,
+      // ALWAYS Inter — a font change here would introduce balance/amount
+      // jitter the moment the UI family changes (UI-correction Phase A).
+      fontFamily: numericFamily,
       fontFeatures: tabular,
     );
   }
@@ -207,6 +237,7 @@ abstract final class AzText {
         letterSpacing: 0.1,
         height: 1.2,
         color: color,
+        fontFamily: numericFamily,
         fontFeatures: tabular,
       );
 
@@ -240,4 +271,35 @@ abstract final class AzText {
         labelMedium: label,
         labelSmall: caption,
       );
+
+  /// The Comic-Neue UI text theme: the same 15-slot ladder as [theme], but
+  /// every style carries [uiFamily] explicitly and runs through
+  /// [mapUiWeight], so the theme never depends on ThemeData plumbing or
+  /// engine weight fallback. Wire this (not [theme]) into ThemeData when the
+  /// UI family is Comic Neue. Money surfaces never pass through here —
+  /// [money] and [delta] carry [numericFamily] themselves.
+  static TextTheme uiTheme() {
+    TextStyle ui(TextStyle s) => s.copyWith(
+          fontFamily: uiFamily,
+          fontWeight: mapUiWeight(s.fontWeight ?? FontWeight.w400),
+        );
+    final t = theme();
+    return TextTheme(
+      displayLarge: ui(t.displayLarge!),
+      displayMedium: ui(t.displayMedium!),
+      displaySmall: ui(t.displaySmall!),
+      headlineLarge: ui(t.headlineLarge!),
+      headlineMedium: ui(t.headlineMedium!),
+      headlineSmall: ui(t.headlineSmall!),
+      titleLarge: ui(t.titleLarge!),
+      titleMedium: ui(t.titleMedium!),
+      titleSmall: ui(t.titleSmall!),
+      bodyLarge: ui(t.bodyLarge!),
+      bodyMedium: ui(t.bodyMedium!),
+      bodySmall: ui(t.bodySmall!),
+      labelLarge: ui(t.labelLarge!),
+      labelMedium: ui(t.labelMedium!),
+      labelSmall: ui(t.labelSmall!),
+    );
+  }
 }
