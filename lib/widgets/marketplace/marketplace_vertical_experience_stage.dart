@@ -79,12 +79,16 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
 
   /// Canonical menu (§3.1): one document feeds the flip-book and any list
   /// rendering; the store query filters it before it reaches either.
-  MenuDocument get menuDocument => MenuDocument.build(
+  MenuDocument menuDocumentAt(DateTime renderNow) => MenuDocument.build(
         sections: menuSections,
         uncategorised: uncategorisedProducts,
         dishesById: restaurantDishesById,
-        now: now ?? DateTime.now(),
+        now: renderNow,
       ).filtered(storeQuery);
+
+  /// Compatibility getter for existing callers/tests. The rendered stage
+  /// samples the clock once per build and uses [menuDocumentAt] thereafter.
+  MenuDocument get menuDocument => menuDocumentAt(now ?? DateTime.now());
 
   /// Products that match the store query (identity-preserving when empty).
   List<BusinessProduct> get visibleProducts => storeQuery.trim().isEmpty
@@ -97,12 +101,15 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blueprint = _blueprint;
+    // One clock sample for this render. Availability decisions must not move
+    // between menu/header reads during the same build.
+    final renderNow = now ?? DateTime.now();
     final profile = MarketplaceExperienceCatalog.fromCategory(business.category);
     late final Widget stage;
     switch (blueprint.preset) {
       case 'DINING_JOURNEY':
         stage = _hasMenu && (onAddToTray != null || onOrderProduct != null)
-            ? _restaurantStage(blueprint)
+            ? _restaurantStage(blueprint, renderNow)
             : _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: blueprint);
         break;
       case 'SHOP_FLOOR':
@@ -125,7 +132,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         );
         break;
       default:
-        stage = _legacyStage(context, profile);
+        stage = _legacyStage(context, profile, renderNow);
         break;
     }
     return MarketplaceExperienceScope(
@@ -143,9 +150,15 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     );
   }
 
-  Widget _legacyStage(BuildContext context, MarketplaceExperienceProfile profile) {
+  Widget _legacyStage(
+    BuildContext context,
+    MarketplaceExperienceProfile profile,
+    DateTime renderNow,
+  ) {
     if (profile.supports(MarketplaceExperienceCapability.menuFlipbook)) {
-      if (_hasMenu && (onAddToTray != null || onOrderProduct != null)) return _restaurantStage(_blueprint);
+      if (_hasMenu && (onAddToTray != null || onOrderProduct != null)) {
+        return _restaurantStage(_blueprint, renderNow);
+      }
       if (profile.supports(MarketplaceExperienceCapability.reservation)) return _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: _blueprint);
     }
     if (profile.supports(MarketplaceExperienceCapability.retailCollection)) return _retailStage(context, _blueprint);
@@ -208,12 +221,15 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     }
   }
 
-  Widget _restaurantStage(MarketplaceExperienceBlueprint blueprint) {
+  Widget _restaurantStage(
+    MarketplaceExperienceBlueprint blueprint,
+    DateTime renderNow,
+  ) {
     return RestaurantCommitSurface(
       style: blueprint.commitStyle,
       motionTempo: blueprint.motionTempo,
       childBuilder: (onCommit) => RestaurantMenuJourneyAdapter(
-        document: menuDocument,
+        document: menuDocumentAt(renderNow),
         businessName: business.businessName,
         sections: menuSections,
         uncategorisedProducts: uncategorisedProducts,
@@ -261,10 +277,24 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
 
   Widget _retailStage(BuildContext context, MarketplaceExperienceBlueprint blueprint) {
     if (business.products.isEmpty) return _bookCtaCard(icon: Icons.shopping_bag_outlined, title: 'Shop the Catalog', subtitle: 'Browse this business\'s full catalog and check out with escrow-backed payment protection.', buttonLabel: 'Shop Now', onTap: onOpenCatalogView, blueprint: blueprint);
-    final products = visibleProducts.take(6).map((product) => RetailProduct(id: product.id, name: product.name, description: product.description, price: product.priceUsdc, currency: 'USDC', imageUrls: product.imageUrls, tags: product.tags, available: product.isActive)).toList(growable: false);
+    final products = visibleProducts.take(6).map((product) {
+      final price = product.priceUsdc.isFinite && product.priceUsdc > 0
+          ? product.priceUsdc
+          : null;
+      return RetailProduct(
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: price,
+        currency: 'USDC',
+        imageUrls: product.imageUrls,
+        tags: product.tags,
+        available: product.isActive,
+      );
+    }).toList(growable: false);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stageHeader(blueprint, title: 'Bestsellers'),
-      RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Popular items from this store', products: products), onProductTap: (product) => _openRetailDetail(context, blueprint, product)),
+      _stageHeader(blueprint, title: 'Shop this store'),
+      RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Items from this store', products: products), onProductTap: (product) => _openRetailDetail(context, blueprint, product)),
       Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: onOpenCatalogView, icon: Icon(blueprint.commitStyle == MarketplaceCommitStyle.liftIntoTray ? Icons.shopping_bag_outlined : Icons.arrow_forward_outlined), label: Text(blueprint.persistentTray ? 'Open full catalog' : 'Continue to catalog')))),
     ]);
   }
@@ -355,7 +385,7 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         borderRadius: AzRadius.brPill,
       ),
       child: Text(
-        available ? 'In stock' : 'Unavailable',
+        available ? 'Available' : 'Unavailable',
         style: AzText.label.copyWith(color: available ? colors.accent : colors.textTertiary),
       ),
     );
