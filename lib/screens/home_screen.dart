@@ -580,54 +580,30 @@ class _GreetingHeader extends ConsumerWidget {
       },
       child: Hero(
         tag: 'profile-avatar',
+        // EXPERIENCE PASS §10 — initials only on Home, for now. A clean
+        // circular surface: no photo, no thick gradient ring, no
+        // double-border — at most a subtle 1px separation so the disc
+        // reads against any background. Profile-picture support stays
+        // everywhere else; this is a Home presentation decision.
         child: Container(
-          width: 46,
-          height: 46,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [colors.accent, colors.accentSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            color: colors.card,
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.6),
+              width: 1,
             ),
           ),
-          child: Container(
-            margin: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.surface,
-            ),
-            child: ClipOval(
-              child: (user?.profilePictureUrl != null &&
-                      user!.profilePictureUrl!.isNotEmpty)
-                  ? AzamanNetworkImage(
-                      imageUrl: user.profilePictureUrl!,
-                      width: 42,
-                      height: 42,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Center(
-                        child: Text(
-                          initials,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        initials,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
+          alignment: Alignment.center,
+          child: Text(
+            initials,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
             ),
           ),
         ),
