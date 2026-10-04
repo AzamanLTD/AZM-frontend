@@ -74,6 +74,18 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   double _handoffDragPx = 0;
   bool _handoffHapticArmed = false;
 
+  // EXPERIENCE PASS §6/§7 — the scroll-driven handoff and the deck peek.
+  // The Home page's own bottom overscroll feeds the SAME handoff physics
+  // the doorway drag used (the drag surface is gone — the doorway stays
+  // tappable as the explicit fallback). When the handoff commits, the
+  // reminder deck parks in a small peek band above the activity surface so
+  // the user can always tell there is still a layer above Activity.
+  static const double _peekBandHeight = 96;
+  double _peekPx = 0;
+  bool _peekSet = false;
+  bool _scrollHandoffActive = false;
+  final GlobalKey _reminderDeckKey = GlobalKey();
+
   /// Card deck state (§4-6): whether the pull committed and whether the
   /// PIN gate has passed for this session.
   final GlobalKey<_DeckHostState> _deckKey = GlobalKey<_DeckHostState>();
@@ -97,7 +109,12 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   @override
   void initState() {
     super.initState();
-    _handoff.addListener(() => setState(() {}));
+    _handoff.addListener(() {
+      if (mounted) setState(() {});
+      // The handoff fully collapsed: the parked peek is meaningless at
+      // rest. Re-measure on the next session (the deck may have changed).
+      if (_handoff.value <= 0.001) _peekSet = false;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(homeSummaryProvider.notifier).primeIfNeeded();
@@ -237,38 +254,95 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     }
   }
 
-  // ── ACTIVITY HANDOFF GESTURE (§11) ────────────────────────────────────
+  // ── ACTIVITY HANDOFF (§11, EXPERIENCE PASS §6) ─────────────────────────
+  //
+  // The doorway no longer owns a drag gesture. The Home page's OWN
+  // vertical scroll drives the forward handoff: normal scrolling, the
+  // deck/doorway come into view, and continued downward page scroll at
+  // the bottom feeds the SAME resisted handoff physics. The user's finger
+  // never needs to be over the doorway text. The doorway remains tappable
+  // as the explicit navigation/accessibility fallback.
 
-  void _onDoorwayDragStart(DragStartDetails _) {
+  /// The reminder deck's bottom edge projected to where it will sit after
+  /// the Home scroll reaches its bottom — the peek's parking target.
+  /// Returns null when the deck renders no signal (nothing to peek).
+  double? _projectedDeckBottom() {
+    final ctx = _reminderDeckKey.currentContext;
+    if (ctx == null) return null;
+    final box = ctx.findRenderObject();
+    if (box is! RenderBox || !box.attached || box.size.height <= 0) {
+      return null;
+    }
+    final scrollable = Scrollable.maybeOf(ctx);
+    var bottom = box.localToGlobal(Offset.zero).dy + box.size.height;
+    if (scrollable != null && scrollable.position.hasContentDimensions) {
+      final pos = scrollable.position;
+      bottom += pos.maxScrollExtent - pos.pixels;
+    }
+    return bottom;
+  }
+
+  /// Measure the deck peek for this handoff session. Called while the
+  /// composition is still at rest (t == 0) so transforms cannot corrupt
+  /// the measurement — the same discipline as _measureDoorwayGap.
+  void _preparePeek() {
+    if (_peekSet) return;
+    final projected = _projectedDeckBottom();
+    _peekPx = projected == null ? 0.0 : math.max(0.0, projected - _peekBandHeight);
+    _peekSet = true;
+  }
+
+  bool _onHomeScrollNotification(ScrollNotification n) {
+    // Committed: the activity surface owns all gestures now.
+    if (_handoff.value >= 1.0) return false;
+    final m = n.metrics;
+    final atBottom = m.pixels >= m.maxScrollExtent - 0.5;
+    // EXPERIENCE PASS §6: only an ACTIVE drag feeds the handoff. A fling
+    // whose momentum overshoots the end (ballistic overscroll, no
+    // dragDetails) springs back — the commit must be a deliberate, held
+    // continuation of the page scroll, never an accident of momentum.
+    if (n is OverscrollNotification &&
+        atBottom &&
+        n.overscroll > 0 &&
+        n.dragDetails != null) {
+      // Continued downward page scroll at the end of the Home content:
+      // the one scroll case the list cannot use, and exactly the handoff.
+      if (_handoffDragPx == 0) _preparePeek();
+      _scrollHandoffActive = true;
+      _handoffDragPx += n.overscroll;
+      final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
+      _handoff.value = ActivityHandoffPhysics.revealFor(progress);
+    } else if (_scrollHandoffActive && !atBottom &&
+        n is ScrollUpdateNotification) {
+      // The user reversed before the settle: the Home scroll wins, the
+      // handoff releases cleanly. No fight between scroll and handoff.
+      _releaseScrollHandoff();
+    } else if (n is ScrollEndNotification) {
+      _settleScrollHandoff();
+    }
+    return false;
+  }
+
+  void _releaseScrollHandoff() {
+    if (!_scrollHandoffActive) return;
+    _scrollHandoffActive = false;
     _handoffDragPx = 0;
-    _handoffHapticArmed = true;
+    if (_reduceMotion) {
+      _handoff.value = 0;
+    } else {
+      _handoff.animateWith(_handoffSpringTo(0));
+    }
   }
 
-  void _onDoorwayDragUpdate(DragUpdateDetails d) {
-    // AUDIT §1 (gesture direction): the physical gesture must match the
-    // surface being revealed. The activity surface rises from BELOW, so
-    // the finger drags UP and the content follows the finger — wallet
-    // up, activity up. (The reverse handoff keeps the same grammar:
-    // dragging DOWN from the activity top walks the stack back up to
-    // the wallet.) An upward delta is negative dy, hence the negation.
-    _handoffDragPx -= d.delta.dy;
+  void _settleScrollHandoff() {
+    if (!_scrollHandoffActive) return;
+    _scrollHandoffActive = false;
     final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
-    _handoff.value = ActivityHandoffPhysics.revealFor(progress);
-  }
-
-  void _onDoorwayDragEnd(DragEndDetails _) {
-    final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
+    _handoffDragPx = 0;
     if (ActivityHandoffPhysics.commits(progress)) {
-      // Threshold crossed: the activity surface snaps into focus.
-      if (_handoffHapticArmed) {
-        AzamanHaptics.threshold();
-        _handoffHapticArmed = false;
-      }
-      if (_reduceMotion) {
-        _handoff.value = 1;
-      } else {
-        _handoff.animateWith(_handoffSpringTo(1));
-      }
+      // Threshold crossed: the activity surface snaps into focus and the
+      // deck parks in its peek band.
+      _commitActivityHandoff();
     } else {
       if (_reduceMotion) {
         _handoff.value = 0;
@@ -276,14 +350,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
         _handoff.animateWith(_handoffSpringTo(0));
       }
     }
-    _handoffDragPx = 0;
   }
 
-  /// Correction A — ONE Recent Activity experience: tapping the doorway
-  /// enters the SAME second resting state as the upward drag. Same
-  /// threshold haptic, same spring snap, same surface — never a route push.
-  void _enterActivity() {
-    if (_handoff.value >= 1) return;
+  void _commitActivityHandoff() {
     if (_handoffHapticArmed) {
       AzamanHaptics.threshold();
       _handoffHapticArmed = false;
@@ -293,6 +362,26 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     } else {
       _handoff.animateWith(_handoffSpringTo(1));
     }
+  }
+
+  /// Correction A — ONE Recent Activity experience: tapping the doorway
+  /// enters the SAME second resting state as the scroll handoff. Same
+  /// threshold haptic, same spring snap, same surface — never a route push.
+  /// The composition is brought to its bottom first so the deck parks in
+  /// the peek band from the same resting geometry the scroll path uses.
+  void _enterActivity() {
+    if (_handoff.value >= 1) return;
+    _preparePeek();
+    final ctx = _doorwayKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 1.0,
+        duration:
+            _reduceMotion ? Duration.zero : MotionTokens.emphasized,
+      );
+    }
+    _commitActivityHandoff();
   }
 
   // REVERSE HANDOFF (audit §1): pulling down from the top of the activity
@@ -340,6 +429,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final reduceMotion = _reduceMotion;
     final t = _handoff.value;
     final walletGone = t > 0.999;
+    // §7: the deck peek band — only meaningful mid-handoff or committed.
+    final peekBand = (_peekSet && _peekPx > 0) ? _peekBandHeight : 0.0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -348,115 +439,144 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
         child: Stack(
           children: [
             // ── RESTING STATE 1: the wallet composition ──────────────────
+            // EXPERIENCE PASS §6/§7: the wallet no longer fades out. It
+            // slides UP under a measured clip that opens from full height
+            // down to the peek band, so the reminder deck can park above
+            // the activity surface as visible context ("there is still a
+            // layer above Activity"). At rest (t == 0) the clip is the
+            // full height — zero cost, no visual change.
             IgnorePointer(
               ignoring: walletGone,
-              child: Transform.translate(
-                offset: Offset(0, -180 * t),
-                child: Opacity(
-                  opacity: 1 - t,
-                  child: AzPullToRefresh(
-                    color: colors.accent,
-                    backgroundColor: colors.card,
-                    onRefresh: _onRefresh,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: ClampingScrollPhysics(),
-                      ),
-                      padding: AzSpace.navClearance,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: AzSpace.sm),
-
-                          // Block 0 — header, arrives from the left.
-                          _stage(0, const _GreetingHeader(), reduceMotion),
-
-                          const SizedBox(height: AzSpace.lg),
-
-                          // Block 1 — the typewriter greeting (§2).
-                          _stage(
-                              1, const AzTypewriterHeading(), reduceMotion),
-
-                          const SizedBox(height: AzSpace.xl),
-
-                          // Block 2 — the balance hero + pull-reveal Visa
-                          // deck (§3-6). The balance card visual is
-                          // unchanged; what changed is everything AROUND it.
-                          _stage(
-                            2,
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AzSpace.lg),
-                              child: _DeckHost(key: _deckKey),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final fullH = constraints.maxHeight;
+                  final clipH = fullH - (fullH - peekBand) * t;
+                  return ClipRect(
+                    clipper: _TopBandClipper(height: clipH),
+                    child: Transform.translate(
+                      offset: Offset(0, -_peekPx * t),
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: _onHomeScrollNotification,
+                        child: AzPullToRefresh(
+                          color: colors.accent,
+                          backgroundColor: colors.card,
+                          onRefresh: _onRefresh,
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: ClampingScrollPhysics(),
                             ),
-                            reduceMotion,
-                          ),
+                            padding: AzSpace.navClearance,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: AzSpace.sm),
 
-                          const SizedBox(height: AzSpace.xxl),
+                                // Block 0 — header, arrives from the left.
+                                _stage(
+                                    0, const _GreetingHeader(), reduceMotion),
 
-                          // Block 3 — Save / P2P / Susu modules (§9).
-                          _stage(
-                            3,
-                            KeyedSubtree(
-                              key: _walletModulesKey,
-                              child: const WalletModulesRow(),
+                                const SizedBox(height: AzSpace.lg),
+
+                                // Block 1 — the typewriter greeting (§2).
+                                _stage(1, const AzTypewriterHeading(),
+                                    reduceMotion),
+
+                                const SizedBox(height: AzSpace.xl),
+
+                                // Block 2 — the balance hero + pull-reveal
+                                // Visa deck (§3-6). The balance card visual
+                                // is unchanged; what changed is everything
+                                // AROUND it.
+                                _stage(
+                                  2,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: AzSpace.lg),
+                                    child: _DeckHost(key: _deckKey),
+                                  ),
+                                  reduceMotion,
+                                ),
+
+                                const SizedBox(height: AzSpace.xxl),
+
+                                // Block 3 — Save / P2P / Susu modules (§9).
+                                _stage(
+                                  3,
+                                  KeyedSubtree(
+                                    key: _walletModulesKey,
+                                    child: const WalletModulesRow(),
+                                  ),
+                                  reduceMotion,
+                                ),
+
+                                // UX-CORRECTION §6: measured, bounded spacer
+                                // that lands the doorway at the bottom of
+                                // the first viewport (see
+                                // _measureDoorwayGap). Never a hard-coded
+                                // giant SizedBox.
+                                SizedBox(height: _doorwayGap),
+
+                                // EXPERIENCE PASS §4/§5 — the reminder deck:
+                                // real susu + marketplace signals, shuffled
+                                // by swipe. Renders nothing when no signal
+                                // exists. The key lets the scroll handoff
+                                // measure the deck's peek geometry.
+                                _stage(
+                                  4,
+                                  KeyedSubtree(
+                                    key: _reminderDeckKey,
+                                    child: const HomeReminderDeck(),
+                                  ),
+                                  reduceMotion,
+                                ),
+
+                                const SizedBox(height: AzSpace.md),
+
+                                // Block 4 — the Recent Activity doorway
+                                // (§10). No transaction rows live on the
+                                // resting Home, and (§6) the doorway is no
+                                // longer the drag surface — the Home page's
+                                // own bottom overscroll drives the handoff.
+                                // The doorway stays tappable as the
+                                // explicit fallback.
+                                _stage(
+                                  5,
+                                  KeyedSubtree(
+                                    key: _doorwayKey,
+                                    child: RecentActivityDoorway(
+                                      onOpen: _enterActivity,
+                                    ),
+                                  ),
+                                  reduceMotion,
+                                ),
+                              ],
                             ),
-                            reduceMotion,
                           ),
-
-                          // UX-CORRECTION §6: measured, bounded spacer that
-                          // lands the doorway at the bottom of the first
-                          // viewport (see _measureDoorwayGap). Never a
-                          // hard-coded giant SizedBox.
-                          SizedBox(height: _doorwayGap),
-
-                          // EXPERIENCE PASS §4/§5 — the reminder deck:
-                          // real susu + marketplace signals, shuffled by
-                          // swipe. Renders nothing when no signal exists.
-                          _stage(
-                            4,
-                            const HomeReminderDeck(),
-                            reduceMotion,
-                          ),
-
-                          const SizedBox(height: AzSpace.md),
-
-                          // Block 4 — the Recent Activity doorway (§10).
-                          // No transaction rows live on the resting Home.
-                          _stage(
-                            5,
-                            GestureDetector(
-                              key: _doorwayKey,
-                              behavior: HitTestBehavior.opaque,
-                              onVerticalDragStart: _onDoorwayDragStart,
-                              onVerticalDragUpdate: _onDoorwayDragUpdate,
-                              onVerticalDragEnd: _onDoorwayDragEnd,
-                              child: RecentActivityDoorway(
-                                onOpen: _enterActivity,
-                              ),
-                            ),
-                            reduceMotion,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
 
             // ── RESTING STATE 2: the activity surface (§11-13) ────────────
+            // §7: the surface rises from below AND parks below the peek
+            // band, leaving the deck visible above it.
             IgnorePointer(
               ignoring: !walletGone,
               child: Transform.translate(
-                offset: Offset(0, 240 * (1 - t)),
+                offset: Offset(0, (240 + peekBand) * (1 - t)),
                 child: Opacity(
                   opacity: t,
-                  child: HomeActivitySurface(
-                    onClose: _collapseActivity,
-                    active: walletGone,
-                    onTopPullUpdate: _onActivityPullUpdate,
-                    onTopPullEnd: _onActivityPullEnd,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: peekBand),
+                    child: HomeActivitySurface(
+                      onClose: _collapseActivity,
+                      active: walletGone,
+                      onTopPullUpdate: _onActivityPullUpdate,
+                      onTopPullEnd: _onActivityPullEnd,
+                    ),
                   ),
                 ),
               ),
@@ -727,4 +847,19 @@ class _GreetingHeader extends ConsumerWidget {
     return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
         .toUpperCase();
   }
+}
+
+/// EXPERIENCE PASS §6/§7 — clips the wallet composition to its top [height]
+/// so the handoff slides it under the screen edge instead of fading it out.
+/// At rest the height is the full constraint height (no visual effect).
+class _TopBandClipper extends CustomClipper<Rect> {
+  const _TopBandClipper({required this.height});
+
+  final double height;
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTWH(0, 0, size.width, height);
+
+  @override
+  bool shouldReclip(_TopBandClipper oldClipper) => oldClipper.height != height;
 }

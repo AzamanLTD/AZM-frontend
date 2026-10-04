@@ -165,8 +165,20 @@ class HomeActivitySurface extends ConsumerStatefulWidget {
       _HomeActivitySurfaceState();
 }
 
-class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
+class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
+    with SingleTickerProviderStateMixin {
   bool _entered = false;
+
+  // ── ENTRANCE CHOREOGRAPHY (EXPERIENCE PASS §8) ──────────────────────────
+  // ONE controller drives the whole list: the first rows settle in first
+  // and the rest follow with a tiny stagger. No per-row animations, no
+  // timers, no endless loops — the controller runs ONCE on entry and
+  // completes. Rows built later (cursor pagination) find it already
+  // finished and render at their final state immediately.
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
 
   // Reverse-pull accumulation. Two coordinated sources feed the SAME
   // controller: a drag on the header (outside the list, never a scroll
@@ -182,6 +194,12 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   }
 
   @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(HomeActivitySurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     _maybeEnter(); // the handoff committed while the surface was mounted
@@ -190,6 +208,14 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   void _maybeEnter() {
     if (_entered || !widget.active) return;
     _entered = true;
+    // The entrance choreography fires with the lazy load: the surface was
+    // just entered, so the rows settle in as they arrive. Reduced motion
+    // skips straight to the final state.
+    if (!AzMotion.of(context).travel) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
     // The lazy-load boundary: the FIRST page fetch happens exactly when
     // the user ENTERS the activity state — never on resting Home. The
     // data source is the transaction history (/finance/transactions), so
@@ -396,15 +422,65 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
                           .loadMore(),
                     );
                   }
-                  return _ActivityActionRow(
-                      txn: records[i],
-                      colors: colors,
-                      reduceMotion: reduceMotion);
+                  return _StaggeredRow(
+                    controller: _entrance,
+                    index: i,
+                    child: _ActivityActionRow(
+                        txn: records[i],
+                        colors: colors,
+                        reduceMotion: reduceMotion),
+                  );
                 },
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// EXPERIENCE PASS §8 — one row of the entrance choreography. [index]
+/// maps onto a small Interval of the shared controller: begin is a tiny
+/// per-row delay (capped so long lists don't wait), end completes ~250ms
+/// later. The row settles with a small upward translation + opacity lift —
+/// nothing else animates. Rows built after the controller completed (cursor
+/// pagination) render at their final state immediately.
+class _StaggeredRow extends StatelessWidget {
+  const _StaggeredRow({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final AnimationController controller;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // Stagger math: first row starts immediately; each subsequent row is
+    // 50ms later. The 0.5 cap keeps deep lists instant after the first
+    // screenful — only the visible-on-arrival rows choreograph.
+    final begin = (index * 0.055).clamp(0.0, 0.5);
+    final end = (begin + 0.25).clamp(0.0, 1.0);
+    if (begin >= 1.0 || controller.isCompleted) return child;
+
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, _) {
+        final slide = 14 * (1 - curved.value);
+        return Opacity(
+          opacity: curved.value,
+          child: Transform.translate(
+            offset: Offset(0, slide),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
