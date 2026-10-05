@@ -15,6 +15,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/experience/demo/demo_guard.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/marketplace_relevance_provider.dart';
@@ -103,6 +104,7 @@ Future<void> _pumpDeck(
   ResumeIntent? intent,
   MarketplaceRelevance? relevance,
   bool reduceMotion = false,
+  double? band,
 }) async {
   await tester.binding.setSurfaceSize(_surfaceSize);
   await tester.pumpWidget(
@@ -120,7 +122,10 @@ Future<void> _pumpDeck(
             size: _surfaceSize,
             disableAnimations: reduceMotion,
           ),
-          child: const Scaffold(body: HomeReminderDeck()),
+          child: Scaffold(
+              body: band == null
+                  ? const HomeReminderDeck()
+                  : HomeReminderDeck(band: band)),
         ),
       ),
     ),
@@ -140,12 +145,87 @@ Iterable<Key> _cardKeys(WidgetTester tester) => tester
     .map((c) => c.key!);
 
 void main() {
-  testWidgets('§4 — no legitimate signal: the deck renders NOTHING',
-      (tester) async {
+  testWidgets('§4 — no legitimate signal: the placeholder fan fills the '
+      'slot (the space is never blank)', (tester) async {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
-    expect(find.text('SUSU'), findsNothing);
-    expect(find.text('MARKETPLACE'), findsNothing);
-    expect(_cardKeys(tester), isEmpty);
+    expect(find.text('Your reminders will appear here'), findsOneWidget);
+    expect(find.text('REMINDERS'), findsOneWidget);
+    // Two ghost slots fan behind the placeholder — the deck reads as a
+    // deck, but no ghost ever claims content.
+    expect(find.byKey(const ValueKey('reminder-ghost')), findsNWidgets(2));
+    expect(_cardKeys(tester), const [ValueKey('reminder-card-placeholder')]);
+    // The placeholder is informational — no destination, no chevron.
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
+  });
+
+  testWidgets('§4 — demo build: a signal-less deck seeds from the demo '
+      'data (real builds never see a seeded card)', (tester) async {
+    DemoGuard.override(true);
+    addTearDown(() => DemoGuard.override(null));
+    await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
+    expect(find.text('Susu Circle - August'), findsOneWidget);
+    expect(find.text("Chef Abby's"), findsOneWidget);
+    expect(find.text('Coastline Suites'), findsOneWidget);
+    // The fan is fully populated — no ghost slots behind three cards.
+    expect(find.byKey(const ValueKey('reminder-ghost')), findsNothing);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
+  });
+
+  testWidgets('fill — the band drives the fan geometry: tall mode at a '
+      '260dp band, with taller cards and larger type', (tester) async {
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+        _activeSusu(DateTime(2026, 10, 20), id: 's2', name: 'Second Susu'),
+        _activeSusu(DateTime(2026, 11, 2), id: 's3', name: 'Third Susu'),
+      ],
+      intent: _cartIntent,
+      band: 260,
+    );
+    // band 260 → peek 40 (clamped), card 180 (tall ≥ 150): the fan spans
+    // the band exactly — the deck FILLS the space it is given.
+    final deckSize = tester.getSize(find.byType(HomeReminderDeck));
+    expect(deckSize.height, 260);
+
+    final front = tester.getSize(
+        find.byKey(const ValueKey('reminder-card-susu-s1')));
+    expect(front.height, 180);
+
+    // Behind cards peek BELOW the front card's bottom edge.
+    final tops = tester
+        .widgetList<Positioned>(find.byWidgetPredicate(
+            (w) => w is Positioned && w.top != null))
+        .map((p) => p.top)
+        .toSet();
+    expect(tops, <double>{0.0, 40.0, 80.0},
+        reason: 'front at 0, behind cards peek at peek(40) and 2×peek(80)');
+    // Tall mode: the title steps up to the titleL size (20).
+    final title = tester.widget<Text>(find
+        .text('Susu contribution due Oct 12')
+        .first);
+    expect(title.style?.fontSize, 20);
+  });
+
+  testWidgets('fill — the clamps hold at absurd bands (never a giant '
+      'card, never a sliver)', (tester) async {
+    await _pumpDeck(tester,
+        susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')], band: 500);
+    // band 500 → card clamps at 264, peek at 40: bandHeight 344, not 500.
+    expect(tester.getSize(find.byType(HomeReminderDeck)).height, 344);
+    expect(
+        tester.getSize(find.byKey(const ValueKey('reminder-card-susu-s1')))
+            .height,
+        264);
+
+    await _pumpDeck(tester,
+        susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')], band: 80);
+    // band 80 → peek 20, card clamps at 88: the compact floor.
+    expect(tester.getSize(find.byType(HomeReminderDeck)).height, 128);
+    expect(
+        tester.getSize(find.byKey(const ValueKey('reminder-card-susu-s1')))
+            .height,
+        88);
   });
 
   testWidgets('§4 — the SOONEST pending susu cycle is the one shown, with '

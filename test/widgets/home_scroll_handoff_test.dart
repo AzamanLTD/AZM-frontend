@@ -15,6 +15,7 @@
 // =============================================================================
 
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -207,10 +208,21 @@ Future<void> _scrollToBottom(WidgetTester tester) async {
 /// A deliberate, held overscroll at the bottom: the "continued downward
 /// page scroll" that crosses the handoff threshold.
 Future<void> _overscrollPastEnd(WidgetTester tester, double px) async {
+  // A real finger, not a teleport: -20px held steps. (A single giant
+  // moveBy gets its first delta consumed as the drag start when the
+  // pointer lands on any tappable card — the reminder deck fills the
+  // old blank space now — because dragStartBehavior.start resolves the
+  // arena on that first move. Stepped deltas are what a real gesture
+  // delivers, and they accumulate into the same overscroll budget.)
   final gesture = await tester.startGesture(tester.getCenter(
       find.byType(SingleChildScrollView).first));
-  await gesture.moveBy(Offset(0, -px));
-  await tester.pump(const Duration(milliseconds: 16));
+  var left = px;
+  while (left > 0) {
+    final step = math.min(20.0, left);
+    left -= step;
+    await gesture.moveBy(Offset(0, -step));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
   await gesture.up();
 }
 
@@ -273,7 +285,10 @@ void main() {
     // (ordinary Home scrolling) before lifting.
     final gesture = await tester.startGesture(tester.getCenter(
         find.byType(SingleChildScrollView).first));
-    await gesture.moveBy(const Offset(0, -140)); // deep overscroll
+    for (var i = 0; i < 7; i++) {
+      await gesture.moveBy(const Offset(0, -20)); // deep overscroll, held
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     await tester.pump(const Duration(milliseconds: 50));
     expect(_activityOpacity(tester), greaterThan(0.2),
         reason: 'the held overscroll must visibly move the handoff');
@@ -316,17 +331,30 @@ void main() {
   });
 
   testWidgets(
-      '§7 — no deck signal: no peek band, Activity owns the full screen',
-      (tester) async {
+      '§7 — no deck signal: the placeholder deck still parks in the peek '
+      'band (the slot is never blank)', (tester) async {
     await _pumpHome(tester, withDeck: false);
     await _scrollToBottom(tester);
     await _overscrollPastEnd(tester, 260);
     await _settle(tester);
     expect(_activityOpacity(tester), greaterThan(0.99));
 
+    // FILL PATCH: with no signal the deck renders the placeholder fan —
+    // the peek band still exists, and it parks the placeholder (not
+    // nothing) above Activity.
+    expect(find.text('Your reminders will appear here'), findsOneWidget);
+    final deckBox =
+        tester.element(find.byType(HomeReminderDeck)).findRenderObject()
+            as RenderBox;
+    final deckBottom = deckBox.localToGlobal(Offset.zero).dy +
+        deckBox.size.height;
+    expect(deckBottom, lessThan(98));
+    expect(deckBottom, greaterThan(60),
+        reason: 'the peek must show a meaningful part of the deck');
+
     final header = tester.getTopLeft(
         find.byKey(const ValueKey('home-activity-header-title')));
-    expect(header.dy, lessThan(96));
+    expect(header.dy, greaterThanOrEqualTo(96));
   });
 
   testWidgets(

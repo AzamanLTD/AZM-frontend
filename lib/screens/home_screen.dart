@@ -105,9 +105,20 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   // mistake the contract forbids).
   final GlobalKey _walletModulesKey = GlobalKey();
   final GlobalKey _doorwayKey = GlobalKey();
-  double _doorwayGap = AzSpace.xxxl;
-  bool _doorwayGapSettled = false;
-  Timer? _doorwayGapTimer;
+
+  // The reminder deck FILLS the band between the wallet modules and the
+  // activity doorway (the fill patch): the space the old measured spacer
+  // occupied is handed to the deck itself, so the slot above Recent
+  // Activity is never blank — real cards, demo seeds (demo builds), or
+  // the placeholder fan. Measured after the entrance settles, clamped
+  // so the fan spans the band without overflow and cards never get
+  // absurd on tablets.
+  static const double _deckBandDefault = 134.0;
+  static const double _deckBandMin = 134.0;
+  static const double _deckBandMax = 344.0;
+  double _deckBand = _deckBandDefault;
+  bool _deckBandSettled = false;
+  Timer? _deckBandTimer;
 
   @override
   void initState() {
@@ -122,7 +133,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       if (!mounted) return;
       ref.read(homeSummaryProvider.notifier).primeIfNeeded();
     });
-    _scheduleDoorwayGapMeasurement();
+    _scheduleDeckBandMeasurement();
   }
 
   /// Re-measure when the available geometry changes (rotation, font
@@ -130,26 +141,26 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_doorwayGapSettled) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _measureDoorwayGap());
+    if (_deckBandSettled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureDeckBand());
     }
   }
 
-  void _scheduleDoorwayGapMeasurement() {
+  void _scheduleDeckBandMeasurement() {
     // MotionTokens.staggerDelay(4) + standard travel stays well under a
     // second; 1200ms lets the last block's entrance settle on any device.
     // A cancelable Timer, NOT Future.delayed: the measurement belongs to
     // this State's lifetime, and a bare delayed future would keep a
     // timer pending after the widget is disposed (leaking the wait into
     // whoever runs next — exactly what the test invariants flag).
-    _doorwayGapTimer?.cancel();
-    _doorwayGapTimer = Timer(const Duration(milliseconds: 1200), () {
-      _doorwayGapTimer = null;
-      if (mounted) _measureDoorwayGap();
+    _deckBandTimer?.cancel();
+    _deckBandTimer = Timer(const Duration(milliseconds: 1200), () {
+      _deckBandTimer = null;
+      if (mounted) _measureDeckBand();
     });
   }
 
-  void _measureDoorwayGap() {
+  void _measureDeckBand() {
     final modulesCtx = _walletModulesKey.currentContext;
     final doorwayCtx = _doorwayKey.currentContext;
     if (modulesCtx == null || doorwayCtx == null) return;
@@ -176,27 +187,18 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final firstViewport =
         scrollBox.size.height - AzSpace.navClearanceHeight;
     final doorwayHeight = doorwayBox.size.height;
-    // §4 — the reminder deck sits between the spacer and the doorway
-    // (deck + AzSpace.md gap). Its height must leave the first viewport
-    // WITH the deck in it: measuring only the doorway pushed the doorway
-    // below the fold by the deck's height and left a dead band above the
-    // deck. When the deck renders no signal it is a zero-height shrink,
-    // and this term vanishes — the empty deck costs no space at all.
-    final deckCtx = _reminderDeckKey.currentContext;
-    double deckHeight = 0;
-    if (deckCtx != null) {
-      final deckBox = deckCtx.findRenderObject();
-      if (deckBox is RenderBox && deckBox.attached) {
-        deckHeight = deckBox.size.height;
-      }
-    }
-    // No UPPER cap: the target is bounded by construction — it lands the
-    // doorway's bottom at the first-viewport bottom line. A gap larger
-    // than 160 only ever means the wallet column itself is short (tall
-    // screen), where "low in the composition" IS the requested placement.
-    // The floor keeps small screens from a negative spacer; if the
-    // modules already overflow the first viewport the doorway simply
-    // follows the content flow (mid-scroll), which scrolling handles.
+    // FILL PATCH — the deck IS the band. The old measured spacer between
+    // the wallet modules and the doorway is gone: the space it reserved
+    // is handed to the reminder deck, which always renders (real cards,
+    // demo seeds in demo builds, or the placeholder fan), so the slot
+    // above Recent Activity is never blank. The band keeps a fixed
+    // breathing rhythm: AzSpace.xxl above the deck, AzSpace.md below.
+    //
+    // Bounds: the floor keeps small screens from a sliver fan (a deck
+    // tighter than the compact strip cannot show a card); the cap keeps
+    // tablets from absurd cards. When the modules already overflow the
+    // first viewport the band floors and the doorway simply follows the
+    // content flow (mid-scroll), which scrolling handles.
     //
     // Deliberate sm overshoot below the fold line: the content stays a
     // few pixels TALLER than the viewport. If it fit exactly,
@@ -204,17 +206,22 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // bottom, and the mid-handoff reversal (scroll up mid-overscroll
     // releases the handoff — §6) would have no scroll to win, silently
     // turning every release past threshold into a commit.
-    final target = math.max(AzSpace.xxl,
-        firstViewport - modulesBottom - deckHeight - AzSpace.md - doorwayHeight + AzSpace.sm);
-    _doorwayGapSettled = true;
-    if ((target - _doorwayGap).abs() > 0.5) {
-      setState(() => _doorwayGap = target);
+    final target = (firstViewport -
+            modulesBottom -
+            AzSpace.xxl -
+            AzSpace.md -
+            doorwayHeight +
+            AzSpace.sm)
+        .clamp(_deckBandMin, _deckBandMax);
+    _deckBandSettled = true;
+    if ((target - _deckBand).abs() > 0.5) {
+      setState(() => _deckBand = target);
     }
   }
 
   @override
   void dispose() {
-    _doorwayGapTimer?.cancel();
+    _deckBandTimer?.cancel();
     _handoff.dispose();
     super.dispose();
   }
@@ -308,7 +315,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
 
   /// Measure the deck peek for this handoff session. Called while the
   /// composition is still at rest (t == 0) so transforms cannot corrupt
-  /// the measurement — the same discipline as _measureDoorwayGap.
+  /// the measurement — the same discipline as _measureDeckBand.
   void _preparePeek() {
     if (_peekSet) return;
     final projected = _projectedDeckBottom();
@@ -448,17 +455,14 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   }
 
   /// §4 — the deck's signals arrive asynchronously (susu list fetch,
-  /// marketplace resume memory). A deck that materialises after the
-  /// doorway gap settled would push the doorway below the fold again.
-  /// Each of these listens re-runs the measurement AFTER the deck has
-  /// laid out at its new height (post-frame, so the new geometry exists
-  /// to measure). The local swipe-away of the LAST card is the one deck
-  /// size change no provider reports; the next provider change or
-  /// orientation change re-measures it, and the transient error is one
-  /// card-height, never a fold break.
-  void _scheduleDoorwayGapRecheck() {
+  /// marketplace resume memory). The band the deck fills is fixed by
+  /// geometry, not content, but the doorway's own height can change with
+  /// data (and the signals arriving may shift nothing at all) — each
+  /// listen re-runs the band measurement post-frame, when the new
+  /// geometry exists to measure. Idempotent and cheap when nothing moved.
+  void _scheduleDeckBandRecheck() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _measureDoorwayGap();
+      if (mounted) _measureDeckBand();
     });
   }
 
@@ -471,9 +475,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // §7: the deck peek band — only meaningful mid-handoff or committed.
     final peekBand = (_peekSet && _peekPx > 0) ? _peekBandHeight : 0.0;
 
-    ref.listen(susuListProvider, (_, _) => _scheduleDoorwayGapRecheck());
-    ref.listen(marketplaceResumeProvider, (_, _) => _scheduleDoorwayGapRecheck());
-    ref.listen(marketplaceRelevanceProvider, (_, _) => _scheduleDoorwayGapRecheck());
+    ref.listen(susuListProvider, (_, _) => _scheduleDeckBandRecheck());
+    ref.listen(marketplaceResumeProvider, (_, _) => _scheduleDeckBandRecheck());
+    ref.listen(marketplaceRelevanceProvider, (_, _) => _scheduleDeckBandRecheck());
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -552,23 +556,24 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   reduceMotion,
                                 ),
 
-                                // UX-CORRECTION §6: measured, bounded spacer
-                                // that lands the doorway at the bottom of
-                                // the first viewport (see
-                                // _measureDoorwayGap). Never a hard-coded
+                                // FILL PATCH — breathing room above the
+                                // reminder deck (measured band; see
+                                // _measureDeckBand). Never a hard-coded
                                 // giant SizedBox.
-                                SizedBox(height: _doorwayGap),
+                                const SizedBox(height: AzSpace.xxl),
 
                                 // EXPERIENCE PASS §4/§5 — the reminder deck:
                                 // real susu + marketplace signals, shuffled
-                                // by swipe. Renders nothing when no signal
-                                // exists. The key lets the scroll handoff
-                                // measure the deck's peek geometry.
+                                // by swipe, filling the measured band with
+                                // a placeholder fan when there is no signal
+                                // yet (never blank). The key lets the
+                                // scroll handoff measure the deck's peek
+                                // geometry.
                                 _stage(
                                   4,
                                   KeyedSubtree(
                                     key: _reminderDeckKey,
-                                    child: const HomeReminderDeck(),
+                                    child: HomeReminderDeck(band: _deckBand),
                                   ),
                                   reduceMotion,
                                 ),
