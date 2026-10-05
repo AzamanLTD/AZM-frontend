@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
+import 'package:azaman/theme/az_space.dart';
 
 /// A fresh controller per pump — the shell owns the controller so it can
 /// toggle the launcher from the nav band; the tests own one each.
@@ -33,6 +34,54 @@ Future<void> _pumpLauncher(
           child: Scaffold(
             body: PlusActionLauncher(
                 controller: controller, actions: actions),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+
+/// CORRECTION G geometry tests mount the TRIGGER too — beside a bottom
+/// bar, exactly like the real shell (PremiumBottomNav.trailing) — so the
+/// overlay measures a real physical + rect instead of falling back to
+/// the no-trigger default. The overlay sits in a full-screen Stack over
+/// a body, matching main.dart's Scaffold(extendBody: true) composition.
+Future<void> _pumpShell(
+  WidgetTester tester, {
+  required List<PlusLauncherAction> actions,
+  Size size = const Size(400, 900),
+}) async {
+  final controller = PlusLauncherController();
+  _lastController = controller;
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp(
+        theme: ThemeProvider.getThemeData(AzamanTheme.light),
+        home: MediaQuery(
+          data: MediaQueryData(size: size),
+          child: Scaffold(
+            extendBody: true,
+            bottomNavigationBar: SizedBox(
+              height: 70,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: AzSpace.lg),
+                    child: PlusLauncherTrigger(controller: controller),
+                  ),
+                ],
+              ),
+            ),
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: PlusActionLauncher(
+                      controller: controller, actions: actions),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -142,5 +191,120 @@ void main() {
     await tester.tap(find.text('Send'));
     await tester.pumpAndSettle();
     expect(picked, ['Send']);
+  });
+  group('CORRECTION G — launcher geometry', () {
+    testWidgets('the cluster sits on the plus/right side, not the '
+        'opposite edge of the screen', (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+        PlusLauncherAction(
+            icon: Icons.qr_code, label: 'Receive', onTap: () {}),
+      ]);
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      final screenWidth = tester.view.physicalSize.width /
+          tester.view.devicePixelRatio;
+      final sendRect = tester.getRect(find.text('Send'));
+      // The row's own right edge, not merely its left — the whole block
+      // must land in the right half of a 400-wide viewport, close to
+      // where the physical + lives.
+      expect(sendRect.right, greaterThan(screenWidth / 2),
+          reason: 'action rows must render on the plus/right side, not '
+              'drift to the opposite side of the screen');
+    });
+
+    testWidgets('the cluster right edge stays inside the viewport',
+        (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+      ]);
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      final screenWidth = tester.view.physicalSize.width /
+          tester.view.devicePixelRatio;
+      final sendRect = tester.getRect(find.text('Send'));
+      expect(sendRect.right, lessThanOrEqualTo(screenWidth));
+    });
+
+    testWidgets('a short label and a long label share the same right '
+        'edge — the cluster is not a full-width column', (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Go', onTap: () {}),
+        PlusLauncherAction(
+            icon: Icons.qr_code,
+            label: 'Add Cash',
+            onTap: () {}),
+      ]);
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      final screenWidth = tester.view.physicalSize.width /
+          tester.view.devicePixelRatio;
+      final shortRowRight =
+          tester.getRect(find.ancestor(
+              of: find.text('Go'),
+              matching: find.byType(Row))).right;
+      final longRowRight =
+          tester.getRect(find.ancestor(
+              of: find.text('Add Cash'),
+              matching: find.byType(Row))).right;
+
+      // Shared trailing edge — the defining proof the cluster is bounded
+      // intrinsic-width, right-aligned, not a stretched full-width mass.
+      expect((shortRowRight - longRowRight).abs(), lessThan(1.0));
+      // And it does not become a full-width column: the short row's own
+      // LEFT edge sits well inside the right half of the screen, not at
+      // the viewport's left edge.
+      final shortRowLeft =
+          tester.getRect(find.ancestor(
+              of: find.text('Go'),
+              matching: find.byType(Row))).left;
+      expect(shortRowLeft, greaterThan(screenWidth / 2));
+    });
+
+    testWidgets('the cluster remains anchored above the plus on a '
+        'narrow phone width', (tester) async {
+      await _pumpShell(
+        tester,
+        size: const Size(360, 800),
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+          PlusLauncherAction(
+              icon: Icons.qr_code, label: 'Receive', onTap: () {}),
+        ],
+      );
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      final plusRect = tester.getRect(find.byType(PlusLauncherTrigger));
+      final receiveRect = tester.getRect(find.text('Receive'));
+      // The cluster's bottom-most row sits above the plus's vertical
+      // position, and does not drift far horizontally from it.
+      expect(receiveRect.bottom, lessThanOrEqualTo(plusRect.top + 1));
+      expect((receiveRect.right - plusRect.right).abs(), lessThan(100.0));
+    });
+
+    testWidgets('opening and closing preserves the same anchor',
+        (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+      ]);
+
+      _lastController!.open();
+      await tester.pumpAndSettle();
+      final firstOpenRect = tester.getRect(find.text('Send'));
+
+      _lastController!.close();
+      await tester.pumpAndSettle();
+      expect(find.text('Send'), findsNothing);
+
+      _lastController!.open();
+      await tester.pumpAndSettle();
+      final secondOpenRect = tester.getRect(find.text('Send'));
+
+      expect(secondOpenRect, firstOpenRect);
+    });
   });
 }

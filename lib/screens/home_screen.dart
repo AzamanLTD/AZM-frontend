@@ -32,6 +32,9 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/marketplace_relevance_provider.dart';
+import 'package:azaman/providers/marketplace_resume_provider.dart';
+import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
@@ -173,6 +176,20 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final firstViewport =
         scrollBox.size.height - AzSpace.navClearanceHeight;
     final doorwayHeight = doorwayBox.size.height;
+    // §4 — the reminder deck sits between the spacer and the doorway
+    // (deck + AzSpace.md gap). Its height must leave the first viewport
+    // WITH the deck in it: measuring only the doorway pushed the doorway
+    // below the fold by the deck's height and left a dead band above the
+    // deck. When the deck renders no signal it is a zero-height shrink,
+    // and this term vanishes — the empty deck costs no space at all.
+    final deckCtx = _reminderDeckKey.currentContext;
+    double deckHeight = 0;
+    if (deckCtx != null) {
+      final deckBox = deckCtx.findRenderObject();
+      if (deckBox is RenderBox && deckBox.attached) {
+        deckHeight = deckBox.size.height;
+      }
+    }
     // No UPPER cap: the target is bounded by construction — it lands the
     // doorway's bottom at the first-viewport bottom line. A gap larger
     // than 160 only ever means the wallet column itself is short (tall
@@ -180,8 +197,15 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // The floor keeps small screens from a negative spacer; if the
     // modules already overflow the first viewport the doorway simply
     // follows the content flow (mid-scroll), which scrolling handles.
-    final target = math.max(
-        AzSpace.xxl, firstViewport - modulesBottom - doorwayHeight - AzSpace.sm);
+    //
+    // Deliberate sm overshoot below the fold line: the content stays a
+    // few pixels TALLER than the viewport. If it fit exactly,
+    // maxScrollExtent would be 0, the page could never scroll off the
+    // bottom, and the mid-handoff reversal (scroll up mid-overscroll
+    // releases the handoff — §6) would have no scroll to win, silently
+    // turning every release past threshold into a commit.
+    final target = math.max(AzSpace.xxl,
+        firstViewport - modulesBottom - deckHeight - AzSpace.md - doorwayHeight + AzSpace.sm);
     _doorwayGapSettled = true;
     if ((target - _doorwayGap).abs() > 0.5) {
       setState(() => _doorwayGap = target);
@@ -423,6 +447,21 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     return SpringSimulation(spring, _handoff.value, end, 0);
   }
 
+  /// §4 — the deck's signals arrive asynchronously (susu list fetch,
+  /// marketplace resume memory). A deck that materialises after the
+  /// doorway gap settled would push the doorway below the fold again.
+  /// Each of these listens re-runs the measurement AFTER the deck has
+  /// laid out at its new height (post-frame, so the new geometry exists
+  /// to measure). The local swipe-away of the LAST card is the one deck
+  /// size change no provider reports; the next provider change or
+  /// orientation change re-measures it, and the transient error is one
+  /// card-height, never a fold break.
+  void _scheduleDoorwayGapRecheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _measureDoorwayGap();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -431,6 +470,10 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final walletGone = t > 0.999;
     // §7: the deck peek band — only meaningful mid-handoff or committed.
     final peekBand = (_peekSet && _peekPx > 0) ? _peekBandHeight : 0.0;
+
+    ref.listen(susuListProvider, (_, _) => _scheduleDoorwayGapRecheck());
+    ref.listen(marketplaceResumeProvider, (_, _) => _scheduleDoorwayGapRecheck());
+    ref.listen(marketplaceRelevanceProvider, (_, _) => _scheduleDoorwayGapRecheck());
 
     return Scaffold(
       backgroundColor: Colors.transparent,

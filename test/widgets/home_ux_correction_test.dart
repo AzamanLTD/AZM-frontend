@@ -42,7 +42,6 @@ import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/premium_card_surface.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart' show TextPainter;
 import 'package:flutter/rendering.dart' show RenderDecoratedBox;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,16 +159,8 @@ Future<ProviderContainer> _pumpHome(
 }
 
 class _NoopHomeSummaryNotifier extends HomeSummaryNotifier {
-  _NoopHomeSummaryNotifier(Ref ref, HomeSummaryService service)
-      : super(ref, service);
+  _NoopHomeSummaryNotifier(super.ref, super.service);
 }
-
-/// CORRECTION F: the anchor target — the trigger's CENTER axis. The
-/// cluster's right edge rides the plus button's center line, so the
-/// visual axis back to the control is unmistakable (never the outer
-/// right edge, never a centered modal column).
-double triggerAxisX(Rect triggerRect) =>
-    triggerRect.left + triggerRect.width / 2.0;
 
 double _activityOpacity(WidgetTester tester) {
   final fade = find.ancestor(
@@ -494,12 +485,23 @@ void main() {
           )
           .first);
 
-      // CORRECTION F: the rows' right edge rides the PLUS AXIS — the
-      // trigger's actual CENTER, measured live. The cluster visually
-      // hangs off the physical + button, never merely satisfying an
-      // outer-right-edge assertion.
-      expect(sendRow.right, closeTo(triggerAxisX(triggerRect), 6));
-      expect(withdrawRow.right, closeTo(triggerAxisX(triggerRect), 6));
+      // CORRECTION F (geometry fix): the rows' shared trailing edge is
+      // flush with the + button's RIGHT edge, measured live — the
+      // cluster hangs off the physical plus. (The earlier center-axis
+      // variant left the wide plus hanging right of the rows; the
+      // trailing edge is the axis the eye actually follows.) The only
+      // permitted shortfall is the launcher's own minimum screen margin
+      // (AzSpace.sm) when the plus itself sits flush at the viewport
+      // edge — the cluster may never touch the edge, and never pass
+      // beyond the plus.
+      for (final row in [sendRow, withdrawRow]) {
+        expect(row.right, lessThanOrEqualTo(triggerRect.right + 2),
+            reason: 'the cluster never hangs past the +');
+        expect(row.right,
+            greaterThanOrEqualTo(triggerRect.right - AzSpace.sm - 2),
+            reason: 'flush with the + right edge, minus only the '
+                'minimum screen margin');
+      }
 
       // The group RISES ABOVE the + — the last row sits above the
       // trigger's top edge, not below it and not mid-screen.

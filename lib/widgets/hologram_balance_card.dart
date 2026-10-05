@@ -105,7 +105,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
     final primaryValue = balance.availableBalance;
     final primaryLabel = AzMoney.usdcFirst(primaryValue);
     final secondaryLabel = AzMoney.ghs(ghsValue);
-    final secondaryMask = '•••• ${AzMoney.ghsSymbol}';
+    const secondaryMask = '•••• ${AzMoney.ghsSymbol}';
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
@@ -127,11 +127,19 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
     );
 
     return HolographicSurface(
-      // `card` is the material's base colour; `accent` drives the iridescence and
-      // the specular band. This is the ONE full-intensity holographic surface on
-      // Home — every other surface is Level 2 or 3. Premium is scarcity.
+      // RICHTEXT CORRECTIONS §2C: the base stays `colors.card` — the
+      // palette's neutral near-black graphite — but the iridescence tint
+      // is no longer the accent. Tinting the whole material with the
+      // gold accent produced exactly the muddy olive/khaki wash the
+      // screenshots flagged: a broad hue wash across the card reads as
+      // dirt, not as depth. The tint is now `textSecondary` — the
+      // palette's own neutral — so the holographic grammar survives
+      // (material + ceiling light + specular band + metallic rim) while
+      // the surface reads as cool neutral graphite. The accent appears
+      // only as small highlights (the header unit mark), never as the
+      // dominant fill.
       base: colors.card,
-      tint: colors.accent,
+      tint: colors.textSecondary,
       borderRadius: AzRadius.xl,
       padding: const EdgeInsets.fromLTRB(
         AzSpace.xl,
@@ -146,7 +154,9 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
           // ── Header: label + visibility state ──────────────────────────
           Row(
             children: [
-              Icon(HugeIconsSolid.wallet01, size: 14, color: colors.textTertiary),
+              // RICHTEXT CORRECTIONS §2C: the one small accent highlight
+              // on the now-neutral graphite surface.
+              Icon(HugeIconsSolid.wallet01, size: 14, color: colors.accent),
               const SizedBox(width: AzSpace.sm),
               Text(
                 'AVAILABLE',
@@ -214,16 +224,52 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
               ),
 
               if (isVisible)
-                // OdometerNumber rolls ONLY the digits that changed. Tabular
-                // figures (inside AzText.money) are required — without them the
-                // figure shifts sideways mid-roll.
-                OdometerNumber(
-                  value: primaryLabel,
-                  style: AzText.money(
-                    colors.textPrimary,
-                    size: AzText.sizeHero,
-                  ),
-                  semanticsLabel: '$primaryLabel available',
+                // RICHTEXT CORRECTIONS §2A/§2B: the hero is the AMOUNT.
+                // "USDC" is a small unit/label beside it — no longer part
+                // of the same giant typographic block — and the figure's
+                // weight drops from the near-black w800 to the
+                // financially-authoritative-but-not-headline w600. The
+                // odometer keeps rolling only the digits that changed;
+                // the USDC mark is outside it, so it never re-rolls.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: AzSpace.sm),
+                      child: Text(
+                        AzMoney.usdcSymbol,
+                        style: AzText.eyebrow.copyWith(
+                          color: colors.textTertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    // OdometerNumber rolls ONLY the digits that changed.
+                    // Tabular figures (inside AzText.money) are required —
+                    // without them the figure shifts sideways mid-roll.
+                    //
+                    // `Flexible` matters: this Row is mainAxisSize.min, and a
+                    // min-axis Flex lays INFLEXIBLE children out with UNBOUNDED
+                    // width — so a bare odometer would render its full natural
+                    // width (its own internal FittedBox never sees a bound) and
+                    // the Row would overflow a narrow card (the flip-card
+                    // back-face tests catch this at 280px). As a flex child the
+                    // odometer receives the width left after the unit label,
+                    // and its internal scale-down guard engages exactly as it
+                    // did when it sat directly in the Column.
+                    Flexible(
+                      child: OdometerNumber(
+                        value: AzMoney.amount(primaryValue),
+                        style: AzText.money(
+                          colors.textPrimary,
+                          size: AzText.sizeHero,
+                          weight: FontWeight.w600,
+                        ),
+                        semanticsLabel: '$primaryLabel available',
+                      ),
+                    ),
+                  ],
                 )
               else
                 Text(
@@ -231,6 +277,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                   style: AzText.money(
                     colors.textPrimary,
                     size: AzText.sizeHero,
+                    weight: FontWeight.w600,
                   ),
                 ),
 
@@ -249,20 +296,32 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
               // rendered even while the balance itself is masked.
               const SizedBox(height: AzSpace.sm),
               const SizedBox(height: AzSpace.sm),
+              // RICHTEXT CORRECTIONS §3: the rate row now uses the card's
+              // FULL width — the conversion text anchors the left, the
+              // refresh/countdown anchors the right, via a real
+              // Row/Expanded contract rather than the indicator trailing
+              // immediately after the caption. `Expanded` claims the
+              // remaining width after the indicator's own intrinsic
+              // size, so the indicator always lands flush with the
+              // card's right edge regardless of how long the rate
+              // caption is.
               Row(
                 children: [
-                  // Narrow-screen guard: on a ~320dp device the caption +
-                  // indicator can exceed the card's inner width. The rate
-                  // line is tertiary info — it scales down rather than
-                  // overflowing.
-                  Flexible(
-                    child: FittedBox(
+                  Expanded(
+                    // Narrow-screen guard: on a ~320dp device the caption
+                    // can exceed the space left after the indicator. The
+                    // rate line is tertiary info — it scales down rather
+                    // than overflowing.
+                    child: Align(
                       alignment: Alignment.centerLeft,
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        '1 USDC = ${AzMoney.ghs(rate)}',
-                        style:
-                            AzText.caption.copyWith(color: colors.textTertiary),
+                      child: FittedBox(
+                        alignment: Alignment.centerLeft,
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '1 USDC = ${AzMoney.ghs(rate)}',
+                          style: AzText.caption
+                              .copyWith(color: colors.textTertiary),
+                        ),
                       ),
                     ),
                   ),

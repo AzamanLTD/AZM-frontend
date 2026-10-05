@@ -832,18 +832,22 @@ class _MarketplaceHomeScreenState
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          Expanded(
-            child: CategorySpeedDial(
-              key: const ValueKey('marketplace-category-dial'),
-              categories: _dialCategories,
-              selectedWire: _selectedCategory,
-              colors: colors,
-              onSelected: (wire) {
-                AzamanHaptics.toggle();
-                setState(() => _selectedCategory = wire);
-                _fireSearch();
-              },
-            ),
+          // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
+          // Expanded stretch. The radial fan anchors to the pill's real
+          // box; a stretched slot made the whole empty row-width part of
+          // the anchor (and the fan fanned off a rect the eye doesn't
+          // see). The pill and Near You sit together at the left, in the
+          // same pill language.
+          CategorySpeedDial(
+            key: const ValueKey('marketplace-category-dial'),
+            categories: _dialCategories,
+            selectedWire: _selectedCategory,
+            colors: colors,
+            onSelected: (wire) {
+              AzamanHaptics.toggle();
+              setState(() => _selectedCategory = wire);
+              _fireSearch();
+            },
           ),
           const SizedBox(width: AzSpace.sm),
           // Near You — the ONLY control outside the category selector

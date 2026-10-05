@@ -336,17 +336,19 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     widget.controller.close();
   }
 
-  /// CORRECTION F anchor geometry, measured LIVE from the physical +
+  /// CORRECTION G anchor geometry, measured LIVE from the physical +
   /// button's render box (see [PlusLauncherController.triggerRect]).
   ///
-  /// The cluster's RIGHT edge rides the PLUS AXIS — the trigger's actual
-  /// CENTER — not its outer right edge. The column rises immediately
-  /// above the physical + and every row's trailing edge points straight
-  /// down the plus's center line, so the visual axis back to the control
-  /// is unmistakable. (The old form satisfied a right-edge arithmetic
-  /// assertion while a 300px-wide mass floated away from the button.)
-  /// Falls back to the bottom-right corner of the screen (beside where
-  /// the + lives) if the rect is somehow unavailable.
+  /// The cluster's RIGHT edge rides the PLUS's own RIGHT edge — not its
+  /// center axis — so the cluster's trailing boundary is flush with the
+  /// control it opens from, close to the plus/right side of the
+  /// viewport, exactly as it is physically positioned. Combined with the
+  /// intrinsic-width constraint below (no `stretch`, an [IntrinsicWidth]
+  /// cap instead of a bare max-width Column), the cluster can no longer
+  /// balloon out to its 300px ceiling and drift toward the opposite side
+  /// of the screen — it is only ever as wide as its longest row actually
+  /// needs. Falls back to the bottom-right corner of the screen (beside
+  /// where the + lives) if the rect is somehow unavailable.
   double _anchorRight(BuildContext context) {
     final local = _localTriggerRect(context);
     if (local == null) return AzSpace.lg;
@@ -354,8 +356,8 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     final width = box is RenderBox && box.attached
         ? box.size.width
         : MediaQuery.sizeOf(context).width;
-    final plusAxis = local.left + local.width / 2.0;
-    return (width - plusAxis).clamp(AzSpace.sm, width - AzSpace.lg);
+    final plusRight = local.left + local.width;
+    return (width - plusRight).clamp(AzSpace.sm, width - AzSpace.lg);
   }
 
   double _anchorBottom(BuildContext context) {
@@ -428,15 +430,15 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
           // never a full-width modal column. Width is bounded (not
           // stretched) so the group reads as an anchored action cluster;
           // the scrim behind still covers the whole screen.
-          // CORRECTION F: the actions visually ORIGINATE from the actual
-          // + control. The trigger's physical render box is measured LIVE
-          // (controller.triggerRect); the group is Positioned so its
-          // bottom edge rises from just above the + and its RIGHT edge
-          // rides the + button's CENTER axis — the column hangs off the
-          // physical plus, on the plus side of the screen, never
-          // centered, never a full-width modal column. Width is bounded
-          // (not stretched) so the group reads as an anchored action
-          // cluster; the scrim behind still covers the whole screen.
+          // CORRECTION F (geometry fix): the trigger's physical render
+          // box is measured LIVE (controller.triggerRect) and the group
+          // is Positioned so its bottom edge rises from just above the +
+          // and its RIGHT edge is flush with the + button's RIGHT edge
+          // (_anchorRight) — the column hangs off the physical plus, on
+          // the plus side of the screen, never centered, never a
+          // full-width modal column. Width is bounded (not stretched) so
+          // the group reads as an anchored action cluster; the scrim
+          // behind still covers the whole screen.
           //
           // (Measured geometry, not a LayerLink follower: the trigger
           // lives in the nav band which paints AFTER this body-stack
@@ -448,6 +450,16 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
             bottom: _anchorBottom(context),
             child: IgnorePointer(
               ignoring: t < 0.5,
+              // CORRECTION G: a bounded INTRINSIC-width cluster. The
+              // ConstrainedBox only caps how wide the cluster is ALLOWED
+              // to get (so a very long label can't blow past the
+              // viewport); it is `IntrinsicWidth` that makes the Column
+              // actually size itself to its content instead of
+              // ballooning to that cap on every open. `stretch` is gone
+              // — each row keeps its own natural width and the Column
+              // right-aligns every row to a shared trailing edge, so the
+              // rows read as "[ action ]" blocks hanging off the plus,
+              // never a full-width mass centered across the screen.
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: math.min(
@@ -455,19 +467,21 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                     300.0,
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < widget.actions.length; i++)
-                      _LauncherRow(
-                        action: widget.actions[i],
-                        index: i,
-                        progress: _open,
-                        reduceMotion: _reduceMotion,
-                        onPick: _pick,
-                      ),
-                  ],
+                child: IntrinsicWidth(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < widget.actions.length; i++)
+                        _LauncherRow(
+                          action: widget.actions[i],
+                          index: i,
+                          progress: _open,
+                          reduceMotion: _reduceMotion,
+                          onPick: _pick,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -514,7 +528,14 @@ class _LauncherRow extends ConsumerWidget {
           onTap: () => onPick(action),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AzSpace.sm),
+            // CORRECTION G: `min` — this row claims only the width its own
+            // icon+label need. Combined with the Column's `end` cross-axis
+            // alignment, every row's RIGHT edge lands on the same shared
+            // trailing line while rows of different label length extend
+            // leftward from it by different amounts — "[ action ]" blocks
+            // hanging off the plus, not a uniform full-width bar.
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   width: 46,

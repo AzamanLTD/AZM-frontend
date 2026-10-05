@@ -197,15 +197,33 @@ void main() {
 
     testWidgets('the primary figure reads USDC-first', (tester) async {
       await _pumpFrontFace(tester, balance: 123.45);
-      // The figure renders through OdometerNumber's per-slot cells, so the
-      // contract is pinned on the odometer's own value: "USDC 123.45", not
-      // "123.45 USDC" / "$123.45" / a GHS-first hero.
+      // RICHTEXT CORRECTIONS §2A: the hero is the AMOUNT. The figure
+      // renders through OdometerNumber's per-slot cells, so the amount
+      // contract is pinned on the odometer's own value; the "USDC" unit
+      // label is a separate, visibly smaller Text beside it.
       final odometer =
           tester.widget<OdometerNumber>(find.byType(OdometerNumber));
-      expect(odometer.value, 'USDC 123.45');
+      expect(odometer.value, '123.45');
+      expect(find.text('USDC'), findsOneWidget);
       // GHS remains present as the SECONDARY figure (AzMoney uses a
       // no-break space between symbol and amount).
       expect(find.text('GH₵ 123.45'), findsOneWidget);
+    });
+
+    testWidgets('the USDC unit label is substantially smaller than the '
+        'amount, and the amount is not ultra-heavy', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45);
+
+      final unitStyle = tester.widget<Text>(find.text('USDC')).style!;
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      final amountStyle = odometer.style;
+
+      // §2A: the unit label is visibly smaller than the hero amount.
+      expect(unitStyle.fontSize!, lessThan(amountStyle.fontSize! * 0.6));
+      // §2B: the hero stays premium medium/semi-bold — not the near-black
+      // w800 it used to render at.
+      expect(amountStyle.fontWeight, FontWeight.w600);
     });
 
     testWidgets('the live rate row and refresh affordance sit on the card',
@@ -213,6 +231,19 @@ void main() {
       await _pumpFrontFace(tester, balance: 100);
       expect(find.textContaining('1 USDC = GH₵'), findsOneWidget);
       expect(find.byType(RateRefreshIndicator), findsOneWidget);
+
+      // RICHTEXT CORRECTIONS §3: the countdown is anchored to the card's
+      // RIGHT side, not trailing the conversion caption. The rate text
+      // starts left; the indicator lands in the right half of the card.
+      final cardRect = tester.getRect(find.byType(HologramBalanceCard));
+      final rateRect = tester
+          .getRect(find.textContaining('1 USDC = GH₵'));
+      final indicatorRect =
+          tester.getRect(find.byType(RateRefreshIndicator));
+      expect(rateRect.left, lessThan(cardRect.center.dx),
+          reason: 'the conversion text anchors the left of the row');
+      expect(indicatorRect.center.dx, greaterThan(cardRect.center.dx),
+          reason: 'the refresh/countdown anchors the right of the row');
     });
 
     testWidgets('the rate row survives the hidden-balance mask', (tester) async {
