@@ -5,11 +5,15 @@
 // the pill communicates the product name only. Icon identity, accents and
 // the glass language are preserved, and every destination is unchanged:
 //   SAVE → /savings
-//   P2P  → the P2P marketplace screen
+//   P2P  → the canonical /marketplace route (UX-CORRECTION §10 — the
+//          legacy P2PMarketplaceScreen is gone from this surface)
 //   SUSU → the DETERMINISTIC most-relevant active group, or the hub.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:azaman/router/route_registry.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
@@ -80,6 +84,46 @@ Future<void> _pumpRow(
 }
 
 void main() {
+  testWidgets('§10 — tapping P2P opens the CANONICAL /marketplace route, '
+      'not the legacy P2P screen', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          name: AzRouteNames.home,
+          builder: (_, __) => const Scaffold(body: WalletModulesRow()),
+        ),
+        GoRoute(
+          path: '/marketplace',
+          name: AzRouteNames.marketplace,
+          builder: (_, __) => const Scaffold(
+            body: Center(child: Text('MARKETPLACE PAGE')),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          theme: ThemeProvider.getThemeData(AzamanTheme.light),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('wallet-module-p2p')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MARKETPLACE PAGE'), findsOneWidget,
+        reason: 'the P2P pill must route to the canonical /marketplace '
+            'page — no second P2P destination');
+  });
+
   testWidgets('the row renders exactly the three pills — no descriptions',
       (tester) async {
     await _pumpRow(tester);

@@ -13,8 +13,8 @@ import 'package:azaman/theme/motion_tokens.dart';
 //   * the value is quantised to 10 steps and does not write when unchanged
 //     (a scroll that lands on the same step costs zero rebuilds),
 //   * rest → compressed → rest round-trips through the widget,
-//   * labels collapse over the first 60% of travel and are gone before the
-//     pill reaches minimum height,
+//   * the resting pill is icon-only at the thinner §4 height (48 rest /
+//     44 compressed) with no persistent text labels anywhere,
 //   * reduced motion freezes the pill at rest height and full opacity,
 //   * tapping a different tab still works while compressed, and re-tapping
 //     the active tab does not re-issue the selection,
@@ -105,7 +105,8 @@ Future<void> _pumpNav(
 final _navFinder = find.byType(PremiumBottomNav);
 
 /// The nav's outer Padding: pill height + the 16px bottom inset (no safe area
-/// in the test surface), so rest == 62 + 16 and compressed == 52 + 16.
+/// in the test surface). UX-CORRECTION §4: the icon-only pill is thinner —
+/// rest == 48 + 16 and compressed == 44 + 16.
 double _navHeight(WidgetTester tester) => tester.getSize(
       find.descendant(of: _navFinder, matching: find.byType(Padding)).first,
     ).height;
@@ -232,61 +233,51 @@ void main() {
   });
 
   group('PremiumBottomNav widget', () {
-    testWidgets('at rest: full height, full opacity, three labels', (tester) async {
+    testWidgets('at rest: thinner icon-only pill, no labels, semantics kept',
+        (tester) async {
       await _pumpNav(tester);
       await tester.pumpAndSettle();
 
-      expect(_navHeight(tester), 62 + 16);
+      // UX-CORRECTION §4 — deliberate thinner height, not a cramped scale-down.
+      expect(_navHeight(tester), 48 + 16);
       expect(_pillOpacity(tester), 1.0);
+      // No persistent text labels in the resting nav.
       for (final label in ['Home', 'Chat', 'Marketplace']) {
-        expect(find.text(label), findsOneWidget);
+        expect(find.text(label), findsNothing);
       }
+      // The three icons ARE there (selected Home is the solid glyph,
+      // unselected Chat/Marketplace the stroke ones), and the tab
+      // identities survive on Semantics — active-tab semantics preserved.
+      expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
+      expect(find.byIcon(HugeIconsStroke.message01), findsOneWidget);
+      expect(find.byIcon(HugeIconsStroke.store01), findsOneWidget);
+      expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     });
 
-    testWidgets('fully compressed: 52px, 0.92 opacity, icon-only', (tester) async {
+    testWidgets('fully compressed: 44px (tap-target floor), 0.92 opacity',
+        (tester) async {
       await _pumpNav(tester);
       navScrollCompression.value = 1;
       await tester.pumpAndSettle();
 
-      expect(_navHeight(tester), 52 + 16);
+      // 44 IS the minimum tap target — the compressed pill rests on it.
+      expect(_navHeight(tester), 44 + 16);
       expect(_pillOpacity(tester), closeTo(0.92, 0.001));
-      for (final label in ['Home', 'Chat', 'Marketplace']) {
-        expect(find.text(label), findsNothing);
-      }
       // Icons survive the compression — the pill is icon-only, not empty.
       expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
     });
-
-    testWidgets(
-      'labels collapse over the first 60% of travel',
-      (tester) async {
-        await _pumpNav(tester);
-
-        // Halfway: label opacity is 1 - 0.5/0.6 ≈ 0.17 — still mounted.
-        navScrollCompression.value = 0.5;
-        await tester.pumpAndSettle();
-        expect(find.text('Home'), findsOneWidget);
-
-        // Past 60%: labels are gone well before minimum height.
-        navScrollCompression.value = 0.7;
-        await tester.pumpAndSettle();
-        expect(find.text('Home'), findsNothing);
-        // …and the pill has NOT reached its compressed height yet.
-        expect(_navHeight(tester), greaterThan(52 + 16));
-      },
-    );
 
     testWidgets('scrolling back to the top restores the pill', (tester) async {
       await _pumpNav(tester);
       navScrollCompression.value = 1;
       await tester.pumpAndSettle();
-      expect(_navHeight(tester), 52 + 16);
+      expect(_navHeight(tester), 44 + 16);
 
       navScrollCompression.value = 0;
       await tester.pumpAndSettle();
-      expect(_navHeight(tester), 62 + 16);
+      expect(_navHeight(tester), 48 + 16);
       expect(_pillOpacity(tester), 1.0);
-      expect(find.text('Home'), findsOneWidget);
+      expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
     });
 
     testWidgets(
@@ -316,9 +307,9 @@ void main() {
         navScrollCompression.value = 1;
         await tester.pumpAndSettle();
 
-        expect(_navHeight(tester), 62 + 16);
+        expect(_navHeight(tester), 48 + 16);
         expect(_pillOpacity(tester), 1.0);
-        expect(find.text('Home'), findsOneWidget);
+        expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
       },
     );
 
@@ -328,11 +319,11 @@ void main() {
         await _pumpNav(tester, reduceMotion: !forced);
         navScrollCompression.value = 1;
         await tester.pumpAndSettle();
-        expect(_navHeight(tester), (forced ? 62 : 52) + 16);
+        expect(_navHeight(tester), (forced ? 48 : 44) + 16);
         expect(_pillOpacity(tester), forced ? 1.0 : 0.92);
         final pill = tester.widgetList<AnimatedContainer>(
           find.descendant(of: _navFinder, matching: find.byType(AnimatedContainer)))
-            .firstWhere((w) => w.constraints?.maxHeight == (forced ? 62 : 52));
+            .firstWhere((w) => w.constraints?.maxHeight == (forced ? 48 : 44));
         expect(pill.duration.inMicroseconds, forced ? 0 : MotionTokens.fast.inMicroseconds);
       });
     }

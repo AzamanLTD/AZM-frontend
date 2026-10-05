@@ -23,11 +23,10 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/p2p/p2p_marketplace_screen.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
@@ -86,8 +85,13 @@ class WalletModulesRow extends ConsumerWidget {
               label: 'P2P',
               onTap: () {
                 AzamanHaptics.nav();
-                pushWithVerticalTransition(
-                    context, const P2PMarketplaceScreen());
+                // UX-CORRECTION §10 — the Home P2P pill opens the CANONICAL
+                // USDC/P2P market page (/marketplace → P2PMarketListScreen),
+                // not the legacy P2PMarketplaceScreen. No second P2P page.
+                // (AzRoutes.marketplace is the PATH form '/marketplace';
+                // AzRouteNames.marketplace is the route NAME — push takes
+                // the location.)
+                context.push(AzRoutes.marketplace);
               },
             ),
           ),

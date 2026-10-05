@@ -105,7 +105,10 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
     final primaryValue = balance.availableBalance;
     final primaryLabel = AzMoney.usdcFirst(primaryValue);
     final secondaryLabel = AzMoney.ghs(ghsValue);
-    const secondaryMask = '•••• ${AzMoney.ghsSymbol}';
+    // UX-CORRECTION §11 — the secondary mask keeps the EXACT visible
+    // grammar (symbol first, then the value region) so the GHS line does
+    // not reorder when hiding. Only the amount region becomes dots.
+    const secondaryMask = '${AzMoney.ghsSymbol} ••••';
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
@@ -223,63 +226,73 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 ),
               ),
 
-              if (isVisible)
-                // RICHTEXT CORRECTIONS §2A/§2B: the hero is the AMOUNT.
-                // "USDC" is a small unit/label beside it — no longer part
-                // of the same giant typographic block — and the figure's
-                // weight drops from the near-black w800 to the
-                // financially-authoritative-but-not-headline w600. The
-                // odometer keeps rolling only the digits that changed;
-                // the USDC mark is outside it, so it never re-rolls.
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: AzSpace.sm),
-                      child: Text(
-                        AzMoney.usdcSymbol,
-                        style: AzText.eyebrow.copyWith(
-                          color: colors.textTertiary,
-                          fontWeight: FontWeight.w600,
-                        ),
+              // RICHTEXT CORRECTIONS §2A/§2B + UX-CORRECTION §11: the
+              // hero is the AMOUNT. "USDC" is a small unit/label beside
+              // it — no longer part of the same giant typographic block —
+              // and the figure's weight drops from the near-black w800 to
+              // the financially-authoritative-but-not-headline w600. The
+              // odometer keeps rolling only the digits that changed; the
+              // USDC mark is outside it, so it never re-rolls.
+              //
+              // UX-CORRECTION §11 — the hidden state PRESERVES this
+              // structure: the USDC unit label stays, and the SAME amount
+              // region shows the mask. The row is never replaced by a
+              // bare dots Text — the layout geometry between visible and
+              // hidden differs only in the masking itself.
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: AzSpace.sm),
+                    child: Text(
+                      AzMoney.usdcSymbol,
+                      style: AzText.eyebrow.copyWith(
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    // OdometerNumber rolls ONLY the digits that changed.
-                    // Tabular figures (inside AzText.money) are required —
-                    // without them the figure shifts sideways mid-roll.
-                    //
-                    // `Flexible` matters: this Row is mainAxisSize.min, and a
-                    // min-axis Flex lays INFLEXIBLE children out with UNBOUNDED
-                    // width — so a bare odometer would render its full natural
-                    // width (its own internal FittedBox never sees a bound) and
-                    // the Row would overflow a narrow card (the flip-card
-                    // back-face tests catch this at 280px). As a flex child the
-                    // odometer receives the width left after the unit label,
-                    // and its internal scale-down guard engages exactly as it
-                    // did when it sat directly in the Column.
-                    Flexible(
-                      child: OdometerNumber(
-                        value: AzMoney.amount(primaryValue),
-                        style: AzText.money(
-                          colors.textPrimary,
-                          size: AzText.sizeHero,
-                          weight: FontWeight.w600,
-                        ),
-                        semanticsLabel: '$primaryLabel available',
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Text(
-                  '••••••',
-                  style: AzText.money(
-                    colors.textPrimary,
-                    size: AzText.sizeHero,
-                    weight: FontWeight.w600,
                   ),
-                ),
+                  // OdometerNumber rolls ONLY the digits that changed.
+                  // Tabular figures (inside AzText.money) are required —
+                  // without them the figure shifts sideways mid-roll.
+                  //
+                  // `Flexible` matters: this Row is mainAxisSize.min, and a
+                  // min-axis Flex lays INFLEXIBLE children out with UNBOUNDED
+                  // width — so a bare odometer would render its full natural
+                  // width (its own internal FittedBox never sees a bound) and
+                  // the Row would overflow a narrow card (the flip-card
+                  // back-face tests catch this at 280px). As a flex child the
+                  // odometer receives the width left after the unit label,
+                  // and its internal scale-down guard engages exactly as it
+                  // did when it sat directly in the Column.
+                  Flexible(
+                    child: isVisible
+                        ? OdometerNumber(
+                            value: AzMoney.amount(primaryValue),
+                            style: AzText.money(
+                              colors.textPrimary,
+                              size: AzText.sizeHero,
+                              weight: FontWeight.w600,
+                            ),
+                            semanticsLabel: '$primaryLabel available',
+                          )
+                        // UX-CORRECTION §11 — the masked amount occupies
+                        // the same region with the same hero style; the
+                        // real value is never exposed to semantics while
+                        // hidden.
+                        : Text(
+                            '••••••••',
+                            semanticsLabel: 'Balance hidden',
+                            style: AzText.money(
+                              colors.textPrimary,
+                              size: AzText.sizeHero,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: AzSpace.xs),
 

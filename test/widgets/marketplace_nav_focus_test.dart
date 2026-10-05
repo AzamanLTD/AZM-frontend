@@ -1,10 +1,11 @@
 // CORRECTION I — the focused Marketplace navigation state.
 //
 // At the Marketplace ROOT the bottom navigation reorganises itself around
-// Shopping: [ … Marketplace (search field) ].
+// Shopping: [ back (marketplace icon) (search field) ] — UX-CORRECTION §3:
+// icon + search only, the word "Marketplace" and the "…" glyph are gone.
 //   * Entering the Marketplace tab turns the focus ON (shell wiring).
 //   * The + control exits the composition horizontally.
-//   * The "…" control restores the normal bar — Marketplace STAYS
+//   * The back-arrow control restores the normal bar — Marketplace STAYS
 //     selected; it is a presentation change, never a navigation.
 //   * The search field binds to the AUTHORITATIVE marketplace search
 //     provider through the same binding seam the screen uses.
@@ -61,55 +62,74 @@ void main() {
   testWidgets('normal state: three tabs + the + beside the pill',
       (tester) async {
     await _pumpNav(tester, selectedIndex: 0);
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Chat'), findsOneWidget);
-    expect(find.text('Marketplace'), findsOneWidget);
+    // UX-CORRECTION §4 — icon-only resting nav: no text labels.
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Chat'), findsNothing);
+    expect(find.text('Marketplace'), findsNothing);
+    // The three tab identities live on Semantics.
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
+    expect(find.bySemanticsLabel('Chat'), findsOneWidget);
+    expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);
     // No focused row.
-    expect(find.byKey(const ValueKey('marketplace-nav-ellipsis')),
+    expect(find.byKey(const ValueKey('marketplace-nav-back')),
         findsNothing);
     expect(find.byKey(const ValueKey('marketplace-nav-search')),
         findsNothing);
   });
 
-  testWidgets('focused Marketplace state: [ … Marketplace (search) ], '
-      'normal tabs hidden, + gone', (tester) async {
+  testWidgets('focused Marketplace state: [ back icon (search) ], the word '
+      'gone, normal tabs hidden, + gone', (tester) async {
     await _pumpNav(tester, selectedIndex: 2, focused: true);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('marketplace-nav-ellipsis')),
+    // UX-CORRECTION §3 — back arrow replaces "…"; icon-only identity.
+    expect(find.byKey(const ValueKey('marketplace-nav-back')),
         findsOneWidget);
-    expect(find.byKey(const ValueKey('marketplace-nav-title')),
-        findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
+    expect(find.byIcon(HugeIconsSolid.store01), findsOneWidget);
     expect(find.byKey(const ValueKey('marketplace-nav-search')),
         findsOneWidget);
 
+    // The word "Marketplace" DISAPPEARS from the focused band.
+    expect(find.byKey(const ValueKey('marketplace-nav-title')),
+        findsNothing);
+    expect(find.text('Marketplace'), findsNothing);
+
     // The normal tab bar is NOT visible in the focused state.
-    expect(find.text('Home'), findsNothing);
-    expect(find.text('Chat'), findsNothing);
+    expect(find.bySemanticsLabel('Home'), findsNothing);
+    expect(find.bySemanticsLabel('Chat'), findsNothing);
 
     // The + control has exited the composition — its layout space is
     // released, so the search field owns the remaining width.
     expect(find.byKey(const ValueKey('plus-stand-in')), findsNothing);
+
+    // The search field genuinely gets the extra width: it must be wider
+    // than half the pill.
+    expect(
+        tester.getSize(
+                find.byKey(const ValueKey('marketplace-nav-search')))
+            .width,
+        greaterThan(_surface.width / 2));
   });
 
-  testWidgets('"…" restores the normal bar and Marketplace stays selected',
-      (tester) async {
+  testWidgets('the back arrow restores the normal bar and Marketplace stays '
+      'selected', (tester) async {
     await _pumpNav(tester, selectedIndex: 2, focused: true);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('marketplace-nav-ellipsis')));
+    await tester.tap(find.byKey(const ValueKey('marketplace-nav-back')));
     await tester.pumpAndSettle();
 
-    // Normal navigation restored.
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Chat'), findsOneWidget);
-    expect(find.text('Marketplace'), findsOneWidget);
+    // Normal navigation restored (icon-only identities on Semantics).
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
+    expect(find.bySemanticsLabel('Chat'), findsOneWidget);
+    expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     // Marketplace is STILL the selected tab (accent identity), and the +
     // glides back in.
     expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);
     // Focused row gone.
-    expect(find.byKey(const ValueKey('marketplace-nav-ellipsis')),
+    expect(find.byKey(const ValueKey('marketplace-nav-back')),
         findsNothing);
   });
 
@@ -139,9 +159,10 @@ void main() {
     await _pumpNav(tester, selectedIndex: 2);
 
     // Flip the focused presentation on WITHOUT rebuilding the harness —
-    // exactly the way the shell does.
+    // exactly the way the shell does. (The icon-only nav has no label
+    // Text to hook any more — the band key is the stable hook.)
     final container = ProviderScope.containerOf(
-        tester.element(find.text('Marketplace')));
+        tester.element(find.byKey(const ValueKey('nav-under-test'))));
     container.read(marketplaceNavFocusProvider.notifier).state = true;
 
     // Mid-transition: BOTH presentations live inside the SAME pill
@@ -177,7 +198,7 @@ void main() {
         lessThanOrEqualTo(_surface.height - 300));
     expect(
         tester.getRect(
-            find.byKey(const ValueKey('marketplace-nav-ellipsis'))).bottom,
+            find.byKey(const ValueKey('marketplace-nav-back'))).bottom,
         lessThanOrEqualTo(_surface.height - 300));
 
     // The field is still hit-testable where it renders.

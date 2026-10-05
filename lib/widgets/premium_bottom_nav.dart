@@ -64,20 +64,31 @@ class NavScrollCompression {
   /// instead of one per frame.
   static const int steps = 10;
 
-  /// Fraction of compression at which the labels finish collapsing. Below
-  /// this the labels are still legible; above it the pill is icon-only.
-  static const double labelCollapseAt = 0.6;
-
   /// Opacity floor when fully compressed. A floating pill must never become
   /// translucent enough that the page shows through it, or it reads as a
   /// rendering bug rather than as depth.
   static const double compressedOpacity = 0.92;
 
   /// Height at rest (expanded pill).
-  static const double expandedHeight = 62;
+  ///
+  /// UX-CORRECTION §4 — the resting nav is icon-only, so the pill is a
+  /// deliberate THINNER height: 48 keeps a comfortable margin above the
+  /// 44px minimum tap target (the whole pill-height strip stays the
+  /// button), instead of the 62px that icon+label needed. The icons keep
+  /// their existing size — no enlargement to compensate.
+  static const double expandedHeight = 48;
 
   /// Height when fully compressed.
-  static const double collapsedHeight = 52;
+  ///
+  /// 44 IS the minimum tap target token: the compressed pill rests
+  /// exactly on it, a deliberate floor rather than a scale-down that
+  /// would read as cramped.
+  static const double collapsedHeight = 44;
+
+  /// UX-CORRECTION §5B — the outer right inset of the whole bottom
+  /// control band: the deliberate gap between the + and the screen edge
+  /// (mirrors the pill's rest lateral inset, so the band is symmetric).
+  static const double outerRightInset = 16;
 
   /// Lateral inset at rest.
   static const double expandedInset = 16;
@@ -368,19 +379,23 @@ class PremiumBottomNav extends ConsumerWidget {
                     NavScrollCompression.expandedInset) *
                 t;
 
-        // The labels collapse over the first 60% of compression, so they are
-        // gone well before the pill reaches its minimum height.
-        final labelOpacity = (1.0 - (t / NavScrollCompression.labelCollapseAt))
-            .clamp(0.0, 1.0);
-
         // NEW-HOME §10: the pill and any `trailing` control share ONE
         // bottom band. The trailing control sits in the row at the pill's
         // right, vertically centered on the pill, and the safe-area
         // padding below is computed ONCE for the whole band.
         // §13: [_ImeBandPad] glues the band to the IME when the band's
         // own field owns the keyboard (see the class comment).
+        // UX-CORRECTION §5B — EXPLICIT bottom-control geometry: the whole
+        // band carries a named outer right inset so the + never sits flush
+        // against the viewport edge. The nav + plus read as ONE intentional
+        // bottom control system: [pill —gap— plus —outer inset— screen
+        // edge]. `lg` mirrors the pill's own rest lateral inset (16), so
+        // the composition is symmetric at rest.
         return _ImeBandPad(
-          child: Row(
+          child: Padding(
+            padding:
+                const EdgeInsets.only(right: NavScrollCompression.outerRightInset),
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
@@ -442,7 +457,6 @@ class PremiumBottomNav extends ConsumerWidget {
                             isSelected: selectedIndex == i,
                             index: i,
                             colors: colors,
-                            labelOpacity: labelOpacity,
                             reduceMotion: reduceMotion,
                             onTap: () => _handleTap(i),
                             onLongPress: onTabLongPress == null
@@ -521,6 +535,7 @@ class PremiumBottomNav extends ConsumerWidget {
               ],
             ],
           ),
+          ),
         );
       },
     );
@@ -533,9 +548,6 @@ class _NavButton extends StatelessWidget {
   final int index;
   final AzamanColors colors;
 
-  /// 1.0 = label fully visible, 0.0 = label fully collapsed.
-  final double labelOpacity;
-
   /// Passed down so the nav does not re-read MediaQuery in four places.
   final bool reduceMotion;
 
@@ -546,7 +558,6 @@ class _NavButton extends StatelessWidget {
     required this.isSelected,
     required this.index,
     required this.colors,
-    required this.labelOpacity,
     required this.reduceMotion,
     required this.onTap,
     this.onLongPress,
@@ -556,13 +567,17 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isSelected ? colors.accent : colors.textTertiary;
 
-    // When the label is collapsing, the icon must stay optically centred in the
-    // pill. The Column is centre-aligned, so shrinking the gap and the label
-    // together keeps the icon centred without any manual offset.
-    final showLabel = labelOpacity > 0.01;
-
+    // UX-CORRECTION §4 — resting nav is ICON-ONLY. The visible label is
+    // gone; the tab's identity lives on in Semantics so screen readers,
+    // selected-state announcements and the active-tab contract are
+    // unchanged.
     return Expanded(
-      child: GestureDetector(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: item.label,
+        child: GestureDetector(
+        key: ValueKey('nav-item-$index'),
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         onLongPress: onLongPress,
@@ -587,29 +602,9 @@ class _NavButton extends StatelessWidget {
               child: _badge(context, color),
             ),
 
-            // The 4px gap and the label both collapse together.
-            SizedBox(height: 4 * labelOpacity),
-
-            if (showLabel)
-              Opacity(
-                opacity: labelOpacity,
-                child: AnimatedDefaultTextStyle(
-                  duration: reduceMotion ? Duration.zero : MotionTokens.fast,
-                  curve: MotionTokens.enter,
-                  // The scale's `caption` step is 10/w600/+0.3 — the nav used
-                  // a bare 10px with -0.2 tracking before. Tracking now comes
-                  // from the scale; only the weight still distinguishes
-                  // selected from unselected, because the nav label is the one
-                  // place where weight IS the hierarchy.
-                  style: AzText.caption.copyWith(
-                    color: color,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  child: Text(item.label),
-                ),
-              ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -909,8 +904,9 @@ class _ImeBandPadState extends State<_ImeBandPad>
   }
 }
 
-/// The focused Marketplace band: [ … Marketplace (search field) ].
-/// Marketplace is highlighted in the accent color; the search field binds
+/// The focused Marketplace band: [ back (marketplace icon) (search field) ]
+/// — UX-CORRECTION §3: icon + search only, the "Marketplace" word is gone.
+/// The store icon is highlighted in the accent color; the search field binds
 /// to the AUTHORITATIVE marketplace search provider through
 /// [MarketplaceSearchBinding] — the same single owner of search state the
 /// screen uses; no second search provider is invented.
@@ -968,39 +964,33 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
     });
     return Row(
       children: [
-        // "…" — restores the normal navigation bar, staying on Marketplace.
+        // UX-CORRECTION §3 — a proper back/left arrow button (the existing
+        // icon system), replacing the "…" glyph. Same action as before: a
+        // PRESENTATION exit only — Marketplace stays selected, its content
+        // stays put, only the navigation band restores.
         Semantics(
           button: true,
           label: 'Show full navigation',
           child: GestureDetector(
-            key: const ValueKey('marketplace-nav-ellipsis'),
+            key: const ValueKey('marketplace-nav-back'),
             behavior: HitTestBehavior.opaque,
             onTap: _restoreNormalNav,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-              child: Text(
-                '…',
-                style: AzText.titleXl.copyWith(
-                  color: colors.textSecondary,
-                  fontWeight: FontWeight.w800,
-                ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.md, vertical: AzSpace.sm),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: colors.textSecondary,
               ),
             ),
           ),
         ),
-        // Marketplace — the active root tab, identified by the accent
-        // color.
+        // UX-CORRECTION §3 — the focused band identifies the tab by ICON
+        // only: the word "Marketplace" is gone so the search field owns
+        // the maximum usable horizontal space.
         Icon(HugeIconsSolid.store01, size: 18, color: colors.accent),
         const SizedBox(width: AzSpace.sm),
-        Text(
-          'Marketplace',
-          key: const ValueKey('marketplace-nav-title'),
-          style: AzText.title.copyWith(
-            color: colors.accent,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(width: AzSpace.md),
         // The search field occupies the remaining right-hand space and
         // binds to the AUTHORITATIVE search provider.
         Expanded(

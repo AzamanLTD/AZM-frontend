@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -168,7 +169,116 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));
+
     // The list/map area exists immediately on the bare tab.
     expect(find.byType(ListView), findsWidgets);
   });
+
+  group('UX-CORRECTION §1 — compact category dial geometry', () {
+    Future<void> openFan(WidgetTester tester) async {
+      await _pumpHome(tester);
+      await tester.tap(_dialAnchor());
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the fan is the EXACT five-category set — Services and '
+        'Wellness satellites do not exist', (tester) async {
+      await openFan(tester);
+      // 'All' renders twice while the fan is open (the real anchor pill
+      // plus the goo trigger-ghost on top of it) — that duplication is the
+      // existing ghost mechanism, not a second category control.
+      expect(find.text('All'), findsWidgets);
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        expect(find.text(label), findsOneWidget,
+            reason: 'category set is exactly All/Shop/Ride/Stay/Eat');
+      }
+      expect(find.text('Services'), findsNothing);
+      expect(find.text('Wellness'), findsNothing);
+    });
+
+    testWidgets('satellites hug the anchor — no wide-burst flight', (
+        tester) async {
+      await openFan(tester);
+      final anchor = tester.getRect(_dialAnchor());
+      final satelliteTexts = ['Eat', 'Shop', 'Ride', 'Stay'];
+      var maxCenterDistance = 0.0;
+      var topMost = double.infinity;
+      var bottomMost = -double.infinity;
+      for (final label in satelliteTexts) {
+        final rect = tester.getRect(find.text(label));
+        final centre = rect.center;
+        maxCenterDistance = (centre - anchor.center).distance >
+                maxCenterDistance
+            ? (centre - anchor.center).distance
+            : maxCenterDistance;
+        topMost = rect.top < topMost ? rect.top : topMost;
+        bottomMost = rect.bottom > bottomMost ? rect.bottom : bottomMost;
+      }
+      // Compact close arc: satellites stay within ~1.5 anchor widths of
+      // the pill centre (the wide burst put them 176° around the anchor).
+      expect(maxCenterDistance, lessThan(anchor.width * 1.5));
+      // The fan opens around/below the anchor, never flying far above it.
+      expect(topMost, greaterThanOrEqualTo(anchor.top));
+      // The whole fan fits in a shallow band, not a tall semicircle.
+      expect(bottomMost - topMost, lessThan(140));
+    });
+
+    testWidgets('neighbouring satellites never overlap (collision safety '
+        'in the compact arc)', (tester) async {
+      await openFan(tester);
+      final rects = [
+        for (final label in ['Eat', 'Shop', 'Ride', 'Stay'])
+          tester.getRect(find.text(label)).inflate(4)
+      ];
+      for (var i = 0; i < rects.length; i++) {
+        for (var j = i + 1; j < rects.length; j++) {
+          expect(rects[i].overlaps(rects[j]), isFalse,
+              reason: 'satellites $i and $j overlap');
+        }
+        expect(rects[i].overlaps(anchorShrink(_dialAnchor(), tester)),
+            isFalse, reason: 'satellite $i overlaps the anchor pill');
+      }
+    });
+  });
+
+  group('UX-CORRECTION §2 — satellite labels always fully readable', () {
+    testWidgets('all five labels paint complete when the fan is open — no '
+        'clipping, no fade, no truncation', (tester) async {
+      await _pumpHome(tester);
+      await tester.tap(_dialAnchor());
+      await tester.pumpAndSettle();
+
+      const satStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      );
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: satStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final rendered = tester.renderObject<RenderParagraph>(find.text(label));
+        // The pill has no width constraint on its label: the paragraph is
+        // exactly the full intrinsic text size. Any clip/fade workaround
+        // would shrink it below the painter's full width.
+        expect(rendered.size.width, greaterThanOrEqualTo(painter.width),
+            reason: 'label "$label" is clipped');
+        expect(rendered.size.height, greaterThanOrEqualTo(painter.height));
+      }
+      // The anchor pill keeps the selected category fully visible too.
+      final painter = TextPainter(
+        text: const TextSpan(
+            text: 'All',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final anchor = tester.renderObject<RenderParagraph>(
+          find.text('All').first);
+      expect(anchor.size.width, greaterThanOrEqualTo(painter.width));
+    });
+  });
 }
+
+Rect anchorShrink(Finder f, WidgetTester tester) =>
+    tester.getRect(f).deflate(8);
+

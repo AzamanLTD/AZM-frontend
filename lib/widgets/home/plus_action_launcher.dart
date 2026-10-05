@@ -534,9 +534,22 @@ class _LauncherRow extends ConsumerWidget {
             // trailing line while rows of different label length extend
             // leftward from it by different amounts — "[ action ]" blocks
             // hanging off the plus, not a uniform full-width bar.
+            //
+            // UX-CORRECTION §5A — text LEFT, icon RIGHT: the icon closes
+            // each row on the shared trailing edge (Send|icon, …,
+            // Withdraw|icon) so the stack reads as one right-aligned
+            // column of actions hanging directly above the plus.
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text(
+                  action.label,
+                  style: AzText.titleXl.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: AzSpace.md),
                 Container(
                   width: 46,
                   height: 46,
@@ -547,14 +560,6 @@ class _LauncherRow extends ConsumerWidget {
                         Border.all(color: colors.accent.withValues(alpha: 0.45)),
                   ),
                   child: Icon(action.icon, size: 20, color: colors.accent),
-                ),
-                const SizedBox(width: AzSpace.md),
-                Text(
-                  action.label,
-                  style: AzText.titleXl.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
                 ),
               ],
             ),

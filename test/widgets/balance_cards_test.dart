@@ -29,6 +29,7 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
@@ -173,7 +174,7 @@ void main() {
           visible: false,
         );
         // The mask is doing its job.
-        expect(find.text('••••••'), findsOneWidget);
+        expect(find.text('••••••••'), findsOneWidget);
 
         container.read(balanceDataProvider.notifier).state =
             const BalanceData(availableBalance: 150);
@@ -181,9 +182,57 @@ void main() {
 
         // THE privacy invariant: no change magnitude above the mask.
         expect(find.textContaining('+USDC'), findsNothing);
-        expect(find.text('••••••'), findsOneWidget);
+        expect(find.text('••••••••'), findsOneWidget);
       },
     );
+  });
+
+  group('UX-CORRECTION §11 — hidden state preserves the structural layout',
+      () {
+    testWidgets('the hidden figure keeps the USDC unit label in place and '
+        'the masked amount in the same region — never a bare dots row',
+        (tester) async {
+      // VISIBLE baseline geometry.
+      await _pumpFrontFace(tester, balance: 123.45);
+      final usdcVisible = tester.getRect(find.text('USDC'));
+      final secondaryVisible =
+          tester.getRect(find.text(AzMoney.ghs(123.45)));
+
+      // HIDDEN state.
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+
+      // The USDC unit label SURVIVES the mask — the row structure is
+      // intact, not replaced by a lone dots Text.
+      expect(find.text('USDC'), findsOneWidget,
+          reason: 'the hidden state must keep the USDC unit label visible '
+              'in the figure row');
+      // The masked amount occupies the same amount region.
+      expect(find.text('••••••••'), findsOneWidget);
+      final usdcHidden = tester.getRect(find.text('USDC'));
+
+      // The layout geometry does not change between states: the unit
+      // label lands at the same spot.
+      expect(usdcHidden.topLeft, usdcVisible.topLeft,
+          reason: 'the USDC unit label must not move when hiding');
+
+      // The secondary GHS line keeps its normal position AND its
+      // grammar — symbol FIRST, masked value after (no reorder to the
+      // end of the line).
+      final secondaryHidden =
+          tester.getRect(find.text('GH₵ ••••'));
+      expect(secondaryHidden.topLeft, secondaryVisible.topLeft,
+          reason: 'the GHS secondary line must not jump or reorder '
+              'between visible and hidden states');
+    });
+
+    testWidgets('the real balance value never leaks into the hidden tree '
+        'or semantics', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+      expect(find.textContaining('123.45'), findsNothing,
+          reason: 'the masked figure must not render the real amount');
+      final masked = tester.widget<Text>(find.text('••••••••'));
+      expect(masked.semanticsLabel, 'Balance hidden');
+    });
   });
 
   group('EXPERIENCE PASS §1 — USDC-first hero', () {
@@ -250,7 +299,7 @@ void main() {
       // The FX rate is public market data: masking the balance must not
       // hide it.
       await _pumpFrontFace(tester, balance: 100, visible: false);
-      expect(find.text('••••••'), findsOneWidget);
+      expect(find.text('••••••••'), findsOneWidget);
       expect(find.textContaining('1 USDC ='), findsOneWidget);
       expect(find.byType(RateRefreshIndicator), findsOneWidget);
     });

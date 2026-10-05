@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/widgets/premium_bottom_nav.dart';
 
 /// A fresh controller per pump — the shell owns the controller so it can
 /// toggle the launcher from the nav band; the tests own one each.
@@ -284,6 +285,48 @@ void main() {
       // position, and does not drift far horizontally from it.
       expect(receiveRect.bottom, lessThanOrEqualTo(plusRect.top + 1));
       expect((receiveRect.right - plusRect.right).abs(), lessThan(100.0));
+    });
+
+    testWidgets('§5A — text LEFT, icon RIGHT: the icon closes each row on '
+        'the shared trailing edge', (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+        PlusLauncherAction(
+            icon: Icons.qr_code, label: 'Withdraw', onTap: () {}),
+      ]);
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      const rowIcons = {'Send': Icons.send, 'Withdraw': Icons.qr_code};
+      for (final label in ['Send', 'Withdraw']) {
+        final textRect = tester.getRect(find.text(label));
+        final row = find.ancestor(
+            of: find.text(label), matching: find.byType(Row));
+        final iconRect = tester.getRect(
+            find.descendant(of: row, matching: find.byIcon(rowIcons[label]!)).first);
+        // The label ends BEFORE its icon begins — text left, icon right.
+        expect(textRect.right, lessThanOrEqualTo(iconRect.left),
+            reason: 'label "$label" must sit LEFT of its icon');
+      }
+    });
+
+    testWidgets('§5B — the + keeps the explicit outer right inset, never '
+        'flush against the screen edge', (tester) async {
+      await _pumpShell(tester, actions: [
+        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+      ]);
+      _lastController!.open();
+      await tester.pumpAndSettle();
+
+      final screenWidth = tester.view.physicalSize.width /
+          tester.view.devicePixelRatio;
+      final plusRect = tester.getRect(find.byType(PlusLauncherTrigger));
+      // The named geometry token — same value as the pill's rest lateral
+      // inset, so the bottom control system is symmetric and stable.
+      expect(screenWidth - plusRect.right,
+          closeTo(NavScrollCompression.outerRightInset, 0.5),
+          reason: 'the + must sit one deliberate outer inset inside the '
+              'screen edge, not flush at the viewport');
     });
 
     testWidgets('opening and closing preserves the same anchor',

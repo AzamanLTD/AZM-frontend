@@ -66,7 +66,13 @@ Future<void> _pumpNav(
   );
 }
 
-const _labels = ['Home', 'Chat', 'Marketplace'];
+// UX-CORRECTION §3/§4: the resting nav is icon-only (no visible labels),
+// so long-presses target the stable `nav-item-N` keys on the nav buttons.
+final _keys = [
+  const ValueKey('nav-item-0'),
+  const ValueKey('nav-item-1'),
+  const ValueKey('nav-item-2'),
+];
 
 void main() {
   setUp(() {
@@ -81,8 +87,8 @@ void main() {
       final longPresses = <int>[];
       final selections = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
-      for (var i = 0; i < _labels.length; i++) {
-        await tester.longPress(find.text(_labels[i]));
+      for (var i = 0; i < _keys.length; i++) {
+        await tester.longPress(find.byKey(_keys[i]));
       }
       expect(longPresses, [0, 1, 2]);
       expect(selections, isEmpty);
@@ -92,8 +98,8 @@ void main() {
       final selections = <int>[];
       final longPresses = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
-      for (final label in _labels) {
-        await tester.longPress(find.text(label));
+      for (final label in _keys) {
+        await tester.longPress(find.byKey(label));
       }
       expect(longPresses, [0, 1, 2]);
       expect(
@@ -109,9 +115,9 @@ void main() {
       final longPresses = <int>[];
       final selections = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
-      await tester.longPress(find.text('Marketplace'));
-      await tester.longPress(find.text('Marketplace'));
-      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
       expect(longPresses, [2, 2, 2]);
       expect(selections, isEmpty);
     });
@@ -126,7 +132,7 @@ void main() {
         selections: selections,
         longPresses: longPresses,
       );
-      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
       expect(longPresses, [2]);
     });
 
@@ -141,7 +147,7 @@ void main() {
         longPresses: longPresses,
         reduceMotion: true,
       );
-      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
       expect(longPresses, [2]);
     });
   });
@@ -153,8 +159,8 @@ void main() {
       final selections = <int>[];
       final longPresses = <int>[];
       await _pumpNav(tester, selections: selections, longPresses: longPresses);
-      await tester.tap(find.text('Chat'));
-      await tester.tap(find.text('Marketplace'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-1')));
+      await tester.tap(find.byKey(const ValueKey('nav-item-2')));
       expect(selections, [1, 2]);
       expect(longPresses, isEmpty);
     });
@@ -170,7 +176,7 @@ void main() {
         selections: selections,
         longPresses: longPresses,
       );
-      await tester.tap(find.text('Marketplace'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-2')));
       expect(
         selections,
         isEmpty,
@@ -191,7 +197,7 @@ void main() {
       // deadline: the gesture arena must resolve to neither a long press nor
       // a tap — no callback, no navigation, nothing left half-open.
       final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Marketplace')),
+        tester.getCenter(find.byKey(const ValueKey('nav-item-2'))),
       );
       await tester.pump(const Duration(milliseconds: 120));
       await gesture.moveBy(const Offset(0, 120));
@@ -210,7 +216,7 @@ void main() {
       // plain tap behaviour — nothing crashes, nothing double-fires.
       final selections = <int>[];
       await _pumpNav(tester, selections: selections);
-      await tester.longPress(find.text('Marketplace'));
+      await tester.longPress(find.byKey(const ValueKey('nav-item-2')));
       expect(selections, [2]);
     });
   });

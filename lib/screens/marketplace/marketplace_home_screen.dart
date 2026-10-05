@@ -789,10 +789,10 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  // The category set the marketplace actually supports today (§11):
-  // All is a REAL selectable state (wire null), then every currently
-  // supported primary marketplace category. Icons match the category
-  // system's existing icon treatments.
+  // UX-CORRECTION §1 — the category set is EXACTLY All / Shop / Ride /
+  // Stay / Eat (All is a REAL selectable state, wire null, and the
+  // default). Services and Wellness are removed: no other user-facing
+  // satellite exists.
   static const List<CategoryDialItem> _dialCategories = [
     CategoryDialItem(
         wire: null, icon: Icons.apps_rounded, label: 'All'),
@@ -810,15 +810,7 @@ class _MarketplaceHomeScreenState
         wire: 'REAL_ESTATE',
         icon: Icons.apartment_rounded,
         label: 'Stay'),
-    CategoryDialItem(
-        wire: 'FREELANCE_SERVICES',
-        icon: Icons.handyman_rounded,
-        label: 'Services'),
-    CategoryDialItem(
-        wire: 'HEALTH_WELLNESS',
-        icon: Icons.spa_rounded,
-        label: 'Wellness'),
-  ];
+];
 
   // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.
   // The radial fan / goo-morph arms remain the visual grammar; the old row

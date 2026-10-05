@@ -223,9 +223,11 @@ void main() {
     final pill = find.byKey(const Key('contextual-nav-pill'));
     expect(pill, findsOneWidget);
     expect(tester.widget(pill), isA<PremiumBottomNav>());
-    expect(find.text('Marketplace'), findsOneWidget);
+    // UX-CORRECTION §3: the resting nav is icon-only — the
+    // Marketplace tab is the nav-item-2 button, not a label.
+    expect(find.byKey(const ValueKey('nav-item-2')), findsOneWidget);
 
-    await tester.tap(find.text('Marketplace'));
+    await tester.tap(find.byKey(const ValueKey('nav-item-2')));
     await tester.pumpAndSettle();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // popped back to the shell base
@@ -257,7 +259,7 @@ void main() {
     );
     expect(pill.selectedIndex, 0);
 
-    await tester.tap(find.text('Home'));
+    await tester.tap(find.byKey(const ValueKey('nav-item-0')));
     await tester.pumpAndSettle();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // shell base

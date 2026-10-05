@@ -62,76 +62,149 @@ Size measureSatellitePill(
   return Size(_satPillHPad * 2 + _satIconSize + 8 + tp.width, _satPillHeight);
 }
 
-/// Fans satellites in a symmetric arc close around the anchor (left-down
-/// through straight-down to right-down, or mirrored upward if there's more
-/// room above than below) instead of cascading down one diagonal — keeps
-/// every satellite "close but around" the main pill, matching the reference
-/// sketch, rather than stacking in a lopsided quarter-circle.
-/// Fans satellites in a single even semicircle that opens strictly to the
-/// right of the anchor — from straight-down, through horizontal, to
-/// straight-up. Every angle in this range has cos >= 0, so nothing can ever
-/// land left of the anchor. One shared radius is solved so it's
-/// simultaneously (a) far enough that no satellite overlaps the anchor
-/// pill, and (b) far enough that no two adjacent satellites overlap each
-/// other, given their real measured sizes.
+/// Two geometries:
+///
+/// - DEFAULT (burst): one shared radius, semicircle opening to the right of
+///   the anchor. Used by the plus launcher, where satellites fly far out on
+///   purpose. Overlap is structurally impossible (worst-case radius).
+/// - COMPACT: the historical close-arc grammar (18d8166) the marketplace
+///   category dial is specified to use — a shallow fan hugging the anchor
+///   (132° sweep, opening downward, or mirrored upward when there is more
+///   room above). Each satellite rides its own minimal anchor clearance
+///   (minR + 6) instead of one globally shared worst-case radius, and a
+///   pairwise pass grows adjacent radii only as far as real neighbour
+///   clearance requires — so the fan stays tight while remaining
+///   collision-safe. UX-CORRECTION §1: no arbitrary offsets, the tight
+///   geometry is the restored known-good one.
 List<ArcSlot> solveRadialFan({
   required Rect anchor,
   required List<Size> sizes,
   required LiquidSafeArea safe,
   double gap = 10,
   double sweepDeg = 176,
+  bool compact = false,
 }) {
   final n = sizes.length;
   if (n == 0) return const [];
-
-  final startDeg = -sweepDeg / 2;
-  final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
-  final stepRad = stepDeg * math.pi / 180;
-  double angleAt(int i) =>
-      n == 1 ? 0.0 : (startDeg + stepDeg * i) * math.pi / 180;
 
   final halfDiags = sizes
       .map((s) => math.sqrt(s.width * s.width + s.height * s.height) / 2)
       .toList();
 
-  double anchorClearance(int i, double rad) {
-    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
-    return (anchor.width / 2 + pw) * math.cos(rad).abs() +
-        (anchor.height / 2 + ph) * math.sin(rad).abs() +
-        gap;
+  if (!compact) {
+    final startDeg = -sweepDeg / 2;
+    final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
+    final stepRad = stepDeg * math.pi / 180;
+    double angleAt(int i) =>
+        n == 1 ? 0.0 : (startDeg + stepDeg * i) * math.pi / 180;
+
+    double anchorClearance(int i, double rad) {
+      final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+      return (anchor.width / 2 + pw) * math.cos(rad).abs() +
+          (anchor.height / 2 + ph) * math.sin(rad).abs() +
+          gap;
+    }
+
+    // One shared radius for every satellite. Growing it to cover the worst
+    // case anchor-clearance AND the worst case neighbour-to-neighbour chord
+    // is what makes overlap structurally impossible instead of hoping the
+    // angles happen to work out.
+    var r = 0.0;
+    for (var i = 0; i < n; i++) {
+      r = math.max(r, anchorClearance(i, angleAt(i)));
+    }
+    if (n > 1) {
+      for (var i = 0; i < n - 1; i++) {
+        final chord = halfDiags[i] + halfDiags[i + 1] + gap;
+        r = math.max(r, chord / (2 * math.sin(stepRad / 2)));
+      }
+    }
+
+    final slots = <ArcSlot>[];
+    for (var i = 0; i < n; i++) {
+      final rad = angleAt(i);
+      var rect = Rect.fromCenter(
+        center: anchor.center.translate(math.cos(rad) * r, -math.sin(rad) * r),
+        width: sizes[i].width,
+        height: sizes[i].height,
+      );
+      if (rect.left < safe.left)
+        rect = rect.shift(Offset(safe.left - rect.left, 0));
+      if (rect.right > safe.right)
+        rect = rect.shift(Offset(safe.right - rect.right, 0));
+      if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
+      if (rect.bottom > safe.bottom)
+        rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+      slots.add(ArcSlot(index: i, rect: rect, angle: rad));
+    }
+    return slots;
   }
 
-  // One shared radius for every satellite. Growing it to cover the worst
-  // case anchor-clearance AND the worst case neighbour-to-neighbour chord
-  // is what makes overlap structurally impossible instead of hoping the
-  // angles happen to work out.
-  var r = 0.0;
+  // ---- COMPACT (restored 18d8166 geometry + neighbour safety) ----
+  final spaceUp = anchor.top - safe.top;
+  final spaceDown = safe.bottom - anchor.bottom;
+  final growUp = spaceUp > spaceDown && spaceUp > 160;
+  final vSign = growUp ? -1.0 : 1.0;
+
+  final startDeg = 90.0 - sweepDeg / 2;
+  final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
+  final angles = [
+    for (var i = 0; i < n; i++)
+      (startDeg + stepDeg * i) * math.pi / 180
+  ];
+
+  // Per-satellite radius: just past its own anchor clearance (the 18d8166
+  // close-arc distance). Pairwise pass below only grows radii that actually
+  // need it for neighbour clearance.
+  final radii = List<double>.filled(n, 0.0);
   for (var i = 0; i < n; i++) {
-    r = math.max(r, anchorClearance(i, angleAt(i)));
+    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+    radii[i] = (anchor.width / 2 + pw) * math.cos(angles[i]).abs() +
+        (anchor.height / 2 + ph) * math.sin(angles[i]).abs() +
+        gap + 6;
   }
-  if (n > 1) {
+
+  Offset centreAt(int i) => anchor.center.translate(
+      math.cos(angles[i]) * radii[i], math.sin(angles[i]) * vSign * radii[i]);
+
+  // Grow only the adjacent pairs that are actually short on clearance —
+  // never a global worst-case radius. Converges: spreading radii strictly
+  // increases pair distances along the arc.
+  for (var pass = 0; pass < 12; pass++) {
+    var touched = false;
     for (var i = 0; i < n - 1; i++) {
-      final chord = halfDiags[i] + halfDiags[i + 1] + gap;
-      r = math.max(r, chord / (2 * math.sin(stepRad / 2)));
+      final d = (centreAt(i) - centreAt(i + 1)).distance;
+      final needed = halfDiags[i] + halfDiags[i + 1] + gap;
+      if (d < needed) {
+        final grow = (needed - d) / 2 + 1;
+        radii[i] += grow;
+        radii[i + 1] += grow;
+        touched = true;
+      }
     }
+    if (!touched) break;
   }
 
   final slots = <ArcSlot>[];
   for (var i = 0; i < n; i++) {
-    final rad = angleAt(i);
     var rect = Rect.fromCenter(
-      center: anchor.center.translate(math.cos(rad) * r, -math.sin(rad) * r),
+      center: centreAt(i),
       width: sizes[i].width,
       height: sizes[i].height,
     );
-    if (rect.left < safe.left)
+    if (rect.left < safe.left) {
       rect = rect.shift(Offset(safe.left - rect.left, 0));
-    if (rect.right > safe.right)
+    }
+    if (rect.right > safe.right) {
       rect = rect.shift(Offset(safe.right - rect.right, 0));
-    if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-    if (rect.bottom > safe.bottom)
+    }
+    if (rect.top < safe.top) {
+      rect = rect.shift(Offset(0, safe.top - rect.top));
+    }
+    if (rect.bottom > safe.bottom) {
       rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
-    slots.add(ArcSlot(index: i, rect: rect, angle: rad));
+    }
+    slots.add(ArcSlot(index: i, rect: rect, angle: angles[i]));
   }
   return slots;
 }
@@ -217,6 +290,10 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
           measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir),
       ],
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
+      // UX-CORRECTION §1 — compact close-arc geometry (the restored 18d8166
+      // grammar), not the launcher's wide burst fan.
+      sweepDeg: 132,
+      compact: true,
     );
 
     AzamanHaptics.toggle();
@@ -535,10 +612,13 @@ class _SatellitePill extends StatelessWidget {
           slot.rect.width,
           slot.rect.height,
         );
+        // UX-CORRECTION §2 — the slot only positions the pill; the pill
+        // sizes itself intrinsically so the label can never be clipped to
+        // the measured width (measurement feeds the solver's spacing, it
+        // is not a render constraint). Height stays the pill metric.
         return Positioned(
           left: pos.left,
           top: pos.top,
-          width: pos.width,
           height: pos.height,
           // Gate taps: a pill you cannot read yet is not tappable.
           child: LiquidReveal(
@@ -576,18 +656,15 @@ class _SatellitePill extends StatelessWidget {
               children: [
                 Icon(item.icon, size: _satIconSize, color: colors.textPrimary),
                 const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: _satLabelFS,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                      decoration: TextDecoration.none,
-                    ),
+                // UX-CORRECTION §2 — no Flexible/overflow fade: the full
+                // label always paints on the opaque surface above the goo.
+                Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: _satLabelFS,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
