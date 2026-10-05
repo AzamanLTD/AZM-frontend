@@ -104,7 +104,6 @@ Future<void> _pumpDeck(
   ResumeIntent? intent,
   MarketplaceRelevance? relevance,
   bool reduceMotion = false,
-  double? band,
 }) async {
   await tester.binding.setSurfaceSize(_surfaceSize);
   await tester.pumpWidget(
@@ -122,10 +121,7 @@ Future<void> _pumpDeck(
             size: _surfaceSize,
             disableAnimations: reduceMotion,
           ),
-          child: Scaffold(
-              body: band == null
-                  ? const HomeReminderDeck()
-                  : HomeReminderDeck(band: band)),
+          child: const Scaffold(body: HomeReminderDeck()),
         ),
       ),
     ),
@@ -144,18 +140,33 @@ Iterable<Key> _cardKeys(WidgetTester tester) => tester
     )
     .map((c) => c.key!);
 
+/// The pagination-dot keys (pass B3): one per REAL card, in rail order.
+Iterable<Key> _dotKeys(WidgetTester tester) => tester
+    .widgetList<Container>(
+      find.byWidgetPredicate((w) =>
+          w is Container &&
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('reminder-deck-dot-')),
+    )
+    .map((c) => c.key!);
+
 void main() {
-  testWidgets('§4 — no legitimate signal: the placeholder fan fills the '
-      'slot (the space is never blank)', (tester) async {
+  testWidgets('§4 — no legitimate signal: the deck collapses out of the '
+      'layout cleanly (pass D — production never fabricates reminders)',
+      (tester) async {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
-    expect(find.text('Your reminders will appear here'), findsOneWidget);
-    expect(find.text('REMINDERS'), findsOneWidget);
-    // Two ghost slots fan behind the placeholder — the deck reads as a
-    // deck, but no ghost ever claims content.
-    expect(find.byKey(const ValueKey('reminder-ghost')), findsNWidgets(2));
-    expect(_cardKeys(tester), const [ValueKey('reminder-card-placeholder')]);
-    // The placeholder is informational — no destination, no chevron.
+    // PASS D — truthfulness: no placeholder fan, no fabricated copy, no
+    // ghost slots pretending content exists behind nothing.
+    expect(find.text('Your reminders will appear here'), findsNothing);
+    expect(find.text('REMINDERS'), findsNothing);
+    expect(find.byKey(const ValueKey('reminder-ghost')), findsNothing);
     expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
+    // The collapse stub renders zero height — the slot is simply gone.
+    final stub = tester
+        .element(find.byKey(const ValueKey('reminder-deck-empty')))
+        .findRenderObject() as RenderBox;
+    expect(stub.size.height, 0);
+    expect(stub.size.width, 0);
   });
 
   testWidgets('§4 — demo build: a signal-less deck seeds from the demo '
@@ -165,67 +176,74 @@ void main() {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
     expect(find.text('Susu Circle - August'), findsOneWidget);
     expect(find.text("Chef Abby's"), findsOneWidget);
-    expect(find.text('Coastline Suites'), findsOneWidget);
-    // The fan is fully populated — no ghost slots behind three cards.
+    // PASS B — the visual stack shows hero + ONE peek edge: only two
+    // cards are MOUNTED; the third lives in the order (never a fan of
+    // stale cards). The dot rail carries one dot per REAL card (3).
     expect(find.byKey(const ValueKey('reminder-ghost')), findsNothing);
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
+    expect(find.text('Coastline Suites'), findsNothing,
+        reason: 'the third card stays virtual until the deck advances');
+    expect(_dotKeys(tester).length, 3);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(2));
   });
 
-  testWidgets('fill — the band drives the fan geometry: tall mode at a '
-      '260dp band, with taller cards and larger type', (tester) async {
+  testWidgets('pass B5 — the deck geometry is FIXED: hero 96, one 16px '
+      'peek, a 12px dot rail, band 132 on any screen', (tester) async {
     await _pumpDeck(
       tester,
-      susu: [
-        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
-        _activeSusu(DateTime(2026, 10, 20), id: 's2', name: 'Second Susu'),
-        _activeSusu(DateTime(2026, 11, 2), id: 's3', name: 'Third Susu'),
-      ],
+      susu: [ _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu') ],
       intent: _cartIntent,
-      band: 260,
     );
-    // band 260 → peek 40 (clamped), card 180 (tall ≥ 150): the fan spans
-    // the band exactly — the deck FILLS the space it is given.
+
+    // The band is a constant: hero + peek + dots gap + dot rail = 132.
     final deckSize = tester.getSize(find.byType(HomeReminderDeck));
-    expect(deckSize.height, 260);
+    expect(deckSize.height, 132);
 
     final front = tester.getSize(
         find.byKey(const ValueKey('reminder-card-susu-s1')));
-    expect(front.height, 180);
+    expect(front.height, 96,
+        reason: 'the hero card is fully readable at the fixed height');
 
-    // Behind cards peek BELOW the front card's bottom edge.
+    // PASS B2 — exactly ONE peek edge behind the hero, at the 16px step.
+    // Three cards exist, but the stack shows only the next edge.
     final tops = tester
         .widgetList<Positioned>(find.byWidgetPredicate(
             (w) => w is Positioned && w.top != null))
         .map((p) => p.top)
         .toSet();
-    expect(tops, <double>{0.0, 40.0, 80.0},
-        reason: 'front at 0, behind cards peek at peek(40) and 2×peek(80)');
-    // Tall mode: the title steps up to the titleL size (20).
-    final title = tester.widget<Text>(find
-        .text('Susu contribution due Oct 12')
-        .first);
-    expect(title.style?.fontSize, 20);
+    expect(tops, <double?>{0.0, 16.0},
+        reason: 'front at 0, the single peek at 16 — never a fan');
+
+    // PASS B3 — the dot rail carries one dot per real card (2: the susu
+    // hero + the marketplace peek), the active dot tracking the front.
+    expect(_dotKeys(tester).length, 2);
+    final active = tester.widget<Container>(
+        find.byKey(const ValueKey('reminder-deck-dot-0')));
+    final rest = tester.widget<Container>(
+        find.byKey(const ValueKey('reminder-deck-dot-1')));
+    expect((active.decoration as BoxDecoration).color,
+        isNot((rest.decoration as BoxDecoration).color),
+        reason: 'the active dot must read distinct from the rest');
   });
 
-  testWidgets('fill — the clamps hold at absurd bands (never a giant '
-      'card, never a sliver)', (tester) async {
+  testWidgets('pass B1 — the front card is STRAIGHT at rest: no tilt, no '
+      'scale, no rotation (the readable hero)', (tester) async {
     await _pumpDeck(tester,
-        susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')], band: 500);
-    // band 500 → card clamps at 264, peek at 40: bandHeight 344, not 500.
-    expect(tester.getSize(find.byType(HomeReminderDeck)).height, 344);
-    expect(
-        tester.getSize(find.byKey(const ValueKey('reminder-card-susu-s1')))
-            .height,
-        264);
+        susu: [ _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu') ],
+        intent: _cartIntent);
 
-    await _pumpDeck(tester,
-        susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')], band: 80);
-    // band 80 → peek 20, card clamps at 88: the compact floor.
-    expect(tester.getSize(find.byType(HomeReminderDeck)).height, 128);
-    expect(
-        tester.getSize(find.byKey(const ValueKey('reminder-card-susu-s1')))
-            .height,
-        88);
+    // At rest the front card carries an IDENTITY transform — straight,
+    // scale 1.0, rotation 0: nothing is rotated while the user reads.
+    final transforms =
+        tester.widgetList<Transform>(find.descendant(
+            of: find.byKey(const ValueKey('reminder-card-susu-s1')),
+            matching: find.byType(Transform)));
+    for (final t in transforms) {
+      expect(t.transform.isIdentity(), isTrue,
+          reason: 'the resting hero must be straight (pass B1)');
+    }
+
+    // One peek edge exists and one dot per card (2 cards, 2 dots).
+    expect(_dotKeys(tester).length, 2);
   });
 
   testWidgets('§4 — the SOONEST pending susu cycle is the one shown, with '

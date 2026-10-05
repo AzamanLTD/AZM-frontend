@@ -32,9 +32,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
-import 'package:azaman/providers/marketplace_relevance_provider.dart';
-import 'package:azaman/providers/marketplace_resume_provider.dart';
-import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
@@ -75,7 +72,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     value: 0,
   );
   double _handoffDragPx = 0;
-  bool _handoffHapticArmed = false;
 
   // EXPERIENCE PASS §6/§7 — the scroll-driven handoff and the deck peek.
   // The Home page's own bottom overscroll feeds the SAME handoff physics
@@ -83,9 +79,34 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   // tappable as the explicit fallback). When the handoff commits, the
   // reminder deck parks in a small peek band above the activity surface so
   // the user can always tell there is still a layer above Activity.
-  static const double _peekBandHeight = 96;
+  // PASS A5 — the Activity resting geometry lives structurally in
+  // ActivityRestGeometry (peek band + heading inset); Home only owns
+  // the measured deck parking offset inside that band.
   double _peekPx = 0;
   bool _peekSet = false;
+
+  // PASS A3 — how deep the CURRENT drag sits in the armed plateau
+  // (forward or reverse). Feeds the heading's lock-in cue; zero while
+  // no drag is live and during snaps.
+  double _handoffArmedDepth = 0;
+  bool _handoffArmedHapticFired = false;
+
+  // UX-CORRECTION §6 + PASS B5 — the Recent Activity doorway sits LOW in
+  // the resting composition, slightly above the bottom navigation, never
+  // mid-content. The reminder deck's geometry is now FIXED (pass B5), so
+  // the adaptive part is the SPACER between the deck and the doorway:
+  // measured once after the entrance choreography settles (transforms
+  // corrupt localToGlobal mid-entrance), floored at AzSpace.xxl, capped,
+  // never negative. The deck itself never resizes post-load.
+  static const double _doorwayGapMin = AzSpace.xxl;
+  static const double _doorwayGapMax = 344.0;
+  double _doorwayGap = _doorwayGapMin;
+  bool _doorwayGapSettled = false;
+  Timer? _doorwayGapTimer;
+
+  /// Bounded confirmation passes after a gap change: geometry re-read
+  /// from the settled layout converges in at most a couple of frames.
+  int _doorwayGapPasses = 0;
   bool _scrollHandoffActive = false;
   final GlobalKey _reminderDeckKey = GlobalKey();
 
@@ -106,20 +127,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   final GlobalKey _walletModulesKey = GlobalKey();
   final GlobalKey _doorwayKey = GlobalKey();
 
-  // The reminder deck FILLS the band between the wallet modules and the
-  // activity doorway (the fill patch): the space the old measured spacer
-  // occupied is handed to the deck itself, so the slot above Recent
-  // Activity is never blank — real cards, demo seeds (demo builds), or
-  // the placeholder fan. Measured after the entrance settles, clamped
-  // so the fan spans the band without overflow and cards never get
-  // absurd on tablets.
-  static const double _deckBandDefault = 134.0;
-  static const double _deckBandMin = 134.0;
-  static const double _deckBandMax = 344.0;
-  double _deckBand = _deckBandDefault;
-  bool _deckBandSettled = false;
-  Timer? _deckBandTimer;
-
   @override
   void initState() {
     super.initState();
@@ -133,100 +140,137 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       if (!mounted) return;
       ref.read(homeSummaryProvider.notifier).primeIfNeeded();
     });
-    _scheduleDeckBandMeasurement();
+    _scheduleDoorwayGapMeasurement();
   }
 
   /// Re-measure when the available geometry changes (rotation, font
-  /// scale) — but only after the entrance has settled once.
+  /// scale) — but only after the gap has settled once.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_deckBandSettled) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _measureDeckBand());
-    }
-  }
-
-  void _scheduleDeckBandMeasurement() {
-    // MotionTokens.staggerDelay(4) + standard travel stays well under a
-    // second; 1200ms lets the last block's entrance settle on any device.
-    // A cancelable Timer, NOT Future.delayed: the measurement belongs to
-    // this State's lifetime, and a bare delayed future would keep a
-    // timer pending after the widget is disposed (leaking the wait into
-    // whoever runs next — exactly what the test invariants flag).
-    _deckBandTimer?.cancel();
-    _deckBandTimer = Timer(const Duration(milliseconds: 1200), () {
-      _deckBandTimer = null;
-      if (mounted) _measureDeckBand();
-    });
-  }
-
-  void _measureDeckBand() {
-    final modulesCtx = _walletModulesKey.currentContext;
-    final doorwayCtx = _doorwayKey.currentContext;
-    if (modulesCtx == null || doorwayCtx == null) return;
-    final modulesBox = modulesCtx.findRenderObject();
-    final doorwayBox = doorwayCtx.findRenderObject();
-    if (modulesBox is! RenderBox || doorwayBox is! RenderBox) return;
-    final scrollable = Scrollable.maybeOf(modulesCtx);
-    if (scrollable == null) return;
-    final scrollBox = scrollable.context.findRenderObject();
-    if (scrollBox is! RenderBox || !scrollBox.attached) return;
-
-    // Unscrolled layout position: global y shifts with the scroll offset,
-    // so add it back. The scrollable's own origin gives a stable frame.
-    final scrollOrigin = scrollBox.localToGlobal(Offset.zero).dy;
-    final pixels = scrollable.position.hasContentDimensions
-        ? scrollable.position.pixels
-        : 0.0;
-    final modulesBottom = modulesBox.localToGlobal(Offset.zero).dy +
-        pixels -
-        scrollOrigin +
-        modulesBox.size.height;
-    // The first-viewport budget for the wallet column: the scrollable's
-    // own height minus the nav clearance it pads its content with.
-    final firstViewport =
-        scrollBox.size.height - AzSpace.navClearanceHeight;
-    final doorwayHeight = doorwayBox.size.height;
-    // FILL PATCH — the deck IS the band. The old measured spacer between
-    // the wallet modules and the doorway is gone: the space it reserved
-    // is handed to the reminder deck, which always renders (real cards,
-    // demo seeds in demo builds, or the placeholder fan), so the slot
-    // above Recent Activity is never blank. The band keeps a fixed
-    // breathing rhythm: AzSpace.xxl above the deck, AzSpace.md below.
-    //
-    // Bounds: the floor keeps small screens from a sliver fan (a deck
-    // tighter than the compact strip cannot show a card); the cap keeps
-    // tablets from absurd cards. When the modules already overflow the
-    // first viewport the band floors and the doorway simply follows the
-    // content flow (mid-scroll), which scrolling handles.
-    //
-    // Deliberate sm overshoot below the fold line: the content stays a
-    // few pixels TALLER than the viewport. If it fit exactly,
-    // maxScrollExtent would be 0, the page could never scroll off the
-    // bottom, and the mid-handoff reversal (scroll up mid-overscroll
-    // releases the handoff — §6) would have no scroll to win, silently
-    // turning every release past threshold into a commit.
-    final target = (firstViewport -
-            modulesBottom -
-            AzSpace.xxl -
-            AzSpace.md -
-            doorwayHeight +
-            AzSpace.sm)
-        .clamp(_deckBandMin, _deckBandMax);
-    _deckBandSettled = true;
-    if ((target - _deckBand).abs() > 0.5) {
-      setState(() => _deckBand = target);
+    if (_doorwayGapSettled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _measureDoorwayGap();
+      });
     }
   }
 
   @override
   void dispose() {
-    _deckBandTimer?.cancel();
+    // The doorway-gap measurement Timer belongs to this State's lifetime:
+    // a test (or tab switch) that unmounts Home before the 1200ms
+    // entrance settle would otherwise leave a pending timer behind.
+    _doorwayGapTimer?.cancel();
+    _doorwayGapTimer = null;
     _handoff.dispose();
     super.dispose();
   }
 
   bool get _reduceMotion => !AzMotion.of(context).travel;
+
+  void _scheduleDoorwayGapMeasurement() {
+    // MotionTokens.staggerDelay(5) + standard travel stays well under a
+    // second; 1200ms lets the last block's entrance settle on any device.
+    // A cancelable Timer, NOT Future.delayed: the measurement belongs to
+    // this State's lifetime, and a bare delayed future would keep a
+    // timer pending after the widget is disposed.
+    _doorwayGapTimer?.cancel();
+    _doorwayGapTimer = Timer(const Duration(milliseconds: 1200), () {
+      _doorwayGapTimer = null;
+      if (mounted) _measureDoorwayGap();
+    });
+  }
+
+  void _measureDoorwayGap() {
+    final doorwayCtx = _doorwayKey.currentContext;
+    if (doorwayCtx == null) return;
+    final scrollable = Scrollable.maybeOf(doorwayCtx);
+    if (scrollable == null) return;
+    final scrollBox = scrollable.context.findRenderObject();
+    final doorwayBox = doorwayCtx.findRenderObject();
+    if (scrollBox is! RenderBox ||
+        doorwayBox is! RenderBox ||
+        !scrollBox.attached) {
+      return;
+    }
+
+    // Unscrolled layout position: global y shifts with the scroll
+    // offset, so add it back. The scrollable's own origin is the stable
+    // frame (transform corruption is why the probe runs post-entrance).
+    final scrollOrigin = scrollBox.localToGlobal(Offset.zero).dy;
+    final pixels = scrollable.position.hasContentDimensions
+        ? scrollable.position.pixels
+        : 0.0;
+    final doorwayBottomUnscrolled = doorwayBox.localToGlobal(Offset.zero).dy +
+        pixels -
+        scrollOrigin +
+        doorwayBox.size.height;
+
+    // The content's TRUE bottom edge (the nav-clearance padding below
+    // the doorway is part of the scroll content) vs the viewport box.
+    // Clamping physics floors maxScrollExtent at 0 when the content
+    // under-fills, so the deficit must be read from geometry, never
+    // from the position.
+    final trueExtent = doorwayBottomUnscrolled +
+        AzSpace.navClearance.bottom -
+        scrollBox.size.height;
+
+    // PASS B5 — the deck is a FIXED compact strip; the measured spacer is
+    // the deck→doorway gap. The content must end a deliberate few pixels
+    // below the fold: if it fit exactly, maxScrollExtent would be 0, the
+    // page could never scroll off the bottom, and the mid-handoff
+    // reversal (scroll up mid-overscroll releases the handoff — §6)
+    // would have no scroll to win, silently turning every release past
+    // threshold into a commit.
+    const desiredOvershoot = AzSpace.sm;
+    final delta = desiredOvershoot - trueExtent;
+    final target = (_doorwayGap + delta).clamp(_doorwayGapMin, _doorwayGapMax);
+    _doorwayGapSettled = true;
+    if ((target - _doorwayGap).abs() > 0.5) {
+      setState(() => _doorwayGap = target);
+      // One bounded confirmation pass after the relayout: geometry re-read
+      // from the FINAL layout converges even if the first pass caught the
+      // content mid-settle.
+      if (_doorwayGapPasses < 2) {
+        _doorwayGapPasses++;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _measureDoorwayGap();
+        });
+      }
+    } else {
+      _doorwayGapPasses = 0;
+    }
+  }
+
+  double? _projectedDeckBottom() {
+    final ctx = _reminderDeckKey.currentContext;
+    if (ctx == null) return null;
+    final box = ctx.findRenderObject();
+    if (box is! RenderBox || !box.attached || box.size.height <= 0) {
+      return null;
+    }
+    final scrollable = Scrollable.maybeOf(ctx);
+    var bottom = box.localToGlobal(Offset.zero).dy + box.size.height;
+    if (scrollable != null && scrollable.position.hasContentDimensions) {
+      final pos = scrollable.position;
+      bottom += pos.maxScrollExtent - pos.pixels;
+    }
+    return bottom;
+  }
+
+  /// Measure the deck peek for this handoff session. Called while the
+  /// composition is still at rest (t == 0) so transforms cannot corrupt
+  /// the measurement — the same discipline as the doorway-gap probe.
+  /// PASS A5: the parked band is the FIXED ActivityRestGeometry peekBand
+  /// (no measured resting band, no per-content peek variance).
+  void _preparePeek() {
+    if (_peekSet) return;
+    final projected = _projectedDeckBottom();
+    _peekPx = projected == null
+        ? 0.0
+        : math.max(0.0, projected - ActivityRestGeometry.peekBand);
+    _peekSet = true;
+  }
 
   /// Applies a block's entrance choreography — or nothing at all when
   /// reduceMotion is set: Home simply IS there on the first frame.
@@ -294,35 +338,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   // never needs to be over the doorway text. The doorway remains tappable
   // as the explicit navigation/accessibility fallback.
 
-  /// The reminder deck's bottom edge projected to where it will sit after
-  /// the Home scroll reaches its bottom — the peek's parking target.
-  /// Returns null when the deck renders no signal (nothing to peek).
-  double? _projectedDeckBottom() {
-    final ctx = _reminderDeckKey.currentContext;
-    if (ctx == null) return null;
-    final box = ctx.findRenderObject();
-    if (box is! RenderBox || !box.attached || box.size.height <= 0) {
-      return null;
-    }
-    final scrollable = Scrollable.maybeOf(ctx);
-    var bottom = box.localToGlobal(Offset.zero).dy + box.size.height;
-    if (scrollable != null && scrollable.position.hasContentDimensions) {
-      final pos = scrollable.position;
-      bottom += pos.maxScrollExtent - pos.pixels;
-    }
-    return bottom;
-  }
-
-  /// Measure the deck peek for this handoff session. Called while the
-  /// composition is still at rest (t == 0) so transforms cannot corrupt
-  /// the measurement — the same discipline as _measureDeckBand.
-  void _preparePeek() {
-    if (_peekSet) return;
-    final projected = _projectedDeckBottom();
-    _peekPx = projected == null ? 0.0 : math.max(0.0, projected - _peekBandHeight);
-    _peekSet = true;
-  }
-
   bool _onHomeScrollNotification(ScrollNotification n) {
     // Committed: the activity surface owns all gestures now.
     if (_handoff.value >= 1.0) return false;
@@ -343,6 +358,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       _handoffDragPx += n.overscroll;
       final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
       _handoff.value = ActivityHandoffPhysics.revealFor(progress);
+      _updateArmedDepth(progress);
     } else if (_scrollHandoffActive && !atBottom &&
         n is ScrollUpdateNotification) {
       // The user reversed before the settle: the Home scroll wins, the
@@ -358,6 +374,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     if (!_scrollHandoffActive) return;
     _scrollHandoffActive = false;
     _handoffDragPx = 0;
+    _handoffArmedDepth = 0;
+    _handoffArmedHapticFired = false;
     if (_reduceMotion) {
       _handoff.value = 0;
     } else {
@@ -370,11 +388,15 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     _scrollHandoffActive = false;
     final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
     _handoffDragPx = 0;
+    _handoffArmedDepth = 0;
     if (ActivityHandoffPhysics.commits(progress)) {
-      // Threshold crossed: the activity surface snaps into focus and the
-      // deck parks in its peek band.
+      // Released inside the armed plateau: the activity surface SNAPS
+      // into focus (pass A2 — a strong, controlled settle) and the deck
+      // parks in its peek band.
       _commitActivityHandoff();
     } else {
+      // Released before the armed point: the tensioned sheet springs
+      // back — no commit, no accidental entry.
       if (_reduceMotion) {
         _handoff.value = 0;
       } else {
@@ -383,15 +405,26 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     }
   }
 
-  void _commitActivityHandoff() {
-    if (_handoffHapticArmed) {
+  /// PASS A3 — the armed plateau is where the heading's lock-in cue and
+  /// the detent haptic live. Purely gesture-driven: depth is a function
+  /// of the drag progress, zero the moment no drag is live.
+  void _updateArmedDepth(double progress) {
+    final depth = ActivityHandoffPhysics.armedFor(progress);
+    if (depth > 0 && !_handoffArmedHapticFired) {
+      // The detent catch: the pull entered the commit zone. Exactly one
+      // threshold haptic per pull — the armed moment, not the release.
       AzamanHaptics.threshold();
-      _handoffHapticArmed = false;
+      _handoffArmedHapticFired = true;
     }
+    _handoffArmedDepth = depth;
+  }
+
+  void _commitActivityHandoff() {
+    _handoffArmedHapticFired = false;
     if (_reduceMotion) {
       _handoff.value = 1;
     } else {
-      _handoff.animateWith(_handoffSpringTo(1));
+      _handoff.animateWith(_handoffSnapTo(1));
     }
   }
 
@@ -423,16 +456,23 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   void _onActivityPullUpdate(double dragPx) {
     final reverseProgress = ActivityHandoffPhysics.progressFor(dragPx);
     _handoff.value = 1 - ActivityHandoffPhysics.revealFor(reverseProgress);
+    // PASS A8 — the reverse transition is the SAME tensioned grammar:
+    // resistance, then the armed plateau with its detent haptic and the
+    // heading's lock-in cue, then a deliberate snap back to Home.
+    _updateArmedDepth(reverseProgress);
   }
 
   void _onActivityPullEnd(bool commits) {
+    _handoffArmedDepth = 0;
+    _handoffArmedHapticFired = false;
     if (commits) {
-      if (_handoffHapticArmed) {
-        AzamanHaptics.threshold();
-        _handoffHapticArmed = false;
-      }
+      // Released past the armed point: a deliberate snap back to Home
+      // (pass A8) — the layer is pulled back over the wallet state,
+      // which restores the reminder deck, wallet modules, balance card,
+      // and the DOWN-arrow Recent Activity doorway.
       _collapseActivity();
     } else {
+      // A small reverse pull springs back into the Activity rest.
       if (_reduceMotion) {
         _handoff.value = 1;
       } else {
@@ -445,25 +485,22 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     if (_reduceMotion) {
       _handoff.value = 0;
     } else {
-      _handoff.animateWith(_handoffSpringTo(0));
+      _handoff.animateWith(_handoffSnapTo(0));
     }
   }
 
+  /// The release-before-armed settle: elastic, forgiving.
   SpringSimulation _handoffSpringTo(double end) {
     const spring = SpringDescription(mass: 1, stiffness: 320, damping: 24);
     return SpringSimulation(spring, _handoff.value, end, 0);
   }
 
-  /// §4 — the deck's signals arrive asynchronously (susu list fetch,
-  /// marketplace resume memory). The band the deck fills is fixed by
-  /// geometry, not content, but the doorway's own height can change with
-  /// data (and the signals arriving may shift nothing at all) — each
-  /// listen re-runs the band measurement post-frame, when the new
-  /// geometry exists to measure. Idempotent and cheap when nothing moved.
-  void _scheduleDeckBandRecheck() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _measureDeckBand();
-    });
+  /// PASS A2/A8 — the COMMIT snap: stiffer and slightly under-damped so
+  /// the transition into (or back out of) Activity reads as strong and
+  /// controlled — one restrained settle, never a theatrical bounce.
+  SpringSimulation _handoffSnapTo(double end) {
+    const spring = SpringDescription(mass: 1, stiffness: 480, damping: 40);
+    return SpringSimulation(spring, _handoff.value, end, 0);
   }
 
   @override
@@ -473,11 +510,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final t = _handoff.value;
     final walletGone = t > 0.999;
     // §7: the deck peek band — only meaningful mid-handoff or committed.
-    final peekBand = (_peekSet && _peekPx > 0) ? _peekBandHeight : 0.0;
-
-    ref.listen(susuListProvider, (_, _) => _scheduleDeckBandRecheck());
-    ref.listen(marketplaceResumeProvider, (_, _) => _scheduleDeckBandRecheck());
-    ref.listen(marketplaceRelevanceProvider, (_, _) => _scheduleDeckBandRecheck());
+    final peekBand =
+        (_peekSet && _peekPx > 0) ? ActivityRestGeometry.peekBand : 0.0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -556,29 +590,48 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   reduceMotion,
                                 ),
 
-                                // FILL PATCH — breathing room above the
-                                // reminder deck (measured band; see
-                                // _measureDeckBand). Never a hard-coded
-                                // giant SizedBox.
+                                // PASS B5 — breathing room above the
+                                // reminder deck. The deck's geometry is
+                                // FIXED from its first settled render
+                                // (no band measurement, no placeholder
+                                // growth): a stable strip, never a
+                                // hard-coded giant SizedBox.
                                 const SizedBox(height: AzSpace.xxl),
 
-                                // EXPERIENCE PASS §4/§5 — the reminder deck:
-                                // real susu + marketplace signals, shuffled
-                                // by swipe, filling the measured band with
-                                // a placeholder fan when there is no signal
-                                // yet (never blank). The key lets the
+                                // PASS §4/§5 + B/D — the reminder deck:
+                                // real susu + marketplace signals,
+                                // shuffled by swipe, in a FIXED compact
+                                // geometry (front card + one next-card
+                                // peek + position dots). The dots are
+                                // the card-count indicator. Production
+                                // Home never fabricates content: with no
+                                // real signal the deck collapses out of
+                                // the layout cleanly. The key lets the
                                 // scroll handoff measure the deck's peek
-                                // geometry.
+                                // geometry. PASS B6: the deck sits in the
+                                // SAME horizontal inset as the balance
+                                // card — edges align, no independent
+                                // magic width.
                                 _stage(
                                   4,
-                                  KeyedSubtree(
-                                    key: _reminderDeckKey,
-                                    child: HomeReminderDeck(band: _deckBand),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: AzSpace.lg),
+                                    child: KeyedSubtree(
+                                      key: _reminderDeckKey,
+                                      child: const HomeReminderDeck(),
+                                    ),
                                   ),
                                   reduceMotion,
                                 ),
 
-                                const SizedBox(height: AzSpace.md),
+                                // UX-CORRECTION §6 + PASS B5: the
+                                // ADAPTIVE measured spacer. The deck is a
+                                // fixed strip; this gap is what keeps
+                                // the doorway at the bottom of the first
+                                // viewport (never mid-content, never a
+                                // hard-coded giant SizedBox).
+                                SizedBox(height: _doorwayGap),
 
                                 // Block 4 — the Recent Activity doorway
                                 // (§10). No transaction rows live on the
@@ -609,8 +662,11 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
             ),
 
             // ── RESTING STATE 2: the activity surface (§11-13) ────────────
-            // §7: the surface rises from below AND parks below the peek
-            // band, leaving the deck visible above it.
+            // §7 + PASS A5: the surface rises from below AND parks below
+            // the peek band (ActivityRestGeometry), leaving the reminder
+            // deck visible above it; the heading then sits a further
+            // structural inset into the surface, so the committed state
+            // reads as a layer pulled over Home.
             IgnorePointer(
               ignoring: !walletGone,
               child: Transform.translate(
@@ -622,6 +678,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                     child: HomeActivitySurface(
                       onClose: _collapseActivity,
                       active: walletGone,
+                      headingProgress: t,
+                      armedCue: _handoffArmedDepth,
                       onTopPullUpdate: _onActivityPullUpdate,
                       onTopPullEnd: _onActivityPullEnd,
                     ),

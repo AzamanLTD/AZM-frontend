@@ -35,10 +35,15 @@ class PlusLauncherAction {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// PASS E (gold hierarchy): bright gold is reserved for the primary
+  /// actions (Send / Receive). Secondary actions render a NEUTRAL chip.
+  final bool prominent;
   const PlusLauncherAction({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.prominent = false,
   });
 }
 
@@ -405,6 +410,12 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
           // De-emphasis: dim + blur the content behind the launcher. The
           // scrim fades in with the launcher, so the background reads as
           // going out of focus, not as a modal box.
+          //
+          // PASS G — a MODEST blur: sigma 8 was too aggressive (the whole
+          // app read as fogged frosted glass). Sigma 5 + a slightly
+          // lighter scrim de-emphasize the background while it stays
+          // RECOGNIZABLE: subtle depth separation, not erasure. The scrim
+          // stays; the background never goes sharp.
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -414,9 +425,9 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                   CurvedAnimation(parent: _open, curve: MotionTokens.enter),
                 ),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8 * t, sigmaY: 8 * t),
+                  filter: ImageFilter.blur(sigmaX: 5 * t, sigmaY: 5 * t),
                   child: Container(
-                    color: colors.background.withValues(alpha: 0.55 * t),
+                    color: colors.background.withValues(alpha: 0.50 * t),
                   ),
                 ),
               ),
@@ -551,15 +562,31 @@ class _LauncherRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: AzSpace.md),
                 Container(
+                  key: ValueKey(
+                      'plus-launcher-chip-${action.label}'),
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colors.accent.withValues(alpha: 0.16),
-                    border:
-                        Border.all(color: colors.accent.withValues(alpha: 0.45)),
+                    // PASS E — the gold hierarchy: bright gold chips for
+                    // the primary actions only; secondary actions get
+                    // neutral gray chips so gold keeps its meaning.
+                    color: action.prominent
+                        ? colors.accent.withValues(alpha: 0.16)
+                        : colors.card.withValues(alpha: 0.8),
+                    border: Border.all(
+                      color: action.prominent
+                          ? colors.accent.withValues(alpha: 0.45)
+                          : colors.border,
+                    ),
                   ),
-                  child: Icon(action.icon, size: 20, color: colors.accent),
+                  child: Icon(
+                    action.icon,
+                    size: 20,
+                    color: action.prominent
+                        ? colors.accent
+                        : colors.textSecondary,
+                  ),
                 ),
               ],
             ),

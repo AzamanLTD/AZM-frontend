@@ -158,7 +158,10 @@ class _WalletPill extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: colors.accent),
+            // PASS E — the wallet module icons are SUPPORTING feature
+            // icons: muted gold, so bright gold stays reserved for the
+            // primary actions and selected navigation.
+            Icon(icon, size: 18, color: colors.mutedAccent),
             const SizedBox(width: AzSpace.sm),
             Flexible(
               child: Text(

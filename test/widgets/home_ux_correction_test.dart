@@ -41,6 +41,7 @@ import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/premium_card_surface.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderDecoratedBox;
 import 'package:flutter/services.dart' show FontLoader;
@@ -56,29 +57,35 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final inter = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final interLoader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(inter).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
+    );
   await interLoader.load();
   // The UI/display family (UI-correction Phase A): headings render in
   // Comic Neue via ThemeData.fontFamily, so the §4 width measurement
   // must use the REAL family, not the test engine's fallback.
-  final regular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final regular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final bold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
   final comicLoader = FontLoader('ComicNeue')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(regular).buffer)))
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bold).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(regular).buffer)),
+    )
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bold).buffer)),
+    );
   await comicLoader.load();
   _fontsLoaded = true;
 }
 
-TransactionRecord _record(String rawType,
-    {double amountUsdc = -1,
-    Map<String, dynamic> metadata = const {},
-    String providerRef = 'ref-x',
-    String status = 'COMPLETED'}) {
+TransactionRecord _record(
+  String rawType, {
+  double amountUsdc = -1,
+  Map<String, dynamic> metadata = const {},
+  String providerRef = 'ref-x',
+  String status = 'COMPLETED',
+}) {
   return TransactionRecord(
     id: 'txn-$rawType-${DateTime.now().microsecondsSinceEpoch}',
     rawType: rawType,
@@ -118,8 +125,9 @@ Future<ProviderContainer> _pumpHome(
   WidgetTester tester, {
   List<TransactionRecord> history = const [],
 }) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
 
@@ -130,10 +138,12 @@ Future<ProviderContainer> _pumpHome(
       transactionHistoryProvider.overrideWith((ref) => notifier),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
-      homeSummaryProvider.overrideWith((ref) =>
-          _NoopHomeSummaryNotifier(ref, HomeSummaryService())),
+      homeSummaryProvider.overrideWith(
+        (ref) => _NoopHomeSummaryNotifier(ref, HomeSummaryService()),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -179,7 +189,9 @@ Future<void> _enterActivity(WidgetTester tester) async {
   }
   for (var attempt = 0; attempt < 2; attempt++) {
     await tester.drag(
-        find.byType(RecentActivityDoorway), const Offset(0, -120));
+      find.byType(RecentActivityDoorway),
+      const Offset(0, -260),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
     if (_activityOpacity(tester) > 0.99) {
@@ -206,8 +218,9 @@ Future<PlusLauncherController> _pumpShell(
   final controller = PlusLauncherController();
   // The widgets watch the LIVE themeProvider (not Theme.of), so the
   // requested identity must be the provider's loaded state.
-  SharedPreferences.setMockInitialValues(
-      {'azaman_theme': theme == AzamanTheme.dark ? 1 : 0});
+  SharedPreferences.setMockInitialValues({
+    'azaman_theme': theme == AzamanTheme.dark ? 1 : 0,
+  });
   await tester.binding.setSurfaceSize(_surfaceSize);
   final tp = ThemeProvider();
   await tester.pumpWidget(
@@ -237,21 +250,25 @@ Future<PlusLauncherController> _pumpShell(
                     controller: controller,
                     actions: [
                       PlusLauncherAction(
-                          icon: Icons.send,
-                          label: 'Send',
-                          onTap: () {}),
+                        icon: Icons.send,
+                        label: 'Send',
+                        onTap: () {},
+                      ),
                       PlusLauncherAction(
-                          icon: Icons.qr_code,
-                          label: 'Receive',
-                          onTap: () {}),
+                        icon: Icons.qr_code,
+                        label: 'Receive',
+                        onTap: () {},
+                      ),
                       PlusLauncherAction(
-                          icon: Icons.wallet,
-                          label: 'Add Cash',
-                          onTap: () {}),
+                        icon: Icons.wallet,
+                        label: 'Add Cash',
+                        onTap: () {},
+                      ),
                       PlusLauncherAction(
-                          icon: Icons.money_off,
-                          label: 'Withdraw',
-                          onTap: () {}),
+                        icon: Icons.money_off,
+                        label: 'Withdraw',
+                        onTap: () {},
+                      ),
                     ],
                   ),
                 ),
@@ -286,8 +303,7 @@ void main() {
 
       // And ORDERED: the page plane is the darkest step, sheets one step
       // up, cards fully raised.
-      double lum(Color c) =>
-          (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255.0;
+      double lum(Color c) => (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255.0;
       expect(lum(light.background), lessThan(lum(light.surface)));
       expect(lum(light.surface), lessThan(lum(light.card)));
 
@@ -296,19 +312,18 @@ void main() {
       expect(lum(light.softSurface), lessThan(lum(light.background)));
     });
 
-    test('dark keeps its own ramp (card step above the true-black page)',
-        () {
+    test('dark keeps its own ramp (card step above the true-black page)', () {
       final dark = ThemeProvider.getColors(AzamanTheme.dark);
-      double lum(Color c) =>
-          (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255.0;
+      double lum(Color c) => (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255.0;
       expect(lum(dark.background), lessThan(lum(dark.surface)));
       expect(lum(dark.surface), lessThan(lum(dark.card)));
     });
   });
 
   group('§1 dark nav pill separation', () {
-    testWidgets('the pill sits on the CARD step with an explicit rim',
-        (tester) async {
+    testWidgets('the pill sits on the CARD step with an explicit rim', (
+      tester,
+    ) async {
       await _pumpShell(tester, theme: AzamanTheme.dark);
       final dark = ThemeProvider.getColors(AzamanTheme.dark);
 
@@ -323,13 +338,18 @@ void main() {
       final decoration = pill.decoration as BoxDecoration;
 
       // The pill is the CARD surface, not the page-adjacent surface.
-      expect(decoration.color, dark.card,
-          reason: 'the nav must sit on the card step of the dark ramp');
-      // An explicit rim, not a shadow alone.
-      expect(decoration.border, isNotNull,
-          reason: 'dark nav separation needs a rim highlight');
       expect(
-          decoration.border!.top.color, AzElevation.rimHighlight(true));
+        decoration.color,
+        dark.card,
+        reason: 'the nav must sit on the card step of the dark ramp',
+      );
+      // An explicit rim, not a shadow alone.
+      expect(
+        decoration.border,
+        isNotNull,
+        reason: 'dark nav separation needs a rim highlight',
+      );
+      expect(decoration.border!.top.color, AzElevation.rimHighlight(true));
       // And the subtle vertical highlight gradient.
       expect(decoration.gradient, isNotNull);
     });
@@ -346,8 +366,9 @@ void main() {
       expect(PremiumCardPalette.gradBottom, const Color(0xFF05070A));
     });
 
-    testWidgets('carbon grammar + every Visa datum survives the restyle',
-        (tester) async {
+    testWidgets('carbon grammar + every Visa datum survives the restyle', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(360, 220));
       await tester.pumpWidget(
         ProviderScope(
@@ -357,7 +378,9 @@ void main() {
               // disableAnimations parks the premium sheen at rest — the
               // card's data is identical, and the frame settles.
               data: MediaQueryData(
-                  size: Size(360, 220), disableAnimations: true),
+                size: Size(360, 220),
+                disableAnimations: true,
+              ),
               child: Scaffold(
                 body: Center(
                   child: SizedBox(
@@ -389,9 +412,13 @@ void main() {
           if (colors.contains(accent)) accentBody = true;
         }
       }
-      expect(accentBody, isFalse,
-          reason: 'the visa body must be the fixed carbon grammar, not '
-              'the theme accent gradient');
+      expect(
+        accentBody,
+        isFalse,
+        reason:
+            'the visa body must be the fixed carbon grammar, not '
+            'the theme accent gradient',
+      );
 
       // Every datum still renders.
       expect(find.text('AZM'), findsOneWidget);
@@ -404,54 +431,58 @@ void main() {
         findsOneWidget,
         reason: 'the card-programme abstraction still feeds the number',
       );
-      expect(
-        find.text(DemoCardProgramme().cardholderLabel),
-        findsOneWidget,
-      );
+      expect(find.text(DemoCardProgramme().cardholderLabel), findsOneWidget);
     });
   });
 
   // ── §4 — short heading copy that fits ─────────────────────────────────
 
   group('§4 Home heading fallback messages fit the heading width', () {
-    test('every production fallback message is short product language',
-        () {
+    test('every production fallback message is short product language', () {
       for (final m in kHeadingFeatureMessages) {
-        expect(m.text.length, lessThan(32),
-            reason: "'${m.text}' must be short, not a paragraph");
+        expect(
+          m.text.length,
+          lessThan(32),
+          reason: "'${m.text}' must be short, not a paragraph",
+        );
         expect(m.text.endsWith('.'), isTrue);
       }
-      expect(kHeadingFeatureMessages.length, greaterThanOrEqualTo(4),
-          reason: 'all four product areas keep a nudge');
+      expect(
+        kHeadingFeatureMessages.length,
+        greaterThanOrEqualTo(4),
+        reason: 'all four product areas keep a nudge',
+      );
     });
 
-    testWidgets('no fallback message truncates at the heading size',
-        (tester) async {
+    testWidgets('no fallback message truncates at the heading size', (
+      tester,
+    ) async {
       await tester.runAsync(_loadFonts);
       // The heading row: 400 surface - 2 x AzSpace.lg padding - glyph
       // (20 icon + 8 gap).
-      final available =
-          _surfaceSize.width - 2 * AzSpace.lg - 20 - 8;
+      final available = _surfaceSize.width - 2 * AzSpace.lg - 20 - 8;
       for (final m in kHeadingFeatureMessages) {
         final painter = TextPainter(
           text: TextSpan(
-              text: m.text,
-              // The heading renders in the theme's UI family (Comic
-              // Neue, bundled at 400/700 only — the engine resolves the
-              // ladder's w800 to the shipped 700). Measure the REAL
-              // rendering, not a fallback face.
-              style: AzText.display.copyWith(
-                fontFamily: 'ComicNeue',
-                fontWeight: FontWeight.w700,
-                color: ThemeProvider.getColors(AzamanTheme.light)
-                    .textPrimary,
-              )),
+            text: m.text,
+            // The heading renders in the theme's UI family (Comic
+            // Neue, bundled at 400/700 only — the engine resolves the
+            // ladder's w800 to the shipped 700). Measure the REAL
+            // rendering, not a fallback face.
+            style: AzText.display.copyWith(
+              fontFamily: 'ComicNeue',
+              fontWeight: FontWeight.w700,
+              color: ThemeProvider.getColors(AzamanTheme.light).textPrimary,
+            ),
+          ),
           maxLines: 1,
           textDirection: TextDirection.ltr,
         )..layout(minWidth: 0, maxWidth: available);
-        expect(painter.didExceedMaxLines, isFalse,
-            reason:
-                "'${m.text}' must fit at full heading size (no ellipsis)");
+        expect(
+          painter.didExceedMaxLines,
+          isFalse,
+          reason: "'${m.text}' must fit at full heading size (no ellipsis)",
+        );
         expect(painter.width, lessThanOrEqualTo(available));
         painter.dispose();
       }
@@ -467,23 +498,28 @@ void main() {
       controller.open();
       await tester.pumpAndSettle();
 
-      final triggerRect = tester
-          .getRect(find.byKey(const ValueKey('plus-launcher-trigger')));
+      final triggerRect = tester.getRect(
+        find.byKey(const ValueKey('plus-launcher-trigger')),
+      );
       // The ROW widget (icon + label), not the bare label text: the
       // follower pins the GROUP's right edge, so the contract is on the
       // row container.
-      final sendRow = tester.getRect(find
-          .ancestor(
-            of: find.text('Send'),
-            matching: find.byType(GestureDetector),
-          )
-          .first);
-      final withdrawRow = tester.getRect(find
-          .ancestor(
-            of: find.text('Withdraw'),
-            matching: find.byType(GestureDetector),
-          )
-          .first);
+      final sendRow = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Send'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
+      );
+      final withdrawRow = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Withdraw'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
+      );
 
       // CORRECTION F (geometry fix): the rows' shared trailing edge is
       // flush with the + button's RIGHT edge, measured live — the
@@ -495,18 +531,27 @@ void main() {
       // edge — the cluster may never touch the edge, and never pass
       // beyond the plus.
       for (final row in [sendRow, withdrawRow]) {
-        expect(row.right, lessThanOrEqualTo(triggerRect.right + 2),
-            reason: 'the cluster never hangs past the +');
-        expect(row.right,
-            greaterThanOrEqualTo(triggerRect.right - AzSpace.sm - 2),
-            reason: 'flush with the + right edge, minus only the '
-                'minimum screen margin');
+        expect(
+          row.right,
+          lessThanOrEqualTo(triggerRect.right + 2),
+          reason: 'the cluster never hangs past the +',
+        );
+        expect(
+          row.right,
+          greaterThanOrEqualTo(triggerRect.right - AzSpace.sm - 2),
+          reason:
+              'flush with the + right edge, minus only the '
+              'minimum screen margin',
+        );
       }
 
       // The group RISES ABOVE the + — the last row sits above the
       // trigger's top edge, not below it and not mid-screen.
-      expect(withdrawRow.bottom, lessThan(triggerRect.top + 8),
-          reason: 'actions must originate from the plus, above it');
+      expect(
+        withdrawRow.bottom,
+        lessThan(triggerRect.top + 8),
+        reason: 'actions must originate from the plus, above it',
+      );
 
       // Never centered: the action group sits in the right half of the
       // screen, next to the plus that opened it.
@@ -522,17 +567,22 @@ void main() {
   // ── §6 — the doorway says "Pull up" and lives low ─────────────────────
 
   group('§6 doorway wording + low placement', () {
-    testWidgets('the doorway is minimal — heading identity + UP arrow, '
-        'no "Pull up" call to action', (tester) async {
+    testWidgets('the doorway is minimal — heading identity + the A4 '
+        'state-driven DOWN arrow, no "Pull up" call to action', (tester) async {
       await _pumpHome(tester);
 
       // CORRECTION A: the doorway opens the SAME second resting state on
       // tap. The call-to-action wording is gone; the identity heading +
-      // the UP directional arrow carry the affordance.
+      // the directional arrow carry the affordance.
       expect(find.text('Recent Activity'), findsWidgets);
       expect(find.text('Pull up'), findsNothing);
       expect(find.text('Pull down'), findsNothing);
-      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsWidgets);
+      // PASS A4 — the RESTING Home doorway points DOWN: the activity
+      // below is content the user pulls into view. (The committed
+      // Activity heading rotates the same glyph to UP — pinned in the
+      // handoff suite.)
+      expect(find.byIcon(HugeIconsSolid.arrowDown01), findsWidgets);
+      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsNothing);
       expect(find.text('← Wallet'), findsNothing);
     });
 
@@ -540,13 +590,16 @@ void main() {
         'slightly above the nav band', (tester) async {
       await _pumpHome(tester);
 
-      final doorwayRect =
-          tester.getRect(find.byType(RecentActivityDoorway));
+      final doorwayRect = tester.getRect(find.byType(RecentActivityDoorway));
       // navClearanceHeight = 120: content bottoms at (900 - 120).
       final restingBottom = _surfaceSize.height - AzSpace.navClearanceHeight;
-      expect(doorwayRect.bottom, closeTo(restingBottom, 40),
-          reason: 'measured gap must land the doorway low, not '
-              'mid-content and not under the nav');
+      expect(
+        doorwayRect.bottom,
+        closeTo(restingBottom, 40),
+        reason:
+            'measured gap must land the doorway low, not '
+            'mid-content and not under the nav',
+      );
       // And it is INSIDE the viewport — no giant spacer shoving it away.
       expect(doorwayRect.bottom, lessThanOrEqualTo(_surfaceSize.height));
     });
@@ -554,18 +607,22 @@ void main() {
 
   // ── §7 — economic activity only ───────────────────────────────────────
 
-  group('§7 the Home activity surface shows mapped financial types only',
-      () {
-    testWidgets('an unknown backend type is EXCLUDED from the surface',
-        (tester) async {
+  group('§7 the Home activity surface shows mapped financial types only', () {
+    testWidgets('an unknown backend type is EXCLUDED from the surface', (
+      tester,
+    ) async {
       await _pumpHome(
         tester,
         history: [
-          _record('WITHDRAWAL_FIAT',
-              amountUsdc: -4,
-              metadata: {'description': 'Cash out'}),
-          _record('SOCIAL_BADGE_AWARD',
-              metadata: {'description': 'Mystery badge mint'}),
+          _record(
+            'WITHDRAWAL_FIAT',
+            amountUsdc: -4,
+            metadata: {'description': 'Cash out'},
+          ),
+          _record(
+            'SOCIAL_BADGE_AWARD',
+            metadata: {'description': 'Mystery badge mint'},
+          ),
         ],
       );
       await _enterActivity(tester);
@@ -575,9 +632,13 @@ void main() {
       expect(find.text('View withdrawal'), findsOneWidget);
 
       // The unmapped record is not presented as mysterious activity.
-      expect(find.text('Mystery badge mint'), findsNothing,
-          reason: 'unknown/unmapped types must be excluded from the '
-              'Home activity surface');
+      expect(
+        find.text('Mystery badge mint'),
+        findsNothing,
+        reason:
+            'unknown/unmapped types must be excluded from the '
+            'Home activity surface',
+      );
       expect(find.text('Social badge award'), findsNothing);
     });
   });
@@ -590,16 +651,20 @@ void main() {
       await _pumpHome(
         tester,
         history: [
-          _record('WITHDRAWAL_FIAT',
-              amountUsdc: -4,
-              metadata: {'description': 'Cash out at the bank'}),
-          _record('INTERNAL_TRANSFER',
-              amountUsdc: -2,
-              metadata: {
-                'description': 'Rent to Ama',
-                'recipientAzamId': 'azm-77',
-                'recipientName': 'Ama',
-              }),
+          _record(
+            'WITHDRAWAL_FIAT',
+            amountUsdc: -4,
+            metadata: {'description': 'Cash out at the bank'},
+          ),
+          _record(
+            'INTERNAL_TRANSFER',
+            amountUsdc: -2,
+            metadata: {
+              'description': 'Rent to Ama',
+              'recipientAzamId': 'azm-77',
+              'recipientName': 'Ama',
+            },
+          ),
         ],
       );
       await _enterActivity(tester);
@@ -613,23 +678,35 @@ void main() {
       // the BUTTON surface (the full-width GestureDetector), not the
       // label Text inside it.
       final titleRect = tester.getRect(find.text('Cash out at the bank'));
-      final buttonRect = tester.getRect(find
-          .ancestor(
-            of: find.text('View withdrawal'),
-            matching: find.byType(GestureDetector),
-          )
-          .first);
-      expect(buttonRect.top, greaterThan(titleRect.bottom),
-          reason: 'the card is a two-line grammar: content, then the '
-              'action button below');
+      final buttonRect = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('View withdrawal'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
+      );
+      expect(
+        buttonRect.top,
+        greaterThan(titleRect.bottom),
+        reason:
+            'the card is a two-line grammar: content, then the '
+            'action button below',
+      );
 
       // The button is WIDE — a full-width row of the card (width:
       // double.infinity at build), not a tiny pill chip hugging its
       // label.
-      expect(buttonRect.width, greaterThan(150),
-          reason: 'the action button must have room for its full label');
-      expect(buttonRect.height, greaterThan(30),
-          reason: 'the action button must be a real touch target');
+      expect(
+        buttonRect.width,
+        greaterThan(150),
+        reason: 'the action button must have room for its full label',
+      );
+      expect(
+        buttonRect.height,
+        greaterThan(30),
+        reason: 'the action button must be a real touch target',
+      );
     });
   });
 }

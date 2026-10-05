@@ -1,5 +1,5 @@
 // =============================================================================
-// AZAMAN — HOME REMINDER DECK  (experience pass §4 + §5, fill patch)
+// AZAMAN — HOME REMINDER DECK  (experience pass §4 + §5, pass B/C/D)
 //
 // §4 — REAL SIGNALS FIRST. A compact, premium reminder deck sitting
 // immediately above Recent Activity. Cards are derived from existing
@@ -7,39 +7,36 @@
 // marketplaceRelevanceProvider) — no new backend requests, no fabricated
 // personalisation. Card copy never claims something the data does not say.
 //
-// THE SLOT IS NEVER BLANK. The deck FILLS the band Home measures for it:
-//   * real signals  → up to three real cards fan behind the front card
-//   * new user      → the placeholder card ("Your reminders will appear
-//                     here") with dimmed ghost slots fanned behind it
-//   * demo mode     → when no real signal exists, the deck seeds from the
-//                     app's demo data (DemoGuard-gated, never in a real
-//                     build) so the demo experience shows a lived-in Home
-//   * empty slots   → dimmed ghost faces (no copy, no fake content) fill
-//                     the fan so the deck always reads as a deck
+// PASS B — SIMPLIFIED VISUAL GRAMMAR. The deck is a clean stack:
+//   * ONE fully readable, completely STRAIGHT front card (no resting
+//     tilt — the hero card never looks like it is being thrown)
+//   * ONE shallow next-card peek below it (no rotated fan, no ghost
+//     layers — the stack shows at most two faces)
+//   * the PAGINATION DOTS are the card-count indicator: they count the
+//     real cards in the deck, and the active dot follows the front
 //
-// Geometry: the deck is given the BAND height (the measured space between
-// the wallet modules and the activity doorway) and derives everything
-// from it — peek depth grows with the band, cards get a taller "tall
-// mode" (bigger icon chip, larger type, position dots) when the band
-// allows, and both are clamped so cards never become absurd. Behind
-// cards peek BELOW the front card's bottom edge with shallow alternating
-// rotations (±1.5–2.5°) and slight sideways nudges, so the fan spans the
-// whole band and reads as a spread hand of cards.
+// PASS B5 — STABLE GEOMETRY. The deck's dimensions are fixed constants
+// from the first settled render: no band measurement, no placeholder
+// that grows after the screen loads. The same geometry every frame.
 //
-// §5 — SHUFFLE, NOT DELETE. The top card is horizontally swipeable; a
-// committed swipe sends it along a curved (arc) trajectory with rising
-// rotation and slightly reduced scale/opacity, and mid-flight it drops
-// BEHIND the deck while the order rotates — the next card was already
-// partially visible underneath. One coherent gesture-driven trajectory
-// (finger-following drag + curved completion on release), animation
-// controllers only, no Timer sequencing. The placeholder and ghost faces
-// are inert: no swipe, no tap target.
+// PASS D — TRUTHFULNESS. Production Home never fabricates content: with
+// no real signal the deck collapses out of the layout cleanly (no
+// reserved blank band, no ghost fan). Demo builds may seed from the
+// app's demo data (DemoGuard-gated, never in a real build).
 //
-// Reduced motion: no expressive travel — instant reorder/settle with the
-// same information hierarchy. Accessibility: a custom semantics action
-// advances the deck without a swipe; each card is its own tappable
-// destination.
+// §5 + PASS C — SHUFFLE, NOT DELETE. The front card is horizontally
+// swipeable along ONE coherent controller-driven trajectory: it follows
+// the finger, acquires a restrained directional rotation, arcs away on
+// commit and drops BEHIND the deck mid-flight while the promoted next
+// card settles into the exact straight front position (rotation zero,
+// scale one, full opacity, fully readable). No Timer sequencing.
+//
+// Reduced motion: no expressive travel — instant reorder/settle with
+// the same information hierarchy. Accessibility: a custom semantics
+// action advances the deck without a swipe; each card is its own
+// tappable destination.
 // =============================================================================
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction, SemanticsProperties;
@@ -83,13 +80,11 @@ class HomeReminderCardData {
   });
 }
 
-/// The deck. Always renders — the band it is given is never left blank.
+/// The deck. Renders only when there is REAL card content (pass D): in
+/// production a signal-less deck collapses out of the layout cleanly
+/// instead of fabricating a fan; demo builds seed from the demo data.
 class HomeReminderDeck extends ConsumerStatefulWidget {
-  const HomeReminderDeck({super.key, this.band = _DeckGeometry.defaultBand});
-
-  /// The vertical band the deck must occupy: the measured space between
-  /// the wallet modules and the activity doorway.
-  final double band;
+  const HomeReminderDeck({super.key});
 
   @override
   ConsumerState<HomeReminderDeck> createState() => _HomeReminderDeckState();
@@ -237,15 +232,6 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
         ),
       ];
 
-  /// The placeholder card: the deck's honest empty state for a new user.
-  HomeReminderCardData get _placeholderCard => const HomeReminderCardData(
-        id: 'placeholder',
-        eyebrow: 'REMINDERS',
-        title: 'Your reminders will appear here',
-        subtitle: 'Susu schedules, saved carts and store picks land here.',
-        icon: HugeIconsSolid.notification01,
-      );
-
   // ── §5 trajectory ───────────────────────────────────────────────────────
 
   void _onDragUpdate(DragUpdateDetails d) {
@@ -309,7 +295,6 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   @override
   Widget build(BuildContext context) {
     final cards = _cards();
-    final isPlaceholder = cards.isEmpty;
     _travelAllowed = AzMotion.of(context).travel;
 
     // Keep the front index honest across data changes.
@@ -319,8 +304,15 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       _front = cards.isEmpty ? 0 : _front % cards.length;
     }
 
-    final geo = _DeckGeometry.forBand(widget.band);
-    final swipable = cards.length > 1 && !isPlaceholder;
+    // PASS D — truthfulness: production Home never fabricates reminder
+    // content. A signal-less deck collapses out of the layout cleanly
+    // (no reserved blank band, no ghost fan). Demo builds always carry
+    // their seeds, so a demo never lands here.
+    if (cards.isEmpty) {
+      return const SizedBox.shrink(key: ValueKey('reminder-deck-empty'));
+    }
+
+    final swipable = cards.length > 1;
 
     // fromProperties keeps the custom action readable at the widget level
     // (the plain Semantics constructor folds it into a private config).
@@ -332,11 +324,11 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
             : null,
       ),
       child: SizedBox(
-        height: geo.bandHeight,
+        height: _DeckGeometry.bandHeight,
         child: AnimatedBuilder(
           animation: _travel,
-          builder: (context, _) => _buildStack(
-              context, cards, isPlaceholder, swipable, geo, _travel.value),
+          builder: (context, _) =>
+              _buildStack(context, cards, swipable, _travel.value),
         ),
       ),
     );
@@ -345,50 +337,43 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   Widget _buildStack(
     BuildContext context,
     List<HomeReminderCardData> cards,
-    bool isPlaceholder,
     bool swipable,
-    _BandGeometry geo,
     double t,
   ) {
     final colors = ref.watch(themeProvider).colors;
     final n = cards.length;
     final children = <Widget>[];
 
-    // Behind cards peek BELOW the front card's bottom edge: they sit
-    // lower in the band, scale down slightly and carry the alternating
-    // fan rotations. Ghost faces (no copy, no shadow, dimmed) fill the
-    // fan when there are fewer real cards — the slot is never blank and
-    // no ghost ever claims content.
-    for (var depth = 2; depth >= 1; depth--) {
-      final g = _DeckGeometry.back(depth);
-      final card = n > depth ? cards[(_front + depth) % n] : null;
+    // PASS B2/B4 — exactly ONE next-card peek: no rotated fan, no ghost
+    // layers. The next card sits a shallow step below the hero, slightly
+    /// inset. During the committed flight it blends into the EXACT front
+    // position (the promoted card straightens: rotation stays zero,
+    // scale reaches 1.0, opacity becomes full — pass B4), so the new
+    // hero is fully readable the moment the old one leaves.
+    if (n > 1) {
+      final next = cards[(_front + 1) % n];
+      final settle = _travelKind == _TravelKind.flight
+          ? Curves.easeOutCubic.transform(t.clamp(0.0, 1.0))
+          : 0.0;
       children.add(Positioned(
-        top: geo.peek * depth,
-        left: 0,
-        right: 0,
+        top: _DeckGeometry.peek * (1 - settle),
+        left: _DeckGeometry.peekInset * (1 - settle),
+        right: _DeckGeometry.peekInset * (1 - settle),
         child: IgnorePointer(
           child: Opacity(
-            opacity: card == null ? _DeckGeometry.ghostOpacity : 0.92,
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..translateByDouble(g.dx, 0, 0, 1.0)
-                ..scaleByDouble(g.scale, 1, 1, 1)
-                ..rotateZ(g.rotate),
-              child: card == null
-                  ? _GhostCardFace(colors: colors, height: geo.cardHeight)
-                  : _ReminderCardFace(
-                      card: card,
-                      colors: colors,
-                      height: geo.cardHeight,
-                    ),
+            opacity: _DeckGeometry.peekOpacity +
+                (1 - _DeckGeometry.peekOpacity) * settle,
+            child: _ReminderCardFace(
+              card: next,
+              colors: colors,
+              height: _DeckGeometry.cardHeight,
             ),
           ),
         ),
       ));
     }
 
-    final frontData = isPlaceholder ? _placeholderCard : cards[_front];
+    final frontData = cards[_front];
     final front = Positioned(
       top: 0,
       left: 0,
@@ -401,9 +386,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
           _ReminderCardFace(
             card: frontData,
             colors: colors,
-            height: geo.cardHeight,
-            tall: geo.tall,
-            positionDots: swipable && geo.tall ? (index: _front, count: n) : null,
+            height: _DeckGeometry.cardHeight,
           ),
           t,
           n,
@@ -418,22 +401,37 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     } else {
       children.add(front);
     }
+
+    // PASS B3 — the pagination dots ARE the card-count indicator: one
+    // dot per real card, the active dot following the front. The visual
+    // stack never pretends extra pages exist.
+    children.add(Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Center(
+        child: _PositionDots(index: _front, count: n, colors: colors),
+      ),
+    ));
+
     return Stack(clipBehavior: Clip.none, children: children);
   }
 
-  /// The front card's live drag + flight/settle transform. Everything is
+  /// The front card's live drag + flight transform. Everything is
   /// derived from the ONE dx parameter so the trajectory reads as a
-  /// single coherent motion (§5), never a collection of unrelated tweens.
+  /// single coherent motion (§5 + pass C), never a collection of
+  /// unrelated tweens. At REST the front card is completely straight
+  /// (pass B1): zero resting rotation, scale 1.0, fully readable.
   Widget _frontTransformed(Widget child, double t, int n) {
     var dx = _dragDx;
     var dy = 0.0;
-    var rotate = _DeckGeometry.frontRestRotate;
+    var rotate = 0.0;
     var scale = 1.0;
     var opacity = 1.0;
 
     if (n > 1 && _travelAllowed) {
-      // Finger-following drag: rising rotation, slight upward arc,
-      // slightly reduced scale/opacity.
+      // Finger-following drag: a restrained rising rotation, a slight
+      // upward arc, a slightly reduced scale/opacity (pass C).
       final drag = _dragDx.abs();
       dy = -drag * drag * _DeckGeometry.arcK;
       rotate += _dragDx * _DeckGeometry.rotatePerPx;
@@ -443,8 +441,10 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
 
     if (t > 0 && _travelKind != _TravelKind.none) {
       if (_travelKind == _TravelKind.flight) {
-        // Curved completion: continue the gesture's direction outward
-        // along the arc; rotation keeps rising, scale/opacity ease away.
+        // PASS C — the curved committed trajectory: continue the
+        // gesture's direction outward along the arc; rotation keeps
+        // rising, scale/opacity ease away, and the card disappears
+        // behind/out of the deck.
         final eased = Curves.easeInCubic.transform(t);
         final width = MediaQuery.sizeOf(context).width;
         dx = _flightFromDx +
@@ -502,56 +502,32 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
 
 enum _TravelKind { none, flight, settle }
 
-/// The deck's derived band geometry (see [_DeckGeometry.forBand]).
-typedef _BandGeometry =
-    ({double bandHeight, double peek, double cardHeight, bool tall});
-
-/// §4 resting + §5 flight geometry, in one place. The deck is BAND-DRIVEN:
-/// Home measures the empty space and hands it over; every dimension below
-/// derives from that band, clamped so the cards never get absurd.
+/// PASS B5 — the deck's FIXED geometry: identical constants from the
+/// first settled render. No band measurement, no tall-mode expansion, no
+/// post-load growth — the same card every frame.
 class _DeckGeometry {
-  /// The compact strip used when no band is supplied (tests, previews).
-  static const defaultBand = 134.0;
+  /// The fully readable hero card (pass B1): straight, scale 1.0.
+  static const double cardHeight = 96;
 
-  /// The card's 88–100dp comfort band, preserved from the §4 contract.
-  static const minCard = 88.0;
-  static const maxCard = 264.0;
-  static const minPeek = 20.0;
-  static const maxPeek = 40.0;
+  /// PASS B2 — ONE shallow next-card peek: the next card's top step
+  /// below the hero's bottom edge, the only visible "there is more"
+  /// edge in the stack.
+  static const double peek = 16;
 
-  /// Tall mode kicks in when the band affords a taller card: bigger icon
-  /// chip, larger type, position dots.
-  static const tallCardThreshold = 150.0;
+  /// The peek card's horizontal inset — the next edge reads slightly
+  /// narrower than the hero, never a fan.
+  static const double peekInset = 14;
 
-  static const ghostOpacity = 0.45;
+  static const double peekOpacity = 0.9;
 
-  static const frontRestRotate = 0.035; // ~2° — the deck always reads tilted
+  /// PASS B3 — the pagination-dot rail's slot and the gap above it.
+  static const double dotsHeight = 12;
+  static const double dotsGap = 8;
 
-  static _BandGeometry forBand(double band) {
-    final peek = (band * 0.16).clamp(minPeek, maxPeek);
-    final cardHeight = (band - 2 * peek).clamp(minCard, maxCard);
-    // The laid-out band: exactly what the fan spans. When the clamps bite
-    // (absurdly tall tablet band) the deck keeps its geometry and simply
-    // does not stretch the last pixels — never a mis-measured overflow.
-    final bandHeight = cardHeight + 2 * peek;
-    return (
-      bandHeight: bandHeight,
-      peek: peek,
-      cardHeight: cardHeight,
-      tall: cardHeight >= tallCardThreshold,
-    );
-  }
+  /// The deck's stable band: hero + peek + dot rail. FIXED (pass B5).
+  static const double bandHeight = cardHeight + peek + dotsGap + dotsHeight;
 
-  /// depth 1 (just behind): −1.4°, nudge left, scale .985
-  /// depth 2 (furthest):   +2.4°, nudge right, scale .97
-  static ({double rotate, double dx, double scale}) back(int depth) {
-    final rotate = depth == 1 ? -0.024 : 0.042;
-    final dx = depth == 1 ? -7.0 : 11.0;
-    final scale = 1.0 - depth * 0.015;
-    return (rotate: rotate, dx: dx, scale: scale);
-  }
-
-  // §5 flight coefficients.
+  // §5 + PASS C flight coefficients.
   static const arcK = 0.00035; // upward arc: dy = −k·dx²
   static const rotatePerPx = 0.0006; // radians/px (≈3.4° per 100px)
   static const scalePerPx = 0.0004;
@@ -560,30 +536,23 @@ class _DeckGeometry {
 }
 
 /// One elevated reminder card face. Tapping navigates to the real
-/// destination behind the signal. In tall mode the face grows its icon
-/// chip and type; with multiple cards a quiet position-dot rail shows
-/// where the front card sits in the deck.
+/// destination behind the signal. The icon chip is a MUTED accent
+/// (pass E: supporting feature icons are muted gold — bright gold is
+/// reserved for primary actions and selected navigation) and the corners
+/// use the AzRadius system's larger token (pass B7).
 class _ReminderCardFace extends StatelessWidget {
   const _ReminderCardFace({
     required this.card,
     required this.colors,
     required this.height,
-    this.tall = false,
-    this.positionDots,
   });
 
   final HomeReminderCardData card;
   final AzamanColors colors;
   final double height;
-  final bool tall;
-
-  /// Quiet position rail: which card is front, of how many. Null on the
-  /// compact band (no room) and behind cards (only the front shows it).
-  final ({int index, int count})? positionDots;
 
   @override
   Widget build(BuildContext context) {
-    final chipSize = tall ? 52.0 : 40.0;
     final body = Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,36 +564,26 @@ class _ReminderCardFace extends StatelessWidget {
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
         Text(card.title,
-            style: (tall ? AzText.titleL : AzText.title)
-                .copyWith(color: colors.textPrimary),
+            style: AzText.title.copyWith(color: colors.textPrimary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
         Text(card.subtitle,
-            style: (tall ? AzText.body : AzText.bodyS)
-                .copyWith(color: colors.textSecondary),
+            style: AzText.bodyS.copyWith(color: colors.textSecondary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis),
-        if (positionDots != null) ...[
-          const SizedBox(height: AzSpace.sm),
-          _PositionDots(
-              index: positionDots!.index,
-              count: positionDots!.count,
-              colors: colors),
-        ],
       ],
     );
 
     final content = Row(children: [
       Container(
-        width: chipSize,
-        height: chipSize,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: colors.accent.withValues(alpha: 0.14),
+          color: colors.accent.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AzRadius.md),
         ),
-        child:
-            Icon(card.icon, color: colors.accent, size: tall ? 26.0 : 20.0),
+        child: Icon(card.icon, color: colors.mutedAccent, size: 20),
       ),
       const SizedBox(width: AzSpace.md),
       Expanded(child: body),
@@ -649,7 +608,9 @@ class _ReminderCardFace extends StatelessWidget {
             horizontal: AzSpace.lg, vertical: AzSpace.sm),
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(AzRadius.lg),
+          // PASS B7 — the existing AzRadius system's larger token: soft
+          // and premium, never a new custom constant.
+          borderRadius: BorderRadius.circular(AzRadius.xl),
           border: Border.all(color: colors.border),
           boxShadow: AzElevation.level1(colors.isDark),
         ),
@@ -657,71 +618,10 @@ class _ReminderCardFace extends StatelessWidget {
       );
 }
 
-/// A ghost slot: the deck's honest "nothing here yet" filler. Same shape
-/// and rhythm as a real card, but transparent, dimmed, no copy, no
-/// shadow, no tap — it never claims content.
-class _GhostCardFace extends StatelessWidget {
-  const _GhostCardFace({required this.colors, required this.height});
-
-  final AzamanColors colors;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: Container(
-        key: const ValueKey('reminder-ghost'),
-        padding: const EdgeInsets.symmetric(
-            horizontal: AzSpace.lg, vertical: AzSpace.sm),
-        decoration: BoxDecoration(
-          color: colors.card.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(AzRadius.lg),
-          border: Border.all(color: colors.divider),
-        ),
-        child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: colors.accent.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(AzRadius.md),
-            ),
-          ),
-          const SizedBox(width: AzSpace.md),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 8,
-                  width: 72,
-                  decoration: BoxDecoration(
-                    color: colors.divider,
-                    borderRadius: BorderRadius.circular(AzRadius.pill),
-                  ),
-                ),
-                const SizedBox(height: AzSpace.sm),
-                Container(
-                  height: 8,
-                  width: 120,
-                  decoration: BoxDecoration(
-                    color: colors.divider.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(AzRadius.pill),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-/// The quiet position rail on the front card in tall mode: one dot per
-/// card, the front one accented.
+/// PASS B3 — the pagination dots: the deck's card-count indicator. One
+/// dot per REAL card, the active dot following the front card. The dots
+/// are a restrained detail (pass E): the active dot is the muted accent,
+/// the rest neutral.
 class _PositionDots extends StatelessWidget {
   const _PositionDots(
       {required this.index, required this.count, required this.colors});
@@ -732,24 +632,29 @@ class _PositionDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < count; i++)
-          Padding(
-            padding: EdgeInsets.only(right: i == count - 1 ? 0 : 5),
-            child: Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: i == index
-                    ? colors.accent
-                    : colors.textTertiary.withValues(alpha: 0.4),
+    return SizedBox(
+      key: const ValueKey('reminder-deck-dots'),
+      height: _DeckGeometry.dotsHeight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < count; i++)
+            Padding(
+              padding: EdgeInsets.only(right: i == count - 1 ? 0 : 5),
+              child: Container(
+                key: ValueKey('reminder-deck-dot-$i'),
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == index
+                      ? colors.mutedAccent
+                      : colors.textTertiary.withValues(alpha: 0.4),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

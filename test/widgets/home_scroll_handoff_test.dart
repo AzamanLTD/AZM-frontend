@@ -323,38 +323,47 @@ void main() {
     expect(deckBottom, greaterThan(60),
         reason: 'the peek must show a meaningful part of the deck');
 
-    // The activity header sits BELOW the peek band (its surface is
-    // padded down by the band).
+    // PASS A5 — the surface parks below the 96px peek band and the
+    // heading sits a further structural inset into the surface: the
+    // committed state reads as a layer pulled over Home, never a
+    // flat route swap.
     final header = tester.getTopLeft(
         find.byKey(const ValueKey('home-activity-header-title')));
-    expect(header.dy, greaterThanOrEqualTo(96));
+    // ~144: the 96px peek band + the 48px heading inset (text metrics sit
+    // a hair above the padded inset).
+    expect(header.dy, closeTo(144, 3));
   });
 
   testWidgets(
-      '§7 — no deck signal: the placeholder deck still parks in the peek '
-      'band (the slot is never blank)', (tester) async {
+      '§7 — no deck signal: the deck collapses out of the layout cleanly '
+      '(pass D — production Home never fabricates reminder content)',
+      (tester) async {
     await _pumpHome(tester, withDeck: false);
     await _scrollToBottom(tester);
     await _overscrollPastEnd(tester, 260);
     await _settle(tester);
     expect(_activityOpacity(tester), greaterThan(0.99));
 
-    // FILL PATCH: with no signal the deck renders the placeholder fan —
-    // the peek band still exists, and it parks the placeholder (not
-    // nothing) above Activity.
-    expect(find.text('Your reminders will appear here'), findsOneWidget);
-    final deckBox =
-        tester.element(find.byType(HomeReminderDeck)).findRenderObject()
-            as RenderBox;
-    final deckBottom = deckBox.localToGlobal(Offset.zero).dy +
-        deckBox.size.height;
-    expect(deckBottom, lessThan(98));
-    expect(deckBottom, greaterThan(60),
-        reason: 'the peek must show a meaningful part of the deck');
+    // PASS D — truthfulness: no placeholder fan, no fabricated copy. With
+    // no real signal the deck renders its zero-height collapse stub and
+    // the slot is simply gone from the layout.
+    expect(find.text('Your reminders will appear here'), findsNothing);
+    final deckBox = tester
+        .element(find.byKey(const ValueKey('reminder-deck-empty')))
+        .findRenderObject() as RenderBox;
+    expect(deckBox.size.height, 0,
+        reason: 'the deck must collapse to zero height, not hold a band');
 
+    // PASS A5 — no deck → no parked peek band: the surface parks at the
+    // top of the viewport and its heading still sits the structural
+    // inset into the surface.
     final header = tester.getTopLeft(
         find.byKey(const ValueKey('home-activity-header-title')));
-    expect(header.dy, greaterThanOrEqualTo(96));
+    // ~48: the structural heading inset (text metrics sit a hair above
+    // the padded inset) — never the 96px peek-band park.
+    expect(header.dy, closeTo(48, 3));
+    expect(header.dy, lessThan(96),
+        reason: 'with no peek band the heading must not park 96px down');
   });
 
   testWidgets(

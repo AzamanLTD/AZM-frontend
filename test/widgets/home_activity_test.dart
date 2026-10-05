@@ -197,12 +197,15 @@ Future<
 
 /// Enters the activity state from the wallet rest: scroll the doorway into
 /// view, WAIT OUT the ensureVisible scroll animation (dragging mid-scroll
-/// lands the pointer on the wrong widget), then a deliberate 120px UPWARD
+/// lands the pointer on the wrong widget), then a deliberate 260px UPWARD
 /// drag — the physical gesture that matches the surface being revealed
 /// (AUDIT §1: the activity surface rises from below, so the finger drags
-/// up and the content follows). Self-verifies the commit so a flaky hit
-/// can never poison the assertions downstream: a drag that somehow missed
-/// is retried once.
+/// up and the content follows). EXPERIENCE PASS §6 made the Home scroll
+/// the drag surface (the doorway is tap-only now), so the pull must pass
+/// the armed point — 0.62 × 230px ≈ 143px — to commit; 260px is a full,
+/// intentional continuation of the page scroll. Self-verifies the commit
+/// so a flaky hit can never poison the assertions downstream: a drag that
+/// somehow missed is retried once.
 Future<void> _enterActivity(WidgetTester tester) async {
   await tester.ensureVisible(find.byType(RecentActivityDoorway));
   // Scroll animation (600ms) + any settle frames.
@@ -211,7 +214,7 @@ Future<void> _enterActivity(WidgetTester tester) async {
   }
   for (var attempt = 0; attempt < 2; attempt++) {
     await tester.drag(
-        find.byType(RecentActivityDoorway), const Offset(0, -120));
+        find.byType(RecentActivityDoorway), const Offset(0, -260));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
     if (_activityOpacity(tester) > 0.99) return;
@@ -439,12 +442,16 @@ void main() {
       // Pull DOWN on the SURFACE's header (outside the list — the same
       // gesture path real users have on the "Recent Activity" header).
       // The faded-out doorway also says 'Recent Activity', so scope to the
-      // activity surface.
+      // activity surface. EXPERIENCE PASS §6 grammar: the reverse handoff
+      // shares the SAME deliberate threshold (armed at 0.62 × 230px ≈
+      // 143px), so the pull is 260px — a full, intentional grab of the
+      // committed surface, not a touch. The small-pull counterpart below
+      // pins that a 60px pull springs back.
       final header = find.descendant(
           of: find.byType(HomeActivitySurface),
           matching: find.text('Recent Activity'));
       expect(header, findsOneWidget);
-      await tester.drag(header, const Offset(0, 120));
+      await tester.drag(header, const Offset(0, 260));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 

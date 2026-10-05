@@ -917,17 +917,27 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 controller: _plus,
                 actions: [
                   PlusLauncherAction(
-                    icon: HugeIconsSolid.moneySend01,
+                    // PASS F1 — the rounded arrow-head style from the
+                    // existing Hugeicons family: Send points outward
+                    // (up-right, away), Receive points inward (down-left,
+                    // toward you). Immediately understandable, no custom
+                    // SVG arrows. Primary actions (pass E): bright gold.
+                    icon: HugeIconsSolid.arrowUpRight01,
+                    prominent: true,
                     label: 'Send',
                     onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
                         context, const SendMoneyScreen()),
                   ),
                   PlusLauncherAction(
-                    icon: HugeIconsSolid.moneyReceiveFlow01,
+                    icon: HugeIconsSolid.arrowDownLeft01,
+                    prominent: true,
                     label: 'Receive',
                     onTap: () => showReceiveSheet(context),
                   ),
                   PlusLauncherAction(
+                    // PASS E — gold hierarchy: Add Cash and Withdraw are
+                    // secondary actions, so they carry the NEUTRAL chip;
+                    // bright gold stays reserved for Send/Receive.
                     icon: HugeIconsSolid.wallet01,
                     label: 'Add Cash',
                     // CANONICAL ROUTE: /deposit owns the rise transition at

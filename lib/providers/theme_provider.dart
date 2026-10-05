@@ -610,6 +610,12 @@ class AzamanColors {
   final Color scaffoldBackground;
   final Color border;
 
+  /// PASS E (gold hierarchy) — the MUTED accent: supporting feature
+  /// icons, secondary product accents, and restrained visual details.
+  /// Bright [accent] stays reserved for primary actions, selected
+  /// navigation, and the single highest-priority interactive accent.
+  Color get mutedAccent => accent.withValues(alpha: 0.72);
+
   const AzamanColors({
     required this.isDark,
     required this.name,
