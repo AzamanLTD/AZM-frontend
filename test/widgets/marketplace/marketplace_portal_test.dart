@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
-import 'package:azaman/models/business_models.dart';
 
 /// Marketplace ONE-SCREEN guards (experience pass §11 + §12):
 ///   1. The bare marketplace tab is the ONE result screen — the category
@@ -163,7 +162,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
-        child: MaterialApp(
+        child: const MaterialApp(
           home: MarketplaceHomeScreen(),
         ),
       ),

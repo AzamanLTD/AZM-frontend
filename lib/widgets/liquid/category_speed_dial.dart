@@ -144,13 +144,18 @@ List<ArcSlot> solveRadialFan({
         width: sizes[i].width,
         height: sizes[i].height,
       );
-      if (rect.left < safe.left)
+      if (rect.left < safe.left) {
         rect = rect.shift(Offset(safe.left - rect.left, 0));
-      if (rect.right > safe.right)
+      }
+      if (rect.right > safe.right) {
         rect = rect.shift(Offset(safe.right - rect.right, 0));
-      if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-      if (rect.bottom > safe.bottom)
+      }
+      if (rect.top < safe.top) {
+        rect = rect.shift(Offset(0, safe.top - rect.top));
+      }
+      if (rect.bottom > safe.bottom) {
         rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+      }
       slots.add(ArcSlot(index: i, rect: rect, angle: rad));
     }
     return slots;

@@ -483,5 +483,75 @@ void main() {
               'state — the same commit threshold as the forward handoff');
       expect(history.refreshCalls, 1);
     });
+
+    testWidgets('AUDIT §1: pulling down on the LIST at its top boundary '
+        '(the first activity row) hands back through the overscroll',
+        (tester) async {
+      final (_, history, _) = await _pumpHome(tester);
+
+      await _enterActivity(tester);
+      expect(_activityOpacity(tester), greaterThan(0.99));
+
+      // The first activity row lives INSIDE the ListView, so the surface
+      // GestureDetector can never see it — the only route back is the
+      // list's own at-top downward overscroll feeding the reverse
+      // handoff. The list starts at offset 0, so a straight downward
+      // drag is exactly that overscroll. Same deliberate threshold
+      // grammar: 260px passes the armed point.
+      await tester.drag(
+          find.byKey(const ValueKey('home-activity-list')),
+          const Offset(0, 260));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 900));
+
+      expect(_activityOpacity(tester), lessThan(0.05),
+          reason: 'the at-top overscroll drives the same reverse '
+              'handoff — a pull from the first row hands back to the '
+              'wallet resting state');
+      expect(history.refreshCalls, 1);
+    });
+
+    testWidgets('AUDIT §1: pulling down from an arbitrary non-header, '
+        'non-list area of the surface hands back', (tester) async {
+      final (_, history, _) = await _pumpHome(tester);
+
+      await _enterActivity(tester);
+      expect(_activityOpacity(tester), greaterThan(0.99));
+
+      // Not the heading, not a row: the surface itself between the two.
+      // The first-viewport drag lands on the cued heading's surrounding
+      // padding / surface chrome — an area with no tap target and no
+      // scrollable, so only the surface-level vertical drag can claim it.
+      final surfaceRect =
+          tester.getRect(find.byType(HomeActivitySurface));
+      final listRect =
+          tester.getRect(find.byKey(const ValueKey('home-activity-list')));
+      final headerRect = tester.getRect(find.descendant(
+          of: find.byType(HomeActivitySurface),
+          matching: find.text('Recent Activity')));
+
+      // A spot strictly inside the surface but above the list and below
+      // the heading text — the heading inset band.
+      final spot = Offset(
+        surfaceRect.center.dx,
+        (headerRect.bottom + listRect.top) / 2,
+      );
+      expect(spot.dy, lessThan(listRect.top),
+          reason: 'the probe point must sit outside the list');
+
+      final gesture = await tester.startGesture(spot);
+      for (var i = 0; i < 13; i++) {
+        await gesture.moveBy(const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 900));
+
+      expect(_activityOpacity(tester), lessThan(0.05),
+          reason: 'an arbitrary-area pull drives the same reverse '
+              'handoff back to the wallet resting state');
+      expect(history.refreshCalls, 1);
+    });
   });
 }

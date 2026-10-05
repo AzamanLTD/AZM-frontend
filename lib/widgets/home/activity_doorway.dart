@@ -381,11 +381,18 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
   // at pixels == 0 is the one case the list cannot use — and exactly the
   // "pull down from the top" the reverse handoff wants.
   bool _onScrollNotification(ScrollNotification n) {
+    // SIGN NOTE: at the list's TOP boundary a DOWNWARD finger drag
+    // reports a NEGATIVE overscroll (the scroll position wanted to go
+    // below zero and could not). The original `> 0` gate matched only
+    // the opposite direction, so the at-top pull-down never reached
+    // the handoff — the first-row pull was dead in production. Flip the
+    // sign on the way into the same positive-pull grammar the surface
+    // drag uses.
     if (n is OverscrollNotification &&
         n.metrics.pixels <= 0 &&
-        n.overscroll > 0 &&
+        n.overscroll < 0 &&
         n.dragDetails != null) {
-      _pullUpdate(n.overscroll);
+      _pullUpdate(-n.overscroll);
       _pulling = true;
     } else if (n is ScrollEndNotification) {
       _pullEnd();
