@@ -10,12 +10,27 @@ class CategoryDialItem {
   final String? wire;
   final IconData icon;
   final String label;
+
+  /// PR #142 FINAL PASS §2 — the category's own accent. Satellite pills
+  /// paint SOLID in this color over the neutral gray goo so the buttons
+  /// clearly stand out above the backdrop. `null` (the neutral "All")
+  /// keeps the quiet theme-card pill.
+  final Color? accent;
   const CategoryDialItem({
     required this.wire,
     required this.icon,
     required this.label,
+    this.accent,
   });
 }
+
+/// PR #142 FINAL PASS §2 — the dial blob is DELIBERATELY a neutral gray,
+/// independent of the theme surface. A fixed slate reads as its own
+/// material in BOTH modes: distinct from #F2F3F5 light canvas and from
+/// the true-black dark canvas, so the expanding fan is immediately
+/// obvious in either theme.
+const Color kDialGooBody = Color(0xFF6B7280);
+const Color kDialGooRim = Color(0xFF878E9B);
 
 const double _pillHeight = kLiquidMinTapTarget; // 44, was 38
 const double _pillHPad = 16;
@@ -67,22 +82,23 @@ Size measureSatellitePill(
 /// - DEFAULT (burst): one shared radius, semicircle opening to the right of
 ///   the anchor. Used by the plus launcher, where satellites fly far out on
 ///   purpose. Overlap is structurally impossible (worst-case radius).
-/// - COMPACT: the historical close-arc grammar (18d8166) the marketplace
-///   category dial is specified to use — a shallow fan hugging the anchor
-///   (132° sweep, opening downward, or mirrored upward when there is more
-///   room above). Each satellite rides its own minimal anchor clearance
-///   (minR + 6) instead of one globally shared worst-case radius, and a
-///   pairwise pass grows adjacent radii only as far as real neighbour
-///   clearance requires — so the fan stays tight while remaining
-///   collision-safe. UX-CORRECTION §1: no arbitrary offsets, the tight
-///   geometry is the restored known-good one.
+/// - RIGHT-FAN (PR #142 FINAL PASS §1): the compact side-oriented grammar
+///   the marketplace category dial is specified to use. The anchor sits
+///   toward the left of the phone, so the fan must NOT be a centered
+///   symmetric fan, a wide semicircle, a diagonal cascade or a grid: the
+///   FIRST TWO satellites establish a straight horizontal line through the
+///   selected category, reaching into the wider side of the screen; the
+///   remaining satellites step from that baseline in 45° increments
+///   (45°, 90°, …), opening toward whichever vertical side has room. The
+///   side and radii are solved from the actual anchor and safe-area box —
+///   nothing is hard-coded to one device.
 List<ArcSlot> solveRadialFan({
   required Rect anchor,
   required List<Size> sizes,
   required LiquidSafeArea safe,
   double gap = 10,
   double sweepDeg = 176,
-  bool compact = false,
+  bool rightFan = false,
 }) {
   final n = sizes.length;
   if (n == 0) return const [];
@@ -91,7 +107,7 @@ List<ArcSlot> solveRadialFan({
       .map((s) => math.sqrt(s.width * s.width + s.height * s.height) / 2)
       .toList();
 
-  if (!compact) {
+  if (!rightFan) {
     final startDeg = -sweepDeg / 2;
     final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
     final stepRad = stepDeg * math.pi / 180;
@@ -140,22 +156,31 @@ List<ArcSlot> solveRadialFan({
     return slots;
   }
 
-  // ---- COMPACT (restored 18d8166 geometry + neighbour safety) ----
+  // ---- RIGHT-FAN (PR #142 FINAL PASS §1) ----
+  // The fan opens toward the side of the anchor with more horizontal room
+  // (the phone dial anchors left, so it opens right) and toward whichever
+  // vertical side has room (the control row sits high, so it opens down).
+  final spaceRight = safe.right - anchor.right;
+  final spaceLeft = anchor.left - safe.left;
+  final xSign = spaceLeft > spaceRight ? -1.0 : 1.0;
   final spaceUp = anchor.top - safe.top;
   final spaceDown = safe.bottom - anchor.bottom;
-  final growUp = spaceUp > spaceDown && spaceUp > 160;
-  final vSign = growUp ? -1.0 : 1.0;
+  final vSign = spaceUp > spaceDown && spaceUp > 160 ? -1.0 : 1.0;
 
-  final startDeg = 90.0 - sweepDeg / 2;
-  final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
-  final angles = [
-    for (var i = 0; i < n; i++)
-      (startDeg + stepDeg * i) * math.pi / 180
-  ];
+  // Angular grammar: the first two satellites sit at 0° — a straight
+  // horizontal line through the selected category reaching into the
+  // available side space; each remaining satellite steps 45° further from
+  // that baseline (45°, 90°, …). Angles are measured from the outward
+  // horizontal, screen y-down.
+  double angleAt(int i) {
+    final deg = i < 2 ? 0.0 : (i - 1) * 45.0;
+    return deg * math.pi / 180;
+  }
 
-  // Per-satellite radius: just past its own anchor clearance (the 18d8166
-  // close-arc distance). Pairwise pass below only grows radii that actually
-  // need it for neighbour clearance.
+  final angles = [for (var i = 0; i < n; i++) angleAt(i)];
+
+  // Per-satellite radius: just past its own anchor clearance — the fan
+  // stays tight; only real shortfalls grow it.
   final radii = List<double>.filled(n, 0.0);
   for (var i = 0; i < n; i++) {
     final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
@@ -165,21 +190,40 @@ List<ArcSlot> solveRadialFan({
   }
 
   Offset centreAt(int i) => anchor.center.translate(
-      math.cos(angles[i]) * radii[i], math.sin(angles[i]) * vSign * radii[i]);
+      math.cos(angles[i]) * xSign * radii[i],
+      math.sin(angles[i]) * vSign * radii[i]);
 
-  // Grow only the adjacent pairs that are actually short on clearance —
-  // never a global worst-case radius. Converges: spreading radii strictly
-  // increases pair distances along the arc.
-  for (var pass = 0; pass < 12; pass++) {
+  // Separation need per pair: two satellites on the SAME ray are vertically
+  // aligned, so pill WIDTHS are the real bound (the conservative
+  // half-diagonal bound would shove the far pill offscreen for no reason);
+  // different rays keep the diagonal bound. A FULL pairwise pass (not just
+  // adjacent slots) because the 45° steps can bring non-adjacent slots
+  // near each other. Converges: every grow strictly increases pair
+  // distances.
+  double needed(int i, int j) => angles[i] == angles[j]
+      ? (sizes[i].width + sizes[j].width) / 2 + gap
+      : halfDiags[i] + halfDiags[j] + gap;
+
+  for (var pass = 0; pass < 16; pass++) {
     var touched = false;
     for (var i = 0; i < n - 1; i++) {
-      final d = (centreAt(i) - centreAt(i + 1)).distance;
-      final needed = halfDiags[i] + halfDiags[i + 1] + gap;
-      if (d < needed) {
-        final grow = (needed - d) / 2 + 1;
-        radii[i] += grow;
-        radii[i + 1] += grow;
-        touched = true;
+      for (var j = i + 1; j < n; j++) {
+        final d = (centreAt(i) - centreAt(j)).distance;
+        final need = needed(i, j);
+        if (d < need) {
+          if (angles[i] == angles[j]) {
+            // Same-ray pair: grow only the FARTHER pill — the line's near
+            // pill stays tight at its anchor clearance instead of both
+            // sliding outward.
+            final far = radii[i] <= radii[j] ? j : i;
+            radii[far] += (need - d) + 1;
+          } else {
+            final grow = (need - d) / 2 + 1;
+            radii[i] += grow;
+            radii[j] += grow;
+          }
+          touched = true;
+        }
       }
     }
     if (!touched) break;
@@ -290,10 +334,10 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
           measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir),
       ],
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
-      // UX-CORRECTION §1 — compact close-arc geometry (the restored 18d8166
-      // grammar), not the launcher's wide burst fan.
-      sweepDeg: 132,
-      compact: true,
+      // PR #142 FINAL PASS §1 — compact right-oriented fan: two satellites
+      // on the horizontal line through the anchor, then 45° steps. NOT the
+      // old broad 132° close-arc and not the launcher's wide burst fan.
+      rightFan: true,
     );
 
     AzamanHaptics.toggle();
@@ -505,8 +549,12 @@ class _DialOverlay extends StatelessWidget {
                         origin: bounds.topLeft,
                         anchor: anchor,
                         slots: slots,
-                        body: colors.card,
-                        rim: colors.divider,
+                        // PR #142 FINAL PASS §2 — the blob is a NEUTRAL
+                        // GRAY, deliberately NOT the theme surface, so the
+                        // expansion stays visibly distinct from the
+                        // surrounding screen in BOTH light and dark mode.
+                        body: kDialGooBody,
+                        rim: kDialGooRim,
                       ),
                     ),
                   ),
@@ -598,6 +646,17 @@ class _SatellitePill extends StatelessWidget {
     required this.onPick,
   });
 
+  /// Foreground for the accent pill: dark ink on light accents, white on
+  /// dark ones — measured, not guessed, so every label stays fully
+  /// readable on its category color in both themes.
+  Color get fg {
+    final a = item.accent;
+    if (a == null) return colors.textPrimary;
+    return a.computeLuminance() > 0.4
+        ? const Color(0xFF1A1F2B)
+        : Colors.white;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -639,12 +698,18 @@ class _SatellitePill extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: colors.card,
+              // PR #142 FINAL PASS §2 — a real category paints SOLID in
+              // its own accent so the colored buttons clearly stand out
+              // above the neutral gray goo; the neutral "All" keeps the
+              // quiet theme-card pill. Do NOT gray the buttons with the
+              // blob.
+              color: item.accent ?? colors.card,
               borderRadius: BorderRadius.circular(_satPillRadius),
-              border: Border.all(color: colors.divider),
+              border:
+                  item.accent == null ? Border.all(color: colors.divider) : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: Colors.black.withValues(alpha: 0.14),
                   blurRadius: 12,
                   offset: const Offset(0, 3),
                 ),
@@ -654,7 +719,7 @@ class _SatellitePill extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(item.icon, size: _satIconSize, color: colors.textPrimary),
+                Icon(item.icon, size: _satIconSize, color: fg),
                 const SizedBox(width: 6),
                 // UX-CORRECTION §2 — no Flexible/overflow fade: the full
                 // label always paints on the opaque surface above the goo.
@@ -663,7 +728,7 @@ class _SatellitePill extends StatelessWidget {
                   style: TextStyle(
                     fontSize: _satLabelFS,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: fg,
                     decoration: TextDecoration.none,
                   ),
                 ),

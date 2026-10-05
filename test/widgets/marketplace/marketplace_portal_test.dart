@@ -196,31 +196,60 @@ void main() {
       expect(find.text('Wellness'), findsNothing);
     });
 
-    testWidgets('satellites hug the anchor — no wide-burst flight', (
-        tester) async {
+    testWidgets('right-oriented fan — first two satellites on the '
+        'horizontal line through the anchor, rest in 45° steps '
+        '(PR #142 final pass §1)', (tester) async {
       await openFan(tester);
       final anchor = tester.getRect(_dialAnchor());
-      final satelliteTexts = ['Eat', 'Shop', 'Ride', 'Stay'];
-      var maxCenterDistance = 0.0;
-      var topMost = double.infinity;
-      var bottomMost = -double.infinity;
-      for (final label in satelliteTexts) {
-        final rect = tester.getRect(find.text(label));
-        final centre = rect.center;
-        maxCenterDistance = (centre - anchor.center).distance >
-                maxCenterDistance
-            ? (centre - anchor.center).distance
-            : maxCenterDistance;
-        topMost = rect.top < topMost ? rect.top : topMost;
-        bottomMost = rect.bottom > bottomMost ? rect.bottom : bottomMost;
+      final size = tester.view.physicalSize / tester.view.devicePixelRatio;
+      // The pill rect (the satellite's own GestureDetector), not the text
+      // rect — the icon left of the label offsets the text center.
+      Offset pillCentre(String label) => tester
+          .getRect(find.ancestor(
+              of: find.text(label), matching: find.byType(GestureDetector)).first)
+          .center;
+      // The dial list order minus the selected "All": Eat, Shop, Ride, Stay.
+      final eat = pillCentre('Eat');
+      final shop = pillCentre('Shop');
+      final ride = pillCentre('Ride');
+      final stay = pillCentre('Stay');
+
+      // The first two satellite positions establish a straight horizontal
+      // line through the selected category.
+      expect(eat.dy, closeTo(anchor.center.dy, 1.5));
+      expect(shop.dy, closeTo(anchor.center.dy, 1.5));
+      // The line reaches into the available right-side space, past the
+      // anchor's edge (the old 132° arc hugged instead of lining up).
+      expect(eat.dx, greaterThan(anchor.right));
+      expect(shop.dx, greaterThan(eat.dx));
+      // The remaining satellites step 45° from that baseline: Ride at the
+      // down-right diagonal, Stay straight below the anchor center.
+      expect(ride.dx, greaterThan(anchor.center.dx));
+      expect(ride.dy, greaterThan(anchor.center.dy));
+      expect(stay.dx, closeTo(anchor.center.dx, 1.5));
+      expect(stay.dy, greaterThan(anchor.bottom));
+
+      // NOT a wide burst: no satellite wraps around the anchor's dead
+      // (left) side. Stay sits ~1px inside the 90° slot at settle — the
+      // damped launch spring parks at ~97% travel by design, so the bound
+      // is the anchor's own left edge, not its center.
+      for (final c in [eat, shop, ride, stay]) {
+        expect(c.dx, greaterThan(anchor.left));
       }
-      // Compact close arc: satellites stay within ~1.5 anchor widths of
-      // the pill centre (the wide burst put them 176° around the anchor).
-      expect(maxCenterDistance, lessThan(anchor.width * 1.5));
-      // The fan opens around/below the anchor, never flying far above it.
-      expect(topMost, greaterThanOrEqualTo(anchor.top));
-      // The whole fan fits in a shallow band, not a tall semicircle.
-      expect(bottomMost - topMost, lessThan(140));
+      // Every pill stays comfortably inside the viewport.
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        final r = tester.getRect(find.text(label));
+        expect(r.left, greaterThan(0));
+        expect(r.right, lessThan(size.width));
+        expect(r.top, greaterThan(0));
+        expect(r.bottom, lessThan(size.height));
+      }
+      // NOT a tall semicircle: the whole fan fits inside a compact band.
+      final topMost = tester
+          .getRect(find.text('Eat'))
+          .top; // eat and shop share the line — same band
+      final bottomMost = tester.getRect(find.text('Stay')).bottom;
+      expect(bottomMost - topMost, lessThan(220));
     });
 
     testWidgets('neighbouring satellites never overlap (collision safety '

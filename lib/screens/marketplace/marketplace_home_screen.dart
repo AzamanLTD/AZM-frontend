@@ -794,22 +794,31 @@ class _MarketplaceHomeScreenState
   // default). Services and Wellness are removed: no other user-facing
   // satellite exists.
   static const List<CategoryDialItem> _dialCategories = [
+    // PR #142 FINAL PASS §2 — real categories carry their own accent (the
+    // marketplace category palette) so they stand out over the neutral
+    // gray goo; "All" stays the quiet neutral pill.
     CategoryDialItem(
         wire: null, icon: Icons.apps_rounded, label: 'All'),
     CategoryDialItem(
         wire: 'FOOD_BEVERAGE',
         icon: Icons.restaurant_rounded,
-        label: 'Eat'),
+        label: 'Eat',
+        accent: Color(0xFFF59E0B)),
     CategoryDialItem(
-        wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Shop'),
+        wire: 'RETAIL',
+        icon: Icons.shopping_bag_rounded,
+        label: 'Shop',
+        accent: Color(0xFF00D97E)),
     CategoryDialItem(
         wire: 'LOGISTICS',
         icon: Icons.directions_bus_rounded,
-        label: 'Ride'),
+        label: 'Ride',
+        accent: Color(0xFF4F8EF7)),
     CategoryDialItem(
         wire: 'REAL_ESTATE',
         icon: Icons.apartment_rounded,
-        label: 'Stay'),
+        label: 'Stay',
+        accent: Color(0xFFA78BFA)),
 ];
 
   // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.

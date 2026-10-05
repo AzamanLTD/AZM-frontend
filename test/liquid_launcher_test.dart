@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/widgets/liquid/category_speed_dial.dart'
-    show measureSatellitePill, satelliteScale, satelliteTravel, solveRadialFan;
+    show kDialGooBody, kDialGooRim, measureSatellitePill, satelliteScale,
+        satelliteTravel, solveRadialFan;
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/liquid/liquid_placement.dart';
 
@@ -107,6 +109,119 @@ void main() {
       expect(peak, greaterThan(1.0));
       expect(satelliteTravel(0.95, 1), closeTo(1.0, 1e-3));
     });
+  });
+
+  group('solveRadialFan — right-fan grammar (PR #142 final pass §1)', () {
+    final sizes = [
+      for (final l in ['Eat', 'Shop', 'Ride', 'Stay'])
+        measureSatellitePill(
+          l,
+          _style,
+          TextScaler.noScaling,
+          TextDirection.ltr,
+        ),
+    ];
+    // The phone shape: the dial anchor pill sits in the control row toward
+    // the LEFT of the screen, high up, with all the real estate to its
+    // right and below.
+    final safe = LiquidSafeArea(
+      screen: const Size(390, 844),
+      padding: const EdgeInsets.only(top: 44),
+      margin: 6,
+    );
+    final anchor = const Rect.fromLTWH(16, 88, 92, 44);
+
+    test('first two satellites establish the straight horizontal line '
+        'through the anchor, opening into the right-side space', () {
+      final slots =
+          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+      expect(slots.length, 4);
+      // The first two satellite positions are ON the anchor's horizontal
+      // center line — a straight line through the selected category.
+      for (final i in [0, 1]) {
+        expect(slots[i].rect.center.dy, closeTo(anchor.center.dy, 0.5),
+            reason: 'slot $i left the horizontal line');
+      }
+      // The horizontal-line pair opens into the right-side space, past the
+      // anchor's edge — never centered around it.
+      for (final i in [0, 1]) {
+        expect(slots[i].rect.left, greaterThanOrEqualTo(anchor.right - 1),
+            reason: 'slot $i leaked behind the anchor');
+      }
+    });
+
+    test('remaining satellites step 45° increments from the horizontal '
+        'baseline (45°, then 90°), not a cascade or semicircle', () {
+      final slots =
+          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+      final c2 = slots[2].rect.center;
+      final c3 = slots[3].rect.center;
+      // 45° slot: down-right diagonal from the anchor.
+      expect(c2.dx, greaterThan(anchor.center.dx));
+      expect(c2.dy, greaterThan(anchor.center.dy));
+      // 90° slot: straight below the anchor center — the vertical step the
+      // 45°-increment grammar produces (a cascade or semicircle would put
+      // it on a shared diagonal arc).
+      expect(c3.dx, closeTo(anchor.center.dx, 0.75));
+      expect(c3.dy, greaterThan(anchor.bottom));
+    });
+
+    test('every pill stays whole: safe-contained, anchor-clear, and '
+        'mutually non-overlapping', () {
+      final slots =
+          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+      for (final s in slots) {
+        expect(s.rect.left, greaterThanOrEqualTo(safe.left - 0.01));
+        expect(s.rect.right, lessThanOrEqualTo(safe.right + 0.01));
+        expect(s.rect.top, greaterThanOrEqualTo(safe.top - 0.01));
+        expect(s.rect.bottom, lessThanOrEqualTo(safe.bottom - 0.01));
+        expect(s.rect.overlaps(anchor.deflate(1)), isFalse,
+            reason: 'slot ${s.index} overlaps the anchor');
+      }
+      for (var i = 0; i < slots.length; i++) {
+        for (var j = i + 1; j < slots.length; j++) {
+          expect(slots[i].rect.overlaps(slots[j].rect), isFalse,
+              reason: 'slots $i and $j collide');
+        }
+      }
+    });
+
+    test('the fan mirrors to the side with room when the anchor sits '
+        'right of centre (positions are solved, not hard-coded)', () {
+      final rightAnchor = const Rect.fromLTWH(282, 88, 92, 44);
+      final slots = solveRadialFan(
+          anchor: rightAnchor, sizes: sizes, safe: safe, rightFan: true);
+      // The horizontal-line pair opens LEFT, past the anchor's other edge.
+      for (final i in [0, 1]) {
+        expect(slots[i].rect.right, lessThanOrEqualTo(rightAnchor.left + 1),
+            reason: 'slot $i opened into the dead side');
+      }
+      // Everything stays anchor-clear and safe-contained (the vertical
+      // steps may share the anchor's x-band — they sit below it).
+      for (final s in slots) {
+        expect(s.rect.overlaps(rightAnchor.deflate(1)), isFalse);
+        expect(s.rect.left, greaterThanOrEqualTo(safe.left - 0.01));
+        expect(s.rect.right, lessThanOrEqualTo(safe.right + 0.01));
+      }
+    });
+  });
+
+  // PR #142 FINAL PASS §2 — the dial blob is DELIBERATELY neutral gray,
+  // independent of the theme surface. Pin it against BOTH palettes so a
+  // future refactor can't quietly hand it back to colors.card/surface.
+  test('dial goo grays are neutral and distinct from both theme surfaces',
+      () {
+    final light = ThemeProvider.getColors(AzamanTheme.light);
+    final dark = ThemeProvider.getColors(AzamanTheme.dark);
+    for (final c in [kDialGooBody, kDialGooRim]) {
+      for (final surface in [light.card, light.surface, light.background,
+          dark.card, dark.surface, dark.background]) {
+        expect(c, isNot(surface));
+      }
+      // Neutral: no strong hue — the channel spread stays tight.
+      final hsl = HSLColor.fromColor(c);
+      expect(hsl.saturation, lessThan(0.15));
+    }
   });
 
   group('solveRadialFan', () {

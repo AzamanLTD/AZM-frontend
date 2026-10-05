@@ -27,10 +27,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
@@ -293,6 +295,29 @@ void main() {
           reason: 'the conversion text anchors the left of the row');
       expect(indicatorRect.center.dx, greaterThan(cardRect.center.dx),
           reason: 'the refresh/countdown anchors the right of the row');
+    });
+
+    testWidgets('the surface is neutral graphite in dark mode — the '
+        'iridescence tint is NOT the accent (RICHTEXT CORRECTIONS §2C)',
+        (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      // The theme load is async (SharedPreferences mock: no saved
+      // preference → the default DARK theme). Two fixed pumps — the first
+      // flushes the load microtask, the second builds with the dark
+      // palette. NOT pumpAndSettle: RateRefreshIndicator counts down on a
+      // repeating timer, so settling never terminates.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final surface = tester.widget<HolographicSurface>(
+          find.byType(HolographicSurface));
+      final colors = ThemeProvider.getColors(AzamanTheme.dark);
+      // The material base is the palette's neutral near-black graphite.
+      expect(surface.base, colors.card);
+      // The tint drives the broad iridescent wash: accent gold there
+      // produced the muddy olive/khaki card the screenshots flagged.
+      expect(surface.tint, colors.textSecondary);
+      expect(surface.tint, isNot(colors.accent));
     });
 
     testWidgets('the rate row survives the hidden-balance mask', (tester) async {
