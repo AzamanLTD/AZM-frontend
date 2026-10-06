@@ -201,7 +201,13 @@ void main() {
       final counts = StoryRingCounts.fromGroup(g);
       expect(counts.viewedCount, 2);
       expect(counts.unviewedTotal, 2);
+      expect(counts.unviewedSilentCount, 2);
+      expect(counts.unviewedCountKnown, isTrue,
+          reason: 'a per-story feed carries the real count');
+      expect(counts.hasUnviewed, isTrue);
       expect(counts.isEmpty, isFalse);
+      expect(counts.badgeMayRender, isTrue,
+          reason: 'a real count may show a real number');
     });
 
     test('fromGroup all-seen → zero unviewed (caught up)', () {
@@ -209,6 +215,10 @@ void main() {
           StoryRingCounts.fromGroup(_group([_story(seen: true), _story(seen: true)]));
       expect(counts.unviewedTotal, 0);
       expect(counts.viewedCount, 2);
+      expect(counts.hasUnviewed, isFalse);
+      expect(counts.isEmpty, isFalse, reason: 'viewed stories still exist');
+      expect(storyRingTopDashSpecs(counts), isEmpty,
+          reason: 'caught up — the resting arc, no dash');
     });
 
     test(
@@ -223,16 +233,46 @@ void main() {
           reason: 'the unviewed story still counts, in the no-sound dash');
     });
 
-    test('count-less source renders the dash but NEVER a manufactured badge count', () {
+    test(
+        'count-less unseen → presence dash visible, numeric badge suppressed',
+        () {
       final counts = StoryRingCounts.fromUnseenFlag(true);
-      expect(counts.unviewedTotal, greaterThan(0));
+      expect(counts.hasUnviewed, isTrue,
+          reason: 'existence is explicit, not encoded as a count');
+      expect(counts.isEmpty, isFalse,
+          reason: 'an unseen story is known to exist');
       expect(counts.unviewedBadgeVisible, isFalse,
           reason: 'the marketplace feed has timestamps, not counts — '
               'the badge only ever shows a real number');
+      expect(counts.badgeMayRender, isFalse);
+      final dashes = storyRingTopDashSpecs(counts);
+      expect(dashes, hasLength(1), reason: 'exactly one presence dash');
+      expect(dashes.single.texture, StoryDashTexture.solid,
+          reason: 'the no-sound dash — the documented fallback for '
+              'missing audio metadata, not a sound classification');
+      expect(dashes.single.isSound, isFalse,
+          reason: 'the purple branch stays dormant without real data');
+    });
+
+    test(
+        'count-less unseen does NOT expose a fake total '
+        '(regression: fromUnseenFlag once manufactured 1)',
+        () {
+      final counts = StoryRingCounts.fromUnseenFlag(true);
+      expect(counts.unviewedTotal, 0,
+          reason: 'never encode "unknown" as a number');
+      expect(counts.unviewedSilentCount, 0,
+          reason: 'no fake 1 in the data model');
+      expect(counts.unviewedCountKnown, isFalse);
     });
 
     test('count-less false → genuinely empty', () {
-      expect(StoryRingCounts.fromUnseenFlag(false).isEmpty, isTrue);
+      final counts = StoryRingCounts.fromUnseenFlag(false);
+      expect(counts.hasUnviewed, isFalse);
+      expect(counts.isEmpty, isTrue);
+      expect(counts.badgeMayRender, isFalse);
+      expect(storyRingTopDashSpecs(counts), isEmpty,
+          reason: 'no dash, no badge — the plain resting ring');
     });
 
     test('empty counts → no story state at all', () {

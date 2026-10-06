@@ -164,16 +164,24 @@ class StoryRing extends ConsumerWidget {
 //   • unviewed counts   — REAL and exact (stories.length − seen).
 //   • sound/audio state  — DOES NOT EXIST in the contract. Prisma Story has
 //     mediaUrl/caption only; the feed map sends no audio flag. Per §9 we do
-//     NOT invent it: all unviewed stories render in the NO-SOUND dash until
-//     the backend exposes a hasAudio flag. The purple twin-line dash is
-//     fully implemented and goes live the moment real data arrives.
+//     NOT invent it — no inference from media type, file extension or URL.
+//     The red no-sound dash is therefore a DOCUMENTED FALLBACK for missing
+//     audio metadata, NOT a confirmed "this story has no sound"
+//     classification. It must never be described or reported as real
+//     sound data. The purple twin-line dash is fully implemented and goes
+//     live the moment the backend exposes a hasAudio flag.
 class StoryRingCounts {
-  /// Unviewed stories with no audio. Rendered as a red solid dash.
+  /// Unviewed stories in the NO-SOUND (red) bucket. For a per-story feed
+  /// this is the exact count of stories not yet seen. The bucket itself
+  /// is the documented FALLBACK for missing audio metadata (audit note
+  /// above): a story in it is NOT confirmed to be silent — the client
+  /// simply has no audio data for it yet.
   final int unviewedSilentCount;
 
-  /// Unviewed stories with audio. Rendered as a purple twin-line dash.
-  /// Currently always 0 — the feed contract exposes no audio flag (see the
-  /// audit note above); wire it when the backend adds one.
+  /// Unviewed stories in the SOUND (purple) bucket. Currently always 0 —
+  /// the feed contract exposes no audio flag, so no story may be placed
+  /// in this bucket (the purple branch stays dormant by contract, not by
+  /// styling). Wire it when the backend adds hasAudio.
   final int unviewedSoundCount;
 
   /// Already-viewed stories. Rendered as gray dots at the bottom.
@@ -186,21 +194,40 @@ class StoryRingCounts {
   /// the dash alone.
   final bool unviewedBadgeVisible;
 
+  /// COUNT-LESS STATE — an unviewed story is KNOWN to exist even though
+  /// the source carries no per-story records to count it. Drives the
+  /// unviewed dash WITHOUT any numeric claim: it never adds to
+  /// [unviewedTotal] and never enables the badge.
+  final bool hasUnviewed;
+
+  /// Whether [unviewedSilentCount] + [unviewedSoundCount] is the REAL,
+  /// exact unviewed count (a per-story feed). False for count-less
+  /// sources, where the exact number is unknown — never encoded as a
+  /// fake count.
+  final bool unviewedCountKnown;
+
   const StoryRingCounts({
     this.unviewedSilentCount = 0,
     this.unviewedSoundCount = 0,
     this.viewedCount = 0,
     this.unviewedBadgeVisible = true,
+    this.hasUnviewed = false,
+    this.unviewedCountKnown = false,
   });
 
   const StoryRingCounts.empty()
       : this(unviewedSilentCount: 0, unviewedSoundCount: 0, viewedCount: 0);
 
-  /// No stories at all.
+  /// No stories at all — and no known-to-exist unviewed story either.
   bool get isEmpty =>
-      unviewedTotal == 0 && viewedCount == 0;
+      unviewedTotal == 0 && viewedCount == 0 && !hasUnviewed;
 
   int get unviewedTotal => unviewedSilentCount + unviewedSoundCount;
+
+  /// Whether the numeric unviewed badge may actually paint: only with a
+  /// REAL count. A count-less source never renders a number — there is
+  /// no number.
+  bool get badgeMayRender => unviewedBadgeVisible && unviewedCountKnown;
 
   /// The REAL data path: exact counts from a story feed group. The group's
   /// stories list is authoritative — the backend returns every active story
@@ -209,20 +236,28 @@ class StoryRingCounts {
     final viewed = group.stories.where((s) => s.seen).length;
     final unviewed = group.stories.length - viewed;
     return StoryRingCounts(
-      // Sound split stays 0/0 here: no audio flag in the contract (audit
-      // note above). unviewedTotal stays exact.
+      // Sound split stays all-fallback here: no audio flag in the
+      // contract (audit note above), so every unseen story lands in the
+      // no-metadata bucket. unviewedTotal stays EXACT — a real count
+      // from real per-story records.
       unviewedSilentCount: unviewed,
       unviewedSoundCount: 0,
       viewedCount: viewed,
+      hasUnviewed: unviewed > 0,
+      unviewedCountKnown: true,
     );
   }
 
   /// Count-less source: an unseen story is KNOWN to exist, but the feed
-  /// carries no per-story seen records to count. Renders the unviewed dash
-  /// with NO numeric badge — never a manufactured count.
+  /// carries no per-story seen records to count it. Encoded as the
+  /// explicit [hasUnviewed] state — NEVER as a manufactured numeric count:
+  /// [unviewedTotal] stays 0 and the numeric badge stays suppressed.
+  /// The unviewed dash still renders (one presence dash), driven by the
+  /// flag, not by a fake number.
   factory StoryRingCounts.fromUnseenFlag(bool hasUnseen) =>
       StoryRingCounts(
-        unviewedSilentCount: hasUnseen ? 1 : 0,
+        hasUnviewed: hasUnseen,
+        unviewedCountKnown: false,
         unviewedBadgeVisible: false,
       );
 }
@@ -271,6 +306,20 @@ List<StoryDashSpec> storyRingTopDashes(int silent, int sound) {
 /// Badge label for a count: the actual number, compacted only past 99
 /// (never a literal "+N" placeholder).
 String storyRingBadgeLabel(int count) => count > 99 ? '99+' : '$count';
+
+/// Grammar input for the ring's top dashes, from a counts state. The
+/// dash count is a RENDERING instruction, never a data claim: an
+/// exact-count feed passes its real split; a count-less source passes
+/// a single presence dash for the explicit hasUnviewed flag. Either way
+/// the model's [StoryRingCounts.unviewedTotal] stays what the source
+/// actually knows — 0/unknown for count-less, never a fake number.
+List<StoryDashSpec> storyRingTopDashSpecs(StoryRingCounts counts) {
+  final silent = counts.unviewedCountKnown
+      ? counts.unviewedSilentCount
+      : (counts.hasUnviewed ? 1 : 0);
+  final sound = counts.unviewedCountKnown ? counts.unviewedSoundCount : 0;
+  return storyRingTopDashes(silent, sound);
+}
 
 /// BOTTOM grammar: viewed dots mirrored around 6 o'clock. Odd counts get a
 /// true centre dot; even counts split evenly. Capped at
@@ -350,7 +399,7 @@ class _StoryRingPainter extends CustomPainter {
 
   // ── TOP: unviewed ──────────────────────────────────────────────────────
   void _paintTop(Canvas canvas, Offset center, double radius) {
-    if (counts.unviewedTotal == 0) {
+    if (!counts.hasUnviewed && counts.unviewedTotal == 0) {
       // Fully caught up — one unified resting arc, the Apple "idle" glyph.
       final paint = Paint()
         ..color = dimColor
@@ -363,12 +412,11 @@ class _StoryRingPainter extends CustomPainter {
     }
 
     final rect = Rect.fromCircle(center: center, radius: radius);
-    for (final dash in storyRingTopDashes(
-        counts.unviewedSilentCount, counts.unviewedSoundCount)) {
+    for (final dash in storyRingTopDashSpecs(counts)) {
       _drawDash(canvas, rect, dash);
     }
 
-    if (counts.unviewedBadgeVisible) {
+    if (counts.badgeMayRender) {
       _drawBadge(
         canvas,
         center,
