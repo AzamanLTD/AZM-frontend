@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/currency_model.dart';
-import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/oracle_rates_client.dart';
 
 /// Server-authoritative FX snapshot. USDC is the financial/settlement unit of
 /// account; GHS is a derived local presentation value from the backend's
@@ -100,7 +100,8 @@ FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data) {
 /// never mistake a legacy USD/GHS value for a fresh Kotani retail quote.
 final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
   try {
-    final response = await apiClient.get('/oracle/rates', requireAuth: false);
+    // §9: shares the single-flight oracle request (see oracle_rates_client).
+    final response = await getOracleRates();
     final body = jsonDecode(response.body);
     if (body is! Map<String, dynamic> || body['success'] != true) return null;
 

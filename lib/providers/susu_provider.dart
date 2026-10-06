@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/proof_of_residency_model.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/oracle_rates_client.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/susu_service.dart';
 
@@ -532,7 +533,8 @@ SusuSuppliedRate parseSusuSuppliedRate(Map<String, dynamic> data) {
 final susuSuppliedRateProvider =
     FutureProvider.autoDispose<SusuSuppliedRate>((ref) async {
   try {
-    final res = await apiClient.get('/oracle/rates', requireAuth: false);
+    // §9: shares the single-flight oracle request (see oracle_rates_client).
+    final res = await getOracleRates();
     final raw = jsonDecode(res.body);
     if (raw is! Map<String, dynamic> || raw['success'] != true) {
       return SusuSuppliedRate.empty;
