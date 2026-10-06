@@ -59,6 +59,7 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/home/home_deck_separator.dart';
 
 /// A single reminder card's honest content + its destination. `onTap` is
 /// null for the placeholder — it is informational, not a destination.
@@ -323,13 +324,25 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
             ? {const CustomSemanticsAction(label: 'Next reminder'): _advance}
             : null,
       ),
-      child: SizedBox(
-        height: _DeckGeometry.bandHeight,
-        child: AnimatedBuilder(
-          animation: _travel,
-          builder: (context, _) =>
-              _buildStack(context, cards, swipable, _travel.value),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // PR #142 VISUAL PASS (2026-10-06) — the small premium section
+          // separator immediately above the compact deck: centered, small
+          // gray text, hairlines fading toward the outer ends. It lives
+          // INSIDE the deck so it collapses with the deck when production
+          // Home has no reminder signals — never a stranded label. The
+          // cards themselves are untouched.
+          HomeDeckSeparator(colors: ref.watch(themeProvider).colors),
+          SizedBox(
+            height: _DeckGeometry.bandHeight,
+            child: AnimatedBuilder(
+              animation: _travel,
+              builder: (context, _) =>
+                  _buildStack(context, cards, swipable, _travel.value),
+            ),
+          ),
+        ],
       ),
     );
   }

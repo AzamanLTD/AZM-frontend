@@ -27,7 +27,6 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
-import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/services/business_service.dart';
@@ -837,8 +836,7 @@ class _MarketplaceHomeScreenState
           // Expanded stretch. The radial fan anchors to the pill's real
           // box; a stretched slot made the whole empty row-width part of
           // the anchor (and the fan fanned off a rect the eye doesn't
-          // see). The pill and Near You sit together at the left, in the
-          // same pill language.
+          // see).
           CategorySpeedDial(
             key: const ValueKey('marketplace-category-dial'),
             categories: _dialCategories,
@@ -850,7 +848,12 @@ class _MarketplaceHomeScreenState
               _fireSearch();
             },
           ),
-          const SizedBox(width: AzSpace.sm),
+          // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
+          // control row: it reads as the secondary location/filter
+          // utility, visually belonging to the row's end rather than to the
+          // category fan. The dial is NOT stretched to force the
+          // alignment; the Spacer takes the free row width between them.
+          const Spacer(),
           // Near You — the ONLY control outside the category selector
           // (location icon, same pill language). Toggling off returns to
           // the list view.

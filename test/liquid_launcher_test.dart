@@ -150,20 +150,50 @@ void main() {
       }
     });
 
-    test('remaining satellites step 45° increments from the horizontal '
-        'baseline (45°, then 90°), not a cascade or semicircle', () {
+    test('remaining satellites open AWAY from the baseline in equal 45° '
+        'steps, mirrored above and below it (+45°, −45°), not a cascade',
+        () {
       final slots =
           solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
       final c2 = slots[2].rect.center;
       final c3 = slots[3].rect.center;
-      // 45° slot: down-right diagonal from the anchor.
+      // The old 0/0/45/90 cascade funneled satellites 3 and 4 onto ONE
+      // side (down-right then straight down). The 2026-10-06 correction
+      // mirrors the remaining positions around the baseline: one opens
+      // BELOW the anchor line, one ABOVE it, both on the opening side.
       expect(c2.dx, greaterThan(anchor.center.dx));
-      expect(c2.dy, greaterThan(anchor.center.dy));
-      // 90° slot: straight below the anchor center — the vertical step the
-      // 45°-increment grammar produces (a cascade or semicircle would put
-      // it on a shared diagonal arc).
-      expect(c3.dx, closeTo(anchor.center.dx, 0.75));
-      expect(c3.dy, greaterThan(anchor.bottom));
+      expect(c3.dx, greaterThan(anchor.center.dx));
+      expect(c2.dy, greaterThan(anchor.center.dy),
+          reason: 'the +45° slot opens below the baseline');
+      expect(c3.dy, lessThan(anchor.center.dy),
+          reason: 'the −45° slot opens above the baseline');
+      // The ANGLE grammar mirrors: |+45°| == |−45°| — equal angular
+      // steps opening to both sides of the baseline. (Positional symmetry
+      // is not asserted: the safe-area clamp may pull the side with less
+      // room inward — that clamp is exactly what keeps the pill visible.)
+      expect(slots[2].angle.abs(), closeTo(slots[3].angle.abs(), 0.001));
+      expect(slots[2].angle, greaterThan(0));
+      expect(slots[3].angle, lessThan(0));
+
+      // Both stay meaningfully clear of the baseline (a real 45° step,
+      // not a token nudge), even after clamping.
+      expect((c2.dy - anchor.center.dy).abs(),
+          greaterThan(anchor.height * 0.5));
+      expect((c3.dy - anchor.center.dy).abs(),
+          greaterThan(anchor.height * 0.5));
+
+      // And every satellite remains FULLY inside the safe area — the
+      // mirrored pair opens, but nothing is ever clipped offscreen.
+      for (final slot in slots) {
+        expect(slot.rect.top, greaterThanOrEqualTo(safe.top - 0.5),
+            reason: 'slot ${slot.index} clipped above the safe area');
+        expect(slot.rect.bottom, lessThanOrEqualTo(safe.bottom + 0.5),
+            reason: 'slot ${slot.index} clipped below the safe area');
+        expect(slot.rect.left, greaterThanOrEqualTo(safe.left - 0.5),
+            reason: 'slot ${slot.index} clipped left of the safe area');
+        expect(slot.rect.right, lessThanOrEqualTo(safe.right + 0.5),
+            reason: 'slot ${slot.index} clipped right of the safe area');
+      }
     });
 
     test('every pill stays whole: safe-contained, anchor-clear, and '

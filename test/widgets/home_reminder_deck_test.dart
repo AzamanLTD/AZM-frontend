@@ -22,6 +22,7 @@ import 'package:azaman/providers/marketplace_relevance_provider.dart';
 import 'package:azaman/providers/marketplace_resume_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/home/home_deck_separator.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
 
 const _surfaceSize = Size(400, 900);
@@ -187,7 +188,8 @@ void main() {
   });
 
   testWidgets('pass B5 — the deck geometry is FIXED: hero 96, one 16px '
-      'peek, a 12px dot rail, band 132 on any screen', (tester) async {
+      'peek, a 12px dot rail, band 132 + the 26px PR #142 separator '
+      '(158 total) on any screen', (tester) async {
     await _pumpDeck(
       tester,
       susu: [ _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu') ],
@@ -195,8 +197,11 @@ void main() {
     );
 
     // The band is a constant: hero + peek + dots gap + dot rail = 132.
+    // The PR #142 visual pass adds the fixed 26px section separator above
+    // it (inside the deck, collapsing with it) → deck total = 158.
     final deckSize = tester.getSize(find.byType(HomeReminderDeck));
-    expect(deckSize.height, 132);
+    expect(deckSize.height, 132 + homeDeckSeparatorHeight);
+    expect(deckSize.height, 158);
 
     final front = tester.getSize(
         find.byKey(const ValueKey('reminder-card-susu-s1')));

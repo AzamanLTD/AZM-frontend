@@ -610,16 +610,53 @@ class ReactiveParticleSpec {
     this.y,
     this.radius,
     this.phase,
-    this.speed,
+    this.fx,
+    this.fy,
     this.colorIndex,
   );
 
   final double x;
   final double y;
   final double radius;
+
+  /// Per-particle phase offset (0…1 → 0…2π) — the field never starts as a
+  /// synchronised grid.
   final double phase;
-  final double speed;
+
+  /// AMBIENT HARMONICS — INTEGER multiples of the shared loop. This is the
+  /// 2026-10-06 loop-snap fix: arbitrary decimal speeds (0.82, 0.63, …)
+  /// made `sin(t·speed)` non-periodic over the controller's 0→1 wrap, so
+  /// every wrap the particles SNAPPED back to their starting state. With
+  /// integer harmonics, phase 0 and phase 2π are identical in position AND
+  /// velocity — the loop is mathematically seamless, forever.
+  final int fx;
+  final int fy;
+
   final int colorIndex;
+}
+
+/// The Antigravity-inspired three-hue particle palette — deliberately
+/// varied, not three shades of the app's accent. The brand accent stays as
+/// the warm anchor channel; a cool cyan and a soft violet supply the two
+/// perceptibly different hues the reference calls for. These are the two
+/// FIXED channels; the card pairs them with its live accent.
+const Color kParticleCoolCyan = Color(0xFF6FC3DF);
+const Color kParticleSoftViolet = Color(0xFF9D8BFF);
+
+/// One broad atmospheric field behind the particles: a very low-alpha
+/// translucent radial gradient that drifts on integer harmonics of the
+/// same shared loop (seamless at the wrap, like the particles).
+class AtmosphereField {
+  const AtmosphereField(this.x, this.y, this.radius, this.colorIndex,
+      this.fx, this.fy, this.phase);
+
+  final double x;
+  final double y;
+  final double radius;
+  final int colorIndex;
+  final int fx;
+  final int fy;
+  final double phase;
 }
 
 /// The reactive particle field (Antigravity-inspired, Azaman-native).
@@ -660,31 +697,70 @@ class ReactiveParticlePainter extends CustomPainter {
   final bool isDark;
 
   /// The fixed particle table — deterministic, bounded (18–28 points), tuned
-  /// so the card feels naturally populated rather than patterned.
+  /// so the card feels naturally populated rather than patterned. Every
+  /// harmonic is an INTEGER (1/2/3/5) so the ambient loop is seamless.
   static const List<ReactiveParticleSpec> particleSpecs = [
-    ReactiveParticleSpec(0.08, 0.20, 1.6, 0.00, 0.82, 0),
-    ReactiveParticleSpec(0.16, 0.62, 1.2, 0.14, 0.63, 1),
-    ReactiveParticleSpec(0.22, 0.36, 1.9, 0.27, 0.71, 2),
-    ReactiveParticleSpec(0.29, 0.79, 1.1, 0.38, 0.55, 0),
-    ReactiveParticleSpec(0.34, 0.12, 1.4, 0.09, 0.88, 1),
-    ReactiveParticleSpec(0.41, 0.48, 1.7, 0.52, 0.60, 2),
-    ReactiveParticleSpec(0.47, 0.28, 1.3, 0.33, 0.74, 0),
-    ReactiveParticleSpec(0.52, 0.66, 2.1, 0.61, 0.49, 1),
-    ReactiveParticleSpec(0.58, 0.17, 1.0, 0.21, 0.91, 2),
-    ReactiveParticleSpec(0.63, 0.42, 1.8, 0.44, 0.66, 0),
-    ReactiveParticleSpec(0.69, 0.71, 1.2, 0.72, 0.58, 1),
-    ReactiveParticleSpec(0.74, 0.23, 1.5, 0.06, 0.79, 2),
-    ReactiveParticleSpec(0.79, 0.55, 1.3, 0.55, 0.68, 0),
-    ReactiveParticleSpec(0.85, 0.33, 1.7, 0.29, 0.62, 1),
-    ReactiveParticleSpec(0.90, 0.68, 1.1, 0.83, 0.53, 2),
-    ReactiveParticleSpec(0.95, 0.15, 1.4, 0.18, 0.86, 0),
-    ReactiveParticleSpec(0.11, 0.44, 1.0, 0.66, 0.57, 1),
-    ReactiveParticleSpec(0.26, 0.20, 1.6, 0.47, 0.70, 2),
-    ReactiveParticleSpec(0.37, 0.86, 1.3, 0.77, 0.51, 0),
-    ReactiveParticleSpec(0.56, 0.84, 1.0, 0.12, 0.84, 1),
-    ReactiveParticleSpec(0.72, 0.87, 1.5, 0.36, 0.64, 2),
-    ReactiveParticleSpec(0.88, 0.47, 1.2, 0.58, 0.76, 0),
+    ReactiveParticleSpec(0.08, 0.20, 1.6, 0.00, 1, 2, 0),
+    ReactiveParticleSpec(0.16, 0.62, 1.2, 0.14, 2, 1, 1),
+    ReactiveParticleSpec(0.22, 0.36, 1.9, 0.27, 3, 1, 2),
+    ReactiveParticleSpec(0.29, 0.79, 1.1, 0.38, 1, 3, 0),
+    ReactiveParticleSpec(0.34, 0.12, 1.4, 0.09, 2, 2, 1),
+    ReactiveParticleSpec(0.41, 0.48, 1.7, 0.52, 1, 1, 2),
+    ReactiveParticleSpec(0.47, 0.28, 1.3, 0.33, 5, 2, 0),
+    ReactiveParticleSpec(0.52, 0.66, 2.1, 0.61, 2, 3, 1),
+    ReactiveParticleSpec(0.58, 0.17, 1.0, 0.21, 3, 2, 2),
+    ReactiveParticleSpec(0.63, 0.42, 1.8, 0.44, 1, 5, 0),
+    ReactiveParticleSpec(0.69, 0.71, 1.2, 0.72, 3, 1, 1),
+    ReactiveParticleSpec(0.74, 0.23, 1.5, 0.06, 2, 5, 2),
+    ReactiveParticleSpec(0.79, 0.55, 1.3, 0.55, 5, 3, 0),
+    ReactiveParticleSpec(0.85, 0.33, 1.7, 0.29, 1, 2, 1),
+    ReactiveParticleSpec(0.90, 0.68, 1.1, 0.83, 3, 1, 2),
+    ReactiveParticleSpec(0.95, 0.15, 1.4, 0.18, 2, 2, 0),
+    ReactiveParticleSpec(0.11, 0.44, 1.0, 0.66, 5, 1, 1),
+    ReactiveParticleSpec(0.26, 0.20, 1.6, 0.47, 1, 3, 2),
+    ReactiveParticleSpec(0.37, 0.86, 1.3, 0.77, 3, 3, 0),
+    ReactiveParticleSpec(0.56, 0.84, 1.0, 0.12, 2, 1, 1),
+    ReactiveParticleSpec(0.72, 0.87, 1.5, 0.36, 5, 5, 2),
+    ReactiveParticleSpec(0.88, 0.47, 1.2, 0.58, 1, 1, 0),
   ];
+
+  /// The broad atmospheric fields — three translucent radial gradients
+  /// behind the particles (PR #142 visual pass). Different hues, gently
+  /// overlapping, drifting on integer harmonics of the shared loop: soft
+  /// cyan/violet/gold atmosphere, never "three giant colored balls" — the
+  /// alphas stay extremely low and are theme-gated (richer on the dark
+  /// card, substantially more restrained in light mode).
+  static const List<AtmosphereField> atmosphereFields = [
+    AtmosphereField(0.22, 0.28, 0.62, 1, 1, 2, 0.10),
+    AtmosphereField(0.85, 0.22, 0.55, 2, 2, 1, 0.55),
+    AtmosphereField(0.48, 0.88, 0.58, 0, 1, 1, 0.30),
+  ];
+
+  /// The particle's resting centre at ambient time `t` (0…1 over the
+  /// shared loop) for a card of `size`. PURE — the loop-continuity
+  /// regression test pins this exact function: position AND velocity at
+  /// t=0 equal t=1, so the controller's wrap is invisible.
+  static Offset ambientRest(ReactiveParticleSpec spec, double t, Size size) {
+    final a = t * 2 * math.pi;
+    final driftX =
+        math.sin(a * spec.fx + spec.phase * 2 * math.pi) * size.width * 0.011;
+    final driftY =
+        math.cos(a * spec.fy + spec.phase * 2 * math.pi) * size.height * 0.011;
+    return Offset(spec.x * size.width + driftX,
+        spec.y * size.height + driftY);
+  }
+
+  /// The LOW-FREQUENCY shared field sway — the "one soft medium" cue. One
+  /// full oscillation per loop, identical for every particle, small enough
+  /// that it never reads as the whole card sliding. Integer harmonic →
+  /// seamless at the wrap.
+  static Offset sharedSway(double t, Size size) {
+    final a = t * 2 * math.pi;
+    return Offset(
+      math.sin(a + 0.9) * size.width * 0.006,
+      math.cos(a + 2.1) * size.height * 0.006,
+    );
+  }
 
   /// The deterministic deformation of one particle around the pointer.
   ///
@@ -735,19 +811,59 @@ class ReactiveParticlePainter extends CustomPainter {
 
     // The ambient breathing phase (0…1 over the ~9s loop, pinned at 0 under
     // reduced motion, so the resting arrangement itself is deterministic).
-    final t = phase.value * 2 * math.pi;
+    // All ambient motion — per-particle harmonics, the shared sway and the
+    // atmosphere drift — is driven from this single loop value through
+    // INTEGER harmonics, so the 1→0 controller wrap is mathematically
+    // invisible in position AND velocity. No snap, ever.
+    final t = phase.value;
 
     // Light mode stays restrained so the near-white card never reads stained;
     // dark mode may carry slightly more luminosity — the same physical
     // material under a stronger light.
     final baseAlpha = (isDark ? 0.26 : 0.15) * intensity;
 
+    // ── THE ATMOSPHERE (PR #142 visual pass) ─────────────────────────────
+    // 2–3 broad translucent radial gradient fields behind the particles:
+    // soft cyan/violet/gold color depth, extremely low alpha, gently
+    // overlapping, drifting on the same seamless loop. Already inside the
+    // card's ClipRRect, so no extra clip is needed. Substantially more
+    // restrained in light mode.
+    final atmosphereAlpha = (isDark ? 0.055 : 0.022) * intensity;
+    if (atmosphereAlpha > 0) {
+      final sway = sharedSway(t, size);
+      for (final f in atmosphereFields) {
+        if (f.colorIndex >= colors.length) continue;
+        final a = t * 2 * math.pi;
+        final cx = f.x * w +
+            math.sin(a * f.fx + f.phase * 2 * math.pi) * w * 0.02 +
+            sway.dx * 0.8;
+        final cy = f.y * h +
+            math.cos(a * f.fy + f.phase * 2 * math.pi) * h * 0.02 +
+            sway.dy * 0.8;
+        final fr = f.radius * math.min(w, h);
+        canvas.drawRect(
+          Offset.zero & size,
+          Paint()
+            ..shader = ui.Gradient.radial(
+              Offset(cx, cy),
+              fr,
+              [
+                colors[f.colorIndex].withValues(alpha: atmosphereAlpha),
+                colors[f.colorIndex].withValues(alpha: 0.0),
+              ],
+              [0.0, 1.0],
+            ),
+        );
+      }
+    }
+
+    final sway = sharedSway(t, size);
+
     for (final spec in particleSpecs) {
-      // Microscopic deterministic drift — ≤ ~1.2% of the card dimension.
-      final angle = t * spec.speed + spec.phase * 2 * math.pi;
-      final driftX = math.sin(angle) * w * 0.011;
-      final driftY = math.cos(angle * 1.13 + spec.phase * 3.1) * h * 0.011;
-      final rest = Offset(spec.x * w + driftX, spec.y * h + driftY);
+      // Per-particle harmonic drift (integer → seamless) + the shared
+      // low-frequency sway: the field reads as one soft medium instead of
+      // independent dots.
+      final rest = ambientRest(spec, t, size) + sway;
 
       // Deform around the finger, and let the nearest points glow a touch
       // brighter — the field explains the touch without shouting.

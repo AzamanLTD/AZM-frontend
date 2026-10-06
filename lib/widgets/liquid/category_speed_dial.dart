@@ -32,6 +32,18 @@ class CategoryDialItem {
 const Color kDialGooBody = Color(0xFF6B7280);
 const Color kDialGooRim = Color(0xFF878E9B);
 
+/// PR #142 VISUAL PASS (2026-10-06) — the selected anchor keeps its own
+/// category identity. A real category (Shop/Ride/Stay/Eat) paints SOLID in
+/// its accent — as anchor AND as satellite — with a measured readable
+/// foreground; only the neutral "All" keeps the quiet theme-card pill.
+/// Never gray a selected category back into the theme card.
+Color dialInk(Color? accent, AzamanColors colors) {
+  if (accent == null) return colors.textPrimary;
+  return accent.computeLuminance() > 0.4
+      ? const Color(0xFF1A1F2B)
+      : Colors.white;
+}
+
 const double _pillHeight = kLiquidMinTapTarget; // 44, was 38
 const double _pillHPad = 16;
 const double _pillRadius = 22;
@@ -172,14 +184,23 @@ List<ArcSlot> solveRadialFan({
   final spaceDown = safe.bottom - anchor.bottom;
   final vSign = spaceUp > spaceDown && spaceUp > 160 ? -1.0 : 1.0;
 
-  // Angular grammar: the first two satellites sit at 0° — a straight
-  // horizontal line through the selected category reaching into the
-  // available side space; each remaining satellite steps 45° further from
-  // that baseline (45°, 90°, …). Angles are measured from the outward
-  // horizontal, screen y-down.
+  // Angular grammar (2026-10-06 correction): the first two satellites sit
+  // at 0° — a straight horizontal line through the selected category
+  // reaching into the available side space; the remaining positions open
+  // AWAY from that baseline in equal 45° angular steps, mirrored above and
+  // below the line (+45°, −45°, then +90°, −90°, …). The earlier 0/0/45/90
+  // cascade funneled every extra satellite to the SAME side, which is the
+  // structure the spec explicitly rejects; the mirrored steps reproduce the
+  // intended diagram — two on the baseline, one up-diagonal, one
+  // down-diagonal. Angles are measured from the outward horizontal, screen
+  // y-down, so a positive angle is on the vSign side and its mirror sits
+  // opposite.
   double angleAt(int i) {
-    final deg = i < 2 ? 0.0 : (i - 1) * 45.0;
-    return deg * math.pi / 180;
+    if (i < 2) return 0.0;
+    final k = i - 2; // 0,1,2,3… → +45,−45,+90,−90…
+    final magDeg = (k ~/ 2 + 1) * 45.0;
+    final sign = k % 2 == 0 ? 1.0 : -1.0;
+    return sign * magDeg * math.pi / 180;
   }
 
   final angles = [for (var i = 0; i < n; i++) angleAt(i)];
@@ -421,9 +442,25 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                     height: _pillHeight,
                     padding: const EdgeInsets.symmetric(horizontal: _pillHPad),
                     decoration: BoxDecoration(
-                      color: c.card,
+                      // PR #142 VISUAL PASS — the anchor PRESERVES the
+                      // selected category's own colour identity: a real
+                      // category paints SOLID in its accent (never the
+                      // generic theme card), with the measured readable
+                      // ink; only "All" stays the neutral theme-card pill.
+                      color: _current.accent ?? c.card,
                       borderRadius: BorderRadius.circular(_pillRadius),
-                      border: Border.all(color: c.divider),
+                      border: _current.accent == null
+                          ? Border.all(color: c.divider)
+                          : null,
+                      boxShadow: _current.accent == null
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.14),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -431,17 +468,25 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                         Icon(
                           _current.icon,
                           size: _iconSize,
-                          color: c.textPrimary,
+                          // The label style NEVER changes across selections
+                          // (typography invariance) — only the state colour
+                          // of the pill and the ink on it do.
+                          color: dialInk(_current.accent, c),
                         ),
                         const SizedBox(width: 8),
-                        Text(_current.label, style: _labelStyle),
+                        Text(_current.label, style: _labelStyle.copyWith(
+                          color: dialInk(_current.accent, c),
+                        )),
                         const SizedBox(width: 4),
                         Transform.rotate(
                           angle: _c.value * 3.14159,
                           child: Icon(
                             Icons.keyboard_arrow_down_rounded,
                             size: 18,
-                            color: c.textSecondary,
+                            color: _current.accent == null
+                                ? c.textSecondary
+                                : dialInk(_current.accent, c)
+                                    .withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -594,9 +639,23 @@ class _DialOverlay extends StatelessWidget {
                 height: pillHeight,
                 padding: EdgeInsets.symmetric(horizontal: pillHPad),
                 decoration: BoxDecoration(
-                  color: colors.card,
+                  // Same identity grammar as the closed anchor: the ghost
+                  // that stays on top of the goo keeps the selected
+                  // category's own accent, never grays it.
+                  color: currentItem.accent ?? colors.card,
                   borderRadius: BorderRadius.circular(pillRadius),
-                  border: Border.all(color: colors.divider),
+                  border: currentItem.accent == null
+                      ? Border.all(color: colors.divider)
+                      : null,
+                  boxShadow: currentItem.accent == null
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -604,17 +663,22 @@ class _DialOverlay extends StatelessWidget {
                     Icon(
                       currentItem.icon,
                       size: iconSize,
-                      color: colors.textPrimary,
+                      color: dialInk(currentItem.accent, colors),
                     ),
                     const SizedBox(width: 8),
-                    Text(currentItem.label, style: labelStyle),
+                    Text(currentItem.label, style: labelStyle.copyWith(
+                      color: dialInk(currentItem.accent, colors),
+                    )),
                     const SizedBox(width: 4),
                     Transform.rotate(
                       angle: t * 3.14159,
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 18,
-                        color: colors.textSecondary,
+                        color: currentItem.accent == null
+                            ? colors.textSecondary
+                            : dialInk(currentItem.accent, colors)
+                                .withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -651,16 +715,10 @@ class _SatellitePill extends StatelessWidget {
     required this.onPick,
   });
 
-  /// Foreground for the accent pill: dark ink on light accents, white on
-  /// dark ones — measured, not guessed, so every label stays fully
-  /// readable on its category color in both themes.
-  Color get fg {
-    final a = item.accent;
-    if (a == null) return colors.textPrimary;
-    return a.computeLuminance() > 0.4
-        ? const Color(0xFF1A1F2B)
-        : Colors.white;
-  }
+  /// Foreground for the accent pill: measured, not guessed, so every
+  /// label stays fully readable on its category color in both themes.
+  /// Shared with the anchor pill via [dialInk] — one ink rule everywhere.
+  Color get fg => dialInk(item.accent, colors);
 
   @override
   Widget build(BuildContext context) {

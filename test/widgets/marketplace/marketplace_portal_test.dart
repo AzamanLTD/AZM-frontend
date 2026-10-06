@@ -221,12 +221,19 @@ void main() {
       // anchor's edge (the old 132° arc hugged instead of lining up).
       expect(eat.dx, greaterThan(anchor.right));
       expect(shop.dx, greaterThan(eat.dx));
-      // The remaining satellites step 45° from that baseline: Ride at the
-      // down-right diagonal, Stay straight below the anchor center.
+      // The remaining satellites open AWAY from the baseline in equal 45°
+      // steps MIRRORED about it (2026-10-06 correction): Ride at the
+      // down-right diagonal (+45°), Stay at the up-right diagonal (−45°).
+      // The old 0/0/45/90 cascade funneled both extra pills to the same
+      // side (Stay straight below); the mirror reproduces the intended
+      // diagram.
       expect(ride.dx, greaterThan(anchor.center.dx));
-      expect(ride.dy, greaterThan(anchor.center.dy));
-      expect(stay.dx, closeTo(anchor.center.dx, 1.5));
-      expect(stay.dy, greaterThan(anchor.bottom));
+      expect(ride.dy, greaterThan(anchor.center.dy),
+          reason: 'Ride is the +45° slot, below the baseline');
+      expect(stay.dx, greaterThan(anchor.center.dx),
+          reason: 'Stay opens into the same right-side space');
+      expect(stay.dy, lessThan(anchor.center.dy),
+          reason: 'Stay is the −45° slot, mirrored ABOVE the baseline');
 
       // NOT a wide burst: no satellite wraps around the anchor's dead
       // (left) side. Stay sits ~1px inside the 90° slot at settle — the

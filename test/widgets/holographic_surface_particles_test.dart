@@ -229,12 +229,94 @@ void main() {
       expect(s.y, inInclusiveRange(0.0, 1.0));
       expect(s.radius, inInclusiveRange(0.5, 3.0));
       expect(s.phase, inInclusiveRange(0.0, 1.0));
-      expect(s.speed, inInclusiveRange(0.3, 1.2));
+      // 2026-10-06 loop-snap fix: ambient harmonics must be INTEGER
+      // (1/2/3/5) — arbitrary decimals broke the loop boundary.
+      expect(s.fx, anyOf(equals(1), equals(2), equals(3), equals(5)));
+      expect(s.fy, anyOf(equals(1), equals(2), equals(3), equals(5)));
       expect(s.colorIndex, inInclusiveRange(0, 2));
       expect(seen.add('${s.x.toStringAsFixed(3)}:${s.y.toStringAsFixed(3)}'),
           isTrue,
           reason: 'no duplicate positions');
     }
+  });
+
+  test('AMBIENT LOOP CONTINUITY: the ambient motion is seamless at the '
+      'controller wrap — position AND velocity at t=0 equal t=1', () {
+    const size = Size(320.0, 180.0);
+    // A fine chord width: the finite-difference velocity only approximates
+    // the derivative, and the chord asymmetry scales with eps² — 1e-5 of
+    // loop time keeps that approximation error far below the threshold,
+    // so the check measures the LOOP, not the chord arithmetic.
+    const eps = 1e-5;
+    for (final spec in ReactiveParticlePainter.particleSpecs) {
+      final p0 = ReactiveParticlePainter.ambientRest(spec, 0, size);
+      final p1 = ReactiveParticlePainter.ambientRest(spec, 1, size);
+      expect(
+        (p0 - p1).distance,
+        lessThan(1e-9),
+        reason: 'spec ${spec.x},${spec.y}: the wrap must not snap position',
+      );
+
+      // Velocity continuity: the motion entering the wrap equals the motion
+      // leaving it (a snap in VELOCITY would still be visible as a hitch
+      // even if position matched).
+      final vBefore = ReactiveParticlePainter.ambientRest(spec, 1 - eps, size) -
+          p1;
+      final vAfter =
+          p0 - ReactiveParticlePainter.ambientRest(spec, eps, size);
+      expect(
+        (vBefore - vAfter).distance,
+        lessThan(1e-6),
+        reason: 'spec ${spec.x},${spec.y}: no velocity hitch at the wrap',
+      );
+    }
+
+    // The shared sway obeys the same law.
+    final s0 = ReactiveParticlePainter.sharedSway(0, size);
+    final s1 = ReactiveParticlePainter.sharedSway(1, size);
+    expect((s0 - s1).distance, lessThan(1e-9));
+  });
+
+  test('ATMOSPHERE: 2-3 broad low-alpha hue fields exist, on integer '
+      'harmonics of the same seamless loop', () {
+    final fields = ReactiveParticlePainter.atmosphereFields;
+    expect(fields.length, inInclusiveRange(2, 3));
+    for (final f in fields) {
+      expect(f.x, inInclusiveRange(0.0, 1.0));
+      expect(f.y, inInclusiveRange(0.0, 1.0));
+      expect(f.radius, inInclusiveRange(0.3, 0.8));
+      expect(f.fx, anyOf(equals(1), equals(2), equals(3), equals(5)),
+          reason: 'atmosphere drift must also be loop-seamless');
+      expect(f.fy, anyOf(equals(1), equals(2), equals(3), equals(5)));
+    }
+  });
+
+  test('PALETTE: the balance card pairs the accent with two perceptibly '
+      'different hues — never one accent-family wash', () {
+    double hueOf(Color c) => HSVColor.fromColor(c).hue;
+    double hueDistance(double a, double b) {
+      final d = (a - b).abs();
+      return d > 180 ? 360 - d : d;
+    }
+
+    final hues = [
+      hueOf(const Color(0xFFE0AE3A)), // gold accent (dark default)
+      hueOf(kParticleCoolCyan),
+      hueOf(kParticleSoftViolet),
+    ];
+    // At least two pairs of the three channels are >= 40 hue-degrees
+    // apart — the field reads as a varied trio, not one family.
+    final separations = <double>[
+      hueDistance(hues[0], hues[1]),
+      hueDistance(hues[0], hues[2]),
+      hueDistance(hues[1], hues[2]),
+    ]..sort();
+    expect(separations[1], greaterThanOrEqualTo(40));
+    expect(separations[2], greaterThanOrEqualTo(40));
+
+    // Cyan and violet themselves are always distinct from each other,
+    // whatever the live accent is.
+    expect(hueDistance(hues[1], hues[2]), greaterThanOrEqualTo(40));
   });
 
   test('the response deforms spatially, it does not translate the field', () {

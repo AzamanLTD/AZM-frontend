@@ -153,10 +153,19 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
       // painter's theme gate — never a rainbow, never above the content.
       showSheen: false,
       showReactiveParticles: true,
+      // PR #142 VISUAL PASS (2026-10-06) — the palette was [accent,
+      // accentSecondary, glow], which for the gold family resolves to three
+      // nearly identical golds: the user correctly read the whole field as
+      // "one gold family". The field now pairs the live brand accent (the
+      // warm anchor channel) with the painter's two deliberately varied
+      // fixed hues — a cool cyan and a soft violet (the Antigravity
+      // reference's cyan/violet/gold trio) — so the three channels are
+      // perceptibly different when visible together while staying Azaman-
+      // compatible.
       particleColors: [
         colors.accent,
-        colors.accentSecondary,
-        colors.glow,
+        kParticleCoolCyan,
+        kParticleSoftViolet,
       ],
       borderRadius: AzRadius.xl,
       padding: const EdgeInsets.fromLTRB(
