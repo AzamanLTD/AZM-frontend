@@ -26,6 +26,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
@@ -144,39 +145,63 @@ class _WalletPill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
+
+    // FINAL PASS §3 — light-mode depth. Glass at 5% opacity over the
+    // near-white #F2F3F5 page is INVISIBLE: the pills (the Home's
+    // primary controls) vanished into the canvas (verified by pixel
+    // capture — the whole lower page sat inside one ~8-luma-unit band).
+    // In LIGHT the pill therefore sits on the design system's CARD
+    // step: opaque c.card fill + hairline + the AzElevation contact
+    // shadow — exactly the "existing elevation, surface, text, spacing
+    // primitives" the brief allows. DARK keeps the premium glass
+    // language untouched: glass reads on the black ramp.
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // PASS E — the wallet module icons are SUPPORTING feature
+        // icons: muted gold, so bright gold stays reserved for the
+        // primary actions and selected navigation.
+        Icon(icon, size: 18, color: colors.mutedAccent),
+        const SizedBox(width: AzSpace.sm),
+        Flexible(
+          child: Text(
+            label,
+            style: AzText.title.copyWith(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+
     return ScaleTap(
       onTap: onTap,
-      child: PremiumGlassContainer(
-        blur: 10,
-        opacity: 0.05,
-        borderRadius: 999,
-        padding:
-            const EdgeInsets.symmetric(horizontal: AzSpace.lg, vertical: 12),
-        enableShadow: false,
-        border: Border.all(color: colors.divider, width: 0.5),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // PASS E — the wallet module icons are SUPPORTING feature
-            // icons: muted gold, so bright gold stays reserved for the
-            // primary actions and selected navigation.
-            Icon(icon, size: 18, color: colors.mutedAccent),
-            const SizedBox(width: AzSpace.sm),
-            Flexible(
-              child: Text(
-                label,
-                style: AzText.title.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      child: colors.isDark
+          ? PremiumGlassContainer(
+              blur: 10,
+              opacity: 0.05,
+              borderRadius: 999,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.lg, vertical: 12),
+              enableShadow: false,
+              border: Border.all(color: colors.divider, width: 0.5),
+              child: content,
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.lg, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: colors.border, width: 1),
+                boxShadow: AzElevation.level1(false),
               ),
+              child: content,
             ),
-          ],
-        ),
-      ),
     );
   }
 }
