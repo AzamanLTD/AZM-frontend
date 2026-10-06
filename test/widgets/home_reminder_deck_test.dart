@@ -34,41 +34,42 @@ class _FakeSusuListNotifier extends SusuListNotifier {
   Future<List<SusuSummary>> build() async => groups;
 }
 
-SusuSummary _activeSusu(DateTime runAt,
-        {String id = 's1',
-        String name = 'Circle Susu',
-        bool payoutToMe = false}) =>
-    SusuSummary(
-      id: id,
-      name: name,
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: payoutToMe ? 1 : 2,
-        isMe: payoutToMe,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+SusuSummary _activeSusu(
+  DateTime runAt, {
+  String id = 's1',
+  String name = 'Circle Susu',
+  bool payoutToMe = false,
+}) => SusuSummary(
+  id: id,
+  name: name,
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: payoutToMe ? 1 : 2,
+    isMe: payoutToMe,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 SusuSummary _inactiveSusu(String id) => SusuSummary(
-      id: id,
-      name: 'Dormant Susu',
-      status: SusuStatus.completed,
-      contributionUsdc: 5,
-      frequency: SusuFrequency.monthly,
-      totalCycles: 2,
-      nextCycle: null,
-      myCycleSlot: 1,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: id,
+  name: 'Dormant Susu',
+  status: SusuStatus.completed,
+  contributionUsdc: 5,
+  frequency: SusuFrequency.monthly,
+  totalCycles: 2,
+  nextCycle: null,
+  myCycleSlot: 1,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 const _cartIntent = ResumeIntent(
   kind: ResumeKind.cart,
@@ -76,7 +77,6 @@ const _cartIntent = ResumeIntent(
   subtitle: '2 items · GH₵ 54.00',
   businessProfileId: 'biz-1',
 );
-
 
 /// PR #142 close-out — a REAL relevance signal (real business, real category).
 const _relevance = MarketplaceRelevance(
@@ -105,13 +105,13 @@ Future<void> _pumpDeck(
   ResumeIntent? intent,
   MarketplaceRelevance? relevance,
   bool reduceMotion = false,
+  double? height,
 }) async {
   await tester.binding.setSurfaceSize(_surfaceSize);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        susuListProvider.overrideWith(
-            () => _FakeSusuListNotifier(susu)),
+        susuListProvider.overrideWith(() => _FakeSusuListNotifier(susu)),
         marketplaceResumeProvider.overrideWithValue(intent),
         marketplaceRelevanceProvider.overrideWithValue(relevance),
       ],
@@ -122,7 +122,7 @@ Future<void> _pumpDeck(
             size: _surfaceSize,
             disableAnimations: reduceMotion,
           ),
-          child: const Scaffold(body: HomeReminderDeck()),
+          child: Scaffold(body: HomeReminderDeck(height: height)),
         ),
       ),
     ),
@@ -134,40 +134,62 @@ Future<void> _pumpDeck(
 /// last Stack child at rest, so tree order = [behind..., front].
 Iterable<Key> _cardKeys(WidgetTester tester) => tester
     .widgetList<Container>(
-      find.byWidgetPredicate((w) =>
-          w is Container &&
-          w.key is ValueKey<String> &&
-          (w.key as ValueKey<String>).value.startsWith('reminder-card-')),
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('reminder-card-'),
+      ),
     )
     .map((c) => c.key!);
 
 /// The pagination-dot keys (pass B3): one per REAL card, in rail order.
 Iterable<Key> _dotKeys(WidgetTester tester) => tester
     .widgetList<Container>(
-      find.byWidgetPredicate((w) =>
-          w is Container &&
-          w.key is ValueKey<String> &&
-          (w.key as ValueKey<String>).value.startsWith('reminder-deck-dot-')),
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('reminder-deck-dot-'),
+      ),
     )
     .map((c) => c.key!);
 
 void main() {
-  testWidgets('§4 — no legitimate signal: the deck collapses out of the '
-      'layout cleanly (pass D — production never fabricates reminders)',
-      (tester) async {
+  testWidgets('§4 — no legitimate signal: the honest PLACEHOLDER renders '
+      '(the slot is never blank; no fabricated content, no chevron, '
+      'nothing draggable)', (tester) async {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
-    // PASS D — truthfulness: no placeholder fan, no fabricated copy, no
-    // ghost slots pretending content exists behind nothing.
-    expect(find.text('Your reminders will appear here'), findsNothing);
-    expect(find.text('REMINDERS'), findsNothing);
-    expect(find.byKey(const ValueKey('reminder-ghost')), findsNothing);
+    // PLACEHOLDER PASS (owner direction): honest copy, never fabricated
+    // signal content — and never a blank slot either.
+    // The placeholder fans three faces (front + two dimmed backs) with
+    // the same honest copy — the deck's shape reads before any signal.
+    expect(find.text('Your reminders will appear here'), findsNWidgets(3));
+    expect(
+      find.text('Join a susu or browse the marketplace to get started'),
+      findsNWidgets(3),
+    );
+    // Informational, not a destination: no chevron anywhere.
     expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
-    // The collapse stub renders zero height — the slot is simply gone.
-    final stub = tester
-        .element(find.byKey(const ValueKey('reminder-deck-empty')))
-        .findRenderObject() as RenderBox;
-    expect(stub.size.height, 0);
-    expect(stub.size.width, 0);
+    // Static: no advance semantics (nothing to shuffle yet).
+    final sem = tester.widgetList<Semantics>(
+      find.descendant(
+        of: find.byType(HomeReminderDeck),
+        matching: find.byType(Semantics),
+      ),
+    );
+    for (final s in sem) {
+      expect(s.properties.customSemanticsActions, isNull);
+    }
+    // The placeholder renders at the natural band, not zero height.
+    final band =
+        tester
+                .element(
+                  find.byKey(const ValueKey('reminder-deck-placeholder')),
+                )
+                .findRenderObject()
+            as RenderBox;
+    expect(band.size.height, HomeReminderDeck.naturalBand);
   });
 
   testWidgets('§4 — demo build: a signal-less deck seeds from the demo '
@@ -177,87 +199,166 @@ void main() {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
     expect(find.text('Susu Circle - August'), findsOneWidget);
     expect(find.text("Chef Abby's"), findsOneWidget);
-    // PASS B — the visual stack shows hero + ONE peek edge: only two
-    // cards are MOUNTED; the third lives in the order (never a fan of
-    // stale cards). The dot rail carries one dot per REAL card (3).
-    expect(find.byKey(const ValueKey('reminder-ghost')), findsNothing);
-    expect(find.text('Coastline Suites'), findsNothing,
-        reason: 'the third card stays virtual until the deck advances');
+    // FAN PASS — the stack mounts the full visible fan (front + two
+    // fanned backs, capped at depth 2). The dot rail carries one dot
+    // per REAL card (3).
+    expect(
+      _cardKeys(tester).length,
+      3,
+      reason: 'the fan shows the whole visible stack',
+    );
+    expect(find.text('Coastline Suites'), findsOneWidget);
     expect(_dotKeys(tester).length, 3);
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
   });
 
-  testWidgets('pass B5 — the deck geometry is FIXED: hero 96, one 16px '
-      'peek, a 12px dot rail, band 132 + the 26px PR #142 separator '
-      '(158 total) on any screen', (tester) async {
+  testWidgets('natural geometry — band 150 (card 116 + fan 14 + dots '
+      '20) + the 26px separator (176 total) on any screen', (tester) async {
     await _pumpDeck(
       tester,
-      susu: [ _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu') ],
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
       intent: _cartIntent,
     );
 
-    // The band is a constant: hero + peek + dots gap + dot rail = 132.
-    // The PR #142 visual pass adds the fixed 26px section separator above
-    // it (inside the deck, collapsing with it) → deck total = 158.
+    // Natural band: card + fan peek + dots gap + dot rail = 150, plus
+    // the fixed 26px section separator above it (inside the deck).
     final deckSize = tester.getSize(find.byType(HomeReminderDeck));
-    expect(deckSize.height, 132 + homeDeckSeparatorHeight);
-    expect(deckSize.height, 158);
+    expect(
+      deckSize.height,
+      HomeReminderDeck.naturalBand + homeDeckSeparatorHeight,
+    );
+    expect(deckSize.height, 176);
 
     final front = tester.getSize(
-        find.byKey(const ValueKey('reminder-card-susu-s1')));
-    expect(front.height, 96,
-        reason: 'the hero card is fully readable at the fixed height');
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+    );
+    expect(
+      front.height,
+      116,
+      reason: 'the front card is fully readable at the natural height',
+    );
 
-    // PASS B2 — exactly ONE peek edge behind the hero, at the 16px step.
-    // Three cards exist, but the stack shows only the next edge.
+    // FAN PASS — the visible stack (2 cards): the fanned back card at
+    // half the fan peek, the front at the full peek — never a straight
+    // stack, never more than depth 2 mounted.
     final tops = tester
-        .widgetList<Positioned>(find.byWidgetPredicate(
-            (w) => w is Positioned && w.top != null))
+        .widgetList<Positioned>(
+          find.byWidgetPredicate((w) => w is Positioned && w.top != null),
+        )
         .map((p) => p.top)
         .toSet();
-    expect(tops, <double?>{0.0, 16.0},
-        reason: 'front at 0, the single peek at 16 — never a fan');
+    expect(tops, <double?>{
+      7.0,
+      14.0,
+    }, reason: 'the fan: back card above the front, both inside the band');
 
-    // PASS B3 — the dot rail carries one dot per real card (2: the susu
-    // hero + the marketplace peek), the active dot tracking the front.
+    // The dot rail carries one dot per real card (2), the active dot
+    // tracking the front.
     expect(_dotKeys(tester).length, 2);
     final active = tester.widget<Container>(
-        find.byKey(const ValueKey('reminder-deck-dot-0')));
+      find.byKey(const ValueKey('reminder-deck-dot-0')),
+    );
     final rest = tester.widget<Container>(
-        find.byKey(const ValueKey('reminder-deck-dot-1')));
-    expect((active.decoration as BoxDecoration).color,
-        isNot((rest.decoration as BoxDecoration).color),
-        reason: 'the active dot must read distinct from the rest');
+      find.byKey(const ValueKey('reminder-deck-dot-1')),
+    );
+    expect(
+      (active.decoration as BoxDecoration).color,
+      isNot((rest.decoration as BoxDecoration).color),
+      reason: 'the active dot must read distinct from the rest',
+    );
   });
 
-  testWidgets('pass B1 — the front card is STRAIGHT at rest: no tilt, no '
-      'scale, no rotation (the readable hero)', (tester) async {
-    await _pumpDeck(tester,
-        susu: [ _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu') ],
-        intent: _cartIntent);
+  testWidgets('FILL — a measured height grows the card into the band '
+      '(capped at bandCap, so tablets never render absurd)', (tester) async {
+    await _pumpDeck(
+      tester,
+      height: 344,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
 
-    // At rest the front card carries an IDENTITY transform — straight,
-    // scale 1.0, rotation 0: nothing is rotated while the user reads.
-    final transforms =
-        tester.widgetList<Transform>(find.descendant(
-            of: find.byKey(const ValueKey('reminder-card-susu-s1')),
-            matching: find.byType(Transform)));
-    for (final t in transforms) {
-      expect(t.transform.isIdentity(), isTrue,
-          reason: 'the resting hero must be straight (pass B1)');
-    }
+    // The full band is the measured fill: card + deepened fan + dots.
+    final deckSize = tester.getSize(find.byType(HomeReminderDeck));
+    expect(deckSize.height, 344 + homeDeckSeparatorHeight);
+    final front = tester.getSize(
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+    );
+    // fan(344) = 14 + (344-150)*0.12 = 37.28 → card = 344 − 37.28 − 20.
+    expect(
+      front.height,
+      closeTo(344 - 37.28 - 20, 0.5),
+      reason: 'the fill grows the CARD, not dead space around it',
+    );
 
-    // One peek edge exists and one dot per card (2 cards, 2 dots).
+    // The cap: beyond bandCap the deck refuses to grow.
+    await _pumpDeck(
+      tester,
+      height: 600,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
+    expect(
+      tester.getSize(find.byType(HomeReminderDeck)).height,
+      HomeReminderDeck.bandCap + homeDeckSeparatorHeight,
+      reason: 'beyond the cap the leftover stays as breathing room',
+    );
+  });
+
+  testWidgets('fan — the resting deck is a spread hand: the front tilts '
+      'gently, the back card tilts the OTHER way (never a straight '
+      'stack, never unreadable)', (tester) async {
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
+
+    // The front rests at the gentle frontRestRotate (~1.7°), scale 1:
+    // readable, but the deck never looks rigid. The Transform WRAPS the
+    // card, so it is the card's ancestor.
+    double rotateOf(Key cardKey) => tester
+        .widgetList<Transform>(
+          find.ancestor(
+            of: find.byKey(cardKey),
+            matching: find.byType(Transform),
+          ),
+        )
+        .fold(0.0, (acc, t) => acc + t.transform.storage[1]);
+    expect(
+      rotateOf(const ValueKey('reminder-card-susu-s1')),
+      closeTo(0.03, 0.005),
+      reason: 'the front card rests at the gentle deck tilt',
+    );
+
+    // The fanned back card tilts AWAY from the front (opposite sign,
+    // deeper) — the stack reads as a deck of physical cards.
+    expect(
+      rotateOf(const ValueKey('reminder-card-resume-biz-1')),
+      closeTo(-0.05, 0.005),
+      reason: 'the back card leans the opposite way — a real fan',
+    );
+    // One dot per card (2 cards, 2 dots).
     expect(_dotKeys(tester).length, 2);
   });
 
   testWidgets('§4 — the SOONEST pending susu cycle is the one shown, with '
       'honest copy', (tester) async {
-    await _pumpDeck(tester, susu: [
-      _activeSusu(DateTime(2026, 10, 12), id: 'early', name: 'Early Susu'),
-      _activeSusu(DateTime(2026, 11, 1), id: 'late', name: 'Late Susu'),
-      _inactiveSusu('done'),
-    ]);
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 'early', name: 'Early Susu'),
+        _activeSusu(DateTime(2026, 11, 1), id: 'late', name: 'Late Susu'),
+        _inactiveSusu('done'),
+      ],
+    );
     expect(find.text('Susu contribution due Oct 12'), findsOneWidget);
     expect(find.text('Early Susu'), findsOneWidget);
     // The later cycle and the dormant group do NOT earn a card.
@@ -265,17 +366,27 @@ void main() {
     expect(find.text('Dormant Susu'), findsNothing);
   });
 
-  testWidgets('§4 — when the cycle pays out to ME, the copy says so',
-      (tester) async {
-    await _pumpDeck(tester,
-        susu: [_activeSusu(DateTime(2026, 10, 12),
-            id: 'mine', name: 'My Payout', payoutToMe: true)]);
+  testWidgets('§4 — when the cycle pays out to ME, the copy says so', (
+    tester,
+  ) async {
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(
+          DateTime(2026, 10, 12),
+          id: 'mine',
+          name: 'My Payout',
+          payoutToMe: true,
+        ),
+      ],
+    );
     expect(find.text('Your payout cycle runs Oct 12'), findsOneWidget);
     expect(find.text('Susu contribution due Oct 12'), findsNothing);
   });
 
-  testWidgets('§4 — the marketplace resume intent is a real-signal card',
-      (tester) async {
+  testWidgets('§4 — the marketplace resume intent is a real-signal card', (
+    tester,
+  ) async {
     await _pumpDeck(tester, intent: _cartIntent);
     expect(find.text('MARKETPLACE'), findsOneWidget);
     expect(find.text('Finish your order at Maame\'s Kitchen'), findsOneWidget);
@@ -284,9 +395,13 @@ void main() {
 
   testWidgets('§5 — a committed swipe SHUFFLES: order rotates, nothing is '
       'deleted', (tester) async {
-    await _pumpDeck(tester, susu: [
-      _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
-    ], intent: _cartIntent);
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
 
     final before = _cardKeys(tester).toList();
     expect(before.length, 2);
@@ -295,8 +410,9 @@ void main() {
 
     // Committed swipe on the front card.
     await tester.drag(
-        find.byKey(const ValueKey('reminder-card-susu-s1')),
-        const Offset(260, -20));
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+      const Offset(260, -20),
+    );
     await tester.pump(); // flight frames
     await tester.pump(const Duration(milliseconds: 500)); // flight completes
     await tester.pump(); // post-frame reorder
@@ -307,19 +423,24 @@ void main() {
     expect(after, equals(before.toSet()));
     // …and the front card is now the marketplace one.
     final orderAfter = _cardKeys(tester).toList();
-    expect(orderAfter.last, const ValueKey(
-        'reminder-card-resume-biz-1'));
+    expect(orderAfter.last, const ValueKey('reminder-card-resume-biz-1'));
   });
 
-  testWidgets('§5 — an under-threshold swipe settles back, order unchanged',
-      (tester) async {
-    await _pumpDeck(tester, susu: [
-      _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
-    ], intent: _cartIntent);
+  testWidgets('§5 — an under-threshold swipe settles back, order unchanged', (
+    tester,
+  ) async {
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
 
     // A short, slow drag never reaches the commit threshold.
-    final gesture = await tester.startGesture(tester
-        .getCenter(find.byKey(const ValueKey('reminder-card-susu-s1'))));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('reminder-card-susu-s1'))),
+    );
     await gesture.moveBy(const Offset(40, 0));
     await tester.pump();
     await gesture.up();
@@ -331,19 +452,22 @@ void main() {
     expect(orderAfter.last, const ValueKey('reminder-card-susu-s1'));
   });
 
-  testWidgets('§5 — reduced motion: instant reorder, no expressive travel',
-      (tester) async {
+  testWidgets('§5 — reduced motion: instant reorder, no expressive travel', (
+    tester,
+  ) async {
     await _pumpDeck(
       tester,
       reduceMotion: true,
-      susu: [_activeSusu(DateTime(2026, 10, 12),
-          id: 's1', name: 'Circle Susu')],
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
       intent: _cartIntent,
     );
 
     await tester.drag(
-        find.byKey(const ValueKey('reminder-card-susu-s1')),
-        const Offset(260, 0));
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+      const Offset(260, 0),
+    );
     await tester.pump();
 
     // Instant: no pending flight frames — the order already advanced.
@@ -354,29 +478,46 @@ void main() {
 
   testWidgets('accessibility — the deck exposes a semantics action to '
       'advance without a swipe', (tester) async {
-    await _pumpDeck(tester, susu: [
-      _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
-    ], intent: _cartIntent);
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
 
     final labels = tester
-        .widgetList<Semantics>(find.descendant(
+        .widgetList<Semantics>(
+          find.descendant(
             of: find.byType(HomeReminderDeck),
-            matching: find.byType(Semantics)))
-        .expand((s) => s.properties.customSemanticsActions?.keys ?? const <CustomSemanticsAction>{})
+            matching: find.byType(Semantics),
+          ),
+        )
+        .expand(
+          (s) =>
+              s.properties.customSemanticsActions?.keys ??
+              const <CustomSemanticsAction>{},
+        )
         .map((a) => a.label ?? '')
         .toList();
     expect(labels, contains('Next reminder'));
   });
 
-  testWidgets('single signal — one honest card, no deck affordance',
-      (tester) async {
-    await _pumpDeck(tester,
-        susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')]);
+  testWidgets('single signal — one honest card, no deck affordance', (
+    tester,
+  ) async {
+    await _pumpDeck(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1')],
+    );
     expect(_cardKeys(tester).length, 1);
     // No advance action when there is nothing to shuffle to.
-    final sem = tester.widgetList<Semantics>(find.descendant(
+    final sem = tester.widgetList<Semantics>(
+      find.descendant(
         of: find.byType(HomeReminderDeck),
-        matching: find.byType(Semantics)));
+        matching: find.byType(Semantics),
+      ),
+    );
     for (final s in sem) {
       expect(s.properties.customSemanticsActions, isNull);
     }
@@ -389,9 +530,13 @@ void main() {
     expect(find.text('Auntie Muni'), findsOneWidget);
     expect(find.text('Relevant in Restaurants'), findsOneWidget);
     // Relevance, never "new" — the data model has no trustworthy newness.
-    expect(find.textContaining(RegExp(r'\bnew\b', caseSensitive: false)),
-        findsNothing);
-    expect(_cardKeys(tester), [const ValueKey('reminder-card-relevance-biz-rel-1')]);
+    expect(
+      find.textContaining(RegExp(r'\bnew\b', caseSensitive: false)),
+      findsNothing,
+    );
+    expect(_cardKeys(tester), [
+      const ValueKey('reminder-card-relevance-biz-rel-1'),
+    ]);
   });
 
   testWidgets('relevance — suppressed when the resume card already speaks '
@@ -410,8 +555,9 @@ void main() {
     expect(find.text('Auntie Muni'), findsNothing);
   });
 
-  testWidgets('relevance — coexists with a different-world resume card',
-      (tester) async {
+  testWidgets('relevance — coexists with a different-world resume card', (
+    tester,
+  ) async {
     await _pumpDeck(
       tester,
       intent: const ResumeIntent(
@@ -435,8 +581,9 @@ void main() {
     expect(before.length, 1);
 
     await tester.drag(
-        find.byKey(const ValueKey('reminder-card-relevance-biz-rel-1')),
-        const Offset(260, 0));
+      find.byKey(const ValueKey('reminder-card-relevance-biz-rel-1')),
+      const Offset(260, 0),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
@@ -450,7 +597,9 @@ void main() {
       'susu card', (tester) async {
     await _pumpDeck(
       tester,
-      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
       relevance: _relevance,
     );
 
@@ -459,8 +608,9 @@ void main() {
     expect(before.last, const ValueKey('reminder-card-susu-s1'));
 
     await tester.drag(
-        find.byKey(const ValueKey('reminder-card-susu-s1')),
-        const Offset(260, -20));
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+      const Offset(260, -20),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
@@ -469,8 +619,10 @@ void main() {
     expect(after.length, 2);
     expect(after, equals(before.toSet()));
     // Front rotated to the relevance card — same deck, same system.
-    expect(_cardKeys(tester).toList().last,
-        const ValueKey('reminder-card-relevance-biz-rel-1'));
+    expect(
+      _cardKeys(tester).toList().last,
+      const ValueKey('reminder-card-relevance-biz-rel-1'),
+    );
   });
 
   testWidgets('relevance — reduced motion: a committed swipe reorders '
@@ -478,34 +630,48 @@ void main() {
     await _pumpDeck(
       tester,
       reduceMotion: true,
-      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
       relevance: _relevance,
     );
 
     await tester.drag(
-        find.byKey(const ValueKey('reminder-card-susu-s1')),
-        const Offset(260, 0));
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+      const Offset(260, 0),
+    );
     await tester.pump();
 
     final orderAfter = _cardKeys(tester).toList();
     expect(orderAfter.length, 2);
-    expect(orderAfter.last,
-        const ValueKey('reminder-card-relevance-biz-rel-1'));
+    expect(
+      orderAfter.last,
+      const ValueKey('reminder-card-relevance-biz-rel-1'),
+    );
   });
 
   testWidgets('relevance — the semantics action advances a deck that '
       'contains the relevance card', (tester) async {
     await _pumpDeck(
       tester,
-      susu: [_activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu')],
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
       relevance: _relevance,
     );
 
     final labels = tester
-        .widgetList<Semantics>(find.descendant(
+        .widgetList<Semantics>(
+          find.descendant(
             of: find.byType(HomeReminderDeck),
-            matching: find.byType(Semantics)))
-        .expand((s) => s.properties.customSemanticsActions?.keys ?? const <CustomSemanticsAction>{})
+            matching: find.byType(Semantics),
+          ),
+        )
+        .expand(
+          (s) =>
+              s.properties.customSemanticsActions?.keys ??
+              const <CustomSemanticsAction>{},
+        )
         .map((a) => a.label ?? '')
         .toList();
     expect(labels, contains('Next reminder'));

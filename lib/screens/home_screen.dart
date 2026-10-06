@@ -93,16 +93,24 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
 
   // UX-CORRECTION §6 + PASS B5 — the Recent Activity doorway sits LOW in
   // the resting composition, slightly above the bottom navigation, never
-  // mid-content. The reminder deck's geometry is now FIXED (pass B5), so
-  // the adaptive part is the SPACER between the deck and the doorway:
+  // mid-content. The measured leftover is split between the reminder
+  // deck's §4 FILL (it absorbs the band above the doorway first, capped
+  // at its own bandCap) and the SPACER between the deck and the doorway:
   // measured once after the entrance choreography settles (transforms
   // corrupt localToGlobal mid-entrance), floored at AzSpace.xxl, capped,
-  // never negative. The deck itself never resizes post-load.
+  // never negative.
   static const double _doorwayGapMin = AzSpace.xxl;
   static const double _doorwayGapMax = 344.0;
   double _doorwayGap = _doorwayGapMin;
   bool _doorwayGapSettled = false;
   Timer? _doorwayGapTimer;
+
+  /// §4 FILL (owner direction, 2026-10-05): the reminder deck's grown
+  /// height BEYOND its natural band. The measured leftover above the
+  /// doorway goes to the deck first (capped at its bandCap), the spacer
+  /// keeps its breathing floor; shrinking reverses the order. Zero
+  /// until the post-entrance measurement — the deck renders natural.
+  double _deckFill = 0;
 
   /// Bounded confirmation passes after a gap change: geometry re-read
   /// from the settled layout converges in at most a couple of frames.
@@ -135,6 +143,20 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       // The handoff fully collapsed: the parked peek is meaningless at
       // rest. Re-measure on the next session (the deck may have changed).
       if (_handoff.value <= 0.001) _peekSet = false;
+    });
+    // §7 — when a commit SETTLES, re-anchor the parked peek against the
+    // live layout: content above the deck can shift a few px after the
+    // session armed (a late provider landing, the fill's confirmation
+    // passes), and the parked bottom must land in the peek band
+    // regardless of when exactly the layout settled.
+    _handoff.addStatusListener((status) {
+      if (status == AnimationStatus.completed &&
+          _peekSet &&
+          _handoff.value >= 0.999) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _correctPeek();
+        });
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -201,7 +223,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final pixels = scrollable.position.hasContentDimensions
         ? scrollable.position.pixels
         : 0.0;
-    final doorwayBottomUnscrolled = doorwayBox.localToGlobal(Offset.zero).dy +
+    final doorwayBottomUnscrolled =
+        doorwayBox.localToGlobal(Offset.zero).dy +
         pixels -
         scrollOrigin +
         doorwayBox.size.height;
@@ -211,7 +234,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // Clamping physics floors maxScrollExtent at 0 when the content
     // under-fills, so the deficit must be read from geometry, never
     // from the position.
-    final trueExtent = doorwayBottomUnscrolled +
+    final trueExtent =
+        doorwayBottomUnscrolled +
         AzSpace.navClearance.bottom -
         scrollBox.size.height;
 
@@ -224,10 +248,37 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // threshold into a commit.
     const desiredOvershoot = AzSpace.sm;
     final delta = desiredOvershoot - trueExtent;
-    final target = (_doorwayGap + delta).clamp(_doorwayGapMin, _doorwayGapMax);
+
+    // §4 FILL — split the measured leftover between the deck and the
+    // spacer. Growth: the deck absorbs first (up to its bandCap), then
+    // the spacer grows. Shrink: the spacer gives first (down to its
+    // floor), then the deck releases its fill. Idempotent — the next
+    // bounded pass re-reads the settled geometry and re-derives the
+    // same pair.
+    var rem = delta;
+    var newGap = _doorwayGap;
+    var newFill = _deckFill;
+    if (rem > 0) {
+      final byDeck = math.min(
+        rem,
+        HomeReminderDeck.bandCap - HomeReminderDeck.naturalBand - newFill,
+      );
+      newFill += byDeck;
+      rem -= byDeck;
+      newGap = (newGap + rem).clamp(_doorwayGapMin, _doorwayGapMax);
+    } else if (rem < 0) {
+      final byGap = math.min(-rem, newGap - _doorwayGapMin);
+      newGap -= byGap;
+      rem += byGap;
+      if (rem < 0) newFill = math.max(0.0, newFill + rem);
+    }
     _doorwayGapSettled = true;
-    if ((target - _doorwayGap).abs() > 0.5) {
-      setState(() => _doorwayGap = target);
+    if ((newGap - _doorwayGap).abs() > 0.5 ||
+        (newFill - _deckFill).abs() > 0.5) {
+      setState(() {
+        _doorwayGap = newGap;
+        _deckFill = newFill;
+      });
       // One bounded confirmation pass after the relayout: geometry re-read
       // from the FINAL layout converges even if the first pass caught the
       // content mid-settle.
@@ -258,11 +309,6 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     return bottom;
   }
 
-  /// Measure the deck peek for this handoff session. Called while the
-  /// composition is still at rest (t == 0) so transforms cannot corrupt
-  /// the measurement — the same discipline as the doorway-gap probe.
-  /// PASS A5: the parked band is the FIXED ActivityRestGeometry peekBand
-  /// (no measured resting band, no per-content peek variance).
   void _preparePeek() {
     if (_peekSet) return;
     final projected = _projectedDeckBottom();
@@ -270,6 +316,28 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
         ? 0.0
         : math.max(0.0, projected - ActivityRestGeometry.peekBand);
     _peekSet = true;
+  }
+
+  /// Re-derives the parked peek from the LIVE committed layout: the
+  /// deck's on-screen bottom already carries our own translate, so
+  /// adding it back yields the translate-free at-rest bottom, and the
+  /// correction lands the parked bottom exactly on the peek band. In
+  /// production this is almost always a no-op (the armed value already
+  /// matches); it exists so a late-landing layout shift cannot strand
+  /// the park a few pixels off the band.
+  void _correctPeek() {
+    if (!_peekSet || _handoff.value < 0.999) return;
+    final ctx = _reminderDeckKey.currentContext;
+    final box = ctx?.findRenderObject();
+    if (ctx == null || box is! RenderBox || !box.attached) return;
+    var bottom = box.localToGlobal(Offset.zero).dy + box.size.height + _peekPx;
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable?.position.hasContentDimensions ?? false) {
+      final pos = scrollable!.position;
+      bottom += pos.maxScrollExtent - pos.pixels;
+    }
+    final want = math.max(0.0, bottom - ActivityRestGeometry.peekBand);
+    if ((want - _peekPx).abs() > 0.5) setState(() => _peekPx = want);
   }
 
   /// Applies a block's entrance choreography — or nothing at all when
@@ -290,9 +358,11 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       2 => 0.08,
       _ => onX ? -0.04 : 0.06,
     };
-    final entered = child
-        .animate()
-        .fadeIn(delay: delay, duration: duration, curve: MotionTokens.enter);
+    final entered = child.animate().fadeIn(
+      delay: delay,
+      duration: duration,
+      curve: MotionTokens.enter,
+    );
     return onX
         ? entered.slideX(
             begin: begin,
@@ -359,7 +429,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       final progress = ActivityHandoffPhysics.progressFor(_handoffDragPx);
       _handoff.value = ActivityHandoffPhysics.revealFor(progress);
       _updateArmedDepth(progress);
-    } else if (_scrollHandoffActive && !atBottom &&
+    } else if (_scrollHandoffActive &&
+        !atBottom &&
         n is ScrollUpdateNotification) {
       // The user reversed before the settle: the Home scroll wins, the
       // handoff releases cleanly. No fight between scroll and handoff.
@@ -441,8 +512,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       Scrollable.ensureVisible(
         ctx,
         alignment: 1.0,
-        duration:
-            _reduceMotion ? Duration.zero : MotionTokens.emphasized,
+        duration: _reduceMotion ? Duration.zero : MotionTokens.emphasized,
       );
     }
     _commitActivityHandoff();
@@ -510,8 +580,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     final t = _handoff.value;
     final walletGone = t > 0.999;
     // §7: the deck peek band — only meaningful mid-handoff or committed.
-    final peekBand =
-        (_peekSet && _peekPx > 0) ? ActivityRestGeometry.peekBand : 0.0;
+    final peekBand = (_peekSet && _peekPx > 0)
+        ? ActivityRestGeometry.peekBand
+        : 0.0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -554,13 +625,19 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
 
                                 // Block 0 — header, arrives from the left.
                                 _stage(
-                                    0, const _GreetingHeader(), reduceMotion),
+                                  0,
+                                  const _GreetingHeader(),
+                                  reduceMotion,
+                                ),
 
                                 const SizedBox(height: AzSpace.lg),
 
                                 // Block 1 — the typewriter greeting (§2).
-                                _stage(1, const AzTypewriterHeading(),
-                                    reduceMotion),
+                                _stage(
+                                  1,
+                                  const AzTypewriterHeading(),
+                                  reduceMotion,
+                                ),
 
                                 const SizedBox(height: AzSpace.xl),
 
@@ -572,7 +649,8 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   2,
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: AzSpace.lg),
+                                      horizontal: AzSpace.lg,
+                                    ),
                                     child: _DeckHost(key: _deckKey),
                                   ),
                                   reduceMotion,
@@ -604,22 +682,32 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                 // geometry (front card + one next-card
                                 // peek + position dots). The dots are
                                 // the card-count indicator. Production
-                                // Home never fabricates content: with no
-                                // real signal the deck collapses out of
-                                // the layout cleanly. The key lets the
-                                // scroll handoff measure the deck's peek
-                                // geometry. PASS B6: the deck sits in the
-                                // SAME horizontal inset as the balance
-                                // card — edges align, no independent
-                                // magic width.
+                                // Home never fabricates content: with
+                                // no real signal the deck renders the
+                                // honest placeholder (owner direction —
+                                // the slot is never blank), and a demo
+                                // build seeds from the demo data. The
+                                // height is the measured §4 FILL so the
+                                // deck owns the band above the doorway
+                                // instead of floating thin in it. The
+                                // key lets the scroll handoff measure
+                                // the deck's peek geometry. PASS B6:
+                                // the deck sits in the SAME horizontal
+                                // inset as the balance card — edges
+                                // align, no independent magic width.
                                 _stage(
                                   4,
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: AzSpace.lg),
+                                      horizontal: AzSpace.lg,
+                                    ),
                                     child: KeyedSubtree(
                                       key: _reminderDeckKey,
-                                      child: const HomeReminderDeck(),
+                                      child: HomeReminderDeck(
+                                        height:
+                                            HomeReminderDeck.naturalBand +
+                                            _deckFill,
+                                      ),
                                     ),
                                   ),
                                   reduceMotion,
@@ -848,14 +936,12 @@ class _GreetingHeader extends ConsumerWidget {
     );
     final avatar = reduceMotion
         ? avatarCore
-        : avatarCore
-            .animate()
-            .scale(
-              begin: const Offset(0.8, 0.8),
-              end: const Offset(1, 1),
-              duration: 300.ms,
-              curve: Curves.easeOutBack,
-            );
+        : avatarCore.animate().scale(
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1, 1),
+            duration: 300.ms,
+            curve: Curves.easeOutBack,
+          );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -878,7 +964,9 @@ class _GreetingHeader extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               enableShadow: false,
               border: Border.all(
-                  color: colors.success.withValues(alpha: 0.2), width: 0.5),
+                color: colors.success.withValues(alpha: 0.2),
+                width: 0.5,
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -45,8 +45,9 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -89,7 +90,7 @@ class _RecordingHistoryNotifier extends TransactionHistoryNotifier {
 
 class _RecordingHomeSummaryNotifier extends HomeSummaryNotifier {
   _RecordingHomeSummaryNotifier(Ref ref, HomeSummaryService service)
-      : super(ref, service);
+    : super(ref, service);
   @override
   Future<void> refresh() async {
     state = state.copyWith(loading: false);
@@ -108,39 +109,42 @@ TransactionRecord _record(String rawType, {double amountUsdc = -1}) =>
     );
 
 SusuSummary _activeSusu(DateTime runAt) => SusuSummary(
-      id: 's1',
-      name: 'Circle Susu',
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: 's1',
+  name: 'Circle Susu',
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 /// Pumps the full Home page. [withDeck] plants a real susu signal so the
 /// reminder deck exists (§7 peek tests); without it the deck renders
 /// nothing.
-Future<ProviderContainer> _pumpHome(WidgetTester tester,
-    {required bool withDeck}) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+Future<ProviderContainer> _pumpHome(
+  WidgetTester tester, {
+  required bool withDeck,
+}) async {
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
 
   final history = _RecordingHistoryNotifier([
     List.generate(
-        6,
-        (i) =>
-            _record('DEPOSIT_FIAT', amountUsdc: (5 + i).toDouble())),
+      6,
+      (i) => _record('DEPOSIT_FIAT', amountUsdc: (5 + i).toDouble()),
+    ),
   ]);
 
   final container = ProviderContainer(
@@ -149,13 +153,16 @@ Future<ProviderContainer> _pumpHome(WidgetTester tester,
       transactionHistoryProvider.overrideWith((ref) => history),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       homeSummaryProvider.overrideWith(
-          (ref) => _RecordingHomeSummaryNotifier(ref, HomeSummaryService())),
+        (ref) => _RecordingHomeSummaryNotifier(ref, HomeSummaryService()),
+      ),
       if (withDeck) ...[
-        susuListProvider.overrideWith(() => _FakeSusuListNotifier(
-            [_activeSusu(DateTime(2026, 10, 12))])),
+        susuListProvider.overrideWith(
+          () => _FakeSusuListNotifier([_activeSusu(DateTime(2026, 10, 12))]),
+        ),
         marketplaceResumeProvider.overrideWithValue(null),
       ],
     ],
@@ -194,8 +201,9 @@ Future<void> _scrollToBottom(WidgetTester tester) async {
   // than the viewport by design — the doorway lands at the first-viewport
   // bottom). Small, held steps — a real finger — and it STOPS at the end
   // without piling up enough overscroll to commit the handoff.
-  final gesture = await tester.startGesture(tester.getCenter(
-      find.byType(SingleChildScrollView).first));
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.byType(SingleChildScrollView).first),
+  );
   for (var i = 0; i < 20; i++) {
     await gesture.moveBy(const Offset(0, -20));
     await tester.pump(const Duration(milliseconds: 16));
@@ -214,8 +222,9 @@ Future<void> _overscrollPastEnd(WidgetTester tester, double px) async {
   // old blank space now — because dragStartBehavior.start resolves the
   // arena on that first move. Stepped deltas are what a real gesture
   // delivers, and they accumulate into the same overscroll budget.)
-  final gesture = await tester.startGesture(tester.getCenter(
-      find.byType(SingleChildScrollView).first));
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.byType(SingleChildScrollView).first),
+  );
   var left = px;
   while (left > 0) {
     final step = math.min(20.0, left);
@@ -231,8 +240,9 @@ bool? _atBottomPixels(WidgetTester tester) {
   // SingleChildScrollView context looks UP the tree, not into its child).
   final scrollable = find
       .descendant(
-          of: find.byType(SingleChildScrollView).first,
-          matching: find.byType(Scrollable))
+        of: find.byType(SingleChildScrollView).first,
+        matching: find.byType(Scrollable),
+      )
       .first;
   if (scrollable.evaluate().isEmpty) return null;
   final pos = tester.state<ScrollableState>(scrollable).position;
@@ -246,10 +256,8 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-      '§6 — continued downward page scroll at the Home end COMMITS the '
-      'activity surface (no finger over the doorway needed)',
-      (tester) async {
+  testWidgets('§6 — continued downward page scroll at the Home end COMMITS the '
+      'activity surface (no finger over the doorway needed)', (tester) async {
     await _pumpHome(tester, withDeck: true);
     await _scrollToBottom(tester);
 
@@ -262,8 +270,7 @@ void main() {
     expect(_activityOpacity(tester), greaterThan(0.99));
   });
 
-  testWidgets(
-      '§6 — a SHORT overscroll stays below the commit threshold and '
+  testWidgets('§6 — a SHORT overscroll stays below the commit threshold and '
       'springs back to the wallet', (tester) async {
     await _pumpHome(tester, withDeck: true);
     await _scrollToBottom(tester);
@@ -276,36 +283,41 @@ void main() {
   });
 
   testWidgets(
-      '§6 — reversing the page scroll mid-handoff releases cleanly: the '
-      'scroll wins, no fight', (tester) async {
-    await _pumpHome(tester, withDeck: true);
-    await _scrollToBottom(tester);
+    '§6 — reversing the page scroll mid-handoff releases cleanly: the '
+    'scroll wins, no fight',
+    (tester) async {
+      await _pumpHome(tester, withDeck: true);
+      await _scrollToBottom(tester);
 
-    // A HELD gesture: accumulate deep overscroll, then drag back UP
-    // (ordinary Home scrolling) before lifting.
-    final gesture = await tester.startGesture(tester.getCenter(
-        find.byType(SingleChildScrollView).first));
-    for (var i = 0; i < 7; i++) {
-      await gesture.moveBy(const Offset(0, -20)); // deep overscroll, held
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(_activityOpacity(tester), greaterThan(0.2),
-        reason: 'the held overscroll must visibly move the handoff');
+      // A HELD gesture: accumulate deep overscroll, then drag back UP
+      // (ordinary Home scrolling) before lifting.
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(SingleChildScrollView).first),
+      );
+      for (var i = 0; i < 7; i++) {
+        await gesture.moveBy(const Offset(0, -20)); // deep overscroll, held
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        _activityOpacity(tester),
+        greaterThan(0.2),
+        reason: 'the held overscroll must visibly move the handoff',
+      );
 
-    await gesture.moveBy(const Offset(0, 40)); // reverse: scroll up
-    await tester.pump(const Duration(milliseconds: 50));
-    await gesture.up();
-    await _settle(tester);
+      await gesture.moveBy(const Offset(0, 40)); // reverse: scroll up
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.up();
+      await _settle(tester);
 
-    // Released mid-reverse → the handoff sprang back to the wallet.
-    expect(_activityOpacity(tester), lessThan(0.02));
-    // And the Home scroll is still usable (moved off the end).
-    expect(_atBottomPixels(tester) ?? true, isFalse);
-  });
+      // Released mid-reverse → the handoff sprang back to the wallet.
+      expect(_activityOpacity(tester), lessThan(0.02));
+      // And the Home scroll is still usable (moved off the end).
+      expect(_atBottomPixels(tester) ?? true, isFalse);
+    },
+  );
 
-  testWidgets(
-      '§7 — on commit the reminder deck parks in the peek band above '
+  testWidgets('§7 — on commit the reminder deck parks in the peek band above '
       'Activity (visible context, not gone)', (tester) async {
     await _pumpHome(tester, withDeck: true);
     await _scrollToBottom(tester);
@@ -317,88 +329,111 @@ void main() {
     // 96px top band, with a meaningful sliver actually on screen.
     final deckCtx = tester.element(find.byType(HomeReminderDeck));
     final deckBox = deckCtx.findRenderObject() as RenderBox;
-    final deckBottom = deckBox.localToGlobal(Offset.zero).dy +
-        deckBox.size.height;
+    final deckBottom =
+        deckBox.localToGlobal(Offset.zero).dy + deckBox.size.height;
+    final pos = Scrollable.maybeOf(deckCtx)?.position;
     expect(deckBottom, lessThan(98));
-    expect(deckBottom, greaterThan(60),
-        reason: 'the peek must show a meaningful part of the deck');
+    expect(
+      deckBottom,
+      greaterThan(60),
+      reason: 'the peek must show a meaningful part of the deck',
+    );
 
     // PASS A5 — the surface parks below the 96px peek band and the
     // heading sits a further structural inset into the surface: the
     // committed state reads as a layer pulled over Home, never a
     // flat route swap.
     final header = tester.getTopLeft(
-        find.byKey(const ValueKey('home-activity-header-title')));
+      find.byKey(const ValueKey('home-activity-header-title')),
+    );
     // ~144: the 96px peek band + the 48px heading inset (text metrics sit
     // a hair above the padded inset).
     expect(header.dy, closeTo(144, 3));
   });
 
-  testWidgets(
-      '§7 — no deck signal: the deck collapses out of the layout cleanly '
-      '(pass D — production Home never fabricates reminder content)',
-      (tester) async {
+  testWidgets('§7 — no deck signal: the honest PLACEHOLDER deck still parks in '
+      'the peek band (the slot is never blank)', (tester) async {
     await _pumpHome(tester, withDeck: false);
     await _scrollToBottom(tester);
     await _overscrollPastEnd(tester, 260);
     await _settle(tester);
     expect(_activityOpacity(tester), greaterThan(0.99));
 
-    // PASS D — truthfulness: no placeholder fan, no fabricated copy. With
-    // no real signal the deck renders its zero-height collapse stub and
-    // the slot is simply gone from the layout.
-    expect(find.text('Your reminders will appear here'), findsNothing);
-    final deckBox = tester
-        .element(find.byKey(const ValueKey('reminder-deck-empty')))
-        .findRenderObject() as RenderBox;
-    expect(deckBox.size.height, 0,
-        reason: 'the deck must collapse to zero height, not hold a band');
+    // PLACEHOLDER PASS (owner direction): production never fabricates
+    // signal content — but the slot is never blank either. The honest
+    // placeholder renders at the same band and parks in the peek band
+    // above Activity, exactly like the living deck.
+    expect(find.text('Your reminders will appear here'), findsNWidgets(3));
+    final deckCtx = tester.element(find.byType(HomeReminderDeck));
+    final deckBox = deckCtx.findRenderObject() as RenderBox;
+    final deckBottom =
+        deckBox.localToGlobal(Offset.zero).dy + deckBox.size.height;
+    expect(deckBottom, lessThan(98));
+    expect(
+      deckBottom,
+      greaterThan(60),
+      reason: 'the placeholder peek must show a meaningful sliver',
+    );
 
-    // PASS A5 — no deck → no parked peek band: the surface parks at the
-    // top of the viewport and its heading still sits the structural
-    // inset into the surface.
+    // PASS A5 — the peek band exists (the placeholder deck occupies
+    // it), so the surface parks below the band and its heading sits
+    // the structural inset into the surface — the same committed
+    // resting geometry as a deck with real signals.
     final header = tester.getTopLeft(
-        find.byKey(const ValueKey('home-activity-header-title')));
-    // ~48: the structural heading inset (text metrics sit a hair above
-    // the padded inset) — never the 96px peek-band park.
-    expect(header.dy, closeTo(48, 3));
-    expect(header.dy, lessThan(96),
-        reason: 'with no peek band the heading must not park 96px down');
+      find.byKey(const ValueKey('home-activity-header-title')),
+    );
+    // ~144: the 96px peek band + the 48px heading inset.
+    expect(header.dy, closeTo(144, 3));
   });
 
   testWidgets(
-      '§8 — rows enter with a stagger: the first row is still mid-flight '
-      'right after entry and ALL rows settle to their final state',
-      (tester) async {
-    await _pumpHome(tester, withDeck: false);
-    await _scrollToBottom(tester);
-    await _overscrollPastEnd(tester, 260);
-    // Pump just enough for the surface to take over (commit spring) but
-    // NOT the full 900ms entrance controller.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    '§8 — rows enter with a stagger: the first row is still mid-flight '
+    'right after entry and ALL rows settle to their final state',
+    (tester) async {
+      await _pumpHome(tester, withDeck: false);
+      await _scrollToBottom(tester);
+      await _overscrollPastEnd(tester, 260);
+      // Pump just enough for the surface to take over (commit spring) but
+      // NOT the full 900ms entrance controller.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-    final list = find.byKey(const ValueKey('home-activity-list'));
-    expect(list, findsOneWidget);
-    final rows = tester
-        .widgetList<Opacity>(find.descendant(
-            of: list,
-            matching: find.byWidgetPredicate((w) =>
-                w is Opacity && w.opacity < 1.0)))
-        .toList();
-    // The stagger is mid-flight: some row is still not fully opaque.
-    expect(rows, isNotEmpty,
-        reason: 'right after entry the stagger must still be running');
+      final list = find.byKey(const ValueKey('home-activity-list'));
+      expect(list, findsOneWidget);
+      final rows = tester
+          .widgetList<Opacity>(
+            find.descendant(
+              of: list,
+              matching: find.byWidgetPredicate(
+                (w) => w is Opacity && w.opacity < 1.0,
+              ),
+            ),
+          )
+          .toList();
+      // The stagger is mid-flight: some row is still not fully opaque.
+      expect(
+        rows,
+        isNotEmpty,
+        reason: 'right after entry the stagger must still be running',
+      );
 
-    // And it COMPLETES — no endless animation, no timers.
-    await tester.pump(const Duration(milliseconds: 1000));
-    final unsettled = tester
-        .widgetList<Opacity>(find.descendant(
-            of: list,
-            matching: find.byWidgetPredicate((w) =>
-                w is Opacity && w.opacity < 1.0)))
-        .toList();
-    expect(unsettled, isEmpty,
-        reason: 'the entrance must complete and leave rows at rest');
-  });
+      // And it COMPLETES — no endless animation, no timers.
+      await tester.pump(const Duration(milliseconds: 1000));
+      final unsettled = tester
+          .widgetList<Opacity>(
+            find.descendant(
+              of: list,
+              matching: find.byWidgetPredicate(
+                (w) => w is Opacity && w.opacity < 1.0,
+              ),
+            ),
+          )
+          .toList();
+      expect(
+        unsettled,
+        isEmpty,
+        reason: 'the entrance must complete and leave rows at rest',
+      );
+    },
+  );
 }
