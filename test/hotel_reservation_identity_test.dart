@@ -49,6 +49,10 @@
 //      classification maps it to ambiguousOrUnknown.
 //   6. The SERVICE layer never mints identity itself: a caller that
 //      brings no operationType sends an unkeyed legacy request.
+//   6b. The durable path REQUIRES its lifecycle owner: operationType
+//      without a ref fails closed (ArgumentError) BEFORE the wire and
+//      BEFORE any durable record — the pair is inseparable (lifecycle
+//      hardening, 2026-10-06).
 //   7. The failure classification is a pure projection of the SAME
 //      predicate as the disposition, and the provider carries it for UI.
 // =============================================================================
@@ -434,6 +438,36 @@ void main() {
     // And the journal holds nothing for this flow.
     final pending = await DurableOperationRegistry.pending(
         account: 'acct-test', type: _type);
+    expect(pending, isEmpty);
+  });
+
+  test('the durable path REQUIRES its lifecycle owner: operationType '
+      'without a ref fails closed BEFORE the wire and BEFORE any durable '
+      'record (lifecycle hardening, 2026-10-06)', () async {
+    final rec = _ScriptedClient();
+
+    // A caller that names the durable operation type but brings no ref
+    // has no lifecycle owner: _releaseOperation retires by ref, so the
+    // instance could never be retired — a successful operation would
+    // stay pending forever. The pair is inseparable; fail closed.
+    await expectLater(
+        _service(rec).reserve(
+            bizId: _biz,
+            roomId: _roomA,
+            checkIn: _checkInA,
+            checkOut: _checkOutA,
+            operationType: _type), // ref deliberately omitted
+        throwsA(isA<ArgumentError>()));
+
+    // BEFORE any HTTP request left the device.
+    expect(rec.requests, isEmpty,
+        reason: 'the guard fires before the demo short-circuit and '
+            'before any transport');
+
+    // And BEFORE any durable record was created: the journal holds
+    // nothing for the account (not only for this type — NOTHING).
+    final pending = await DurableOperationRegistry.pending(
+        account: 'acct-test');
     expect(pending, isEmpty);
   });
 

@@ -91,6 +91,14 @@ class HotelMarketplaceService {
   /// The ref also arms the journal: a lost response stays recoverable
   /// (same-key retry converges) instead of a blind duplicate attempt.
   ///
+  /// CONTRACT: [operationType] and [ref] are an INSEPARABLE PAIR — the
+  /// durable path requires a [FinancialOperationRef] as the lifecycle
+  /// owner of the instance. [operationType] without [ref] is a caller
+  /// bug and fails closed with an [ArgumentError] BEFORE any HTTP
+  /// request and BEFORE any durable record is created: without a ref
+  /// nothing could ever retire the instance ([_releaseOperation] is
+  /// ref-driven), so a successful operation would stay pending forever.
+  ///
   /// Without [operationType] the call is the legacy unkeyed path: plain
   /// transport, no journal, no recovery — exactly today's wire.
   Future<Map<String, dynamic>> reserve({
@@ -113,6 +121,19 @@ class HotelMarketplaceService {
     if (operationType == null) {
       // Legacy unkeyed path: no durable lifecycle — plain transport.
       return _reserveLegacy(endpoint, body);
+    }
+
+    // Durable-path contract (lifecycle hardening, 2026-10-06): the ref is
+    // the instance's lifecycle OWNER — [_releaseOperation] retires by
+    // ref, so operationType without ref would create a durable record
+    // nothing can ever retire (a successful operation pending forever).
+    // Fail closed BEFORE the demo short-circuit, BEFORE any HTTP request
+    // and BEFORE any durable record is created: the pair is inseparable.
+    if (ref == null) {
+      throw ArgumentError(
+          'HotelMarketplaceService.reserve: operationType and ref must be '
+          'supplied together — the durable path requires a ref as the '
+          'lifecycle owner of the operation instance.');
     }
 
     // Demo mode short-circuits before economics (the SAME policy as
