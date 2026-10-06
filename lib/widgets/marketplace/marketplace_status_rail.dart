@@ -130,7 +130,11 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                             tag: 'marketplace-story-ring-$id',
                             child: StoryRing(
                               avatarUrl: logoUrl,
-                              hasUnseenStory: hasUnseen,
+                              // Count-less source (§9): the business feed
+                              // carries only lastStoryAt/lastViewedAt — the
+                              // dash renders, the numeric badge does NOT
+                              // (never a manufactured count).
+                              counts: StoryRingCounts.fromUnseenFlag(hasUnseen),
                               isBoosted: isVerified,
                               size: StoryRailMetrics.ring,
                             ),

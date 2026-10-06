@@ -419,7 +419,10 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
 
   Widget _ring() => StoryRing(
         avatarUrl: widget.group.authorAvatarUrl,
-        hasUnseenStory: false,
+        // The viewer's own progress UI is authoritative here — a ring built
+        // from the opening snapshot would go stale mid-view (viewed dots
+        // never flip while watching). Plain border, current behavior.
+        counts: const StoryRingCounts.empty(),
         isBoosted: false,
         size: 36,
       );

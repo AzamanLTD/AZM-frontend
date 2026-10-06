@@ -59,7 +59,8 @@ class StoryRailCompact extends ConsumerWidget {
                         left: i * 14.0,
                         child: StoryRing(
                           avatarUrl: avatars[i].authorAvatarUrl,
-                          hasUnseenStory: avatars[i].hasUnseen,
+                          // REAL data path (§9); geometry scales to 24dp.
+                          counts: StoryRingCounts.fromGroup(avatars[i]),
                           isBoosted: false,
                           size: 24,
                         ),

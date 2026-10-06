@@ -19,7 +19,6 @@
 //   tall=false (compact horizontal):
 //     [logo 52px] | Name / Category / ★ / from X | [♡] [→]
 // =============================================================================
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -326,10 +325,12 @@ class BusinessCard extends ConsumerWidget {
   Widget _smallLogo(AzamanColors colors) {
     return StoryRing(
       avatarUrl: business.logoUrl,
-      hasUnseenStory: business.showcaseUrls.isNotEmpty,
+      // §9: showcase media is NOT story data — the old ring faked an
+      // "unseen story" signal (and a fake count) from showcaseUrls. The
+      // ring speaks story language only, so it stays plain here.
+      counts: const StoryRingCounts.empty(),
       isBoosted: false,
       size: 52,
-      storyCount: business.showcaseUrls.isNotEmpty ? business.showcaseUrls.length : 1,
     );
   }
 

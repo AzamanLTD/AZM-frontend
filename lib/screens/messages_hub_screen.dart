@@ -514,7 +514,7 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                               Stack(
                                 alignment: Alignment.bottomRight,
                                 children: [
-                                  StoryRing(avatarUrl: myAvatar, hasUnseenStory: false, isBoosted: false),
+                                  StoryRing(avatarUrl: myAvatar, counts: const StoryRingCounts.empty(), isBoosted: false),
                                   Container(
                                     decoration: BoxDecoration(
                                       color: colors.accent,
@@ -552,9 +552,8 @@ class _MessagesHubScreenState extends ConsumerState<MessagesHubScreen> {
                                   padding: const EdgeInsets.only(right: 14),
                                   child: Column(children: [
                                     StoryRing(avatarUrl: g.authorAvatarUrl,
-                                      hasUnseenStory: g.hasUnseen,
-                                      isBoosted: g.isBoosted,
-                                      storyCount: g.stories.length),
+                                      counts: StoryRingCounts.fromGroup(g),
+                                      isBoosted: g.isBoosted),
                                     const SizedBox(height: 6),
                                     SizedBox(width: 64, child: Text(g.authorUsername, maxLines: 1,
                                       overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,

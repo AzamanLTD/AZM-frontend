@@ -69,7 +69,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 14),
                     child: Column(children: [
-                      StoryRing(avatarUrl: c.profilePictureUrl, hasUnseenStory: false, isBoosted: false, size: 56),
+                      StoryRing(avatarUrl: c.profilePictureUrl, counts: const StoryRingCounts.empty(), isBoosted: false, size: 56),
                       const SizedBox(height: 6),
                       SizedBox(width: 56, child: Text(c.username, textAlign: TextAlign.center,
                         maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -85,7 +85,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             SliverList(delegate: SliverChildBuilderDelegate((_, i) {
               final m = _matched[i];
               return ListTile(
-                leading: StoryRing(avatarUrl: m.profilePictureUrl, hasUnseenStory: false, isBoosted: false, size: 46),
+                leading: StoryRing(avatarUrl: m.profilePictureUrl, counts: const StoryRingCounts.empty(), isBoosted: false, size: 46),
                 title: Text(m.username, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
                 trailing: IconButton(
                   icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
