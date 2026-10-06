@@ -7,20 +7,27 @@
 // card, a membership tier, a boarding pass, a "PAID" seal.
 //
 // ── THE PHYSICS (why it reads as real) ───────────────────────────────────────
-// Two layers, and only one of them moves:
+// The material is fixed; the touch response is opt-in per surface:
 //
 //   1. THE MATERIAL — an anisotropic gradient in the accent's hue family. This
 //      is the surface's own iridescence. It is FIXED: real anodised/holographic
 //      material does not change colour when you look at it from a different
 //      angle, only the light on it does.
 //
-//   2. THE LIGHT — a soft specular band whose position follows the user's
-//      pointer, and which springs back to rest when the finger lifts. This is
-//      the ONLY moving part.
+//   2. THE SPECULAR SHEEN — a soft band whose position follows the user's
+//      pointer, and which springs back to rest when the finger lifts. The
+//      default touch response (`showSheen: true`).
 //
-// Keeping the material still and moving only the light is what separates this
-// from "an animated gradient". An animated gradient reads as decoration; a
-// moving highlight on a fixed material reads as a real object.
+//   3. THE REACTIVE PARTICLE FIELD — an OPT-IN accent (`showReactiveParticles:
+//      false` by default): a tiny, deterministic field of soft coloured points
+//      that breathes while the card rests and DEFORMS around the finger when
+//      it touches — nearest points lean away, the mid-band leans toward, and
+//      everything settles through the same rest spring as the sheen. The
+//      balance card adopts it as its sole touch response (`showSheen: false`).
+//
+// Keeping the material still and moving only opt-in responses is what separates
+// this from "an animated gradient". An animated gradient reads as decoration;
+// a moving highlight on a fixed material reads as a real object.
 //
 // ── WHY NOT TILT (sensors_plus) ──────────────────────────────────────────────
 // Deliberate decision: no sensor dependency. It would add a package, require
@@ -49,7 +56,11 @@
 //   )
 // =============================================================================
 
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -68,6 +79,9 @@ class HolographicSurface extends StatefulWidget {
     this.interactive = true,
     this.intensity = 1.0,
     this.sheenPeak = 0.18,
+    this.showSheen = true,
+    this.showReactiveParticles = false,
+    this.particleColors,
     this.enableShadow = true,
     this.shadowColor,
   });
@@ -97,6 +111,21 @@ class HolographicSurface extends StatefulWidget {
   /// as a rendering artefact rather than as light.
   final double sheenPeak;
 
+  /// Whether the touch-driven specular band renders. The balance card turns
+  /// this OFF and speaks through the reactive particle field instead — the
+  /// two responses are never run simultaneously on the same surface.
+  final bool showSheen;
+
+  /// Opt-in reactive particle field (default false): a small deterministic
+  /// set of soft coloured points behind the content that breathes at rest
+  /// and deforms around the pointer. No other consumer is affected.
+  final bool showReactiveParticles;
+
+  /// The particle family. Defaults to a single hue derived from [tint]; the
+  /// balance card passes the app's accent family. Keep to 2–3 restrained
+  /// colours — this is an accent, never a rainbow.
+  final List<Color>? particleColors;
+
   final bool enableShadow;
   final Color? shadowColor;
 
@@ -105,7 +134,7 @@ class HolographicSurface extends StatefulWidget {
 }
 
 class _HolographicSurfaceState extends State<HolographicSurface>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// Normalised sheen offset, −0.45 … +0.45 in each axis. 0,0 is centred/rest.
   double _dx = 0.0;
   double _dy = 0.0;
@@ -116,9 +145,23 @@ class _HolographicSurfaceState extends State<HolographicSurface>
 
   late final AnimationController _rest;
 
+  /// ONE shared ambient clock for every particle on this surface (~9s loop).
+  /// Created only when the surface opted into the particle field so default
+  /// consumers never pay for a second ticker. Stopped and zeroed under
+  /// reduced motion (see didChangeDependencies).
+  late final AnimationController? _ambient;
+
   @override
   void initState() {
     super.initState();
+    if (widget.showReactiveParticles) {
+      _ambient = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 9),
+      )..repeat();
+    } else {
+      _ambient = null;
+    }
     _rest = AnimationController(
       vsync: this,
       duration: MotionTokens.emphasized,
@@ -143,14 +186,28 @@ class _HolographicSurfaceState extends State<HolographicSurface>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!AzMotion.of(context).travel) {
+    final travel = AzMotion.of(context).travel;
+    if (!travel) {
       _rest.stop();
       _dx = _dy = _restFromDx = _restFromDy = 0;
+      // Reduced motion is authoritative for the ambient field too: the
+      // controller stops and the particles freeze at their resting phase.
+      final ambient = _ambient;
+      if (ambient != null && ambient.isAnimating) {
+        ambient.stop();
+        ambient.value = 0.0;
+      }
+    } else {
+      final ambient = _ambient;
+      if (ambient != null && !ambient.isAnimating && ambient.value == 0.0) {
+        ambient.repeat();
+      }
     }
   }
 
   @override
   void dispose() {
+    _ambient?.dispose();
     _rest.dispose();
     super.dispose();
   }
@@ -200,6 +257,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
     final reduceMotion = !AzMotion.of(context).travel;
     final radius = BorderRadius.circular(widget.borderRadius);
     final intensity = widget.intensity.clamp(0.0, 1.0);
+    // EXPERIENCE PASS §2 — the light-mode gate. Light mode is not an inverted
+    // dark card: the iridescence and the specular band are damped so the accent
+    // reads as a restrained sheen on premium paper rather than a full-strength
+    // holographic wash. Dark mode — the primary target — stays at 1.0.
+    final tintGate = isDark ? 1.0 : 0.55;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -213,8 +275,14 @@ class _HolographicSurfaceState extends State<HolographicSurface>
           child: Stack(
             children: [
               // ── LAYER 1: the material ──────────────────────────────────────
-              // A vertical base gradient so the top edge is lit and the bottom
-              // falls away, agreeing with the app's single top-left light source.
+              // EXPERIENCE PASS §2. The base is a three-facet vertical gradient
+              // agreeing with the app's single top-left light source. Dark mode
+              // (the primary target) gets a genuinely deeper fall-away — the
+              // bottom facet now drops 22% toward black so the surface reads
+              // as a slab with thickness, not a flat fill. Light mode is NOT an
+              // inverted dark card: it keeps a lit top facet and a soft but
+              // visible base-facet shade, because on near-white material depth
+              // comes from the shadow side, not from darkening everything.
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -222,20 +290,103 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: <Color>[
-                        Color.lerp(widget.base, Colors.white, isDark ? 0.06 : 0.10)!,
+                        Color.lerp(widget.base, Colors.white,
+                            isDark ? 0.08 : 0.14)!,
                         widget.base,
-                        Color.lerp(widget.base, Colors.black, isDark ? 0.10 : 0.03)!,
+                        Color.lerp(widget.base, Colors.black,
+                            isDark ? 0.22 : 0.06)!,
                       ],
-                      stops: const <double>[0.0, 0.55, 1.0],
+                      stops: const <double>[0.0, 0.52, 1.0],
                     ),
                   ),
                 ),
               ),
 
+              // ── LAYER 1b: the ceiling light (FIXED — never animates) ─────
+              // A radial catch-light anchored at the top-left corner. This is
+              // the room's light hitting the material's edge — it stays put; only
+              // the specular band (layer 3) follows the finger. In dark mode it
+              // gives the rim area something to read against; in light mode it
+              // keeps the top edge from reading washed-out.
+              if (intensity > 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(-0.72, -0.85),
+                          radius: 1.15,
+                          colors: <Color>[
+                            Colors.white.withValues(
+                                alpha: (isDark ? 0.10 : 0.35) * intensity),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                          stops: const <double>[0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ── LAYER 1c: the figure plate (dark only, FIXED) ────────────
+              // EXPERIENCE PASS §2: contrast behind the balance figure. A soft
+              // vignette that darkens the plate where the principal figure
+              // sits, so the light material never competes with the number. In
+              // light mode the figure already reads on near-white; a dark
+              // vignette there would read as a stain, so it is omitted.
+              if (isDark && intensity > 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0.0, 0.35),
+                          radius: 0.95,
+                          colors: <Color>[
+                            Colors.black.withValues(alpha: 0.14 * intensity),
+                            Colors.black.withValues(alpha: 0.0),
+                          ],
+                          stops: const <double>[0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ── LAYER 1d: the reactive particle field (OPT-IN) ───────────
+              // An Antigravity-inspired accent: a tiny deterministic field of
+              // soft coloured points that breathes at rest and deforms around
+              // the pointer — the balance card's sole touch response. It sits
+              // behind the iridescence and far behind the content, is gated by
+              // AzMotion (scaled dx/dy + a stopped ambient clock under reduced
+              // motion), and is isolated in a RepaintBoundary so the ambient
+              // repaint never invalidates the card content or the Home screen.
+              if (intensity > 0 && widget.showReactiveParticles)
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: ReactiveParticlePainter(
+                        phase: _ambient ?? const AlwaysStoppedAnimation(0.0),
+                        dx: dx,
+                        dy: dy,
+                        colors: widget.particleColors ??
+                            <Color>[widget.tint.withValues(alpha: 0.8)],
+                        intensity: intensity,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                ),
+
               // ── LAYER 2: the iridescence (FIXED — never animates) ──────────
-              // An anisotropic gradient in the accent's hue family. This is the
-              // material's own colour shift and it must not move: if it did, the
-              // surface would read as a cheap animated gradient.
+              // EXPERIENCE PASS §2: an anisotropic brush in the accent's hue
+              // family — the material's own colour shift. Two refinements:
+              // (a) the white mid-band that made the surface read muddy is
+              //     gone; the shift now stays inside ONE hue family, which is
+              //     what makes it read as iridescence rather than as noise;
+              // (b) light mode damps it to 55% — on near-white material a
+              //     full-strength accent wash reads as a sticker, and the
+              //     spec's light-mode brief is 'restrained accent treatment'.
               if (intensity > 0)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -245,22 +396,32 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: <Color>[
-                            widget.tint.withValues(alpha: 0.00 * intensity),
-                            widget.tint.withValues(alpha: 0.10 * intensity),
-                            Colors.white.withValues(alpha: 0.05 * intensity),
-                            widget.tint.withValues(alpha: 0.14 * intensity),
-                            widget.tint.withValues(alpha: 0.02 * intensity),
+                            widget.tint.withValues(
+                                alpha: 0.00 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.09 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.04 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.13 * intensity * tintGate),
+                            widget.tint.withValues(
+                                alpha: 0.02 * intensity * tintGate),
                           ],
-                          stops: const <double>[0.0, 0.28, 0.50, 0.72, 1.0],
+                          stops: const <double>[0.0, 0.26, 0.50, 0.72, 1.0],
                         ),
                       ),
                     ),
                   ),
                 ),
 
-              // ── LAYER 3: the specular band (THE ONLY MOVING PART) ──────────
-              // Drawn before the content so it can never wash out text.
-              if (intensity > 0 && widget.sheenPeak > 0)
+              // ── LAYER 3: the specular band (opt-in touch response) ─────────
+              // EXPERIENCE PASS §2: the band is narrower (0.34→0.66) so it
+              // reads as a single bar of light sweeping the material rather
+              // than as a broad brightening, and its peak respects the light-
+              // mode gate. Still drawn before the content so it can never wash
+              // out text. The balance card disables it in favour of the
+              // particle field — the two responses never run together.
+              if (intensity > 0 && widget.showSheen && widget.sheenPeak > 0)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(
@@ -271,11 +432,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           colors: <Color>[
                             Colors.white.withValues(alpha: 0.0),
                             Colors.white.withValues(
-                              alpha: widget.sheenPeak * intensity,
+                              alpha: widget.sheenPeak * intensity * tintGate,
                             ),
                             Colors.white.withValues(alpha: 0.0),
                           ],
-                          stops: const <double>[0.30, 0.50, 0.70],
+                          stops: const <double>[0.34, 0.50, 0.66],
                           transform: _SheenTransform(dx, dy),
                         ),
                       ),
@@ -287,37 +448,61 @@ class _HolographicSurfaceState extends State<HolographicSurface>
               // Directional rim: top/left catches the light, bottom/right falls
               // away. Plus a 1px inset hairline along the bottom so the surface
               // reads as THICK rather than as a flat fill.
+              // ── LAYER 4: rim + thickness ──────────────────────────────────
+              // EXPERIENCE PASS §2. The rim is the card's edge separation and it
+              // is now mode-aware:
+              //   DARK  — a slightly stronger 1.0px lit top/left edge (the light
+              //           catching the rim of a dark object) against a deeper
+              //           base facet, so the silhouette survives even on
+              //           near-black screens.
+              //   LIGHT — a crisp 1.0px neutral stroke all round. The old
+              //           white-on-white rim is why the light card melted into
+              //           the page: a white rim highlight is invisible on a
+              //           near-white card. Definition now comes from the
+              //           stroke; the white highlight survives as a thin inner
+              //           catch-light inset on the top edge only.
+              // No borderRadius here: BoxDecoration forbids a radius with a
+              // non-uniform-color Border. The outer ClipRRect already clips
+              // these hairlines to the rounded corners.
               Positioned.fill(
                 child: IgnorePointer(
                   child: DecoratedBox(
-                    // No borderRadius here: BoxDecoration forbids a radius with
-                    // a non-uniform-color Border, and this rim is deliberately
-                    // two-tone (top/left lit, bottom/right shaded). The outer
-                    // ClipRRect already clips these hairlines to the rounded
-                    // corners, so the painted result is identical.
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
-                          color: AzElevation.rimHighlight(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x33FFFFFF)
+                              : const Color(0x14000000),
+                          width: 1.0,
                         ),
                         left: BorderSide(
-                          color: AzElevation.rimHighlight(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x2EFFFFFF)
+                              : const Color(0x10000000),
+                          width: 1.0,
                         ),
                         bottom: BorderSide(
-                          color: AzElevation.rimShade(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x0AFFFFFF)
+                              : const Color(0x16000000),
+                          width: 1.0,
                         ),
                         right: BorderSide(
-                          color: AzElevation.rimShade(isDark),
-                          width: 0.75,
+                          color: isDark
+                              ? const Color(0x0AFFFFFF)
+                              : const Color(0x12000000),
+                          width: 1.0,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
+              // The inset hairline along the bottom edge that makes the surface
+              // read as THICK rather than as a flat fill. In dark mode it is
+              // joined by a top inner catch-light — the last sliver of the
+              // ceiling light — which is what keeps the dark card's top edge
+              // reading as material rather than as a cut-out.
               Positioned(
                 left: 0,
                 right: 0,
@@ -325,10 +510,24 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                 child: IgnorePointer(
                   child: Container(
                     height: 1,
-                    color: AzElevation.innerBottomShade(isDark),
+                    color: isDark
+                        ? const Color(0x24000000)
+                        : const Color(0x0D000000),
                   ),
                 ),
               ),
+              if (isDark)
+                Positioned(
+                  left: 1,
+                  right: 1,
+                  top: 1,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
+                  ),
+                ),
 
               // ── LAYER 5: content ──────────────────────────────────────────
               if (widget.padding != null)
@@ -352,13 +551,28 @@ class _HolographicSurfaceState extends State<HolographicSurface>
               )
             : surface;
 
+        // EXPERIENCE PASS §2 — light mode needs the card to survive against a
+        // near-white page. The standard level-3 recipe is kept, and light mode
+        // gains one tight contact shadow directly under the card — the shadow a
+        // real object resting on paper casts — which is what stops the hero
+        // from reading as "blank white boxes floating on white". Dark mode
+        // already separates by luminance and keeps the unmodified recipe.
+        final shadows = <BoxShadow>[
+          if (widget.enableShadow) ...AzElevation.level3(isDark, color: widget.shadowColor),
+          if (widget.enableShadow && !isDark)
+            BoxShadow(
+              color: (widget.shadowColor ?? const Color(0xFF000000))
+                  .withValues(alpha: 0.06),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+        ];
+
         return Container(
           margin: widget.margin,
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: widget.enableShadow
-                ? AzElevation.level3(isDark, color: widget.shadowColor)
-                : null,
+            boxShadow: shadows.isEmpty ? null : shadows,
           ),
           child: interactiveSurface,
         );
@@ -384,5 +598,328 @@ class _SheenTransform extends GradientTransform {
       bounds.height * dy,
       0.0,
     );
+  }
+}
+
+/// One particle of the reactive field — a FIXED row of the deterministic spec
+/// table (see [ReactiveParticlePainter.particleSpecs]). `x`/`y` are normalised
+/// 0–1 positions inside the surface; nothing is randomised per frame.
+class ReactiveParticleSpec {
+  const ReactiveParticleSpec(
+    this.x,
+    this.y,
+    this.radius,
+    this.phase,
+    this.fx,
+    this.fy,
+    this.colorIndex,
+  );
+
+  final double x;
+  final double y;
+  final double radius;
+
+  /// Per-particle phase offset (0…1 → 0…2π) — the field never starts as a
+  /// synchronised grid.
+  final double phase;
+
+  /// AMBIENT HARMONICS — INTEGER multiples of the shared loop. This is the
+  /// 2026-10-06 loop-snap fix: arbitrary decimal speeds (0.82, 0.63, …)
+  /// made `sin(t·speed)` non-periodic over the controller's 0→1 wrap, so
+  /// every wrap the particles SNAPPED back to their starting state. With
+  /// integer harmonics, phase 0 and phase 2π are identical in position AND
+  /// velocity — the loop is mathematically seamless, forever.
+  final int fx;
+  final int fy;
+
+  final int colorIndex;
+}
+
+/// The Antigravity-inspired three-hue particle palette — deliberately
+/// varied, not three shades of the app's accent. The brand accent stays as
+/// the warm anchor channel; a cool cyan and a soft violet supply the two
+/// perceptibly different hues the reference calls for. These are the two
+/// FIXED channels; the card pairs them with its live accent.
+const Color kParticleCoolCyan = Color(0xFF6FC3DF);
+const Color kParticleSoftViolet = Color(0xFF9D8BFF);
+
+/// One broad atmospheric field behind the particles: a very low-alpha
+/// translucent radial gradient that drifts on integer harmonics of the
+/// same shared loop (seamless at the wrap, like the particles).
+class AtmosphereField {
+  const AtmosphereField(this.x, this.y, this.radius, this.colorIndex,
+      this.fx, this.fy, this.phase);
+
+  final double x;
+  final double y;
+  final double radius;
+  final int colorIndex;
+  final int fx;
+  final int fy;
+  final double phase;
+}
+
+/// The reactive particle field (Antigravity-inspired, Azaman-native).
+///
+/// A single painter, a single shared ambient clock, a bounded deterministic
+/// particle count — no BackdropFilter, no blur filter, no physics engine, no
+/// per-particle controllers. The radial gradients themselves supply the soft
+/// edges, so each point reads as a tiny luminous glow rather than a solid dot.
+///
+/// The field DEFORMS around the pointer instead of following it (see
+/// [particleLean]): particles nearest the finger are displaced aside as if the
+/// material itself is pressed, the mid-band leans toward the touch, distant
+/// points barely move — and everything settles through the surface's EXISTING
+/// rest spring because the painter consumes the same scaled `_dx`/`_dy`.
+class ReactiveParticlePainter extends CustomPainter {
+  ReactiveParticlePainter({
+    required this.phase,
+    required this.dx,
+    required this.dy,
+    required this.colors,
+    required this.intensity,
+    required this.isDark,
+  }) : super(repaint: phase);
+
+  /// The surface's ONE shared ambient clock (≈9s loop). Reduced motion stops
+  /// it and pins it at 0, freezing the field at its resting arrangement.
+  final Animation<double> phase;
+
+  /// The surface's normalised sheen offset (−0.45…+0.45 per axis), already
+  /// settle-animated and already reduced-motion-scaled by the surface.
+  final double dx;
+  final double dy;
+
+  /// The restrained particle family (2–3 colours from the app's accents).
+  final List<Color> colors;
+
+  final double intensity;
+  final bool isDark;
+
+  /// The fixed particle table — deterministic, bounded (18–28 points), tuned
+  /// so the card feels naturally populated rather than patterned. Every
+  /// harmonic is an INTEGER (1/2/3/5) so the ambient loop is seamless.
+  static const List<ReactiveParticleSpec> particleSpecs = [
+    ReactiveParticleSpec(0.08, 0.20, 1.6, 0.00, 1, 2, 0),
+    ReactiveParticleSpec(0.16, 0.62, 1.2, 0.14, 2, 1, 1),
+    ReactiveParticleSpec(0.22, 0.36, 1.9, 0.27, 3, 1, 2),
+    ReactiveParticleSpec(0.29, 0.79, 1.1, 0.38, 1, 3, 0),
+    ReactiveParticleSpec(0.34, 0.12, 1.4, 0.09, 2, 2, 1),
+    ReactiveParticleSpec(0.41, 0.48, 1.7, 0.52, 1, 1, 2),
+    ReactiveParticleSpec(0.47, 0.28, 1.3, 0.33, 5, 2, 0),
+    ReactiveParticleSpec(0.52, 0.66, 2.1, 0.61, 2, 3, 1),
+    ReactiveParticleSpec(0.58, 0.17, 1.0, 0.21, 3, 2, 2),
+    ReactiveParticleSpec(0.63, 0.42, 1.8, 0.44, 1, 5, 0),
+    ReactiveParticleSpec(0.69, 0.71, 1.2, 0.72, 3, 1, 1),
+    ReactiveParticleSpec(0.74, 0.23, 1.5, 0.06, 2, 5, 2),
+    ReactiveParticleSpec(0.79, 0.55, 1.3, 0.55, 5, 3, 0),
+    ReactiveParticleSpec(0.85, 0.33, 1.7, 0.29, 1, 2, 1),
+    ReactiveParticleSpec(0.90, 0.68, 1.1, 0.83, 3, 1, 2),
+    ReactiveParticleSpec(0.95, 0.15, 1.4, 0.18, 2, 2, 0),
+    ReactiveParticleSpec(0.11, 0.44, 1.0, 0.66, 5, 1, 1),
+    ReactiveParticleSpec(0.26, 0.20, 1.6, 0.47, 1, 3, 2),
+    ReactiveParticleSpec(0.37, 0.86, 1.3, 0.77, 3, 3, 0),
+    ReactiveParticleSpec(0.56, 0.84, 1.0, 0.12, 2, 1, 1),
+    ReactiveParticleSpec(0.72, 0.87, 1.5, 0.36, 5, 5, 2),
+    ReactiveParticleSpec(0.88, 0.47, 1.2, 0.58, 1, 1, 0),
+  ];
+
+  /// The broad atmospheric fields — three translucent radial gradients
+  /// behind the particles (PR #142 visual pass). Different hues, gently
+  /// overlapping, drifting on integer harmonics of the shared loop: soft
+  /// cyan/violet/gold atmosphere, never "three giant colored balls" — the
+  /// alphas stay extremely low and are theme-gated (richer on the dark
+  /// card, substantially more restrained in light mode).
+  static const List<AtmosphereField> atmosphereFields = [
+    AtmosphereField(0.22, 0.28, 0.62, 1, 1, 2, 0.10),
+    AtmosphereField(0.85, 0.22, 0.55, 2, 2, 1, 0.55),
+    AtmosphereField(0.48, 0.88, 0.58, 0, 1, 1, 0.30),
+  ];
+
+  /// The particle's resting centre at ambient time `t` (0…1 over the
+  /// shared loop) for a card of `size`. PURE — the loop-continuity
+  /// regression test pins this exact function: position AND velocity at
+  /// t=0 equal t=1, so the controller's wrap is invisible.
+  static Offset ambientRest(ReactiveParticleSpec spec, double t, Size size) {
+    final a = t * 2 * math.pi;
+    final driftX =
+        math.sin(a * spec.fx + spec.phase * 2 * math.pi) * size.width * 0.011;
+    final driftY =
+        math.cos(a * spec.fy + spec.phase * 2 * math.pi) * size.height * 0.011;
+    return Offset(spec.x * size.width + driftX,
+        spec.y * size.height + driftY);
+  }
+
+  /// The LOW-FREQUENCY shared field sway — the "one soft medium" cue. One
+  /// full oscillation per loop, identical for every particle, small enough
+  /// that it never reads as the whole card sliding. Integer harmonic →
+  /// seamless at the wrap.
+  static Offset sharedSway(double t, Size size) {
+    final a = t * 2 * math.pi;
+    return Offset(
+      math.sin(a + 0.9) * size.width * 0.006,
+      math.cos(a + 2.1) * size.height * 0.006,
+    );
+  }
+
+  /// The deterministic deformation of one particle around the pointer.
+  ///
+  /// `rest` is the particle's resting (ambient-drifted) centre, `pointer` the
+  /// touch position in the same coordinate space, `interactionRadius` the
+  /// reach of a touch. Nearest points lean AWAY from the finger (material
+  /// pressed aside), the mid-band leans TOWARD it (attraction), and points
+  /// beyond the radius do not move at all — a smooth signed blend so the
+  /// field bends around the finger instead of uniformly following it.
+  static Offset particleLean(
+    Offset rest,
+    Offset pointer,
+    double interactionRadius,
+  ) {
+    final away = rest - pointer;
+    final d = away.distance;
+    if (d <= 0 || d >= interactionRadius || interactionRadius <= 0) {
+      return rest;
+    }
+    final influence = 1.0 - d / interactionRadius;
+    final eased = influence * influence;
+    final dir = away / d;
+    final awayAmt = ((influence - 0.62) / 0.38).clamp(0.0, 1.0);
+    final towardAmt = ((0.62 - influence) / 0.62).clamp(0.0, 1.0) * 0.6;
+    final signed = (awayAmt - towardAmt) * eased;
+    return rest + dir * signed * interactionRadius * 0.22;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    if (w <= 0 || h <= 0 || colors.isEmpty || intensity <= 0) return;
+
+    // Reconstruct the normalised pointer from the surface's existing offset:
+    // the surface stores _dx = (nx − 0.5) × 0.9, so this is exact.
+    final pointer = Offset(
+      (0.5 + dx / 0.9) * w,
+      (0.5 + dy / 0.9) * h,
+    );
+    final interactionRadius = math.max(60.0, math.min(w, h) * 0.5);
+
+    // Interaction "heat" — how alive the touch is right now. dx/dy fold the
+    // settle animation, so the halo blooms under the finger and fades out
+    // naturally while the field settles; at rest it is exactly 0.
+    final heat =
+        math.sqrt(dx * dx + dy * dy) / 0.32;
+
+    // The ambient breathing phase (0…1 over the ~9s loop, pinned at 0 under
+    // reduced motion, so the resting arrangement itself is deterministic).
+    // All ambient motion — per-particle harmonics, the shared sway and the
+    // atmosphere drift — is driven from this single loop value through
+    // INTEGER harmonics, so the 1→0 controller wrap is mathematically
+    // invisible in position AND velocity. No snap, ever.
+    final t = phase.value;
+
+    // Light mode stays restrained so the near-white card never reads stained;
+    // dark mode may carry slightly more luminosity — the same physical
+    // material under a stronger light.
+    final baseAlpha = (isDark ? 0.26 : 0.15) * intensity;
+
+    // ── THE ATMOSPHERE (PR #142 visual pass) ─────────────────────────────
+    // 2–3 broad translucent radial gradient fields behind the particles:
+    // soft cyan/violet/gold color depth, extremely low alpha, gently
+    // overlapping, drifting on the same seamless loop. Already inside the
+    // card's ClipRRect, so no extra clip is needed. Substantially more
+    // restrained in light mode.
+    final atmosphereAlpha = (isDark ? 0.055 : 0.022) * intensity;
+    if (atmosphereAlpha > 0) {
+      final sway = sharedSway(t, size);
+      for (final f in atmosphereFields) {
+        if (f.colorIndex >= colors.length) continue;
+        final a = t * 2 * math.pi;
+        final cx = f.x * w +
+            math.sin(a * f.fx + f.phase * 2 * math.pi) * w * 0.02 +
+            sway.dx * 0.8;
+        final cy = f.y * h +
+            math.cos(a * f.fy + f.phase * 2 * math.pi) * h * 0.02 +
+            sway.dy * 0.8;
+        final fr = f.radius * math.min(w, h);
+        canvas.drawRect(
+          Offset.zero & size,
+          Paint()
+            ..shader = ui.Gradient.radial(
+              Offset(cx, cy),
+              fr,
+              [
+                colors[f.colorIndex].withValues(alpha: atmosphereAlpha),
+                colors[f.colorIndex].withValues(alpha: 0.0),
+              ],
+              [0.0, 1.0],
+            ),
+        );
+      }
+    }
+
+    final sway = sharedSway(t, size);
+
+    for (final spec in particleSpecs) {
+      // Per-particle harmonic drift (integer → seamless) + the shared
+      // low-frequency sway: the field reads as one soft medium instead of
+      // independent dots.
+      final rest = ambientRest(spec, t, size) + sway;
+
+      // Deform around the finger, and let the nearest points glow a touch
+      // brighter — the field explains the touch without shouting.
+      final pos = particleLean(rest, pointer, interactionRadius);
+      final d = (rest - pointer).distance;
+      final influence = d >= interactionRadius
+          ? 0.0
+          : (1.0 - d / interactionRadius);
+      final eased = influence * influence;
+
+      final color = colors[spec.colorIndex % colors.length];
+      final alpha = (baseAlpha * (1.0 + eased * 1.6)).clamp(0.0, 0.5);
+      final r = spec.radius * 3.4;
+
+      final paint = Paint()
+        ..shader = ui.Gradient.radial(
+          pos,
+          r,
+          [
+            color.withValues(alpha: alpha),
+            color.withValues(alpha: alpha * 0.45),
+            color.withValues(alpha: 0.0),
+          ],
+          [0.0, 0.35, 1.0],
+        );
+      canvas.drawCircle(pos, r, paint);
+    }
+
+    // The soft local halo that explains WHY the particles are responding —
+    // only while the interaction is active or settling, never at rest.
+    if (heat > 0.02) {
+      final haloAlpha = (isDark ? 0.07 : 0.045) * math.min(heat, 1.0);
+      final haloR = interactionRadius * 0.55;
+      final accent = colors.first;
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            pointer,
+            haloR,
+            [
+              accent.withValues(alpha: haloAlpha),
+              accent.withValues(alpha: 0.0),
+            ],
+            [0.0, 1.0],
+          ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ReactiveParticlePainter oldDelegate) {
+    return oldDelegate.dx != dx ||
+        oldDelegate.dy != dy ||
+        oldDelegate.intensity != intensity ||
+        oldDelegate.isDark != isDark ||
+        !listEquals(oldDelegate.colors, colors);
   }
 }

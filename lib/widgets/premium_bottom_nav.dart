@@ -17,6 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
+import 'package:azaman/providers/marketplace_nav_focus.dart';
+import 'package:azaman/providers/marketplace_search_binding.dart';
+import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/chat_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
@@ -27,7 +30,6 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/liquid/liquid_engine.dart';
-import 'package:azaman/widgets/liquid_tab_backdrop.dart';
 import 'package:azaman/theme/az_text.dart';
 
 /// Scroll-reactive compression of the nav pill.
@@ -62,20 +64,31 @@ class NavScrollCompression {
   /// instead of one per frame.
   static const int steps = 10;
 
-  /// Fraction of compression at which the labels finish collapsing. Below
-  /// this the labels are still legible; above it the pill is icon-only.
-  static const double labelCollapseAt = 0.6;
-
   /// Opacity floor when fully compressed. A floating pill must never become
   /// translucent enough that the page shows through it, or it reads as a
   /// rendering bug rather than as depth.
   static const double compressedOpacity = 0.92;
 
   /// Height at rest (expanded pill).
-  static const double expandedHeight = 62;
+  ///
+  /// UX-CORRECTION §4 — the resting nav is icon-only, so the pill is a
+  /// deliberate THINNER height: 48 keeps a comfortable margin above the
+  /// 44px minimum tap target (the whole pill-height strip stays the
+  /// button), instead of the 62px that icon+label needed. The icons keep
+  /// their existing size — no enlargement to compensate.
+  static const double expandedHeight = 48;
 
   /// Height when fully compressed.
-  static const double collapsedHeight = 52;
+  ///
+  /// 44 IS the minimum tap target token: the compressed pill rests
+  /// exactly on it, a deliberate floor rather than a scale-down that
+  /// would read as cramped.
+  static const double collapsedHeight = 44;
+
+  /// UX-CORRECTION §5B — the outer right inset of the whole bottom
+  /// control band: the deliberate gap between the + and the screen edge
+  /// (mirrors the pill's rest lateral inset, so the band is symmetric).
+  static const double outerRightInset = 16;
 
   /// Lateral inset at rest.
   static const double expandedInset = 16;
@@ -253,6 +266,16 @@ class _NavItem {
   });
 }
 
+/// EXPERIENCE PASS §13 — the band rides the IME.
+///
+/// Scaffold does NOT lift its `bottomNavigationBar` above the keyboard
+/// (only the body is inset), so a search field living in the band would
+/// sit BEHIND the IME. This notifier is true while the band's own field
+/// holds focus; the band then pads its bottom by the live view-inset so
+/// it glues to the top edge of the keyboard — the IME motion stays
+/// attached to the surface instead of the band being buried.
+final ValueNotifier<bool> bandFieldFocused = ValueNotifier(false);
+
 const _kNavItems = [
   _NavItem(
     icon: HugeIconsStroke.home01,
@@ -327,7 +350,13 @@ class PremiumBottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final bottom = MediaQuery.of(context).padding.bottom;
+    // Correction I: the focused Marketplace presentation is a provider-
+    // driven REORGANISATION of this band while the Marketplace root tab
+    // is selected — the shell sets the flag on tab selection, "…" clears
+    // it (staying on Marketplace), and Marketplace content taps restore
+    // it.
+    final marketplaceFocused =
+        selectedIndex == 2 && ref.watch(marketplaceNavFocusProvider);
     // Passed down once so the buttons do not re-read MediaQuery in four
     // places, and so the whole nav agrees on the same mode in one frame.
     final reduceMotion = !AzMotion.of(context).travel;
@@ -350,20 +379,23 @@ class PremiumBottomNav extends ConsumerWidget {
                     NavScrollCompression.expandedInset) *
                 t;
 
-        // The labels collapse over the first 60% of compression, so they are
-        // gone well before the pill reaches its minimum height.
-        final labelOpacity = (1.0 - (t / NavScrollCompression.labelCollapseAt))
-            .clamp(0.0, 1.0);
-
         // NEW-HOME §10: the pill and any `trailing` control share ONE
         // bottom band. The trailing control sits in the row at the pill's
         // right, vertically centered on the pill, and the safe-area
         // padding below is computed ONCE for the whole band.
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg,
-          ),
-          child: Row(
+        // §13: [_ImeBandPad] glues the band to the IME when the band's
+        // own field owns the keyboard (see the class comment).
+        // UX-CORRECTION §5B — EXPLICIT bottom-control geometry: the whole
+        // band carries a named outer right inset so the + never sits flush
+        // against the viewport edge. The nav + plus read as ONE intentional
+        // bottom control system: [pill —gap— plus —outer inset— screen
+        // edge]. `lg` mirrors the pill's own rest lateral inset (16), so
+        // the composition is symmetric at rest.
+        return _ImeBandPad(
+          child: Padding(
+            padding:
+                const EdgeInsets.only(right: NavScrollCompression.outerRightInset),
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
@@ -378,29 +410,46 @@ class PremiumBottomNav extends ConsumerWidget {
               duration: AzMotion.duration(context, MotionTokens.fast),
               height: h,
               decoration: BoxDecoration(
-                color: colors.surface,
+                // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
+                // on a #000000 page is one luma step apart — the nav read
+                // as having vanished into the background. The pill now
+                // sits on the CARD step of the dark elevation ramp
+                // (#161616) and carries an explicit rim + a top highlight
+                // so the floating surface is unmistakable even before
+                // its shadow is seen. Light keeps its existing surface +
+                // shadow treatment (the new #F2F3F5 page already gives
+                // it strong separation).
+                color: colors.isDark ? colors.card : colors.surface,
                 // `pill` (999) self-clamps to half the height, so the shape
                 // is a true pill at 62px and at 52px without tracking two radii.
                 borderRadius: AzRadius.brPill,
+                border: colors.isDark
+                    ? Border.all(color: AzElevation.rimHighlight(true))
+                    : null,
+                // Subtle vertical highlight over the card step in dark:
+                // BoxDecoration paints a gradient INSTEAD of its color, so
+                // the ramp is baked into the gradient itself.
+                gradient: colors.isDark
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.05),
+                              colors.card),
+                          colors.card,
+                          Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.02),
+                              colors.card),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      )
+                    : null,
                 boxShadow: AzElevation.level3(colors.isDark),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final innerWidth = constraints.maxWidth;
-                  return Stack(
-                    children: [
-                      LiquidTabBackdrop(
-                        selectedIndex: selectedIndex,
-                        tabCount: _kNavItems.length,
-                        totalWidth: innerWidth,
-                        // The backdrop must track the ANIMATED height, not the
-                        // target: a 62px backdrop inside a gliding 52px pill
-                        // would overflow. `constraints.maxHeight` inside this
-                        // LayoutBuilder is the container's live height.
-                        barHeight: constraints.maxHeight,
-                        color: colors.accent,
-                      ),
-                      Row(
+                  Widget normalRow() => Row(
                         children: List.generate(
                           _kNavItems.length,
                           (i) => _NavButton(
@@ -408,7 +457,6 @@ class PremiumBottomNav extends ConsumerWidget {
                             isSelected: selectedIndex == i,
                             index: i,
                             colors: colors,
-                            labelOpacity: labelOpacity,
                             reduceMotion: reduceMotion,
                             onTap: () => _handleTap(i),
                             onLongPress: onTabLongPress == null
@@ -416,8 +464,55 @@ class PremiumBottomNav extends ConsumerWidget {
                                 : () => _handleLongPress(i),
                           ),
                         ),
+                      );
+                  // Correction G: selected state is communicated by the
+                  // accent COLOR of the active icon/label — no glow, no
+                  // translucent backdrop blob behind the selected tab.
+                  final content = normalRow();
+                  // EXPERIENCE PASS §13: normal nav → search field is a
+                  // MORPH inside the SAME pill surface, never one widget
+                  // popping out as an unrelated TextField appears. The
+                  // pill container (height, radius, material, shadow)
+                  // is the persistent surface; only its CONTENT
+                  // cross-fades — a fast 8% vertical slide keeps the
+                  // direction of the change legible. Reduced motion
+                  // honours the fade only (no slide). LayoutBuilder
+                  // rebuilds drive AnimatedSwitcher key changes; the
+                  // fade runs on the fast token so the field is usable
+                  // almost immediately.
+                  if (reduceMotion) return content;
+                  return AnimatedSwitcher(
+                    duration: AzMotion.duration(context, MotionTokens.fast),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    layoutBuilder: (currentChild, outgoingChildren) =>
+                        Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ...outgoingChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween(
+                          begin: const Offset(0, 0.08),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: child,
                       ),
-                    ],
+                    ),
+                    child: marketplaceFocused
+                        ? KeyedSubtree(
+                            key: const ValueKey('nav-band-focused'),
+                            child:
+                                _FocusedMarketplaceRow(colors: colors),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('nav-band-normal'),
+                            child: content,
+                          ),
                   );
                 },
               ),
@@ -427,9 +522,19 @@ class PremiumBottomNav extends ConsumerWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: AzSpace.sm),
-                trailing!,
+                // Correction I: entering the focused Marketplace state
+                // pushes the + horizontally out of the composition to the
+                // right (a subtle easeInBack push/bounce), and it glides
+                // back in with an easeOutBack when the normal nav is
+                // restored.
+                _PlusExit(
+                  visible: !marketplaceFocused,
+                  reduceMotion: reduceMotion,
+                  child: trailing!,
+                ),
               ],
             ],
+          ),
           ),
         );
       },
@@ -443,9 +548,6 @@ class _NavButton extends StatelessWidget {
   final int index;
   final AzamanColors colors;
 
-  /// 1.0 = label fully visible, 0.0 = label fully collapsed.
-  final double labelOpacity;
-
   /// Passed down so the nav does not re-read MediaQuery in four places.
   final bool reduceMotion;
 
@@ -456,7 +558,6 @@ class _NavButton extends StatelessWidget {
     required this.isSelected,
     required this.index,
     required this.colors,
-    required this.labelOpacity,
     required this.reduceMotion,
     required this.onTap,
     this.onLongPress,
@@ -466,13 +567,17 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isSelected ? colors.accent : colors.textTertiary;
 
-    // When the label is collapsing, the icon must stay optically centred in the
-    // pill. The Column is centre-aligned, so shrinking the gap and the label
-    // together keeps the icon centred without any manual offset.
-    final showLabel = labelOpacity > 0.01;
-
+    // UX-CORRECTION §4 — resting nav is ICON-ONLY. The visible label is
+    // gone; the tab's identity lives on in Semantics so screen readers,
+    // selected-state announcements and the active-tab contract are
+    // unchanged.
     return Expanded(
-      child: GestureDetector(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: item.label,
+        child: GestureDetector(
+        key: ValueKey('nav-item-$index'),
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         onLongPress: onLongPress,
@@ -497,29 +602,9 @@ class _NavButton extends StatelessWidget {
               child: _badge(context, color),
             ),
 
-            // The 4px gap and the label both collapse together.
-            SizedBox(height: 4 * labelOpacity),
-
-            if (showLabel)
-              Opacity(
-                opacity: labelOpacity,
-                child: AnimatedDefaultTextStyle(
-                  duration: reduceMotion ? Duration.zero : MotionTokens.fast,
-                  curve: MotionTokens.enter,
-                  // The scale's `caption` step is 10/w600/+0.3 — the nav used
-                  // a bare 10px with -0.2 tracking before. Tracking now comes
-                  // from the scale; only the weight still distinguishes
-                  // selected from unselected, because the nav label is the one
-                  // place where weight IS the hierarchy.
-                  style: AzText.caption.copyWith(
-                    color: color,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  child: Text(item.label),
-                ),
-              ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -640,6 +725,305 @@ class _BadgeStack extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+// ── CORRECTION I: the focused Marketplace band + the + exit ────────────────
+
+/// The + control's horizontal exit from the focused Marketplace state.
+/// visible=true → in place beside the pill. visible=false → the control
+/// glides right, out of the composition, with an easeInBack push (a subtle
+/// anticipation-back-then-depart), then releases its layout space; the
+/// reverse glide uses easeOutBack for a settling bounce.
+class _PlusExit extends StatefulWidget {
+  const _PlusExit({
+    required this.visible,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  final bool visible;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  State<_PlusExit> createState() => _PlusExitState();
+}
+
+class _PlusExitState extends State<_PlusExit>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  bool _gone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: MotionTokens.standard,
+      value: widget.visible ? 1 : 0,
+    );
+    _gone = !widget.visible;
+    // Reduced motion: the state lands deterministically — no glide, no
+    // pending animation.
+    if (widget.reduceMotion) {
+      _c.value = widget.visible ? 1 : 0;
+      _gone = !widget.visible;
+    }
+    _c.addStatusListener(_onStatus);
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && !widget.visible) {
+      // Fully out: release the layout space so the focused row's search
+      // field owns the remaining width.
+      if (mounted) setState(() => _gone = true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_PlusExit old) {
+    super.didUpdateWidget(old);
+    if (old.visible == widget.visible) return;
+    if (widget.reduceMotion) {
+      _c.value = widget.visible ? 1 : 0;
+      setState(() => _gone = !widget.visible);
+      return;
+    }
+    if (widget.visible) {
+      setState(() => _gone = false);
+      _c.forward();
+    } else {
+      _c.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_gone) return const SizedBox.shrink();
+    final t = _c.value; // 1 = in place, 0 = fully out
+    // Departing: easeInBack (the push). Returning: easeOutBack (the
+    // settle). The tween runs on raw ticks; the curve is applied to the
+    // direction of travel.
+    final curved = CurvedAnimation(
+      parent: _c,
+      curve: widget.visible ? Curves.easeOutBack : Curves.easeInBack,
+    );
+    return IgnorePointer(
+      ignoring: t < 0.99,
+      child: Opacity(
+        opacity: (1.15 * t).clamp(0.0, 1.0),
+        child: AnimatedBuilder(
+          animation: curved,
+          builder: (context, child) => Transform.translate(
+            offset: Offset((1 - curved.value) * 96, 0),
+            child: child,
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// EXPERIENCE PASS §13 — the IME-riding band pad.
+///
+/// Scaffold does NOT lift its `bottomNavigationBar` above the keyboard
+/// (only the body is inset — and the MediaQuery handed to bottom widgets
+/// zeroes the view-insets), so a search field living in the band would
+/// otherwise sit BEHIND the IME. This pad tracks the live window metrics
+/// through a [WidgetsBindingObserver] (the canonical IME-tracker: it
+/// fires on every animation frame of the keyboard on a real device) and
+/// pads the band's bottom edge so it glues to the IME's top — while the
+/// band's own field owns focus (§13's [bandFieldFocused]). The band then
+/// TRACKS the keyboard instead of jumping after it.
+class _ImeBandPad extends StatefulWidget {
+  const _ImeBandPad({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ImeBandPad> createState() => _ImeBandPadState();
+}
+
+class _ImeBandPadState extends State<_ImeBandPad>
+    with WidgetsBindingObserver {
+  double _ime = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncIme();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() => _syncIme();
+
+  void _syncIme() {
+    // Only ride the IME while the band's own field owns the keyboard —
+    // a keyboard opened by a page BELOW the shell (forms, sheets) does
+    // not need the nav band hovering over it.
+    final ime = bandFieldFocused.value
+        ? MediaQueryData.fromView(View.of(context)).viewInsets.bottom
+        : 0.0;
+    if (ime != _ime && mounted) setState(() => _ime = ime);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: _ime > 0
+            ? _ime + AzSpace.xs
+            : (bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+/// The focused Marketplace band: [ back (marketplace icon) (search field) ]
+/// — UX-CORRECTION §3: icon + search only, the "Marketplace" word is gone.
+/// The store icon is highlighted in the accent color; the search field binds
+/// to the AUTHORITATIVE marketplace search provider through
+/// [MarketplaceSearchBinding] — the same single owner of search state the
+/// screen uses; no second search provider is invented.
+class _FocusedMarketplaceRow extends ConsumerStatefulWidget {
+  const _FocusedMarketplaceRow({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  ConsumerState<_FocusedMarketplaceRow> createState() =>
+      _FocusedMarketplaceRowState();
+}
+
+class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> {
+  late final TextEditingController _ctrl;
+  late final FocusNode _focus;
+
+  MarketplaceSearchBinding get _binding => MarketplaceSearchBinding(ref);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl =
+        TextEditingController(text: ref.read(marketplaceSearchProvider).text);
+    _focus = FocusNode();
+    _focus.addListener(() {
+      if (mounted) _binding.onFocus(_focus.hasFocus);
+      // §13: while THIS field owns the keyboard, the band rides the IME.
+      bandFieldFocused.value = _focus.hasFocus;
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _restoreNormalNav() {
+    AzamanHaptics.selection();
+    // "…" restores the normal navigation bar: a PRESENTATION change only.
+    // The user stays on Marketplace, the tab stays selected, the content
+    // is untouched.
+    ref.read(marketplaceNavFocusProvider.notifier).state = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    // Mirror the provider's committed text back into the field (the
+    // provider is the single owner of search state).
+    ref.listen(marketplaceSearchProvider.select((s) => s.text), (_, text) {
+      if (_ctrl.text != text) _ctrl.text = text;
+    });
+    return Row(
+      children: [
+        // UX-CORRECTION §3 — a proper back/left arrow button (the existing
+        // icon system), replacing the "…" glyph. Same action as before: a
+        // PRESENTATION exit only — Marketplace stays selected, its content
+        // stays put, only the navigation band restores.
+        Semantics(
+          button: true,
+          label: 'Show full navigation',
+          child: GestureDetector(
+            key: const ValueKey('marketplace-nav-back'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _restoreNormalNav,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.md, vertical: AzSpace.sm),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: colors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+        // UX-CORRECTION §3 — the focused band identifies the tab by ICON
+        // only: the word "Marketplace" is gone so the search field owns
+        // the maximum usable horizontal space.
+        Icon(HugeIconsSolid.store01, size: 18, color: colors.accent),
+        const SizedBox(width: AzSpace.sm),
+        // The search field occupies the remaining right-hand space and
+        // binds to the AUTHORITATIVE search provider.
+        Expanded(
+          child: TextField(
+            key: const ValueKey('marketplace-nav-search'),
+            controller: _ctrl,
+            focusNode: _focus,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _binding.onSubmit,
+            onChanged: (v) => _binding.onChanged(v),
+            style: AzText.bodyS.copyWith(color: colors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Search Marketplace',
+              hintStyle: AzText.caption.copyWith(color: colors.textTertiary),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AzSpace.md, vertical: 8),
+              filled: true,
+              fillColor: colors.isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.04),
+              prefixIcon: Icon(HugeIconsStroke.search01,
+                  size: 16, color: colors.textTertiary),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 34, minHeight: 34),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: AzSpace.md),
       ],
     );
   }

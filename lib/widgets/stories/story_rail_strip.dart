@@ -63,7 +63,8 @@ class StoryRailStrip extends ConsumerWidget {
                 children: [
                   StoryRing(
                     avatarUrl: myAvatar,
-                    hasUnseenStory: false,
+                    // "My story" tile is not a story state — plain border.
+                    counts: const StoryRingCounts.empty(),
                     isBoosted: false,
                     size: StoryRailMetrics.ring,
                   ),
@@ -95,9 +96,9 @@ class StoryRailStrip extends ConsumerWidget {
               travel: AzMotion.of(context).travel,
               child: StoryRing(
                 avatarUrl: g.authorAvatarUrl,
-                hasUnseenStory: g.hasUnseen,
+                // REAL data path: exact seen/unseen counts from the feed.
+                counts: StoryRingCounts.fromGroup(g),
                 isBoosted: g.isBoosted,
-                storyCount: g.stories.length,
                 size: StoryRailMetrics.ring,
               ),
             ),

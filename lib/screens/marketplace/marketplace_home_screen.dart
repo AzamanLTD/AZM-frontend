@@ -22,27 +22,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'package:azaman/experience/gateways/marketplace_discovery_gateway.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/providers/marketplace_discovery_provider.dart';
+import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
-import 'package:azaman/providers/marketplace_world_memory_provider.dart';
-import 'package:azaman/providers/saved_businesses_provider.dart';
-import 'package:azaman/theme/az_space.dart';
-import 'package:azaman/utils/business_hours.dart';
-import 'package:azaman/widgets/marketplace/discovery/discovery_header.dart';
-import 'package:azaman/widgets/marketplace/discovery/intent_rail.dart';
-import 'package:azaman/widgets/marketplace/discovery/local_pulse.dart';
-import 'package:azaman/widgets/marketplace/discovery/merchant_card.dart';
-import 'package:azaman/widgets/marketplace/discovery/resume_card.dart';
-import 'package:azaman/widgets/marketplace/discovery/utility_rail.dart';
-import 'package:azaman/widgets/marketplace/discovery/world_deck.dart';
+import 'package:azaman/theme/az_motion.dart';
+import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/screens/marketplace/advanced_filter_sheet.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'dart:convert';
@@ -50,8 +39,8 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -59,7 +48,6 @@ import 'package:lottie/lottie.dart' hide Marker;
 import 'package:shimmer/shimmer.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -67,30 +55,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 enum _ViewMode { list, map }
 
 enum _SortMode { topRated, mostPopular, nearest, newest }
-
-/// Marketplace tab modes (portal milestone, 2026-09-30):
-///  - portal  — destination identity + "choose your world" deck. The bare
-///              tab opens here; the worlds ARE the primary storefront.
-///  - explore — the full search / filter / list / map machinery, entered
-///              by picking a world, "Explore all", or a launcher category.
-/// Static by construction: the portal runs no autonomous decorative
-/// animation, so it is inherently reduced-motion safe.
-enum _MarketplaceHomeMode { portal, explore }
-
-extension _SortLabel on _SortMode {
-  String get label {
-    switch (this) {
-      case _SortMode.topRated:
-        return 'Top Rated';
-      case _SortMode.mostPopular:
-        return 'Most Popular';
-      case _SortMode.nearest:
-        return 'Nearest';
-      case _SortMode.newest:
-        return 'Newest';
-    }
-  }
-}
 
 class MarketplaceHomeScreen extends ConsumerStatefulWidget {
   const MarketplaceHomeScreen({super.key, this.initialCategory});
@@ -110,12 +74,7 @@ class MarketplaceHomeScreen extends ConsumerStatefulWidget {
 
 class _MarketplaceHomeScreenState
     extends ConsumerState<MarketplaceHomeScreen> {
-  // Mirrors `marketplaceSearchProvider.text` into the explore TextField. The
-  // provider is the single owner of search state (Overhaul 02 §4); the
-  // controller only exists because a TextField needs one.
-  final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final _portalScroll = ScrollController();
   double _scrollOffset = 0;
   // Live results while typing: debounce the already-updated provider text
   // into the existing search plumbing.
@@ -124,41 +83,22 @@ class _MarketplaceHomeScreenState
   // Category filter — wire value string (null = All)
   String? _selectedCategory;
 
-  // Portal (2026-09-30): which surface the tab is showing.
-  _MarketplaceHomeMode _mode = _MarketplaceHomeMode.portal;
-
   // Accordion — which bar is currently expanded
   String? _expandedBizId;
-
-  // Header search — expanded/focused state lives in marketplaceSearchProvider
-  // (`isActive` / `focused`); this node is only the TextField's focus owner.
-  final _searchFocusNode = FocusNode();
-
-  // Portal utility filter (Overhaul 02 §7.4) — a client-side predicate over
-  // the loaded results; the server query is untouched.
-  UtilityFilter? _utility;
 
   // Story height is driven by scroll offset — no manual toggle needed.
   // At offset 0: fully expanded (96px). At offset 96: fully collapsed (0px).
   // Location permission requested flag
   bool _locationRequested = false;
 
-  // Invalidates asynchronous world-entry work when a newer interaction starts.
-  int _exploreGeneration = 0;
-
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
-  bool _verifiedOnly = false;
-  MarketplaceFilters _filters = const MarketplaceFilters();
 
   // Location
   Position? _position;
   bool _resolvingLocation = false;
   String? _locationError;
-
-  // §2: Featured rail collapsed by default
-  bool _featuredExpanded = false;
 
   // §1: Google Map controller
   GoogleMapController? _mapController;
@@ -172,20 +112,11 @@ class _MarketplaceHomeScreenState
     // deep link lands on an already-filtered marketplace rather than flashing
     // "All" and then filtering a frame later.
     _selectedCategory = _validatedInitialCategory();
-    // A launcher / deep link with a valid category lands directly in the
-    // pre-filtered explore view (existing behaviour). The bare tab opens
-    // on the portal — the worlds deck is the primary destination.
-    if (_selectedCategory != null) {
-      _mode = _MarketplaceHomeMode.explore;
-    }
     _scrollCtrl.addListener(_onScroll);
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.hasClients) {
         setState(() => _scrollOffset = _scrollCtrl.offset);
       }
-    });
-    _searchFocusNode.addListener(() {
-      if (mounted) _binding.onFocus(_searchFocusNode.hasFocus);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessSearchProvider.notifier)
@@ -210,10 +141,7 @@ class _MarketplaceHomeScreenState
   @override
   void dispose() {
     _debounce?.cancel();
-    _searchCtrl.dispose();
     _scrollCtrl.dispose();
-    _portalScroll.dispose();
-    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -270,12 +198,15 @@ class _MarketplaceHomeScreenState
   // No manual toggle or direction detection needed — the height
   // interpolates smoothly with scroll position, just like Telegram.
 
-  void _onQueryChanged(String value) {
-    ++_exploreGeneration;
-    _binding.onChanged(value);
+  /// CORRECTION I: the search field lives in the focused Marketplace nav
+  /// band and writes to the AUTHORITATIVE provider through the SAME
+  /// [MarketplaceSearchBinding] seam this screen always used — no second
+  /// search provider exists. The screen reacts to committed text changes
+  /// with its existing debounced plumbing. Called from build via
+  /// `ref.listen` so the response is part of the normal build cycle.
+  void _onProviderTextChanged(String text) {
     _debounce?.cancel();
-    _debounce =
-        Timer(const Duration(milliseconds: 400), _fireSearch);
+    _debounce = Timer(const Duration(milliseconds: 400), _fireSearch);
   }
 
   void _fireSearch() {
@@ -286,7 +217,6 @@ class _MarketplaceHomeScreenState
     ref.read(businessSearchProvider.notifier).search(
           _query,
           category: _selectedCategory,
-          verified: _verifiedOnly ? true : null,
         );
   }
 
@@ -301,7 +231,6 @@ class _MarketplaceHomeScreenState
           lng: pos.longitude,
           q: _query.isEmpty ? null : _query,
           category: _selectedCategory,
-          verified: _verifiedOnly ? true : null,
         );
   }
 
@@ -335,7 +264,6 @@ class _MarketplaceHomeScreenState
             lng: pos.longitude,
             q: _query.isEmpty ? null : _query,
             category: _selectedCategory,
-            verified: _verifiedOnly ? true : null,
           );
     } catch (e) {
       if (!mounted) return;
@@ -377,16 +305,6 @@ class _MarketplaceHomeScreenState
     if (mode == _ViewMode.map) _fireNearby();
   }
 
-  Future<void> _openFilters() async {
-    final result = await AdvancedFilterSheet.show(context, _filters);
-    if (result == null) return;
-    setState(() {
-      _filters = result;
-      _verifiedOnly = result.verifiedOnly || _verifiedOnly;
-    });
-    _fireSearch();
-  }
-
   // ── Sort + filter (client-side) ─────────────────────────────────────────────
 
   /// Client-side category match that tolerates the historical hotel launcher
@@ -405,18 +323,11 @@ class _MarketplaceHomeScreenState
   List<BusinessProfile> _applySortFilter(
       List<BusinessProfile> input) {
     var list = input.where((b) {
-      if (_filters.minRating > 0 &&
-          b.averageRating < _filters.minRating) {
-        return false;
-      }
-      if ((_filters.verifiedOnly || _verifiedOnly) && !b.isVerified) {
-        return false;
-      }
       if (_selectedCategory != null &&
           !_categoryMatchesBusiness(b.category, _selectedCategory!)) {
         return false;
       }
-      return _utilityPredicate(b);
+      return true;
     }).toList();
 
     switch (_sort) {
@@ -436,344 +347,30 @@ class _MarketplaceHomeScreenState
     return list;
   }
 
-  /// Overhaul 02 §7.4 — utility chips are client-side predicates over the
-  /// loaded results. `nearMe` is not a predicate (it switches to the map).
-  bool _utilityPredicate(BusinessProfile b) {
-    switch (_utility) {
-      case null:
-      case UtilityFilter.nearMe:
-        return true;
-      case UtilityFilter.openNow:
-        // Use the same sampled clock as the portal snapshot so every card in
-        // one render is evaluated against one deterministic instant.
-        final now = ref.read(discoverySnapshotProvider).now;
-        return b.openStateAt(now) == OpenState.open;
-      case UtilityFilter.topRated:
-        return b.averageRating >= 4.0 && b.reviewCount >= 5;
-      case UtilityFilter.saved:
-        return ref.read(savedBusinessesProvider).contains(b.bizId);
-    }
-  }
-
-  void _onUtility(UtilityFilter? filter) {
-    setState(() {
-      _utility = filter;
-      if (filter == UtilityFilter.topRated) _sort = _SortMode.topRated;
-    });
-    if (filter == UtilityFilter.nearMe) {
-      if (_mode == _MarketplaceHomeMode.portal) _enterExplore(null);
-      _setViewMode(_ViewMode.map);
-      return;
-    }
-    if (filter != null && _mode == _MarketplaceHomeMode.portal) {
-      _enterExplore(null);
-    }
-  }
-
-  void _onIntent(DiscoveryIntentItem item) {
-    if (item.worldWire != null) {
-      _enterExplore(item.worldWire);
-      return;
-    }
-    if (item.signal == DiscoverySignal.nearby) {
-      _onUtility(UtilityFilter.nearMe);
-      return;
-    }
-    if (item.savesOnly) {
-      context.push(AzRoutes.savedBusinesses);
-      return;
-    }
-    if (item.recentOnly) {
-      final wire = ref.read(worldMemoryProvider.notifier).mostRecentWire();
-      if (wire != null) _enterExplore(wire);
-    }
-  }
-
   Future<void> _refresh() {
     return ref.read(businessSearchProvider.notifier).search(
           _query,
           category: _selectedCategory,
-          verified: _verifiedOnly ? true : null,
         );
   }
 
-  // ── Portal mode (2026-09-30) ───────────────────────────────────────────────
+  // ── Back + search clear (correction H/I) ────────────────────────────────────
   //
-  // The bare marketplace tab is a destination, not a search results page:
-  // identity header → "choose your world" deck → stories rail → featured
-  // picks → explore-all. Everything derives from the same
-  // businessSearchProvider state the explore view uses — no new providers,
-  // no extra network traffic beyond the unfiltered search the tab already
-  // fires on init / return.
+  // Back semantics: a committed search clears first; otherwise the bare
+  // marketplace root lets the system back do its thing.
 
-  Future<void> _enterExplore(String? wire) async {
-    AzamanHaptics.selection();
-    final generation = ++_exploreGeneration;
-    setState(() {
-      _mode = _MarketplaceHomeMode.explore;
-      if (wire != null) {
-        _selectedCategory = wire;
-      }
-    });
-    final search = ref.read(marketplaceSearchProvider.notifier);
-    if (wire == null) {
-      search.setScope(MarketplaceSearchScope.marketplace);
-      return;
-    }
-    search.setScope(MarketplaceSearchScope.world, worldWire: wire);
-
-    // World memory (Overhaul 02 §5): coming back to a world within 30 minutes
-    // restores its query and scroll offset only after the CURRENT request has
-    // completed. This prevents a stale result set from satisfying the old
-    // "results.isNotEmpty" guard during async navigation.
-    final memory = ref.read(worldMemoryProvider.notifier).recall(wire);
-    final remembered = memory?.query;
-    if (remembered != null && remembered.isNotEmpty) {
-      _searchCtrl.text = remembered;
-      search.changed(remembered);
-      // The screen's search path owns category/view/verified filters, so do
-      // not bypass it with the notifier's generic fetch.
-      unawaited(search.submit(fetch: false));
-    }
-
-    final queryAtRequest = _query;
-    await _fetchExploreResults();
-
-    if (!mounted ||
-        generation != _exploreGeneration ||
-        _mode != _MarketplaceHomeMode.explore ||
-        _selectedCategory != wire ||
-        _query != queryAtRequest) {
-      return;
-    }
-
-    final offset = memory?.scrollOffset ?? 0;
-    if (offset <= 0 || !_scrollCtrl.hasClients) return;
-    final max = _scrollCtrl.position.maxScrollExtent;
-    if (offset <= max && ref.read(businessSearchProvider).results.isNotEmpty) {
-      _scrollCtrl.jumpTo(offset);
-    }
+  void _handleBack() {
+    if (_searchActive) _clearSearch();
   }
 
-  Future<void> _fetchExploreResults() {
-    if (_viewMode == _ViewMode.map) return _fireNearby();
-    return ref.read(businessSearchProvider.notifier).search(
-          _query,
-          category: _selectedCategory,
-          verified: _verifiedOnly ? true : null,
-        );
-  }
-
-  void _returnToPortal() {
-    ++_exploreGeneration;
-    AzamanHaptics.selection();
-    final wire = _selectedCategory;
-    if (wire != null) {
-      ref.read(worldMemoryProvider.notifier).remember(
-            wire,
-            query: _query,
-            scrollOffset: _scrollCtrl.hasClients ? _scrollCtrl.offset : 0,
-          );
-    }
-    setState(() {
-      _mode = _MarketplaceHomeMode.portal;
-      _selectedCategory = null;
-      _searchCtrl.clear();
-    });
-    _searchFocusNode.unfocus();
-    ref
-        .read(marketplaceSearchProvider.notifier)
-        .setScope(MarketplaceSearchScope.marketplace);
-    // World counts + featured picks are derived from the UNFILTERED result
-    // set — refresh it so the portal reflects the whole catalog, not the
-    // last category the user was browsing.
-    ref
-        .read(businessSearchProvider.notifier)
-        .search('', category: null, verified: null);
-  }
-
-  /// Back semantics (brief §17), one place: search first, then explore →
-  /// portal. The store route pops on its own (it is a pushed route).
-  bool _handleBack() {
-    if (_searchActive) {
-      _closeSearch();
-      return true;
-    }
-    if (_mode == _MarketplaceHomeMode.explore) {
-      _returnToPortal();
-      return true;
-    }
-    return false;
-  }
-
-  /// Slim affordance above the explore machinery: returns to the portal
-  /// surface of the SAME tab instance (no nested marketplace routes).
-  Widget _exploreBar(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-      child: Row(
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _returnToPortal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.keyboard_arrow_left_rounded,
-                    color: colors.textSecondary, size: 20),
-                const SizedBox(width: 2),
-                Text(
-                  'Marketplace',
-                  key: const ValueKey('marketplace_back_to_portal'),
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _portalBody(AzamanColors colors) {
-    // Overhaul 02 §8 — one CustomScrollView owns the portal. Every section
-    // renders only from loaded data; signals the gateway cannot compute are
-    // simply absent.
-    final snapshot = ref.watch(discoverySnapshotProvider);
-    final supported =
-        ref.watch(marketplaceDiscoveryGatewayProvider).supportedSignals;
-    return NotificationListener<ResumeIntentNotification>(
-      onNotification: (n) {
-        final wire = n.intent.worldWire;
-        if (wire != null) _enterExplore(wire);
-        return true;
-      },
-      child: CustomScrollView(
-        key: const ValueKey('marketplace_portal_body'),
-        controller: _portalScroll,
-        physics: const AlwaysScrollableScrollPhysics(
-            parent: ClampingScrollPhysics()),
-        slivers: [
-          SliverToBoxAdapter(
-              child: DiscoveryHeader(onSearchTap: _focusSearch)),
-          const SliverToBoxAdapter(child: ResumeCard()),
-          SliverToBoxAdapter(child: IntentRail(onSelect: _onIntent)),
-          const SliverToBoxAdapter(child: SizedBox(height: AzSpace.sm)),
-          SliverToBoxAdapter(
-            child: WorldDeck(
-              cards: buildWorldCards(snapshot, supported),
-              colors: colors,
-              onEnter: _enterExplore,
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: AzSpace.lg)),
-          SliverToBoxAdapter(
-              child: UtilityRail(active: _utility, onChanged: _onUtility)),
-          SliverToBoxAdapter(child: _portalStories(colors)),
-          SliverToBoxAdapter(child: LocalPulse(onFilter: _onUtility)),
-          SliverToBoxAdapter(child: _portalFeatured(colors, snapshot)),
-          SliverToBoxAdapter(child: _portalExploreAll(colors)),
-          const SliverPadding(padding: AzSpace.navClearance),
-        ],
-      ),
-    );
-  }
-
-  /// The portal's search hint enters explore (where the field lives today)
-  /// and focuses it. When the in-pill nav field lands it binds to the same
-  /// provider (`MarketplaceSearchBinding`), so this only changes mode.
-  void _focusSearch() {
-    if (_mode == _MarketplaceHomeMode.portal) _enterExplore(null);
-    _openSearch();
-  }
-
-  Widget _portalStories(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 18),
-      child: SizedBox(
-        height: 96,
-        width: double.infinity,
-        child: MarketplaceExpandedStories(
-          onOpenBusiness: (bizId) {
-            _openBusinessStories(context, bizId);
-          },
-          onBrowsePressed: () => _enterExplore(null),
-        ),
-      ),
-    );
-  }
-
-  /// Featured picks are an intentional, always-visible part of the portal
-  /// (in explore mode the collapsible `_featuredSection` stays). Items are
-  /// `MerchantCard`s (Overhaul 02 §7.8).
-  Widget _portalFeatured(AzamanColors colors, DiscoverySnapshot snapshot) {
-    final featured = snapshot.featured;
-    if (featured.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-          child: Row(
-            children: [
-              Icon(Icons.star_rounded, size: 16, color: colors.accent),
-              const SizedBox(width: 6),
-              Text('Featured picks near you',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                      fontSize: 13)),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 236,
-          child: ListView.separated(
-            key: const ValueKey('marketplace_portal_featured'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: featured.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) {
-              final b = featured[i];
-              return MerchantCard(
-                business: b,
-                distanceKm: snapshot.distanceOf(b),
-                onOpen: () => context.push(AzRoutes.businessProfile(b.bizId)),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _portalExploreAll(AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          key: const ValueKey('marketplace_explore_all'),
-          style: FilledButton.styleFrom(
-            backgroundColor: colors.accent,
-            foregroundColor: colors.background,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-          ),
-          onPressed: () => _enterExplore(null),
-          icon: const Icon(Icons.apps_rounded, size: 18),
-          label: const Text('Explore all businesses',
-              style:
-                  TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        ),
-      ),
-    );
+  /// Clears the AUTHORITATIVE provider — the focused-nav search field
+  /// mirrors the committed text out of it, and the provider listener
+  /// re-fires the results.
+  void _clearSearch() {
+    AzamanHaptics.toggle();
+    _debounce?.cancel();
+    _binding.clear();
+    _fireSearch();
   }
 
   // ── Root build ─────────────────────────────────────────────────────────────
@@ -782,17 +379,33 @@ class _MarketplaceHomeScreenState
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // CORRECTION I: the focused-nav search field writes to the AUTHORITATIVE
+    // provider through the SAME [MarketplaceSearchBinding] seam this screen
+    // always used — no second search provider exists. The screen reacts to
+    // committed text changes with its existing debounced plumbing.
+    ref.listen(marketplaceSearchProvider.select((s) => s.text),
+        (_, text) {
+      _onProviderTextChanged(text);
+    });
+
     // Scroll-driven gradient (0 at top → full when scrolled 120px)
     final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
-    // Story bar: fully expanded at offset 0, fully collapsed at offset 96.
-    // Smooth interpolation — no hard toggle, just like Telegram.
-    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
+    // §16 — the story rail's collapse now speaks the SAME grammar as
+    // chat's story rail: shared travel (StoryRailCollapse.travelPx),
+    // the shared snap threshold, and reduced-motion handling that
+    // lands directly instead of sliding. No second Telegram-like
+    // implementation lives in this file anymore.
+    final storyExpandRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
 
     final searchActive =
         ref.watch(marketplaceSearchProvider.select((s) => s.isActive));
-    // Back semantics (Overhaul 02 §4.1): search clears first, then explore
-    // returns to the portal; only the bare portal lets the system pop.
-    final canPop = !searchActive && _mode == _MarketplaceHomeMode.portal;
+    // Back semantics (correction H): the marketplace root is ONE result
+    // screen. A committed search clears first; otherwise the system back
+    // does its normal thing.
+    final canPop = !searchActive;
 
     return PopScope(
       canPop: canPop,
@@ -838,57 +451,57 @@ class _MarketplaceHomeScreenState
               ],
             ),
             const SizedBox(height: 10),
-            // Tapping anywhere below the header (category strip, results bar,
-            // or the list/map itself) retracts the search field if it's open —
-            // "clicking somewhere else" collapses it back to the icon.
+            // CORRECTION I: tapping anywhere on Marketplace content (while
+            // the user is on this root screen) restores the focused
+            // Marketplace nav — the "…" exit is a presentation change of
+            // the SAME tab, and content interaction brings it back. The
+            // Listener is observational: it never consumes or blocks the
+            // child's own taps and gestures.
             Expanded(
-              child: GestureDetector(
+              child: Listener(
                 behavior: HitTestBehavior.translucent,
-                onTap: () {
-                  if (searchActive) _closeSearch();
+                onPointerDown: (_) {
+                  if (!ref.read(marketplaceNavFocusProvider)) {
+                    ref
+                        .read(marketplaceNavFocusProvider.notifier)
+                        .state = true;
+                  }
                 },
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_mode == _MarketplaceHomeMode.portal)
-                      Expanded(child: _portalBody(colors))
-                    else ...[
-                      // ── Back to the portal (single tab surface, no
-                      //    nested marketplace routes) ─────────────────────
-                      _exploreBar(colors),
-                      // ── Stories: smooth scroll-driven height (Telegram-style) ──
-                      SizedBox(
-                        height: 96 * storyExpandRatio,
-                        width: double.infinity,
-                        child: ClipRect(
-                          child: OverflowBox(
-                            alignment: Alignment.topCenter,
-                            minHeight: 96,
-                            maxHeight: 96,
-                            child: Opacity(
-                              opacity: storyExpandRatio.clamp(0.0, 1.0),
-                              child: MarketplaceExpandedStories(
-                                onOpenBusiness: (bizId) {
-                                  _openBusinessStories(context, bizId);
-                                },
-                                onBrowsePressed: () {
-                                  setState(() => _selectedCategory = null);
-                                },
-                              ),
+                    // ── Stories: smooth scroll-driven height (Telegram-style) ──
+                    SizedBox(
+                      height: StoryRailCollapse.extentPx * storyExpandRatio,
+                      width: double.infinity,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          minHeight: StoryRailCollapse.extentPx,
+                          maxHeight: StoryRailCollapse.extentPx,
+                          child: Opacity(
+                            opacity: storyExpandRatio.clamp(0.0, 1.0),
+                            child: MarketplaceExpandedStories(
+                              onOpenBusiness: (bizId) {
+                                _openBusinessStories(context, bizId);
+                              },
+                              onBrowsePressed: () {
+                                setState(() => _selectedCategory = null);
+                              },
                             ),
                           ),
                         ),
                       ),
-                      // ── Combined control row: category selector + buttons ───
-                      _controlRow(colors),
-                      // §2: Featured rail (collapsed by default)
-                      _featuredSection(colors),
-                      Expanded(
-                        child: _viewMode == _ViewMode.list
-                            ? _listMode(colors)
-                            : _mapMode(colors),
-                      ),
-                    ],
+                    ),
+                    // ── §11: the category SPEED DIAL is the category
+                    // system (radial fan grammar) + Near You as the only
+                    // additional control. §12: no star/featured surface.
+                    _controlRow(colors),
+                    Expanded(
+                      child: _viewMode == _ViewMode.list
+                          ? _listMode(colors)
+                          : _mapMode(colors),
+                    ),
                   ],
                 ),
               ),
@@ -1058,204 +671,75 @@ class _MarketplaceHomeScreenState
   // ── Header (title + actions) ────────────────────────────────────────────────
 
   Widget _header(AzamanColors colors) {
-    final search = ref.watch(marketplaceSearchProvider);
-    final searchExpanded = search.isActive;
-    final searchFocused = search.focused;
-    final storyExpandRatio = 1.0 - (_scrollOffset / 96).clamp(0.0, 1.0);
+    // CORRECTION I: the search affordance no longer lives in this screen —
+    // the focused Marketplace nav band owns the search field, bound to the
+    // AUTHORITATIVE provider. The header keeps the story avatars slot, the
+    // storefront management, order history, and the list/map view toggle.
+    final storyExpandRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
     final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
-      child: Stack(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Collapsed state: title + view toggle + search icon ──────────
-          AnimatedSlide(
-            offset: searchExpanded ? const Offset(-0.2, 0) : Offset.zero,
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-            child: AnimatedOpacity(
-              opacity: searchExpanded ? 0 : 1,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: IgnorePointer(
-                ignoring: searchExpanded,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Collapsed avatars fade in as stories section collapses.
-                    if (storyCollapsedOpacity > 0.5)
-                      Expanded(
-                        child: MarketplaceCollapsedAvatars(
-                          onTap: () {
-                            _scrollCtrl.animateTo(0,
-                                duration: const Duration(milliseconds: 400),
-                                curve: Curves.easeOut);
-                          },
-                        ),
-                      )
-                    else
-                      const Spacer(),
-                    const SizedBox(width: 8),
-
-                    // Search — directly after the title/avatars slot, in line with the view toggle.
-                    // Tapping it morphs this whole row into an inline search field.
-                    _iconAction(
-                      icon: Icons.search_rounded,
-                      onTap: _openSearch,
-                      colors: colors,
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Store management — shows your stores + add button
-                    _iconAction(
-                      icon: Icons.storefront_rounded,
-                      onTap: () => _showStoreManagementSheet(colors),
-                      colors: colors,
-                      activeColor: colors.accent,
-                    ),
-                    const SizedBox(width: 8),
-
-                    // My Orders
-                    _iconAction(
-                      icon: Icons.receipt_long_rounded,
-                      // NEW-A: canonical /my-orders location.
-                      onTap: () => context.push(AzRoutes.storefrontOrderHistory),
-                      colors: colors,
-                      activeColor: colors.accent,
-                    ),
-                    const SizedBox(width: 8),
-
-                    // View mode toggle (list / map)
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(color: colors.divider, width: 0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          _viewSeg(
-                              Icons.view_agenda_outlined, _ViewMode.list, colors),
-                          _viewSeg(Icons.location_on_outlined, _ViewMode.map,
-                              colors),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+          // Collapsed avatars fade in as stories section collapses.
+          if (storyCollapsedOpacity > 0.5)
+            Expanded(
+              child: MarketplaceCollapsedAvatars(
+                onTap: () {
+                  _scrollCtrl.animateTo(0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut);
+                },
               ),
-            ),
+            )
+          else
+            const Spacer(),
+          const SizedBox(width: 8),
+
+          // Store management — shows your stores + add button
+          _iconAction(
+            icon: Icons.storefront_rounded,
+            onTap: () => _showStoreManagementSheet(colors),
+            colors: colors,
+            activeColor: colors.accent,
           ),
+          const SizedBox(width: 8),
 
-          // ── Expanded state: back arrow + inline search field ─────────────
-          // Slides in from the right as the collapsed row slides/fades out —
-          // reads as the search "pushing" the other buttons off-screen.
-          AnimatedSlide(
-            offset: searchExpanded ? Offset.zero : const Offset(0.2, 0),
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-            child: AnimatedOpacity(
-              opacity: searchExpanded ? 1 : 0,
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOut,
-              child: IgnorePointer(
-                ignoring: !searchExpanded,
-                child: SizedBox(
-                  height: 44,
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _closeSearch,
-                        behavior: HitTestBehavior.opaque,
-                        child: SizedBox(
-                          width: 34,
-                          height: 44,
-                          child: Icon(Icons.arrow_back_rounded,
-                              size: 20, color: colors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOut,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: searchFocused ? colors.accent : Colors.transparent,
-                              width: 1.4,
-                            ),
-                            boxShadow: searchFocused
-                                ? [BoxShadow(color: colors.accent.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 3))]
-                                : null,
-                          ),
-                          child: PremiumGlassContainer(
-                            blur: 12, opacity: 0.06, borderRadius: 14,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            enableShadow: false,
-                            child: TextField(
-                            controller: _searchCtrl,
-                            focusNode: _searchFocusNode,
-                            onChanged: _onQueryChanged,
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: (_) => _commitSearch(),
-                            style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                            decoration: InputDecoration(
-                              hintText: _binding.placeholders(search).first,
-                              hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14, fontWeight: FontWeight.w400),
-                              icon: Icon(Icons.search_rounded, size: 20, color: colors.textTertiary),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                              suffixIcon: _searchCtrl.text.isNotEmpty
-                                ? GestureDetector(onTap: () { _searchCtrl.clear(); _binding.onChanged(''); _fireSearch(); setState(() {}); },
-                                    child: Icon(Icons.close_rounded, size: 18, color: colors.textTertiary))
-                                : null,
-                            ),
-                          ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          // My Orders
+          _iconAction(
+            icon: Icons.receipt_long_rounded,
+            // NEW-A: canonical /my-orders location.
+            onTap: () => context.push(AzRoutes.storefrontOrderHistory),
+            colors: colors,
+            activeColor: colors.accent,
+          ),
+          const SizedBox(width: 8),
+
+          // View mode toggle (list / map)
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: colors.divider, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                _viewSeg(
+                    Icons.view_agenda_outlined, _ViewMode.list, colors),
+                _viewSeg(
+                    Icons.location_on_outlined, _ViewMode.map, colors),
+              ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  void _openSearch() {
-    AzamanHaptics.nav();
-    _binding.onFocus(true);
-    Future.delayed(const Duration(milliseconds: 90), () {
-      if (mounted) _searchFocusNode.requestFocus();
-    });
-  }
-
-  void _closeSearch() {
-    if (!_searchActive) return;
-    AzamanHaptics.toggle();
-    _debounce?.cancel();
-    final hadText = _query.isNotEmpty;
-    _searchFocusNode.unfocus();
-    _searchCtrl.clear();
-    _binding.clear();
-    // Clearing a committed query must also clear its results.
-    if (hadText) _fireSearch();
-  }
-
-  /// Keyboard "search": cancel the pending debounce, run the query through the
-  /// screen's own plumbing (view mode, verified, category), and let the
-  /// provider record the recent search without fetching a second time.
-  void _commitSearch() {
-    _debounce?.cancel();
-    _searchFocusNode.unfocus();
-    _fireSearch();
-    ref.read(marketplaceSearchProvider.notifier).submit(fetch: false);
   }
 
   Widget _viewSeg(
@@ -1304,169 +788,113 @@ class _MarketplaceHomeScreenState
     );
   }
 
+  // UX-CORRECTION §1 — the category set is EXACTLY All / Shop / Ride /
+  // Stay / Eat (All is a REAL selectable state, wire null, and the
+  // default). Services and Wellness are removed: no other user-facing
+  // satellite exists.
+  static const List<CategoryDialItem> _dialCategories = [
+    // PR #142 FINAL PASS §2 — real categories carry their own accent (the
+    // marketplace category palette) so they stand out over the neutral
+    // gray goo; "All" stays the quiet neutral pill.
+    CategoryDialItem(
+        wire: null, icon: Icons.apps_rounded, label: 'All'),
+    CategoryDialItem(
+        wire: 'FOOD_BEVERAGE',
+        icon: Icons.restaurant_rounded,
+        label: 'Eat',
+        accent: Color(0xFFF59E0B)),
+    CategoryDialItem(
+        wire: 'RETAIL',
+        icon: Icons.shopping_bag_rounded,
+        label: 'Shop',
+        accent: Color(0xFF00D97E)),
+    CategoryDialItem(
+        wire: 'LOGISTICS',
+        icon: Icons.directions_bus_rounded,
+        label: 'Ride',
+        accent: Color(0xFF4F8EF7)),
+    CategoryDialItem(
+        wire: 'REAL_ESTATE',
+        icon: Icons.apartment_rounded,
+        label: 'Stay',
+        accent: Color(0xFFA78BFA)),
+];
+
+  // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.
+  // The radial fan / goo-morph arms remain the visual grammar; the old row
+  // of standalone category buttons (correction H) is gone — the spec
+  // explicitly rejects a second flat control row. Near You stays as the
+  // ONLY additional control, with a location icon in the same visual
+  // language, driving the existing near-you map machinery.
   Widget _controlRow(AzamanColors colors) {
-    final categories = <CategoryDialItem>[
-      CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
-      CategoryDialItem(wire: 'FOOD_BEVERAGE', icon: Icons.restaurant_rounded, label: 'Restaurants'),
-      CategoryDialItem(wire: 'REAL_ESTATE', icon: Icons.apartment_rounded, label: 'Hotels'),
-      CategoryDialItem(wire: 'LOGISTICS', icon: Icons.directions_bus_rounded, label: 'Transit'),
-      CategoryDialItem(wire: 'RETAIL', icon: Icons.shopping_bag_rounded, label: 'Retail'),
-    ];
-
-    final hasFilters = !_filters.isEmpty;
-
+    final nearYou = _viewMode == _ViewMode.map;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          // Category selector (left side)
+          // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
+          // Expanded stretch. The radial fan anchors to the pill's real
+          // box; a stretched slot made the whole empty row-width part of
+          // the anchor (and the fan fanned off a rect the eye doesn't
+          // see).
           CategorySpeedDial(
-            categories: categories,
+            key: const ValueKey('marketplace-category-dial'),
+            categories: _dialCategories,
             selectedWire: _selectedCategory,
             colors: colors,
             onSelected: (wire) {
+              AzamanHaptics.toggle();
               setState(() => _selectedCategory = wire);
               _fireSearch();
             },
           ),
+          // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
+          // control row: it reads as the secondary location/filter
+          // utility, visually belonging to the row's end rather than to the
+          // category fan. The dial is NOT stretched to force the
+          // alignment; the Spacer takes the free row width between them.
           const Spacer(),
-          // Sort dropdown
-          PopupMenuButton<_SortMode>(
-            color: colors.surface,
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            onSelected: (m) {
-              AzamanHaptics.toggle();
-              setState(() => _sort = m);
-            },
-            itemBuilder: (_) {
-              final opts = _viewMode == _ViewMode.map
-                  ? [_SortMode.nearest, _SortMode.topRated]
-                  : [
-                      _SortMode.topRated,
-                      _SortMode.mostPopular,
-                      _SortMode.newest
-                    ];
-              return opts
-                  .map((m) => PopupMenuItem(
-                        value: m,
-                        height: 44,
-                        child: Row(children: [
-                          Icon(
-                            m == _sort
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_unchecked,
-                            size: 16,
-                            color: m == _sort
-                                ? colors.accent
-                                : colors.textTertiary,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(m.label,
-                              style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: m == _sort
-                                      ? FontWeight.w600
-                                      : FontWeight.w400)),
-                        ]),
-                      ))
-                  .toList();
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _sort.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 15, color: colors.textTertiary),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Verified pill
+          // Near You — the ONLY control outside the category selector
+          // (location icon, same pill language). Toggling off returns to
+          // the list view.
           GestureDetector(
+            key: const ValueKey('marketplace-near-you'),
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               AzamanHaptics.toggle();
-              setState(() => _verifiedOnly = !_verifiedOnly);
-              _fireSearch();
+              _setViewMode(nearYou ? _ViewMode.list : _ViewMode.map);
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: _verifiedOnly
-                    ? colors.accentSurface
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
+                color: nearYou
+                    ? colors.accent.withValues(alpha: 0.12)
+                    : colors.card,
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: _verifiedOnly
-                      ? colors.accent
-                      : colors.divider,
-                  width: _verifiedOnly ? 1.5 : 0.5,
+                  color: nearYou ? colors.accent : colors.divider,
+                  width: nearYou ? 1.2 : 0.5,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    _verifiedOnly
-                        ? Icons.verified_rounded
-                        : Icons.verified_outlined,
-                    size: 12,
-                    color: _verifiedOnly
-                        ? colors.accent
-                        : colors.textTertiary,
-                  ),
-                  const SizedBox(width: 4),
+                  Icon(Icons.near_me_rounded,
+                      size: 14,
+                      color: nearYou ? colors.accent : colors.textTertiary),
+                  const SizedBox(width: 5),
                   Text(
-                    'Verified',
+                    'Near You',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _verifiedOnly
-                          ? colors.accent
-                          : colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight:
+                          nearYou ? FontWeight.w700 : FontWeight.w600,
+                      color: nearYou ? colors.accent : colors.textSecondary,
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Advanced filter
-          GestureDetector(
-            onTap: _openFilters,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 34,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: hasFilters
-                    ? colors.accentSurface
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color:
-                      hasFilters ? colors.accent : colors.divider,
-                  width: hasFilters ? 1.5 : 0.5,
-                ),
-              ),
-              child: Icon(Icons.filter_list_rounded,
-                  size: 15,
-                  color: hasFilters
-                      ? colors.accent
-                      : colors.textTertiary),
             ),
           ),
         ],
@@ -1509,72 +937,6 @@ class _MarketplaceHomeScreenState
   }
 
   // ── Results bar (slim control row) ─────────────────────────────────────────
-
-  // ── Featured rail (§2) — collapsed by default ─────────────────────────────
-
-  Widget _featuredSection(AzamanColors colors) {
-    final featured = ref.watch(featuredBusinessesProvider);
-    if (featured.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            AzamanHaptics.toggle();
-            setState(() => _featuredExpanded = !_featuredExpanded);
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                Icon(Icons.star_rounded, size: 16, color: colors.accent),
-                const SizedBox(width: 6),
-                Text('Featured picks near you',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                        fontSize: 13)),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _featuredExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                      color: colors.textTertiary, size: 20),
-                ),
-              ],
-            ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeInOut,
-          child: _featuredExpanded
-              ? _featuredRail(featured, colors)
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
-
-  Widget _featuredRail(
-      List<BusinessProfile> featured, AzamanColors colors) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: featured.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => SizedBox(
-          width: 260,
-          child: _FeaturedCard(business: featured[i], colors: colors),
-        ),
-      ),
-    );
-  }
 
   // ── Real map mode (§1) ─────────────────────────────────────────────────────
 
@@ -1726,7 +1088,7 @@ class _MarketplaceHomeScreenState
                   Text('No businesses found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
                   const SizedBox(height: 4),
                   Text(
-                    _searchCtrl.text.isNotEmpty
+                    _query.isNotEmpty
                         ? 'Try a different search term or category'
                         : _selectedCategory != null
                             ? 'No ${_categoryLabel(_selectedCategory)} yet — be the first!'
@@ -1958,156 +1320,3 @@ class _MarketplaceHomeScreenState
 
 /// Immutable view-model for one portal world: the category identity plus a
 /// truthful count and preview derived from the loaded search state.
-class _FeaturedCard extends StatelessWidget {
-  final BusinessProfile business;
-  final AzamanColors colors;
-
-  const _FeaturedCard({required this.business, required this.colors});
-
-  String? _coverUrl(BusinessCategory cat) {
-    if (business.showcaseUrls.isNotEmpty) return business.showcaseUrls.first;
-    if (business.logoUrl != null && business.logoUrl!.isNotEmpty) {
-      return business.logoUrl;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cat = BusinessCategories.fromWire(business.category);
-    final coverUrl = _coverUrl(cat);
-
-    return GestureDetector(
-      onTap: () {
-        AzamanHaptics.nav();
-        context.push('/business/\${business.bizId}');
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: colors.isDark ? 0.22 : 0.07),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cover image (taller)
-              SizedBox(
-                height: 120,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (coverUrl != null)
-                      AzamanNetworkImage(
-                        imageUrl: coverUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => _placeholder(cat),
-                        errorWidget: (_, __, ___) => _placeholder(cat),
-                      )
-                    else
-                      _placeholder(cat),
-                    // Category tag overlay
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        color: cat.color.withValues(alpha: 0.82),
-                        child: Text(
-                          cat.label.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Details
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            business.businessName,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: colors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (business.isVerified)
-                          Icon(Icons.verified_rounded, size: 12, color: colors.accent),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        if (business.averageRating > 0) ...[
-                          Icon(Icons.star_rounded, size: 11, color: const Color(0xFFF59E0B)),
-                          const SizedBox(width: 2),
-                          Text(
-                            business.averageRating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                        if (business.locations.isNotEmpty) ...[
-                          Builder(builder: (_) {
-                            final status = currentOpenStatus(business.locations.first.operatingHours);
-                            if (status == OpenStatus.open)
-                              return StatusDot(color: Colors.green, label: 'Open');
-                            if (status == OpenStatus.closingSoon)
-                              return StatusDot(color: Colors.orange, label: 'Closing soon');
-                            if (status == OpenStatus.closed)
-                              return StatusDot(color: colors.textTertiary, label: 'Closed');
-                            return const SizedBox.shrink();
-                          }),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder(BusinessCategory cat) => Container(
-        color: cat.color.withValues(alpha: 0.12),
-        child: Center(child: Icon(cat.icon, size: 30, color: cat.color.withValues(alpha: 0.5))),
-      );
-}

@@ -66,8 +66,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return false;
   }
 
+  /// §9 startup audit: the two-second branding floor used to run SERIALLY
+  /// before the waterfall, so a cold start paid 2s + every network round
+  /// trip on top. It now runs CONCURRENTLY with the auth/version/onboarding
+  /// work — the splash still holds for its branding beat, but the network
+  /// is never idled behind it: startup is max(2s, waterfall), not 2s+waterfall.
+  late final Future<void> _brandingFloor =
+      Future<void>.delayed(const Duration(seconds: 2));
+
+  /// Every splash exit goes through here, so the branding floor elapses
+  /// while the network work runs — never before it.
+  Future<void> _exitTo(WidgetBuilder builder) async {
+    await _brandingFloor;
+    if (!mounted) return;
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: builder));
+  }
+
   Future<void> _checkAuthStatus() async {
-    await Future.delayed(const Duration(seconds: 2));
 
     // ── Auto-demo fallback for web ──────────────────────────────────────
     if (!AppConfig.demoMode && kIsWeb) {
@@ -97,9 +112,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       AuthGuard.isAuthenticated = true;
       ref.read(themeProvider).loadFromBackend();
       ref.read(settingsProvider).loadFromBackend();
-      if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_) => const MainNavigationWrapper()));
+      await _exitTo((_) => const MainNavigationWrapper());
       return;
     }
 
@@ -108,12 +121,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     if (versionResult.updateRequired) {
-      Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_) => ForceUpdateScreen(
-          message: versionResult.message ?? 'A new version of Azaman is available. Please update to continue.',
-          updateUrl: versionResult.updateUrl,
-          minVersion: versionResult.minVersion,
-        ),
+      await _exitTo((_) => ForceUpdateScreen(
+        message: versionResult.message ?? 'A new version of Azaman is available. Please update to continue.',
+        updateUrl: versionResult.updateUrl,
+        minVersion: versionResult.minVersion,
       ));
       return;
     }
@@ -136,19 +147,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
           switch (status) {
             case AuthStatus.authenticated:
-              ref.read(themeProvider).loadFromBackend();
-              ref.read(settingsProvider).loadFromBackend();
-              await ref.read(platformConfigProvider.notifier).refresh();
-              final needsOnboarding = await _checkOnboardingStatus();
+              // §9 startup audit: theme, settings, platform config and the
+              // onboarding probe are four INDEPENDENT GETs — they used to
+              // run as a serial waterfall (four round-trips added to every
+              // cold start). One Future.wait, one round-trip.
+              final results = await Future.wait<Object?>([
+                ref.read(themeProvider).loadFromBackend(),
+                ref.read(settingsProvider).loadFromBackend(),
+                ref.read(platformConfigProvider.notifier).refresh(),
+                _checkOnboardingStatus(),
+              ]);
               if (!mounted) return;
-              if (needsOnboarding) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OnboardingScreen()));
-              } else {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainNavigationWrapper()));
-              }
+              final needsOnboarding = results[3] == true;
+              await _exitTo(needsOnboarding
+                  ? (_) => const OnboardingScreen()
+                  : (_) => const MainNavigationWrapper());
               return;
             case AuthStatus.profileNotFound:
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              await _exitTo((_) => const LoginScreen());
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('No profile found for this account. Please sign up.')));
               return;
@@ -156,17 +173,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             case AuthStatus.error:
             case AuthStatus.idle:
             case AuthStatus.loading:
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              await _exitTo((_) => const LoginScreen());
               return;
           }
         } else {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+          await _exitTo((_) => const LoginScreen());
         }
       } catch (e) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        await _exitTo((_) => const LoginScreen());
       }
     } else {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      await _exitTo((_) => const LoginScreen());
     }
   }
 

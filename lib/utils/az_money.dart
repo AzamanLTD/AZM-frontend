@@ -100,6 +100,14 @@ abstract final class AzMoney {
     return '$ghsSymbol$nbsp$body';
   }
 
+  /// EXPERIENCE PASS §1 — USDC-first hero figure: `123.45` → `"USDC 123.45"`
+  /// (symbol first, matching the GHS presentation grammar). Only the Home
+  /// balance hero reads this; [usdc] keeps the amount-first form everywhere
+  /// else so no other surface's copy changes underneath it.
+  static String usdcFirst(double value, {int decimals = 2}) {
+    return '$usdcSymbol$nbsp${amount(value, decimals: decimals)}';
+  }
+
   /// `"1,240.42 USDC"`. [compact] switches to `"1.24M USDC"` for ≥ 1e6.
   static String usdc(double value, {bool compact = false, int decimals = 2}) {
     final body = compact

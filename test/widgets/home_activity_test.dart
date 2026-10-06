@@ -197,12 +197,15 @@ Future<
 
 /// Enters the activity state from the wallet rest: scroll the doorway into
 /// view, WAIT OUT the ensureVisible scroll animation (dragging mid-scroll
-/// lands the pointer on the wrong widget), then a deliberate 120px UPWARD
+/// lands the pointer on the wrong widget), then a deliberate 260px UPWARD
 /// drag — the physical gesture that matches the surface being revealed
 /// (AUDIT §1: the activity surface rises from below, so the finger drags
-/// up and the content follows). Self-verifies the commit so a flaky hit
-/// can never poison the assertions downstream: a drag that somehow missed
-/// is retried once.
+/// up and the content follows). EXPERIENCE PASS §6 made the Home scroll
+/// the drag surface (the doorway is tap-only now), so the pull must pass
+/// the armed point — 0.62 × 230px ≈ 143px — to commit; 260px is a full,
+/// intentional continuation of the page scroll. Self-verifies the commit
+/// so a flaky hit can never poison the assertions downstream: a drag that
+/// somehow missed is retried once.
 Future<void> _enterActivity(WidgetTester tester) async {
   await tester.ensureVisible(find.byType(RecentActivityDoorway));
   // Scroll animation (600ms) + any settle frames.
@@ -211,7 +214,7 @@ Future<void> _enterActivity(WidgetTester tester) async {
   }
   for (var attempt = 0; attempt < 2; attempt++) {
     await tester.drag(
-        find.byType(RecentActivityDoorway), const Offset(0, -120));
+        find.byType(RecentActivityDoorway), const Offset(0, -260));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
     if (_activityOpacity(tester) > 0.99) return;
@@ -373,8 +376,11 @@ void main() {
 
       expect(_activityOpacity(tester), greaterThan(0.99),
           reason: 'the activity surface snaps into focus');
-      expect(find.text('Wallet'), findsOneWidget,
-          reason: 'the back affordance to the wallet composition');
+      // CORRECTION A: the header is the premium identity + UP arrow only —
+      // the "← Wallet" back affordance is gone; the reverse pull hands back.
+      expect(find.text('← Wallet'), findsNothing);
+      expect(find.byKey(const ValueKey('home-activity-header-title')),
+          findsOneWidget);
       expect(notifier.refreshCalls, 1,
           reason: 'AUDIT §12: entering the activity state does NOT touch '
               'the home summary (rates/friend requests/notifications are '
@@ -403,8 +409,14 @@ void main() {
       expect(find.byKey(const ValueKey('home-activity-list')), findsOneWidget);
 
       // Scroll the list to its bottom: the load-more tile builds and
-      // pulls the second cursor page.
-      for (var i = 0; i < 3; i++) {
+      // pulls the second cursor page. UX-CORRECTION §8 made the cards
+      // roomier two-line rows, so the list is TALLER than when the
+      // fixed 3-drag loop was written — drag until the second cursor
+      // page is pulled (bounded, so broken pagination can't hang). The
+      // trailing tile DISAPPEARS once the last page loads (hasMore
+      // flips false), so the page load — not the tile's presence — is
+      // the done-signal here.
+      for (var i = 0; i < 8 && history.loadMoreCalls < 2; i++) {
         await tester.drag(find.byKey(const ValueKey('home-activity-list')),
             const Offset(0, -600));
         await tester.pump();
@@ -430,12 +442,16 @@ void main() {
       // Pull DOWN on the SURFACE's header (outside the list — the same
       // gesture path real users have on the "Recent Activity" header).
       // The faded-out doorway also says 'Recent Activity', so scope to the
-      // activity surface.
+      // activity surface. EXPERIENCE PASS §6 grammar: the reverse handoff
+      // shares the SAME deliberate threshold (armed at 0.62 × 230px ≈
+      // 143px), so the pull is 260px — a full, intentional grab of the
+      // committed surface, not a touch. The small-pull counterpart below
+      // pins that a 60px pull springs back.
       final header = find.descendant(
           of: find.byType(HomeActivitySurface),
           matching: find.text('Recent Activity'));
       expect(header, findsOneWidget);
-      await tester.drag(header, const Offset(0, 120));
+      await tester.drag(header, const Offset(0, 260));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 
@@ -465,6 +481,76 @@ void main() {
       expect(_activityOpacity(tester), greaterThan(0.99),
           reason: 'a sub-threshold reverse pull stays in the activity '
               'state — the same commit threshold as the forward handoff');
+      expect(history.refreshCalls, 1);
+    });
+
+    testWidgets('AUDIT §1: pulling down on the LIST at its top boundary '
+        '(the first activity row) hands back through the overscroll',
+        (tester) async {
+      final (_, history, _) = await _pumpHome(tester);
+
+      await _enterActivity(tester);
+      expect(_activityOpacity(tester), greaterThan(0.99));
+
+      // The first activity row lives INSIDE the ListView, so the surface
+      // GestureDetector can never see it — the only route back is the
+      // list's own at-top downward overscroll feeding the reverse
+      // handoff. The list starts at offset 0, so a straight downward
+      // drag is exactly that overscroll. Same deliberate threshold
+      // grammar: 260px passes the armed point.
+      await tester.drag(
+          find.byKey(const ValueKey('home-activity-list')),
+          const Offset(0, 260));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 900));
+
+      expect(_activityOpacity(tester), lessThan(0.05),
+          reason: 'the at-top overscroll drives the same reverse '
+              'handoff — a pull from the first row hands back to the '
+              'wallet resting state');
+      expect(history.refreshCalls, 1);
+    });
+
+    testWidgets('AUDIT §1: pulling down from an arbitrary non-header, '
+        'non-list area of the surface hands back', (tester) async {
+      final (_, history, _) = await _pumpHome(tester);
+
+      await _enterActivity(tester);
+      expect(_activityOpacity(tester), greaterThan(0.99));
+
+      // Not the heading, not a row: the surface itself between the two.
+      // The first-viewport drag lands on the cued heading's surrounding
+      // padding / surface chrome — an area with no tap target and no
+      // scrollable, so only the surface-level vertical drag can claim it.
+      final surfaceRect =
+          tester.getRect(find.byType(HomeActivitySurface));
+      final listRect =
+          tester.getRect(find.byKey(const ValueKey('home-activity-list')));
+      final headerRect = tester.getRect(find.descendant(
+          of: find.byType(HomeActivitySurface),
+          matching: find.text('Recent Activity')));
+
+      // A spot strictly inside the surface but above the list and below
+      // the heading text — the heading inset band.
+      final spot = Offset(
+        surfaceRect.center.dx,
+        (headerRect.bottom + listRect.top) / 2,
+      );
+      expect(spot.dy, lessThan(listRect.top),
+          reason: 'the probe point must sit outside the list');
+
+      final gesture = await tester.startGesture(spot);
+      for (var i = 0; i < 13; i++) {
+        await gesture.moveBy(const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 900));
+
+      expect(_activityOpacity(tester), lessThan(0.05),
+          reason: 'an arbitrary-area pull drives the same reverse '
+              'handoff back to the wallet resting state');
       expect(history.refreshCalls, 1);
     });
   });

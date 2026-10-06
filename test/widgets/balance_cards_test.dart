@@ -27,9 +27,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/holographic_surface.dart';
+import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/widgets/rate_refresh_indicator.dart';
 
 /// A canned susu list the card's watcher will actually receive.
 class _SusuListWithData extends SusuListNotifier {
@@ -171,7 +176,7 @@ void main() {
           visible: false,
         );
         // The mask is doing its job.
-        expect(find.text('••••••'), findsOneWidget);
+        expect(find.text('••••••••'), findsOneWidget);
 
         container.read(balanceDataProvider.notifier).state =
             const BalanceData(availableBalance: 150);
@@ -179,9 +184,150 @@ void main() {
 
         // THE privacy invariant: no change magnitude above the mask.
         expect(find.textContaining('+USDC'), findsNothing);
-        expect(find.text('••••••'), findsOneWidget);
+        expect(find.text('••••••••'), findsOneWidget);
       },
     );
+  });
+
+  group('UX-CORRECTION §11 — hidden state preserves the structural layout',
+      () {
+    testWidgets('the hidden figure keeps the USDC unit label in place and '
+        'the masked amount in the same region — never a bare dots row',
+        (tester) async {
+      // VISIBLE baseline geometry.
+      await _pumpFrontFace(tester, balance: 123.45);
+      final usdcVisible = tester.getRect(find.text('USDC'));
+      final secondaryVisible =
+          tester.getRect(find.text(AzMoney.ghs(123.45)));
+
+      // HIDDEN state.
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+
+      // The USDC unit label SURVIVES the mask — the row structure is
+      // intact, not replaced by a lone dots Text.
+      expect(find.text('USDC'), findsOneWidget,
+          reason: 'the hidden state must keep the USDC unit label visible '
+              'in the figure row');
+      // The masked amount occupies the same amount region.
+      expect(find.text('••••••••'), findsOneWidget);
+      final usdcHidden = tester.getRect(find.text('USDC'));
+
+      // The layout geometry does not change between states: the unit
+      // label lands at the same spot.
+      expect(usdcHidden.topLeft, usdcVisible.topLeft,
+          reason: 'the USDC unit label must not move when hiding');
+
+      // The secondary GHS line keeps its normal position AND its
+      // grammar — symbol FIRST, masked value after (no reorder to the
+      // end of the line).
+      final secondaryHidden =
+          tester.getRect(find.text('GH₵ ••••'));
+      expect(secondaryHidden.topLeft, secondaryVisible.topLeft,
+          reason: 'the GHS secondary line must not jump or reorder '
+              'between visible and hidden states');
+    });
+
+    testWidgets('the real balance value never leaks into the hidden tree '
+        'or semantics', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+      expect(find.textContaining('123.45'), findsNothing,
+          reason: 'the masked figure must not render the real amount');
+      final masked = tester.widget<Text>(find.text('••••••••'));
+      expect(masked.semanticsLabel, 'Balance hidden');
+    });
+  });
+
+  group('EXPERIENCE PASS §1 — USDC-first hero', () {
+    testWidgets('the front face shows no wallet/user-id line', (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      // The old truncated fingerprint ("·· abcd") must be gone. The only
+      // text children are the label, the figures and the rate row.
+      expect(find.textContaining('··'), findsNothing);
+      expect(find.byType(Text), findsWidgets);
+    });
+
+    testWidgets('the primary figure reads USDC-first', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45);
+      // RICHTEXT CORRECTIONS §2A: the hero is the AMOUNT. The figure
+      // renders through OdometerNumber's per-slot cells, so the amount
+      // contract is pinned on the odometer's own value; the "USDC" unit
+      // label is a separate, visibly smaller Text beside it.
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(odometer.value, '123.45');
+      expect(find.text('USDC'), findsOneWidget);
+      // GHS remains present as the SECONDARY figure (AzMoney uses a
+      // no-break space between symbol and amount).
+      expect(find.text('GH₵ 123.45'), findsOneWidget);
+    });
+
+    testWidgets('the USDC unit label is substantially smaller than the '
+        'amount, and the amount is not ultra-heavy', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45);
+
+      final unitStyle = tester.widget<Text>(find.text('USDC')).style!;
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      final amountStyle = odometer.style;
+
+      // §2A: the unit label is visibly smaller than the hero amount.
+      expect(unitStyle.fontSize!, lessThan(amountStyle.fontSize! * 0.6));
+      // §2B: the hero stays premium medium/semi-bold — not the near-black
+      // w800 it used to render at.
+      expect(amountStyle.fontWeight, FontWeight.w600);
+    });
+
+    testWidgets('the live rate row and refresh affordance sit on the card',
+        (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      expect(find.textContaining('1 USDC = GH₵'), findsOneWidget);
+      expect(find.byType(RateRefreshIndicator), findsOneWidget);
+
+      // RICHTEXT CORRECTIONS §3: the countdown is anchored to the card's
+      // RIGHT side, not trailing the conversion caption. The rate text
+      // starts left; the indicator lands in the right half of the card.
+      final cardRect = tester.getRect(find.byType(HologramBalanceCard));
+      final rateRect = tester
+          .getRect(find.textContaining('1 USDC = GH₵'));
+      final indicatorRect =
+          tester.getRect(find.byType(RateRefreshIndicator));
+      expect(rateRect.left, lessThan(cardRect.center.dx),
+          reason: 'the conversion text anchors the left of the row');
+      expect(indicatorRect.center.dx, greaterThan(cardRect.center.dx),
+          reason: 'the refresh/countdown anchors the right of the row');
+    });
+
+    testWidgets('the surface is neutral graphite in dark mode — the '
+        'iridescence tint is NOT the accent (RICHTEXT CORRECTIONS §2C)',
+        (tester) async {
+      await _pumpFrontFace(tester, balance: 100);
+      // The theme load is async (SharedPreferences mock: no saved
+      // preference → the default DARK theme). Two fixed pumps — the first
+      // flushes the load microtask, the second builds with the dark
+      // palette. NOT pumpAndSettle: RateRefreshIndicator counts down on a
+      // repeating timer, so settling never terminates.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final surface = tester.widget<HolographicSurface>(
+          find.byType(HolographicSurface));
+      final colors = ThemeProvider.getColors(AzamanTheme.dark);
+      // The material base is the palette's neutral near-black graphite.
+      expect(surface.base, colors.card);
+      // The tint drives the broad iridescent wash: accent gold there
+      // produced the muddy olive/khaki card the screenshots flagged.
+      expect(surface.tint, colors.textSecondary);
+      expect(surface.tint, isNot(colors.accent));
+    });
+
+    testWidgets('the rate row survives the hidden-balance mask', (tester) async {
+      // The FX rate is public market data: masking the balance must not
+      // hide it.
+      await _pumpFrontFace(tester, balance: 100, visible: false);
+      expect(find.text('••••••••'), findsOneWidget);
+      expect(find.textContaining('1 USDC ='), findsOneWidget);
+      expect(find.byType(RateRefreshIndicator), findsOneWidget);
+    });
   });
 
   group('reduced motion (audit D-2)', () {

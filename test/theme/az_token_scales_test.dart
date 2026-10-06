@@ -100,9 +100,11 @@ void main() {
     });
 
     test('nav clearance is tall enough to clear the floating pill', () {
-      // The nav pill floats ~62px tall plus a safe-area inset. A clearance
-      // smaller than the pill means the last list item hides behind it.
-      expect(AzSpace.navClearanceHeight, greaterThanOrEqualTo(120));
+      // UX-CORRECTION §4: the nav pill is the thinner icon-only pill
+      // (48px tall) plus its 16px bottom gutter and breathing room — the
+      // derivation documented on the token itself. A clearance smaller
+      // than that means the last list item hides behind the pill.
+      expect(AzSpace.navClearanceHeight, greaterThanOrEqualTo(106));
     });
   });
 

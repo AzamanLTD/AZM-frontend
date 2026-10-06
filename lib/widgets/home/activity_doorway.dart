@@ -2,10 +2,11 @@
 // AZAMAN — RECENT ACTIVITY DOORWAY + SECOND RESTING STATE  (NEW-HOME §10-12)
 //
 // The resting Home renders NO transaction rows — only the Recent Activity
-// heading/doorway. The doorway is:
-//   * tappable    → the canonical activity screen (/account/activity)
-//   * gesture    → a controlled handoff into Home's SECOND resting state,
-//                  the in-Home activity surface.
+// heading/doorway. Tap and pull are ONE experience (correction A): the
+// doorway enters the SAME second resting state — the in-Home activity
+// surface — never /account/activity. The canonical account-activity route
+// stays reachable from its own surfaces (profile, etc.), but this doorway
+// has exactly one meaning.
 //
 // The handoff is physical and deliberate (§11): resistance below a
 // threshold, a commit that snaps the activity surface into focus while the
@@ -22,12 +23,15 @@
 // at-top overscroll) is the reverse handoff back to the wallet.
 // =============================================================================
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/az_elevation.dart';
+import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -38,81 +42,159 @@ import 'package:azaman/widgets/home/activity_actions.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
-/// Pure, unit-testable handoff physics. Same grammar as the card deck:
-/// resisted progress, deliberate threshold, symmetric reverse.
+/// Pure, unit-testable handoff physics — the TENSIONED SHEET (pass A1/A2).
+///
+/// The handoff must not feel like an ordinary scroll. The reveal is a
+/// two-phase curve, C1-joined at the ARMED point:
+///
+///   1. TENSION [0, armed): reveal = revealAtArm · (p/armed)³ — the sheet
+///      pushes back hard early (at 15% of the pull the page moves at
+///      roughly a tenth of the finger), gives through the middle, and
+///      CATCHES at the armed boundary with a slope drop to zero: a detent.
+///   2. ARMED PLATEAU [armed, 1]: smoothstep to the full reveal — movement
+///      is constrained (slope starts at zero), so the hold reads as "a
+///      second resting state is being selected". Further pull only eases
+///      the last fraction in; releasing at or beyond the armed point
+///      snaps deliberately.
+///
+/// No timers anywhere: the hold IS the plateau, driven purely by gesture
+/// progress. The same grammar runs in reverse (Activity → Home).
 class ActivityHandoffPhysics {
   const ActivityHandoffPhysics._();
 
-  /// Drag travel that maps to full handoff progress.
-  static const double travelPx = 170;
+  /// Drag travel that maps to full handoff progress. Deliberate: reaching
+  /// the armed point takes a clearly intentional pull (~143 logical px).
+  static const double travelPx = 230;
 
-  /// Commit fraction — deliberate, past the resisted midpoint.
-  static const double commitThreshold = 0.55;
+  /// The ARMED point — releasing at or beyond this progress commits.
+  static const double commitThreshold = 0.62;
+
+  /// Reveal fraction reached exactly at the armed boundary.
+  static const double revealAtArm = 0.58;
 
   static double progressFor(double dragPx) {
     if (dragPx <= 0) return 0;
     return (dragPx / travelPx).clamp(0.0, 1.0);
   }
 
-  /// Ease-in resistance: the page pushes back at first.
+  /// The tensioned reveal (see the class comment for the curve).
   static double revealFor(double progress) {
     final p = progressFor(progress * travelPx);
-    return p * p;
+    if (p < commitThreshold) {
+      final k = p / commitThreshold;
+      return revealAtArm * k * k * k;
+    }
+    final q = (p - commitThreshold) / (1 - commitThreshold);
+    return revealAtArm + (1 - revealAtArm) * (q * q * (3 - 2 * q));
+  }
+
+  /// How deep into the armed plateau the pull is (0 before armed, 1 at
+  /// full reveal). Drives the heading's restrained lock-in cue (pass A3).
+  static double armedFor(double progress) {
+    final p = progressFor(progress * travelPx);
+    if (p <= commitThreshold) return 0;
+    return ((p - commitThreshold) / (1 - commitThreshold)).clamp(0.0, 1.0);
+  }
+
+  /// A tiny, short wobble as the lock-in engages — a PURE function of the
+  /// armed depth (never a timer): two diminishing half-swings, ~±0.3° at
+  /// entry, decayed to ~0.1° inside the first third of the plateau. It
+  /// must read as "Activity is locking into place" — never a
+  /// notification shake, never an error, never a bounce.
+  static double wobbleFor(double armedDepth) {
+    if (armedDepth <= 0 || armedDepth >= 1) return 0;
+    final decay = (1 - armedDepth) * (1 - armedDepth);
+    return math.sin(armedDepth * math.pi * 3) * decay * 0.007;
   }
 
   static bool commits(double progress) => progress >= commitThreshold;
 }
 
-/// The resting-state heading/doorway. Tapping navigates to the canonical
-/// activity screen; the parent wires the drag handoff around it.
+/// The Activity layer's RESTING geometry (pass A5) — structural, not a
+/// per-instance Transform.translate bolt-on. The committed Activity reads
+/// as a layer pulled over Home: the reminder deck parks in the peek band
+/// at the top of the viewport, a fixed structural offset separates the
+/// peek from the heading, so the heading sits clearly lower than a
+/// conventional page's top margin, and the content follows it.
+class ActivityRestGeometry {
+  const ActivityRestGeometry._();
+
+  /// The band the reminder deck parks in above the Activity surface.
+  static const double peekBand = 96;
+
+  /// The heading's structural offset below the peek band — the fixed
+  /// breath of space that keeps "layer over Home" readable.
+  static const double headingInset = 48;
+}
+
+/// The resting-state heading/doorway. Tapping enters the SAME second
+/// resting state as the upward drag (correction A) — the parent owns the
+/// handoff. Clean and minimal: identity bar, heading, directional arrow.
+/// No instructional sentence.
 class RecentActivityDoorway extends ConsumerWidget {
-  const RecentActivityDoorway({super.key});
+  const RecentActivityDoorway({super.key, required this.onOpen});
+
+  /// Enters the in-Home activity surface — identical to the pull-up handoff.
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     return ScaleTap(
+      key: const ValueKey('recent_activity_doorway'),
       onTap: () {
         AzamanHaptics.nav();
-        context.push('/account/activity');
+        onOpen();
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-        child: Row(
-          children: [
-            Container(
-              width: 4,
-              height: 20,
-              decoration: BoxDecoration(
-                color: colors.accent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: AzSpace.sm),
-            Flexible(
-              child: Text(
-                'Recent Activity',
-                style: AzText.titleXl.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.3,
+      child: GestureDetector(
+        // PASS A4/F — the doorway is a FULL-WIDTH touch target at the
+        // fold. The heading text and arrow hug the left, but the door is
+        // the entire low band: this opaque hit layer keeps the row's
+        // empty right half tappable (a thumb lands anywhere on the
+        // band). No recognizers of its own — the ScaleTap above owns
+        // the tap.
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  // PASS E: the heading's identity marker is a restrained
+                  // detail — muted accent, never bright gold.
+                  color: colors.mutedAccent,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
               ),
-            ),
-            const SizedBox(width: AzSpace.xs),
-            Icon(
-              HugeIconsSolid.arrowDown01,
-              size: 16,
-              color: colors.textTertiary,
-            ),
-            const Spacer(),
-            Text(
-              'Pull down',
-              style: AzText.bodyS.copyWith(color: colors.textTertiary),
-            ),
-          ],
+              const SizedBox(width: AzSpace.sm),
+              Flexible(
+                child: Text(
+                  'Recent Activity',
+                  style: AzText.titleXl.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: AzSpace.xs),
+              Icon(
+                // PASS A4 — a state-driven directional contract: the RESTING
+                // Home doorway points DOWN because the content below is
+                // something the user pulls into view (the handoff is the
+                // continued downward page scroll at the end of Home). The
+                // committed Activity heading carries the UP arrow — the
+                // next downward pull there returns to Home.
+                HugeIconsSolid.arrowDown01,
+                size: 16,
+                color: colors.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -137,10 +219,24 @@ class HomeActivitySurface extends ConsumerStatefulWidget {
     /// the fetch fires exactly once, when the user actually ENTERS.
     required this.active,
 
+    /// PASS A3/A4 — the handoff reveal (0..1) driving the heading's
+    /// state-driven presentation: the arrow rotates from DOWN (hidden,
+    /// uncommitted) to UP (Activity rest) and the heading settles through
+    /// the armed cue. The parent owns the value; the heading is a pure
+    /// function of it.
+    required this.headingProgress,
+
+    /// PASS A3 — how deep into the armed plateau the CURRENT pull is
+    /// (0..1). Drives the restrained lock-in cue (slight expansion +
+    /// a tiny decaying wobble). Zero during snaps: the cue belongs to
+    /// the gesture, never the settle.
+    required this.armedCue,
+
     /// REVERSE handoff (audit §1): accumulated downward pull (logical px)
-    /// from the top of the activity surface — from the header gesture and
-    /// from the list-at-top overscroll. The parent maps it onto the
-    /// handoff animation; the surface owns the threshold decision.
+    /// from the top of the activity surface — from ANY non-scroll region
+    /// of the surface (header, empty area, skeleton) and from the list's
+    /// own at-top overscroll. The parent maps it onto the handoff
+    /// animation; the surface owns the threshold decision.
     required this.onTopPullUpdate,
 
     /// The reverse pull ended. [commits] is the surface's threshold
@@ -151,6 +247,8 @@ class HomeActivitySurface extends ConsumerStatefulWidget {
 
   final VoidCallback onClose;
   final bool active;
+  final double headingProgress;
+  final double armedCue;
   final ValueChanged<double> onTopPullUpdate;
   final void Function(bool commits) onTopPullEnd;
 
@@ -159,8 +257,20 @@ class HomeActivitySurface extends ConsumerStatefulWidget {
       _HomeActivitySurfaceState();
 }
 
-class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
+class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
+    with SingleTickerProviderStateMixin {
   bool _entered = false;
+
+  // ── ENTRANCE CHOREOGRAPHY (EXPERIENCE PASS §8) ──────────────────────────
+  // ONE controller drives the whole list: the first rows settle in first
+  // and the rest follow with a tiny stagger. No per-row animations, no
+  // timers, no endless loops — the controller runs ONCE on entry and
+  // completes. Rows built later (cursor pagination) find it already
+  // finished and render at their final state immediately.
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
 
   // Reverse-pull accumulation. Two coordinated sources feed the SAME
   // controller: a drag on the header (outside the list, never a scroll
@@ -169,10 +279,29 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   double _pullPx = 0;
   bool _pulling = false;
 
+  // PASS A6/A7 — the list's scroll position, so surface-level drags
+  // (header, empty area, anywhere that is not the list) only feed the
+  // reverse handoff when the list sits at its TOP boundary. Mid-scroll,
+  // ordinary scrolling stays untouched.
+  final ScrollController _listScroll = ScrollController();
+
+  /// The list's top-limit verdict for surface-level (non-list) pulls.
+  bool get _atListTop {
+    if (!_listScroll.hasClients) return true; // no list mounted → at top
+    return _listScroll.offset <= 0.5;
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _maybeEnter(); // first mount (when opened directly into the active state)
+  }
+
+  @override
+  void dispose() {
+    _listScroll.dispose();
+    _entrance.dispose();
+    super.dispose();
   }
 
   @override
@@ -184,6 +313,14 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   void _maybeEnter() {
     if (_entered || !widget.active) return;
     _entered = true;
+    // The entrance choreography fires with the lazy load: the surface was
+    // just entered, so the rows settle in as they arrive. Reduced motion
+    // skips straight to the final state.
+    if (!AzMotion.of(context).travel) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
     // The lazy-load boundary: the FIRST page fetch happens exactly when
     // the user ENTERS the activity state — never on resting Home. The
     // data source is the transaction history (/finance/transactions), so
@@ -208,11 +345,32 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
     widget.onTopPullUpdate(_pullPx);
   }
 
+  /// PASS A6 — a drag starting anywhere OUTSIDE the list (header, empty
+  /// area, skeleton, gaps). The ListView is the child in the gesture
+  /// arena, so it always wins drags that start on it — the parent
+  /// recognizer only fires where nothing scrollable competes, which is
+  /// exactly the anywhere-but-the-list surface. Gated on the list's top
+  /// boundary (A7): mid-scroll, the surface drag does nothing.
+  void _surfaceDragStart(DragStartDetails _) {
+    if (!_atListTop) return;
+    _pullStart();
+  }
+
+  void _surfaceDragUpdate(DragUpdateDetails d) {
+    if (!_pulling) return;
+    _pullUpdate(d.delta.dy);
+  }
+
+  void _surfaceDragEnd(DragEndDetails _) {
+    _pullEnd();
+  }
+
   void _pullEnd() {
     if (!_pulling) return;
     _pulling = false;
-    final commits =
-        ActivityHandoffPhysics.commits(ActivityHandoffPhysics.progressFor(_pullPx));
+    final commits = ActivityHandoffPhysics.commits(
+      ActivityHandoffPhysics.progressFor(_pullPx),
+    );
     _pullPx = 0;
     widget.onTopPullEnd(commits);
   }
@@ -223,11 +381,18 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   // at pixels == 0 is the one case the list cannot use — and exactly the
   // "pull down from the top" the reverse handoff wants.
   bool _onScrollNotification(ScrollNotification n) {
+    // SIGN NOTE: at the list's TOP boundary a DOWNWARD finger drag
+    // reports a NEGATIVE overscroll (the scroll position wanted to go
+    // below zero and could not). The original `> 0` gate matched only
+    // the opposite direction, so the at-top pull-down never reached
+    // the handoff — the first-row pull was dead in production. Flip the
+    // sign on the way into the same positive-pull grammar the surface
+    // drag uses.
     if (n is OverscrollNotification &&
         n.metrics.pixels <= 0 &&
-        n.overscroll > 0 &&
+        n.overscroll < 0 &&
         n.dragDetails != null) {
-      _pullUpdate(n.overscroll);
+      _pullUpdate(-n.overscroll);
       _pulling = true;
     } else if (n is ScrollEndNotification) {
       _pullEnd();
@@ -239,61 +404,36 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final history = ref.watch(transactionHistoryProvider);
-    final records = history.items;
+    // UX-CORRECTION §7: economic activity only. The source is the real
+    // transaction history (/finance/transactions), and the surface keeps
+    // only explicitly supported financial transaction types — unknown or
+    // unmapped records are excluded here rather than presented as
+    // mysterious activity. "These are things that happened to my money."
+    final records = history.items
+        .where((t) => ActivityKindNormalizer.isSupportedOnHome(t.rawType))
+        .toList(growable: false);
     final reduceMotion = !AzMotion.of(context).travel;
 
     final genuineLoading =
-        history.isLoading && records.isEmpty && history.error == null;
+        history.isLoading && history.items.isEmpty && history.error == null;
 
-    return Column(
+    final surface = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The header sits OUTSIDE the list, so a vertical drag on it can
-        // never fight list scrolling. Pulling it down collapses the
-        // activity state (the reverse handoff).
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: (_) => _pullStart(),
-          onVerticalDragUpdate: (d) => _pullUpdate(d.delta.dy),
-          onVerticalDragEnd: (_) => _pullEnd(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-            child: Row(
-              children: [
-                // The Wallet button remains as the explicit/accessibility
-                // fallback for collapsing (audit §1).
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    widget.onClose();
-                  },
-                  child: Row(
-                    children: [
-                      Icon(HugeIconsSolid.arrowLeft01,
-                          size: 18, color: colors.textPrimary),
-                      const SizedBox(width: AzSpace.xs),
-                      Text(
-                        'Wallet',
-                        style: AzText.bodyL.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'Recent Activity',
-                  style: AzText.title.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ],
-            ),
+        // PASS A5 — the heading sits STRUCTURALLY below the deck peek
+        // band (ActivityRestGeometry.headingInset), never at a page's
+        // conventional top margin: Activity is a layer pulled over Home
+        // and its heading keeps a fixed breath below the peek so the
+        // reminder-card peek stays visible above the surface.
+        Padding(
+          padding: const EdgeInsets.only(
+            top: ActivityRestGeometry.headingInset,
+          ),
+          child: _CuedHeading(
+            colors: colors,
+            progress: widget.headingProgress,
+            armed: widget.armedCue,
+            reduceMotion: reduceMotion,
           ),
         ),
         const SizedBox(height: AzSpace.lg),
@@ -304,21 +444,52 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
           const SizedBox.shrink()
         else if (genuineLoading)
           const _ActivitySkeleton()
-        else if (records.isEmpty)
+        else if (history.error != null && records.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AzSpace.xxl),
             child: Center(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                // Tap the message to retry after an error.
-                onTap: () => ref
-                    .read(transactionHistoryProvider.notifier)
-                    .refresh(),
+                // Tap the message to retry after an error. This is the
+                // error branch ONLY — the genuine empty state is calm and
+                // premium, never error-styled (correction B).
+                onTap: () =>
+                    ref.read(transactionHistoryProvider.notifier).refresh(),
                 child: Text(
-                  history.error != null
-                      ? 'Could not load activity. Tap to retry.'
-                      : 'Nothing yet — your activity will appear here.',
+                  'Could not load activity. Tap to retry.',
                   style: AzText.bodyL.copyWith(color: colors.textTertiary),
+                ),
+              ),
+            ),
+          )
+        else if (records.isEmpty)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AzSpace.xxl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Correction B — the exact semantic structure: one
+                    // bold centered line, one normal centered line.
+                    Text(
+                      'Your activity will appear here',
+                      key: const ValueKey('home-activity-empty-title'),
+                      textAlign: TextAlign.center,
+                      style: AzText.titleL.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AzSpace.sm),
+                    Text(
+                      "Click the plus button and 'Add Money' to make your first deposit to get started.",
+                      key: const ValueKey('home-activity-empty-body'),
+                      textAlign: TextAlign.center,
+                      style: AzText.body.copyWith(color: colors.textSecondary),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -329,10 +500,16 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
               onNotification: _onScrollNotification,
               child: ListView.builder(
                 key: const ValueKey('home-activity-list'),
+                controller: _listScroll,
                 physics: const AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics()),
+                  parent: ClampingScrollPhysics(),
+                ),
                 padding: const EdgeInsets.fromLTRB(
-                    AzSpace.lg, 0, AzSpace.lg, AzSpace.xxl),
+                  AzSpace.lg,
+                  0,
+                  AzSpace.lg,
+                  AzSpace.xxl,
+                ),
                 // +1 trailing slot while a next page exists: the cursor
                 // pagination (hasMore/nextCursor) continues the list
                 // beyond the first page.
@@ -347,15 +524,166 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface> {
                           .loadMore(),
                     );
                   }
-                  return _ActivityActionRow(
+                  return _StaggeredRow(
+                    controller: _entrance,
+                    index: i,
+                    child: _ActivityActionRow(
                       txn: records[i],
                       colors: colors,
-                      reduceMotion: reduceMotion);
+                      reduceMotion: reduceMotion,
+                    ),
+                  );
                 },
               ),
             ),
           ),
       ],
+    );
+
+    // PASS A6 — the ENTIRE visible Activity surface participates in the
+    // reverse handoff: a translucent vertical-drag recognizer at the
+    // surface level wins the gesture arena wherever no scrollable child
+    // competes (the heading, the empty area, the skeleton, the gaps),
+    // while the ListView — always the child in the arena — keeps
+    // ordinary scrolling completely untouched and reports its own
+    // at-top overscroll through the notification path. With the list
+    // mounted, the surface drag is gated on the list's TOP boundary
+    // (A7): mid-scroll it does nothing at all.
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragStart: _surfaceDragStart,
+      onVerticalDragUpdate: _surfaceDragUpdate,
+      onVerticalDragEnd: _surfaceDragEnd,
+      child: surface,
+    );
+  }
+}
+
+/// PASS A3/A4 — the Activity heading, a pure function of the handoff
+/// state. At rest (progress 1) the arrow points UP: the next downward
+/// pull returns to Home. The lock-in cue is restrained: a slight
+/// expansion plus a tiny decaying wobble while the pull sits inside the
+/// armed plateau — it must read as "Activity is locking into place",
+/// never a notification shake, an error flash, or a cartoon bounce.
+/// Reduced motion removes the expressive movement while preserving the
+/// same final states (the arrow still flips UP on commit).
+class _CuedHeading extends StatelessWidget {
+  const _CuedHeading({
+    required this.colors,
+    required this.progress,
+    required this.armed,
+    required this.reduceMotion,
+  });
+
+  final AzamanColors colors;
+  final double progress;
+  final double armed;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = progress.clamp(0.0, 1.0);
+    // The directional contract (A4): the arrow is the DOWN glyph at the
+    // uncommitted extreme and rotates to UP as the reveal completes —
+    // the heading "begins its transition" during the pull and locks UP
+    // on commit. Reduced motion keeps the same two resting states with
+    // the rotation itself binary.
+    final arrowRotation = reduceMotion
+        ? (t >= 0.999 ? math.pi : 0.0)
+        : math.pi * t;
+    final scale = reduceMotion ? 1.0 : 1.0 + 0.05 * armed.clamp(0.0, 1.0);
+    final wobble = reduceMotion ? 0.0 : ActivityHandoffPhysics.wobbleFor(armed);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+      child: Transform.rotate(
+        angle: wobble,
+        child: Transform.scale(
+          scale: scale,
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  // PASS E: the identity marker is a restrained detail.
+                  color: colors.mutedAccent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: AzSpace.sm),
+              Flexible(
+                child: Text(
+                  'Recent Activity',
+                  key: const ValueKey('home-activity-header-title'),
+                  style: AzText.titleXl.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: AzSpace.xs),
+              Transform.rotate(
+                angle: arrowRotation,
+                child: Icon(
+                  // Rotated by [arrowRotation]: π at Activity rest — the
+                  // state-driven UP arrow of the committed state (A4).
+                  key: const ValueKey('activity-heading-arrow'),
+                  HugeIconsSolid.arrowDown01,
+                  size: 16,
+                  color: colors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// EXPERIENCE PASS §8 — one row of the entrance choreography. [index]
+/// maps onto a small Interval of the shared controller: begin is a tiny
+/// per-row delay (capped so long lists don't wait), end completes ~250ms
+/// later. The row settles with a small upward translation + opacity lift —
+/// nothing else animates. Rows built after the controller completed (cursor
+/// pagination) render at their final state immediately.
+class _StaggeredRow extends StatelessWidget {
+  const _StaggeredRow({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final AnimationController controller;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // Stagger math: first row starts immediately; each subsequent row is
+    // 50ms later. The 0.5 cap keeps deep lists instant after the first
+    // screenful — only the visible-on-arrival rows choreograph.
+    final begin = (index * 0.055).clamp(0.0, 0.5);
+    final end = (begin + 0.25).clamp(0.0, 1.0);
+    if (begin >= 1.0 || controller.isCompleted) return child;
+
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, _) {
+        final slide = 14 * (1 - curved.value);
+        return Opacity(
+          opacity: curved.value,
+          child: Transform.translate(offset: Offset(0, slide), child: child),
+        );
+      },
     );
   }
 }
@@ -367,7 +695,11 @@ class _LoadMoreTile extends StatelessWidget {
   final bool loading;
   final VoidCallback onLoadMore;
 
-  const _LoadMoreTile({super.key, required this.loading, required this.onLoadMore});
+  const _LoadMoreTile({
+    super.key,
+    required this.loading,
+    required this.onLoadMore,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -409,53 +741,71 @@ class _ActivityActionRow extends StatelessWidget {
     // direction flag is honoured here exactly as it is by Send Again.
     final isCredit = txn.isInbound;
 
+    // UX-CORRECTION §8: a roomy two-line card, never a squeezed single
+    // row. Top: counterparty/title + date/state + amount. Bottom: the
+    // typed action as a WIDE button — full labels like 'View withdrawal'
+    // fit without truncation, so nothing meaningful hides behind ...
     return Padding(
-      padding: const EdgeInsets.only(bottom: AzSpace.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      padding: const EdgeInsets.only(bottom: AzSpace.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AzSpace.lg),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(AzRadius.md),
+          border: Border.all(color: colors.divider, width: 0.5),
+          boxShadow: AzElevation.level1(colors.isDark),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _titleFor(txn),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AzText.title.copyWith(color: colors.textPrimary),
+                      ),
+                      const SizedBox(height: AzSpace.xs),
+                      Text(
+                        '${_shortDate(txn.createdAt)}${failed ? ' · Failed' : ''}',
+                        style: AzText.bodyS.copyWith(
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AzSpace.md),
                 Text(
-                  _titleFor(txn),
+                  '${isCredit ? '+' : '-'}${AzMoney.usdc(txn.amountUsdc.abs())}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AzText.title.copyWith(color: colors.textPrimary),
-                ),
-                Text(
-                  _shortDate(txn.createdAt),
-                  style:
-                      AzText.bodyS.copyWith(color: colors.textTertiary),
+                  style: AzText.title.copyWith(
+                    color: failed
+                        ? colors.textTertiary
+                        : isCredit
+                        ? colors.success
+                        : colors.textPrimary,
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: AzSpace.md),
-          Flexible(
-            // The amount may shrink with an ellipsis on narrow screens —
-            // the typed chip never loses its label.
-            child: Text(
-              '${isCredit ? '+' : '-'}${AzMoney.usdc(txn.amountUsdc.abs())}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AzText.title.copyWith(
-                color: failed
-                    ? colors.textTertiary
-                    : isCredit
-                        ? colors.success
-                        : colors.textPrimary,
-              ),
+            const SizedBox(height: AzSpace.lg),
+            // The typed action button — rendered from structured data
+            // only, wide enough for its full label.
+            _ActivityActionButton(
+              label: action.label,
+              accent: colors.accent,
+              onTap: () => ActivityActionResolver.dispatch(context, txn),
             ),
-          ),
-          const SizedBox(width: AzSpace.md),
-          // The typed action chip — rendered from structured data only.
-          _ActionChip(
-            label: action.label,
-            accent: colors.accent,
-            onTap: () => ActivityActionResolver.dispatch(context, txn),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -485,29 +835,42 @@ class _ActivityActionRow extends StatelessWidget {
   }
 }
 
-class _ActionChip extends StatelessWidget {
+/// UX-CORRECTION §8: the activity action is a WIDE button with room for
+/// its full label ('Send again', 'View withdrawal', ...) — the old tiny
+/// pill chip is what squeezed everything onto one line and forced
+/// ellipsized labels.
+class _ActivityActionButton extends StatelessWidget {
   final String label;
   final Color accent;
   final VoidCallback onTap;
 
-  const _ActionChip({required this.label, required this.accent, required this.onTap});
+  const _ActivityActionButton({
+    required this.label,
+    required this.accent,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AzSpace.lg,
+          vertical: 10,
+        ),
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AzRadius.md),
           border: Border.all(color: accent.withValues(alpha: 0.35)),
         ),
         child: Text(
           label,
           style: AzText.bodyS.copyWith(
             color: accent,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

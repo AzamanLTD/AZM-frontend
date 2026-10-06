@@ -78,24 +78,31 @@ class HomeHeadingMessage {
 /// The brief's exact fallback feature copy. Static, honest, never
 /// data-dependent — these are the ONLY strings the heading may show when no
 /// contextual signal exists.
+// UX-CORRECTION §4 (2026-10-04): the contextual heading is a SHORT
+// one-line nudge, never a paragraph. The old feature copy ("Put money
+// aside for something you're building.") needed small fonts or an
+// ellipsis to fit the heading width on common phones — the contract is
+// short product language that fits at full heading size with no
+// truncation. Contextual messages (reminder/event) stay as they are;
+// they are already one short line.
 const List<HomeHeadingMessage> kHeadingFeatureMessages = [
   HomeHeadingMessage(
-    text: "Put money aside for something you're building.",
+    text: 'Save for a goal.',
     priority: HomeHeadingPriority.feature,
     glyph: HugeIconsSolid.piggyBank,
   ),
   HomeHeadingMessage(
-    text: 'Buy or sell directly with vendors.',
+    text: 'Send money.',
     priority: HomeHeadingPriority.feature,
-    glyph: HugeIconsSolid.creditCard,
+    glyph: HugeIconsSolid.moneySend01,
   ),
   HomeHeadingMessage(
-    text: 'Save together with your circle.',
+    text: 'Try our Susu.',
     priority: HomeHeadingPriority.feature,
     glyph: HugeIconsSolid.userGroup,
   ),
   HomeHeadingMessage(
-    text: 'Explore places and businesses on Azaman.',
+    text: 'Explore Azaman.',
     priority: HomeHeadingPriority.feature,
     glyph: HugeIconsSolid.store01,
   ),
@@ -551,7 +558,13 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
                 _machine.shownText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AzText.display.copyWith(color: azColors.textPrimary),
+                // Correction C: the Home heading sits at the existing
+                // titleXl tier (24px) — not a new arbitrary size — so the
+                // line is calmer and never ellipsizes.
+                style: AzText.titleXl.copyWith(
+                  color: azColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],

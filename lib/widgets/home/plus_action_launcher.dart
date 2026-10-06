@@ -17,6 +17,8 @@
 
 import 'dart:ui';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -33,10 +35,15 @@ class PlusLauncherAction {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// PASS E (gold hierarchy): bright gold is reserved for the primary
+  /// actions (Send / Receive). Secondary actions render a NEUTRAL chip.
+  final bool prominent;
   const PlusLauncherAction({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.prominent = false,
   });
 }
 
@@ -48,7 +55,41 @@ class PlusLauncherController extends ChangeNotifier {
   bool _isOpen = false;
   bool get isOpen => _isOpen;
 
-  void open() {
+  /// CORRECTION F: the geometry anchor that ties the action cluster to
+  /// the physical + control — measured LIVE, every frame. The trigger
+  /// tags its own physical button (the 54px Container) with
+  /// [triggerKey]; the overlay re-measures that render box on every
+  /// build tick, so the cluster tracks the plus even while the nav band
+  /// compresses or moves. The frozen open-time rect is kept only as a
+  /// fallback for hosts that mount the overlay without the trigger.
+  ///
+  /// Why measured and NOT a CompositedTransformFollower/LayerLink: the
+  /// framework requires the leader to paint BEFORE the follower, but the
+  /// trigger lives in the nav band, which paints AFTER the body stack
+  /// the overlay lives in — leader-after-follower violates the
+  /// LeaderLayer invariant (asserted every frame in debug). Measured
+  /// geometry keeps the exact same anchor contract with zero
+  /// layer-order hazards.
+  final GlobalKey triggerKey =
+      GlobalKey(debugLabel: 'plus-launcher-anchor');
+
+  Rect? _storedTriggerRect;
+
+  /// The LIVE global rect of the physical + button, or the last rect the
+  /// trigger reported, or null.
+  Rect? get triggerRect {
+    final ctx = triggerKey.currentContext;
+    if (ctx != null) {
+      final box = ctx.findRenderObject();
+      if (box is RenderBox && box.attached) {
+        return box.localToGlobal(Offset.zero) & box.size;
+      }
+    }
+    return _storedTriggerRect;
+  }
+
+  void open({Rect? fromTriggerRect}) {
+    _storedTriggerRect = fromTriggerRect ?? _storedTriggerRect;
     if (_isOpen) return;
     _isOpen = true;
     notifyListeners();
@@ -147,10 +188,18 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                 widget.controller.close();
               } else {
                 AzamanHaptics.nav();
-                widget.controller.open();
+                // §5 anchor: measure MY OWN rect in global coordinates —
+                // the overlay positions the group from this.
+                final box = context.findRenderObject();
+                Rect? rect;
+                if (box is RenderBox && box.attached) {
+                  rect = box.localToGlobal(Offset.zero) & box.size;
+                }
+                widget.controller.open(fromTriggerRect: rect);
               }
             },
             child: Container(
+              key: widget.controller.triggerKey,
               width: widget.size,
               height: widget.size,
               decoration: BoxDecoration(
@@ -292,6 +341,49 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
     widget.controller.close();
   }
 
+  /// CORRECTION G anchor geometry, measured LIVE from the physical +
+  /// button's render box (see [PlusLauncherController.triggerRect]).
+  ///
+  /// The cluster's RIGHT edge rides the PLUS's own RIGHT edge — not its
+  /// center axis — so the cluster's trailing boundary is flush with the
+  /// control it opens from, close to the plus/right side of the
+  /// viewport, exactly as it is physically positioned. Combined with the
+  /// intrinsic-width constraint below (no `stretch`, an [IntrinsicWidth]
+  /// cap instead of a bare max-width Column), the cluster can no longer
+  /// balloon out to its 300px ceiling and drift toward the opposite side
+  /// of the screen — it is only ever as wide as its longest row actually
+  /// needs. Falls back to the bottom-right corner of the screen (beside
+  /// where the + lives) if the rect is somehow unavailable.
+  double _anchorRight(BuildContext context) {
+    final local = _localTriggerRect(context);
+    if (local == null) return AzSpace.lg;
+    final box = context.findRenderObject();
+    final width = box is RenderBox && box.attached
+        ? box.size.width
+        : MediaQuery.sizeOf(context).width;
+    final plusRight = local.left + local.width;
+    return (width - plusRight).clamp(AzSpace.sm, width - AzSpace.lg);
+  }
+
+  double _anchorBottom(BuildContext context) {
+    final local = _localTriggerRect(context);
+    if (local == null) return AzSpace.navClearanceHeight + AzSpace.lg;
+    final box = context.findRenderObject();
+    final height = box is RenderBox && box.attached
+        ? box.size.height
+        : MediaQuery.sizeOf(context).height;
+    return math.max(AzSpace.sm, height - local.top + 8);
+  }
+
+  Rect? _localTriggerRect(BuildContext context) {
+    final trigger = widget.controller.triggerRect;
+    if (trigger == null) return null;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached) return null;
+    final origin = box.localToGlobal(Offset.zero);
+    return trigger.translate(-origin.dx, -origin.dy);
+  }
+
   void _pick(PlusLauncherAction action) {
     // EXACTLY one confirm per pick — the double-haptic class this codebase
     // already removed elsewhere.
@@ -303,7 +395,6 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final bottom = MediaQuery.of(context).padding.bottom;
 
     if (!widget.controller.isOpen && _open.isDismissed) {
       // Closed at rest: the overlay layer is not alive at all (the
@@ -319,6 +410,12 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
           // De-emphasis: dim + blur the content behind the launcher. The
           // scrim fades in with the launcher, so the background reads as
           // going out of focus, not as a modal box.
+          //
+          // PASS G — a MODEST blur: sigma 8 was too aggressive (the whole
+          // app read as fogged frosted glass). Sigma 5 + a slightly
+          // lighter scrim de-emphasize the background while it stays
+          // RECOGNIZABLE: subtle depth separation, not erasure. The scrim
+          // stays; the background never goes sharp.
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -328,39 +425,74 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                   CurvedAnimation(parent: _open, curve: MotionTokens.enter),
                 ),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8 * t, sigmaY: 8 * t),
+                  filter: ImageFilter.blur(sigmaX: 5 * t, sigmaY: 5 * t),
                   child: Container(
-                    color: colors.background.withValues(alpha: 0.55 * t),
+                    color: colors.background.withValues(alpha: 0.50 * t),
                   ),
                 ),
               ),
             ),
           ),
-          // The actions: appear directly on the screen as a generous
-          // vertical column rising toward the nav band — no boxed modal,
-          // staggered with MotionTokens. The column clears the nav band
-          // (pill + safe-area inset) so every row stays reachable.
-          Positioned.fill(
+          // UX-CORRECTION §5: the actions visually ORIGINATE from the +
+          // control. The group is a CompositedTransformFollower of the
+          // trigger's LayerLink — its bottom-right pins to the trigger's
+          // top-right, so the column rises from the plus itself and stays
+          // right-aligned to the plus-side of the screen. Never centered,
+          // never a full-width modal column. Width is bounded (not
+          // stretched) so the group reads as an anchored action cluster;
+          // the scrim behind still covers the whole screen.
+          // CORRECTION F (geometry fix): the trigger's physical render
+          // box is measured LIVE (controller.triggerRect) and the group
+          // is Positioned so its bottom edge rises from just above the +
+          // and its RIGHT edge is flush with the + button's RIGHT edge
+          // (_anchorRight) — the column hangs off the physical plus, on
+          // the plus side of the screen, never centered, never a
+          // full-width modal column. Width is bounded (not stretched) so
+          // the group reads as an anchored action cluster; the scrim
+          // behind still covers the whole screen.
+          //
+          // (Measured geometry, not a LayerLink follower: the trigger
+          // lives in the nav band which paints AFTER this body-stack
+          // overlay, and the framework requires the leader to paint
+          // BEFORE the follower — the link form asserted every frame in
+          // debug.)
+          Positioned(
+            right: _anchorRight(context),
+            bottom: _anchorBottom(context),
             child: IgnorePointer(
               ignoring: t < 0.5,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AzSpace.huge),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(),
-                    for (var i = 0; i < widget.actions.length; i++)
-                      _LauncherRow(
-                        action: widget.actions[i],
-                        index: i,
-                        progress: _open,
-                        reduceMotion: _reduceMotion,
-                        onPick: _pick,
-                      ),
-                    SizedBox(height: bottom + 140),
-                  ],
+              // CORRECTION G: a bounded INTRINSIC-width cluster. The
+              // ConstrainedBox only caps how wide the cluster is ALLOWED
+              // to get (so a very long label can't blow past the
+              // viewport); it is `IntrinsicWidth` that makes the Column
+              // actually size itself to its content instead of
+              // ballooning to that cap on every open. `stretch` is gone
+              // — each row keeps its own natural width and the Column
+              // right-aligns every row to a shared trailing edge, so the
+              // rows read as "[ action ]" blocks hanging off the plus,
+              // never a full-width mass centered across the screen.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: math.min(
+                    MediaQuery.sizeOf(context).width - 2 * AzSpace.lg,
+                    300.0,
+                  ),
+                ),
+                child: IntrinsicWidth(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < widget.actions.length; i++)
+                        _LauncherRow(
+                          action: widget.actions[i],
+                          index: i,
+                          progress: _open,
+                          reduceMotion: _reduceMotion,
+                          onPick: _pick,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -407,25 +539,53 @@ class _LauncherRow extends ConsumerWidget {
           onTap: () => onPick(action),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AzSpace.sm),
+            // CORRECTION G: `min` — this row claims only the width its own
+            // icon+label need. Combined with the Column's `end` cross-axis
+            // alignment, every row's RIGHT edge lands on the same shared
+            // trailing line while rows of different label length extend
+            // leftward from it by different amounts — "[ action ]" blocks
+            // hanging off the plus, not a uniform full-width bar.
+            //
+            // UX-CORRECTION §5A — text LEFT, icon RIGHT: the icon closes
+            // each row on the shared trailing edge (Send|icon, …,
+            // Withdraw|icon) so the stack reads as one right-aligned
+            // column of actions hanging directly above the plus.
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accent.withValues(alpha: 0.16),
-                    border:
-                        Border.all(color: colors.accent.withValues(alpha: 0.45)),
-                  ),
-                  child: Icon(action.icon, size: 20, color: colors.accent),
-                ),
-                const SizedBox(width: AzSpace.md),
                 Text(
                   action.label,
                   style: AzText.titleXl.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: AzSpace.md),
+                Container(
+                  key: ValueKey(
+                      'plus-launcher-chip-${action.label}'),
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // PASS E — the gold hierarchy: bright gold chips for
+                    // the primary actions only; secondary actions get
+                    // neutral gray chips so gold keeps its meaning.
+                    color: action.prominent
+                        ? colors.accent.withValues(alpha: 0.16)
+                        : colors.card.withValues(alpha: 0.8),
+                    border: Border.all(
+                      color: action.prominent
+                          ? colors.accent.withValues(alpha: 0.45)
+                          : colors.border,
+                    ),
+                  ),
+                  child: Icon(
+                    action.icon,
+                    size: 20,
+                    color: action.prominent
+                        ? colors.accent
+                        : colors.textSecondary,
                   ),
                 ),
               ],

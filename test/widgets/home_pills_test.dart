@@ -48,9 +48,14 @@ Future<void> _loadFonts() async {
   _fontsLoaded = true;
 }
 
-Future<ProviderContainer> _pumpHome(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+Future<ProviderContainer> _pumpHome(
+  WidgetTester tester, {
+  AzamanTheme theme = AzamanTheme.light,
+}) async {
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+    'azaman_theme': theme == AzamanTheme.dark ? 1 : 0,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
   final container = ProviderContainer(
@@ -67,7 +72,7 @@ Future<ProviderContainer> _pumpHome(WidgetTester tester) async {
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        theme: ThemeProvider.getThemeData(AzamanTheme.light),
+        theme: ThemeProvider.getThemeData(theme),
         home: MediaQuery(
           data: const MediaQueryData(size: _surfaceSize),
           child: const Scaffold(body: AzamanHomePage()),
@@ -129,4 +134,92 @@ void main() {
     expect(find.byType(LiveMarketSection), findsNothing);
     expect(find.textContaining("TODAY'S RATE"), findsNothing);
   });
+
+  // ── FINAL PASS §3 — light-mode depth ────────────────────────────────────
+  // The light Home rendered as one ~8-luma-unit field: the wallet pills
+  // (glass @5% + enableShadow:false) were INVISIBLE on the near-white
+  // page. Light pills must sit on the design system's CARD step
+  // (opaque c.card fill + hairline + AzElevation contact shadow);
+  // dark pills keep the glass language.
+
+  testWidgets(
+      'final pass §3 — light wallet pills sit on the CARD step '
+      '(opaque fill, hairline, contact shadow)', (tester) async {
+    await _pumpHome(tester);
+
+    final pill = find.byKey(const ValueKey('wallet-module-save'));
+    expect(pill, findsOneWidget);
+
+    final colors = ThemeProvider.getColors(AzamanTheme.light);
+
+    // The opaque card-step fill on the pill's own surface.
+    final fills = tester
+        .widgetList<DecoratedBox>(find.descendant(
+          of: pill,
+          matching: find.byType(DecoratedBox),
+        ))
+        .where((d) => d.decoration is BoxDecoration)
+        .map((d) => d.decoration as BoxDecoration)
+        .where((b) => b.color != null)
+        .toList(growable: false);
+    expect(
+      fills.any((b) => b.color!.a == 1.0 && b.color!.r == colors.card.r
+          && b.color!.g == colors.card.g && b.color!.b == colors.card.b),
+      isTrue,
+      reason: 'the light pill must paint the opaque CARD step, not a 5% '
+          'glass tint that vanishes on the #F2F3F5 page',
+    );
+
+    // A contact shadow (AzElevation) under the pill.
+    final shadowed = tester
+        .widgetList<DecoratedBox>(find.descendant(
+          of: pill,
+          matching: find.byType(DecoratedBox),
+        ))
+        .where((d) => d.decoration is BoxDecoration)
+        .map((d) => d.decoration as BoxDecoration)
+        .where((b) => b.boxShadow?.isNotEmpty ?? false)
+        .toList(growable: false);
+    expect(shadowed, isNotEmpty,
+        reason: 'enableShadow:false left the light pill with no shadow — '
+            'no separation from the page plane');
+  });
+
+  testWidgets(
+      'final pass §3 — dark wallet pills keep the glass language '
+      '(no opaque card fill)', (tester) async {
+    await _pumpHome(tester, theme: AzamanTheme.dark);
+
+    final pill = find.byKey(const ValueKey('wallet-module-p2p'));
+    expect(pill, findsOneWidget);
+
+    // Glass = BackdropFilter still in the pill's surface stack.
+    final blur = find.descendant(
+      of: pill,
+      matching: find.byType(BackdropFilter),
+    );
+    expect(blur, findsOneWidget,
+        reason: 'dark pills keep the premium glass blur; the light-mode '
+            'card-step fix must not leak into dark');
+
+    final darkColors = ThemeProvider.getColors(AzamanTheme.dark);
+    final opaqueCardFills = tester
+        .widgetList<DecoratedBox>(find.descendant(
+          of: pill,
+          matching: find.byType(DecoratedBox),
+        ))
+        .where((d) => d.decoration is BoxDecoration)
+        .map((d) => d.decoration as BoxDecoration)
+        .where((b) =>
+            b.color != null &&
+            b.color!.a == 1.0 &&
+            b.color!.r == darkColors.card.r &&
+            b.color!.g == darkColors.card.g &&
+            b.color!.b == darkColors.card.b)
+        .toList(growable: false);
+    expect(opaqueCardFills, isEmpty,
+        reason: 'dark keeps translucent glass, not an opaque card fill');
+  });
+
+
 }

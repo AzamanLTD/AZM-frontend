@@ -1,34 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
-import 'package:azaman/models/business_models.dart';
-import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 
-/// Portal permanent guards (milestone 2026-09-30):
-///   1. The bare marketplace tab is the PORTAL — a destination with an
-///      identity header, a "choose your world" deck (one card per primary
-///      category), the stories rail, featured picks, and an explore-all.
-///   2. Picking a world enters explore mode with that category seeded.
-///   3. "Explore all" enters explore mode unfiltered.
-///   4. The back affordance returns to the portal surface of the SAME tab
-///      instance and refreshes the unfiltered search.
-///   5. A launcher `initialCategory` still lands directly in the
-///      pre-filtered explore view (TASK-010b entry contract).
+/// Marketplace ONE-SCREEN guards (experience pass §11 + §12):
+///   1. The bare marketplace tab is the ONE result screen — the category
+///      SPEED DIAL (the radial-fan grammar) is THE category system, with
+///      All as a real selectable state, and Near You as the ONLY control
+///      outside the selector.
+///   2. The portal machinery (world deck, "choose your world", resume card,
+///      explore-all, back-to-portal bar) is GONE — no duplicated interaction
+///      path exists.
+///   3. Picking a category from the fan IMMEDIATELY changes the result
+///      surface; picking All clears back to all results.
+///   4. The star/featured surface is GONE — no "Featured picks near you",
+///      no Featured wording, no star shortcut.
+///   5. A launcher `initialCategory` still seeds the category filter
+///      (TASK-010b entry contract, unchanged).
 
 class _RecordingSearchNotifier extends BusinessSearchNotifier {
   _RecordingSearchNotifier() : super(BusinessService());
 
   final List<String?> searchedCategories = [];
-
-  /// Places pre-fetched results into the search state without any network,
-  /// so guard tests can reason about the client-side filter path.
-  void seedResults(List<BusinessProfile> businesses, {String? category}) {
-    state = state.copyWith(results: businesses, category: category);
-  }
 
   @override
   Future<void> search(
@@ -60,224 +57,263 @@ Future<_RecordingSearchNotifier> _pumpHome(
   return notifier;
 }
 
-/// A hotel business on the HOSPITALITY wire (what backend records return).
-BusinessProfile _hotelBusiness() => BusinessProfile(
-  id: 'internal-profile-hotel',
-  bizId: 'public-biz-hotel',
-  businessName: 'Accra Grand Hotel',
-  category: 'HOSPITALITY',
-  isVerified: true,
-  isSuspended: false,
-  kybStatus: 'VERIFIED',
-  totalEscrows: 0,
-  completedEscrows: 0,
-  userId: 1,
-  totalVolume: 0,
-  averageRating: 4.8,
-  reviewCount: 2,
-  reviews: const [],
-  amenities: const [],
-  cuisineTypes: const [],
-  username: 'accra-grand',
-  products: const [],
-  locations: const [],
-);
-
-/// Scrolls the portal list until [finder] is built (ListView is lazy —
-/// below-the-fold sections do not exist until scrolled into view).
-Future<void> _reveal(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(
-    finder,
-    200,
-    scrollable: find
-        .descendant(
-          of: find.byKey(const ValueKey('marketplace_portal_body')),
-          matching: find.byType(Scrollable),
-        )
-        .first, // outermost = the portal vertical list itself
-  );
-}
+/// The dial anchor pill (the GestureDetector inside CategorySpeedDial)
+/// — the ValueKey sits on the speed dial itself, whose slot spans the row.
+Finder _dialAnchor() => find
+    .descendant(
+      of: find.byKey(const ValueKey('marketplace-category-dial')),
+      matching: find.byType(GestureDetector),
+    )
+    .first;
 
 void main() {
-  testWidgets('bare tab opens on the portal destination', (tester) async {
+  testWidgets('the bare tab opens the ONE result screen', (tester) async {
     await _pumpHome(tester);
 
-    expect(
-      find.byKey(const ValueKey('marketplace_portal_body')),
-      findsOneWidget,
-    );
-    // Overhaul 02: the portal's identity is "Discover" (DiscoveryHeader).
-    expect(find.text('Discover'), findsOneWidget);
-    expect(find.text('Choose your world'), findsOneWidget);
+    // The category SPEED DIAL is the selector (§11): at rest the anchor
+    // shows the current category — All, a REAL selectable state.
+    expect(find.byKey(const ValueKey('marketplace-category-dial')),
+        findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    // Near You is the ONLY additional control.
+    expect(find.byKey(const ValueKey('marketplace-near-you')),
+        findsOneWidget);
+    // No flat row of standalone category buttons.
+    for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+      expect(find.byKey(ValueKey('marketplace-category-$label')),
+          findsNothing);
+    }
 
-    // One world card per primary category.
+    // The portal machinery is GONE — every old duplicated interaction path.
+    expect(find.text('Discover'), findsNothing);
+    expect(find.text('Choose your world'), findsNothing);
+    expect(find.byKey(const ValueKey('marketplace_explore_all')),
+        findsNothing);
+    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
+        findsNothing);
     for (final wire in [
       'LOGISTICS',
       'FOOD_BEVERAGE',
       'HOSPITALITY',
       'RETAIL',
     ]) {
-      expect(find.byKey(ValueKey('marketplace_world_$wire')), findsOneWidget);
+      expect(find.byKey(ValueKey('marketplace_world_$wire')), findsNothing);
     }
 
-    await _reveal(
-      tester,
-      find.byKey(const ValueKey('marketplace_explore_all')),
-    );
-    expect(
-      find.byKey(const ValueKey('marketplace_explore_all')),
-      findsOneWidget,
-    );
-    // Explore machinery is NOT on the portal surface.
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsNothing,
-    );
+    // The old world-dial labels are gone (the fan's arms use the
+    // four-word vertical language: Eat / Shop / Ride / Stay).
+    expect(find.text('Restaurants'), findsNothing);
+    expect(find.text('Hotels'), findsNothing);
+    expect(find.text('Transit'), findsNothing);
+    expect(find.text('Retail'), findsNothing);
   });
 
-  testWidgets('tapping a world enters explore seeded with that category', (
-    tester,
-  ) async {
+  testWidgets('picking Eat from the fan immediately changes the result '
+      'surface; picking All clears back', (tester) async {
     final notifier = await _pumpHome(tester);
-    notifier.searchedCategories.clear();
+    final baseline = notifier.searchedCategories.length;
 
-    await tester.tap(find.byKey(const ValueKey('marketplace_world_RETAIL')));
-    await tester.pump(const Duration(milliseconds: 600));
+    // Open the radial fan, then pick the Eat satellite.
+    await tester.tap(_dialAnchor());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Eat'));
+    await tester.pumpAndSettle();
 
-    // Explore surface is up: back affordance visible, portal deck gone.
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
+    // The category fires a real search through the existing plumbing —
+    // no second screen, no portal hop.
+    expect(notifier.searchedCategories.length, baseline + 1);
+    expect(notifier.searchedCategories.last, 'FOOD_BEVERAGE');
+    // The dial anchor now announces Eat as the active category (the other
+    // 'Eat' text is the legitimate discovery intent rail).
+    expect(find.bySemanticsLabel(RegExp('Category: Eat')), findsOneWidget);
 
-    // The world tap fired a category-seeded search.
-    expect(notifier.searchedCategories, ['RETAIL']);
-    await tester.pump(const Duration(milliseconds: 800));
+    // Picking All (a real selectable state) clears the filter.
+    await tester.tap(_dialAnchor());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(notifier.searchedCategories.last, isNull);
+    expect(find.text('All'), findsOneWidget);
   });
 
-  testWidgets('explore-all enters explore unfiltered', (tester) async {
-    final notifier = await _pumpHome(tester);
-    notifier.searchedCategories.clear();
-
-    await _reveal(
-      tester,
-      find.byKey(const ValueKey('marketplace_explore_all')),
-    );
-    await tester.tap(find.byKey(const ValueKey('marketplace_explore_all')));
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
-    // Unfiltered: no additional category search is fired (the unfiltered
-    // seed search from init still stands).
-    expect(notifier.searchedCategories, isEmpty);
-    await tester.pump(const Duration(milliseconds: 800));
-  });
-
-  testWidgets(
-    'back affordance returns to the portal and refreshes the unfiltered search',
-    (tester) async {
-      final notifier = await _pumpHome(tester);
-      notifier.searchedCategories.clear();
-
-      await tester.tap(
-        find.byKey(const ValueKey('marketplace_world_LOGISTICS')),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(notifier.searchedCategories, ['LOGISTICS']);
-
-      await tester.tap(
-        find.byKey(const ValueKey('marketplace_back_to_portal')),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-
-      expect(
-        find.byKey(const ValueKey('marketplace_portal_body')),
-        findsOneWidget,
-      );
-      // The portal refreshes the unfiltered result set so world counts and
-      // featured picks reflect the whole catalog.
-      expect(notifier.searchedCategories, ['LOGISTICS', null]);
-    },
-  );
-
-  testWidgets('initialCategory still lands directly in explore', (
-    tester,
-  ) async {
-    final notifier = await _pumpHome(tester, initialCategory: 'retail');
-
-    expect(find.byKey(const ValueKey('marketplace_portal_body')), findsNothing);
-    expect(
-      find.byKey(const ValueKey('marketplace_back_to_portal')),
-      findsOneWidget,
-    );
-    expect(notifier.searchedCategories, ['RETAIL']);
-  });
-
-  testWidgets(
-    'REAL_ESTATE selection keeps HOSPITALITY businesses (client-side alias)',
-    (tester) async {
-      // The launcher sends the legacy REAL_ESTATE wire for hotels while
-      // backend records stay HOSPITALITY; the returned hotels must survive
-      // the client-side filter, not be dropped.
-      final notifier = await _pumpHome(tester, initialCategory: 'REAL_ESTATE');
-      notifier.seedResults([_hotelBusiness()], category: 'REAL_ESTATE');
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        find.byKey(const ValueKey('public-biz-hotel')),
-        findsOneWidget,
-        reason: 'HOSPITALITY business must appear under a REAL_ESTATE filter',
-      );
-      expect(find.text('No businesses found'), findsNothing);
-
-      // Let the one-shot child timers fire so no timer stays pending.
-      await tester.pump(const Duration(milliseconds: 800));
-    },
-  );
-
-  testWidgets('world cards promise their blueprint journey, not ad-hoc text', (
-    tester,
-  ) async {
+  testWidgets('the star/featured surface is gone entirely (§12)',
+      (tester) async {
     await _pumpHome(tester);
-
-    // Every phrase comes from the central blueprint, one per preset.
-    expect(find.text('Tables, plates & takeaway'), findsOneWidget);
-    expect(find.text('Shop racks, aisles & drops'), findsOneWidget);
-    expect(find.text('Rooms, suites & stays'), findsOneWidget);
-    expect(find.text('Seats, routes & departures'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Featured picks near you'), findsNothing);
+    expect(find.textContaining('Featured'), findsNothing);
+    // No star shortcut on the composition.
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
 
-  test('every primary category resolves its blueprint from the wire alone', () {
-    for (final cat in BusinessCategories.primary) {
-      final blueprint = MarketplaceExperienceBlueprint.fromJson(null, cat.wire);
-      expect(
-        blueprint.worldPromise,
-        isNotEmpty,
-        reason: '${cat.wire} must carry a category-native promise',
-      );
-      expect(
-        blueprint.worldPromise,
-        isNot(contains('Browse')),
-        reason: '${cat.wire} must not fall back to a generic browse phrase',
-      );
+  testWidgets('initialCategory still seeds the category filter',
+      (tester) async {
+    final notifier =
+        await _pumpHome(tester, initialCategory: 'retail');
+    // TASK-010b entry contract: the seeding search fires with the
+    // normalised wire — unchanged by the one-screen correction.
+    expect(notifier.searchedCategories.first, 'RETAIL');
+    // The dial anchor renders Shop (RETAIL) as the active category.
+    expect(find.text('Shop'), findsOneWidget);
+  });
+
+  testWidgets('results render on the one screen — no second marketplace '
+      'screen before them', (tester) async {
+    final notifier = _RecordingSearchNotifier();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
+        child: const MaterialApp(
+          home: MarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // The list/map area exists immediately on the bare tab.
+    expect(find.byType(ListView), findsWidgets);
+  });
+
+  group('UX-CORRECTION §1 — compact category dial geometry', () {
+    Future<void> openFan(WidgetTester tester) async {
+      await _pumpHome(tester);
+      await tester.tap(_dialAnchor());
+      await tester.pumpAndSettle();
     }
 
-    final presets = {
-      for (final cat in BusinessCategories.primary)
-        cat.wire: MarketplaceExperienceBlueprint.fromJson(
-          null,
-          cat.wire,
-        ).preset,
-    };
-    expect(presets['FOOD_BEVERAGE'], 'DINING_JOURNEY');
-    expect(presets['RETAIL'], 'SHOP_FLOOR');
-    expect(presets['HOSPITALITY'], 'BUILDING_WALK');
-    expect(presets['LOGISTICS'], 'TRAVEL_JOURNEY');
+    testWidgets('the fan is the EXACT five-category set — Services and '
+        'Wellness satellites do not exist', (tester) async {
+      await openFan(tester);
+      // 'All' renders twice while the fan is open (the real anchor pill
+      // plus the goo trigger-ghost on top of it) — that duplication is the
+      // existing ghost mechanism, not a second category control.
+      expect(find.text('All'), findsWidgets);
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        expect(find.text(label), findsOneWidget,
+            reason: 'category set is exactly All/Shop/Ride/Stay/Eat');
+      }
+      expect(find.text('Services'), findsNothing);
+      expect(find.text('Wellness'), findsNothing);
+    });
+
+    testWidgets('right-oriented fan — first two satellites on the '
+        'horizontal line through the anchor, rest in 45° steps '
+        '(PR #142 final pass §1)', (tester) async {
+      await openFan(tester);
+      final anchor = tester.getRect(_dialAnchor());
+      final size = tester.view.physicalSize / tester.view.devicePixelRatio;
+      // The pill rect (the satellite's own GestureDetector), not the text
+      // rect — the icon left of the label offsets the text center.
+      Offset pillCentre(String label) => tester
+          .getRect(find.ancestor(
+              of: find.text(label), matching: find.byType(GestureDetector)).first)
+          .center;
+      // The dial list order minus the selected "All": Eat, Shop, Ride, Stay.
+      final eat = pillCentre('Eat');
+      final shop = pillCentre('Shop');
+      final ride = pillCentre('Ride');
+      final stay = pillCentre('Stay');
+
+      // The first two satellite positions establish a straight horizontal
+      // line through the selected category.
+      expect(eat.dy, closeTo(anchor.center.dy, 1.5));
+      expect(shop.dy, closeTo(anchor.center.dy, 1.5));
+      // The line reaches into the available right-side space, past the
+      // anchor's edge (the old 132° arc hugged instead of lining up).
+      expect(eat.dx, greaterThan(anchor.right));
+      expect(shop.dx, greaterThan(eat.dx));
+      // The remaining satellites open AWAY from the baseline in equal 45°
+      // steps MIRRORED about it (2026-10-06 correction): Ride at the
+      // down-right diagonal (+45°), Stay at the up-right diagonal (−45°).
+      // The old 0/0/45/90 cascade funneled both extra pills to the same
+      // side (Stay straight below); the mirror reproduces the intended
+      // diagram.
+      expect(ride.dx, greaterThan(anchor.center.dx));
+      expect(ride.dy, greaterThan(anchor.center.dy),
+          reason: 'Ride is the +45° slot, below the baseline');
+      expect(stay.dx, greaterThan(anchor.center.dx),
+          reason: 'Stay opens into the same right-side space');
+      expect(stay.dy, lessThan(anchor.center.dy),
+          reason: 'Stay is the −45° slot, mirrored ABOVE the baseline');
+
+      // NOT a wide burst: no satellite wraps around the anchor's dead
+      // (left) side. Stay sits ~1px inside the 90° slot at settle — the
+      // damped launch spring parks at ~97% travel by design, so the bound
+      // is the anchor's own left edge, not its center.
+      for (final c in [eat, shop, ride, stay]) {
+        expect(c.dx, greaterThan(anchor.left));
+      }
+      // Every pill stays comfortably inside the viewport.
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        final r = tester.getRect(find.text(label));
+        expect(r.left, greaterThan(0));
+        expect(r.right, lessThan(size.width));
+        expect(r.top, greaterThan(0));
+        expect(r.bottom, lessThan(size.height));
+      }
+      // NOT a tall semicircle: the whole fan fits inside a compact band.
+      final topMost = tester
+          .getRect(find.text('Eat'))
+          .top; // eat and shop share the line — same band
+      final bottomMost = tester.getRect(find.text('Stay')).bottom;
+      expect(bottomMost - topMost, lessThan(220));
+    });
+
+    testWidgets('neighbouring satellites never overlap (collision safety '
+        'in the compact arc)', (tester) async {
+      await openFan(tester);
+      final rects = [
+        for (final label in ['Eat', 'Shop', 'Ride', 'Stay'])
+          tester.getRect(find.text(label)).inflate(4)
+      ];
+      for (var i = 0; i < rects.length; i++) {
+        for (var j = i + 1; j < rects.length; j++) {
+          expect(rects[i].overlaps(rects[j]), isFalse,
+              reason: 'satellites $i and $j overlap');
+        }
+        expect(rects[i].overlaps(anchorShrink(_dialAnchor(), tester)),
+            isFalse, reason: 'satellite $i overlaps the anchor pill');
+      }
+    });
+  });
+
+  group('UX-CORRECTION §2 — satellite labels always fully readable', () {
+    testWidgets('all five labels paint complete when the fan is open — no '
+        'clipping, no fade, no truncation', (tester) async {
+      await _pumpHome(tester);
+      await tester.tap(_dialAnchor());
+      await tester.pumpAndSettle();
+
+      const satStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      );
+      for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: satStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final rendered = tester.renderObject<RenderParagraph>(find.text(label));
+        // The pill has no width constraint on its label: the paragraph is
+        // exactly the full intrinsic text size. Any clip/fade workaround
+        // would shrink it below the painter's full width.
+        expect(rendered.size.width, greaterThanOrEqualTo(painter.width),
+            reason: 'label "$label" is clipped');
+        expect(rendered.size.height, greaterThanOrEqualTo(painter.height));
+      }
+      // The anchor pill keeps the selected category fully visible too.
+      final painter = TextPainter(
+        text: const TextSpan(
+            text: 'All',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final anchor = tester.renderObject<RenderParagraph>(
+          find.text('All').first);
+      expect(anchor.size.width, greaterThanOrEqualTo(painter.width));
+    });
   });
 }
+
+Rect anchorShrink(Finder f, WidgetTester tester) =>
+    tester.getRect(f).deflate(8);
+

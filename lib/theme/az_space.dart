@@ -85,7 +85,8 @@ abstract final class AzSpace {
 
   /// Bottom padding that clears the floating nav pill.
   ///
-  /// Derivation: pill height (62) + its bottom gutter (16) + ~42px of breathing
+  /// Derivation: pill height (48, UX-CORRECTION §4 thinner icon-only pill)
+  /// + its bottom gutter (16) + ~42px of breathing
   /// room so the last card in a list is not visually crowded by the pill.
   ///
   /// **120 is not arbitrary â€” it is the value Home already uses**
@@ -93,7 +94,7 @@ abstract final class AzSpace {
   /// a token so that if the pill's height ever changes, exactly one number
   /// changes. Do NOT lower this to a "tidier" number: content would slide under
   /// the pill and the bug would be invisible in review until a user hit it.
-  static const double navClearanceHeight = 120;
+  static const double navClearanceHeight = 106;
 
   /// Ready-to-use inset form of [navClearanceHeight].
   static const EdgeInsets navClearance =

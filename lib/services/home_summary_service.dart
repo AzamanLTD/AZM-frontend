@@ -23,6 +23,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/oracle_rates_client.dart';
 
 // ── Sub-models ──────────────────────────────────────────────────────────────
 
@@ -287,7 +288,9 @@ class HomeSummaryService {
 
   Future<_Section> _fetchRates() async {
     try {
-      final res = await apiClient.get('/oracle/rates', requireAuth: false);
+      // §9 startup audit: shares the single-flight request with the oracle
+      // poller instead of issuing a duplicate GET to the same endpoint.
+      final res = await getOracleRates();
       final raw = jsonDecode(res.body);
       if (raw is! Map<String, dynamic> || raw['success'] != true) {
         return const _Section(error: 'Rates unavailable.');

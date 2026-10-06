@@ -10,11 +10,38 @@ class CategoryDialItem {
   final String? wire;
   final IconData icon;
   final String label;
+
+  /// PR #142 FINAL PASS §2 — the category's own accent. Satellite pills
+  /// paint SOLID in this color over the neutral gray goo so the buttons
+  /// clearly stand out above the backdrop. `null` (the neutral "All")
+  /// keeps the quiet theme-card pill.
+  final Color? accent;
   const CategoryDialItem({
     required this.wire,
     required this.icon,
     required this.label,
+    this.accent,
   });
+}
+
+/// PR #142 FINAL PASS §2 — the dial blob is DELIBERATELY a neutral gray,
+/// independent of the theme surface. A fixed slate reads as its own
+/// material in BOTH modes: distinct from #F2F3F5 light canvas and from
+/// the true-black dark canvas, so the expanding fan is immediately
+/// obvious in either theme.
+const Color kDialGooBody = Color(0xFF6B7280);
+const Color kDialGooRim = Color(0xFF878E9B);
+
+/// PR #142 VISUAL PASS (2026-10-06) — the selected anchor keeps its own
+/// category identity. A real category (Shop/Ride/Stay/Eat) paints SOLID in
+/// its accent — as anchor AND as satellite — with a measured readable
+/// foreground; only the neutral "All" keeps the quiet theme-card pill.
+/// Never gray a selected category back into the theme card.
+Color dialInk(Color? accent, AzamanColors colors) {
+  if (accent == null) return colors.textPrimary;
+  return accent.computeLuminance() > 0.4
+      ? const Color(0xFF1A1F2B)
+      : Colors.white;
 }
 
 const double _pillHeight = kLiquidMinTapTarget; // 44, was 38
@@ -62,76 +89,192 @@ Size measureSatellitePill(
   return Size(_satPillHPad * 2 + _satIconSize + 8 + tp.width, _satPillHeight);
 }
 
-/// Fans satellites in a symmetric arc close around the anchor (left-down
-/// through straight-down to right-down, or mirrored upward if there's more
-/// room above than below) instead of cascading down one diagonal — keeps
-/// every satellite "close but around" the main pill, matching the reference
-/// sketch, rather than stacking in a lopsided quarter-circle.
-/// Fans satellites in a single even semicircle that opens strictly to the
-/// right of the anchor — from straight-down, through horizontal, to
-/// straight-up. Every angle in this range has cos >= 0, so nothing can ever
-/// land left of the anchor. One shared radius is solved so it's
-/// simultaneously (a) far enough that no satellite overlaps the anchor
-/// pill, and (b) far enough that no two adjacent satellites overlap each
-/// other, given their real measured sizes.
+/// Two geometries:
+///
+/// - DEFAULT (burst): one shared radius, semicircle opening to the right of
+///   the anchor. Used by the plus launcher, where satellites fly far out on
+///   purpose. Overlap is structurally impossible (worst-case radius).
+/// - RIGHT-FAN (PR #142 FINAL PASS §1): the compact side-oriented grammar
+///   the marketplace category dial is specified to use. The anchor sits
+///   toward the left of the phone, so the fan must NOT be a centered
+///   symmetric fan, a wide semicircle, a diagonal cascade or a grid: the
+///   FIRST TWO satellites establish a straight horizontal line through the
+///   selected category, reaching into the wider side of the screen; the
+///   remaining satellites step from that baseline in 45° increments
+///   (45°, 90°, …), opening toward whichever vertical side has room. The
+///   side and radii are solved from the actual anchor and safe-area box —
+///   nothing is hard-coded to one device.
 List<ArcSlot> solveRadialFan({
   required Rect anchor,
   required List<Size> sizes,
   required LiquidSafeArea safe,
   double gap = 10,
   double sweepDeg = 176,
+  bool rightFan = false,
 }) {
   final n = sizes.length;
   if (n == 0) return const [];
-
-  final startDeg = -sweepDeg / 2;
-  final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
-  final stepRad = stepDeg * math.pi / 180;
-  double angleAt(int i) =>
-      n == 1 ? 0.0 : (startDeg + stepDeg * i) * math.pi / 180;
 
   final halfDiags = sizes
       .map((s) => math.sqrt(s.width * s.width + s.height * s.height) / 2)
       .toList();
 
-  double anchorClearance(int i, double rad) {
-    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
-    return (anchor.width / 2 + pw) * math.cos(rad).abs() +
-        (anchor.height / 2 + ph) * math.sin(rad).abs() +
-        gap;
+  if (!rightFan) {
+    final startDeg = -sweepDeg / 2;
+    final stepDeg = n > 1 ? sweepDeg / (n - 1) : 0.0;
+    final stepRad = stepDeg * math.pi / 180;
+    double angleAt(int i) =>
+        n == 1 ? 0.0 : (startDeg + stepDeg * i) * math.pi / 180;
+
+    double anchorClearance(int i, double rad) {
+      final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+      return (anchor.width / 2 + pw) * math.cos(rad).abs() +
+          (anchor.height / 2 + ph) * math.sin(rad).abs() +
+          gap;
+    }
+
+    // One shared radius for every satellite. Growing it to cover the worst
+    // case anchor-clearance AND the worst case neighbour-to-neighbour chord
+    // is what makes overlap structurally impossible instead of hoping the
+    // angles happen to work out.
+    var r = 0.0;
+    for (var i = 0; i < n; i++) {
+      r = math.max(r, anchorClearance(i, angleAt(i)));
+    }
+    if (n > 1) {
+      for (var i = 0; i < n - 1; i++) {
+        final chord = halfDiags[i] + halfDiags[i + 1] + gap;
+        r = math.max(r, chord / (2 * math.sin(stepRad / 2)));
+      }
+    }
+
+    final slots = <ArcSlot>[];
+    for (var i = 0; i < n; i++) {
+      final rad = angleAt(i);
+      var rect = Rect.fromCenter(
+        center: anchor.center.translate(math.cos(rad) * r, -math.sin(rad) * r),
+        width: sizes[i].width,
+        height: sizes[i].height,
+      );
+      if (rect.left < safe.left) {
+        rect = rect.shift(Offset(safe.left - rect.left, 0));
+      }
+      if (rect.right > safe.right) {
+        rect = rect.shift(Offset(safe.right - rect.right, 0));
+      }
+      if (rect.top < safe.top) {
+        rect = rect.shift(Offset(0, safe.top - rect.top));
+      }
+      if (rect.bottom > safe.bottom) {
+        rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+      }
+      slots.add(ArcSlot(index: i, rect: rect, angle: rad));
+    }
+    return slots;
   }
 
-  // One shared radius for every satellite. Growing it to cover the worst
-  // case anchor-clearance AND the worst case neighbour-to-neighbour chord
-  // is what makes overlap structurally impossible instead of hoping the
-  // angles happen to work out.
-  var r = 0.0;
-  for (var i = 0; i < n; i++) {
-    r = math.max(r, anchorClearance(i, angleAt(i)));
+  // ---- RIGHT-FAN (PR #142 FINAL PASS §1) ----
+  // The fan opens toward the side of the anchor with more horizontal room
+  // (the phone dial anchors left, so it opens right) and toward whichever
+  // vertical side has room (the control row sits high, so it opens down).
+  final spaceRight = safe.right - anchor.right;
+  final spaceLeft = anchor.left - safe.left;
+  final xSign = spaceLeft > spaceRight ? -1.0 : 1.0;
+  final spaceUp = anchor.top - safe.top;
+  final spaceDown = safe.bottom - anchor.bottom;
+  final vSign = spaceUp > spaceDown && spaceUp > 160 ? -1.0 : 1.0;
+
+  // Angular grammar (2026-10-06 correction): the first two satellites sit
+  // at 0° — a straight horizontal line through the selected category
+  // reaching into the available side space; the remaining positions open
+  // AWAY from that baseline in equal 45° angular steps, mirrored above and
+  // below the line (+45°, −45°, then +90°, −90°, …). The earlier 0/0/45/90
+  // cascade funneled every extra satellite to the SAME side, which is the
+  // structure the spec explicitly rejects; the mirrored steps reproduce the
+  // intended diagram — two on the baseline, one up-diagonal, one
+  // down-diagonal. Angles are measured from the outward horizontal, screen
+  // y-down, so a positive angle is on the vSign side and its mirror sits
+  // opposite.
+  double angleAt(int i) {
+    if (i < 2) return 0.0;
+    final k = i - 2; // 0,1,2,3… → +45,−45,+90,−90…
+    final magDeg = (k ~/ 2 + 1) * 45.0;
+    final sign = k % 2 == 0 ? 1.0 : -1.0;
+    return sign * magDeg * math.pi / 180;
   }
-  if (n > 1) {
+
+  final angles = [for (var i = 0; i < n; i++) angleAt(i)];
+
+  // Per-satellite radius: just past its own anchor clearance — the fan
+  // stays tight; only real shortfalls grow it.
+  final radii = List<double>.filled(n, 0.0);
+  for (var i = 0; i < n; i++) {
+    final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
+    radii[i] = (anchor.width / 2 + pw) * math.cos(angles[i]).abs() +
+        (anchor.height / 2 + ph) * math.sin(angles[i]).abs() +
+        gap + 6;
+  }
+
+  Offset centreAt(int i) => anchor.center.translate(
+      math.cos(angles[i]) * xSign * radii[i],
+      math.sin(angles[i]) * vSign * radii[i]);
+
+  // Separation need per pair: two satellites on the SAME ray are vertically
+  // aligned, so pill WIDTHS are the real bound (the conservative
+  // half-diagonal bound would shove the far pill offscreen for no reason);
+  // different rays keep the diagonal bound. A FULL pairwise pass (not just
+  // adjacent slots) because the 45° steps can bring non-adjacent slots
+  // near each other. Converges: every grow strictly increases pair
+  // distances.
+  double needed(int i, int j) => angles[i] == angles[j]
+      ? (sizes[i].width + sizes[j].width) / 2 + gap
+      : halfDiags[i] + halfDiags[j] + gap;
+
+  for (var pass = 0; pass < 16; pass++) {
+    var touched = false;
     for (var i = 0; i < n - 1; i++) {
-      final chord = halfDiags[i] + halfDiags[i + 1] + gap;
-      r = math.max(r, chord / (2 * math.sin(stepRad / 2)));
+      for (var j = i + 1; j < n; j++) {
+        final d = (centreAt(i) - centreAt(j)).distance;
+        final need = needed(i, j);
+        if (d < need) {
+          if (angles[i] == angles[j]) {
+            // Same-ray pair: grow only the FARTHER pill — the line's near
+            // pill stays tight at its anchor clearance instead of both
+            // sliding outward.
+            final far = radii[i] <= radii[j] ? j : i;
+            radii[far] += (need - d) + 1;
+          } else {
+            final grow = (need - d) / 2 + 1;
+            radii[i] += grow;
+            radii[j] += grow;
+          }
+          touched = true;
+        }
+      }
     }
+    if (!touched) break;
   }
 
   final slots = <ArcSlot>[];
   for (var i = 0; i < n; i++) {
-    final rad = angleAt(i);
     var rect = Rect.fromCenter(
-      center: anchor.center.translate(math.cos(rad) * r, -math.sin(rad) * r),
+      center: centreAt(i),
       width: sizes[i].width,
       height: sizes[i].height,
     );
-    if (rect.left < safe.left)
+    if (rect.left < safe.left) {
       rect = rect.shift(Offset(safe.left - rect.left, 0));
-    if (rect.right > safe.right)
+    }
+    if (rect.right > safe.right) {
       rect = rect.shift(Offset(safe.right - rect.right, 0));
-    if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-    if (rect.bottom > safe.bottom)
+    }
+    if (rect.top < safe.top) {
+      rect = rect.shift(Offset(0, safe.top - rect.top));
+    }
+    if (rect.bottom > safe.bottom) {
       rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
-    slots.add(ArcSlot(index: i, rect: rect, angle: rad));
+    }
+    slots.add(ArcSlot(index: i, rect: rect, angle: angles[i]));
   }
   return slots;
 }
@@ -217,6 +360,10 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
           measureSatellitePill(s.label, _satLabelStyle, media.textScaler, dir),
       ],
       safe: LiquidSafeArea(screen: media.size, padding: media.padding),
+      // PR #142 FINAL PASS §1 — compact right-oriented fan: two satellites
+      // on the horizontal line through the anchor, then 45° steps. NOT the
+      // old broad 132° close-arc and not the launcher's wide burst fan.
+      rightFan: true,
     );
 
     AzamanHaptics.toggle();
@@ -295,9 +442,25 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                     height: _pillHeight,
                     padding: const EdgeInsets.symmetric(horizontal: _pillHPad),
                     decoration: BoxDecoration(
-                      color: c.card,
+                      // PR #142 VISUAL PASS — the anchor PRESERVES the
+                      // selected category's own colour identity: a real
+                      // category paints SOLID in its accent (never the
+                      // generic theme card), with the measured readable
+                      // ink; only "All" stays the neutral theme-card pill.
+                      color: _current.accent ?? c.card,
                       borderRadius: BorderRadius.circular(_pillRadius),
-                      border: Border.all(color: c.divider),
+                      border: _current.accent == null
+                          ? Border.all(color: c.divider)
+                          : null,
+                      boxShadow: _current.accent == null
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.14),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -305,17 +468,25 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                         Icon(
                           _current.icon,
                           size: _iconSize,
-                          color: c.textPrimary,
+                          // The label style NEVER changes across selections
+                          // (typography invariance) — only the state colour
+                          // of the pill and the ink on it do.
+                          color: dialInk(_current.accent, c),
                         ),
                         const SizedBox(width: 8),
-                        Text(_current.label, style: _labelStyle),
+                        Text(_current.label, style: _labelStyle.copyWith(
+                          color: dialInk(_current.accent, c),
+                        )),
                         const SizedBox(width: 4),
                         Transform.rotate(
                           angle: _c.value * 3.14159,
                           child: Icon(
                             Icons.keyboard_arrow_down_rounded,
                             size: 18,
-                            color: c.textSecondary,
+                            color: _current.accent == null
+                                ? c.textSecondary
+                                : dialInk(_current.accent, c)
+                                    .withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -428,8 +599,12 @@ class _DialOverlay extends StatelessWidget {
                         origin: bounds.topLeft,
                         anchor: anchor,
                         slots: slots,
-                        body: colors.card,
-                        rim: colors.divider,
+                        // PR #142 FINAL PASS §2 — the blob is a NEUTRAL
+                        // GRAY, deliberately NOT the theme surface, so the
+                        // expansion stays visibly distinct from the
+                        // surrounding screen in BOTH light and dark mode.
+                        body: kDialGooBody,
+                        rim: kDialGooRim,
                       ),
                     ),
                   ),
@@ -464,9 +639,23 @@ class _DialOverlay extends StatelessWidget {
                 height: pillHeight,
                 padding: EdgeInsets.symmetric(horizontal: pillHPad),
                 decoration: BoxDecoration(
-                  color: colors.card,
+                  // Same identity grammar as the closed anchor: the ghost
+                  // that stays on top of the goo keeps the selected
+                  // category's own accent, never grays it.
+                  color: currentItem.accent ?? colors.card,
                   borderRadius: BorderRadius.circular(pillRadius),
-                  border: Border.all(color: colors.divider),
+                  border: currentItem.accent == null
+                      ? Border.all(color: colors.divider)
+                      : null,
+                  boxShadow: currentItem.accent == null
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -474,17 +663,22 @@ class _DialOverlay extends StatelessWidget {
                     Icon(
                       currentItem.icon,
                       size: iconSize,
-                      color: colors.textPrimary,
+                      color: dialInk(currentItem.accent, colors),
                     ),
                     const SizedBox(width: 8),
-                    Text(currentItem.label, style: labelStyle),
+                    Text(currentItem.label, style: labelStyle.copyWith(
+                      color: dialInk(currentItem.accent, colors),
+                    )),
                     const SizedBox(width: 4),
                     Transform.rotate(
                       angle: t * 3.14159,
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 18,
-                        color: colors.textSecondary,
+                        color: currentItem.accent == null
+                            ? colors.textSecondary
+                            : dialInk(currentItem.accent, colors)
+                                .withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -521,6 +715,11 @@ class _SatellitePill extends StatelessWidget {
     required this.onPick,
   });
 
+  /// Foreground for the accent pill: measured, not guessed, so every
+  /// label stays fully readable on its category color in both themes.
+  /// Shared with the anchor pill via [dialInk] — one ink rule everywhere.
+  Color get fg => dialInk(item.accent, colors);
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -535,10 +734,13 @@ class _SatellitePill extends StatelessWidget {
           slot.rect.width,
           slot.rect.height,
         );
+        // UX-CORRECTION §2 — the slot only positions the pill; the pill
+        // sizes itself intrinsically so the label can never be clipped to
+        // the measured width (measurement feeds the solver's spacing, it
+        // is not a render constraint). Height stays the pill metric.
         return Positioned(
           left: pos.left,
           top: pos.top,
-          width: pos.width,
           height: pos.height,
           // Gate taps: a pill you cannot read yet is not tappable.
           child: LiquidReveal(
@@ -559,12 +761,18 @@ class _SatellitePill extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: colors.card,
+              // PR #142 FINAL PASS §2 — a real category paints SOLID in
+              // its own accent so the colored buttons clearly stand out
+              // above the neutral gray goo; the neutral "All" keeps the
+              // quiet theme-card pill. Do NOT gray the buttons with the
+              // blob.
+              color: item.accent ?? colors.card,
               borderRadius: BorderRadius.circular(_satPillRadius),
-              border: Border.all(color: colors.divider),
+              border:
+                  item.accent == null ? Border.all(color: colors.divider) : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: Colors.black.withValues(alpha: 0.14),
                   blurRadius: 12,
                   offset: const Offset(0, 3),
                 ),
@@ -574,20 +782,17 @@ class _SatellitePill extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(item.icon, size: _satIconSize, color: colors.textPrimary),
+                Icon(item.icon, size: _satIconSize, color: fg),
                 const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: _satLabelFS,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                      decoration: TextDecoration.none,
-                    ),
+                // UX-CORRECTION §2 — no Flexible/overflow fade: the full
+                // label always paints on the opaque surface above the goo.
+                Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: _satLabelFS,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],

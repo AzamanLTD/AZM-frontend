@@ -145,8 +145,18 @@ final GoRouter appRouter = GoRouter(
     // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
     // and go to splash rather than letting a red error screen bounce home.
     try {
-      if (!AuthGuard.isAuthenticated) return '/';
-    } catch (_) {
+      if (!AuthGuard.isAuthenticated) {
+        // FINAL PASS §7 — lightweight diagnostic for unexpected auth
+        // redirects: an unexpected bounce to '/' (while a session exists)
+        // is almost always an over-eager AuthGuard flip, and the path plus
+        // the flag are the only two facts needed to spot it. No tokens,
+        // no credentials, no personal data in the log.
+        debugPrint('[Router] auth redirect: "$path" → / '
+            '(AuthGuard.isAuthenticated=false)');
+        return '/';
+      }
+    } catch (e) {
+      debugPrint('[Router] auth guard threw for "$path" ($e) → /');
       return '/';
     }
     return null;

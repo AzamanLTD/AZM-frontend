@@ -31,7 +31,8 @@ enum AzamanTheme {
   // V4 (2026-08-15): Two identities only. The midnight/purple theme was
   // removed per founder request — the dark theme is now the true-black
   // night experience.
-  //   • light — clean white surface with deep navy text + gold accent (default)
+  //   • light — clean white surface with deep navy text + gold accent
+  //     (explicit choice only — the DEFAULT is dark, see _loadSavedTheme)
   //   • dark  — true black with teal/emerald accent (NOT gold, NOT Binance)
   light,
   dark,
@@ -133,16 +134,31 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> _loadSavedTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedIndex = prefs.getInt('azaman_theme') ?? 0; // Default
 
-    // Migration: midnight (old index 2) → dark (new index 1).
-    // Anything else outside range → light (default).
-    if (savedIndex == 2) {
+    // EXPERIENCE PASS §3 — dark is the DEFAULT, but default != forced.
+    // A MISSING preference and an EXPLICIT choice are different states and
+    // must stay distinguishable: `getInt(...) ?? 0` collapsed "never chose"
+    // into "explicitly light", so every first-time user landed on light and
+    // a deliberate light choice could never be told apart from an absent
+    // one. `containsKey` keeps them separate.
+    final hasSavedTheme = prefs.containsKey('azaman_theme');
+    final savedIndex = prefs.getInt('azaman_theme');
+
+    if (!hasSavedTheme) {
+      // No preference on record → the default is DARK. The dark theme is
+      // the product's primary design surface (see QA §17).
       _currentTheme = AzamanTheme.dark;
-    } else if (savedIndex >= 0 && savedIndex < AzamanTheme.values.length) {
+    } else if (savedIndex == 2) {
+      // Migration: midnight (old index 2) → dark (new index 1).
+      _currentTheme = AzamanTheme.dark;
+    } else if (savedIndex != null &&
+        savedIndex >= 0 &&
+        savedIndex < AzamanTheme.values.length) {
+      // An explicit, valid choice always wins — light stays light.
       _currentTheme = AzamanTheme.values[savedIndex];
     } else {
-      _currentTheme = AzamanTheme.light;
+      // Present but out of range (corrupt value): fall back to the default.
+      _currentTheme = AzamanTheme.dark;
     }
     // TASK-025: load the persisted accent identity (azaman_accent).
     // Invalid/missing/out-of-range values must safely fall back to gold —
@@ -486,15 +502,27 @@ class ThemeProvider with ChangeNotifier {
   /// Shared baseline every palette starts from. Each case below only has to
   /// declare what actually differs, so renaming or re-tuning a field is a
   /// one-line change instead of a 20-line duplicated literal.
+  // UX-CORRECTION §1 (2026-10-04): Light mode previously shipped
+  // #FAFAFB background + white surface + white card — three surfaces a
+  // hair's width apart, which read as a blank/unfinished page. The
+  // palette now encodes a REAL 4-step hierarchy:
+  //   background  #F2F3F5  — the page plane (coolest, darkest step)
+  //   surface     #FCFCFD  — sheets/glass wells, one step up
+  //   card        #FFFFFF  — raised cards, fully separated by contrast
+  //   controls    accent + AzElevation shadows — the active step
+  // softSurface drops BELOW the background so pressed/inset wells read
+  // as recessed, and dividers deepen one notch so hairlines survive on
+  // the new background. Dark mode's ramp (000 → 0A0A0A → 161616) is
+  // untouched — it already carries the depth Light was missing.
   static const AzamanColors _paletteDefaults = AzamanColors(
     isDark: false,
     name: "Light",
     icon: Icons.wb_sunny_outlined,
-    background: Color(0xFFFAFAFB),
-    surface: Colors.white,
+    background: Color(0xFFF2F3F5),
+    surface: Color(0xFFFCFCFD),
     card: Color(0xFFFFFFFF),
-    softSurface: Color(0xFFF1F1F3),
-    divider: Color(0xFFE6E6E9),
+    softSurface: Color(0xFFE9EAEE),
+    divider: Color(0xFFE0E1E6),
     accent: Color(0xFFB8860B),
     accentSecondary: Color(0xFF8B6914),
     accentSurface: Color(0xFFFDF6E3),
@@ -505,8 +533,8 @@ class ThemeProvider with ChangeNotifier {
     textSecondary: Color(0xFF374151),
     textTertiary: Color(0xFF6B7280),
     glow: Color(0xFFB8860B),
-    scaffoldBackground: Color(0xFFFAFAFB),
-    border: Color(0xFFE6E6E9),
+    scaffoldBackground: Color(0xFFF2F3F5),
+    border: Color(0xFFDFE0E5),
   );
 
   static AzamanColors getColors(AzamanTheme theme) {
@@ -581,6 +609,12 @@ class AzamanColors {
 
   final Color scaffoldBackground;
   final Color border;
+
+  /// PASS E (gold hierarchy) — the MUTED accent: supporting feature
+  /// icons, secondary product accents, and restrained visual details.
+  /// Bright [accent] stays reserved for primary actions, selected
+  /// navigation, and the single highest-priority interactive accent.
+  Color get mutedAccent => accent.withValues(alpha: 0.72);
 
   const AzamanColors({
     required this.isDark,

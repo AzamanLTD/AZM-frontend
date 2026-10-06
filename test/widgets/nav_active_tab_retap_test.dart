@@ -127,9 +127,12 @@ Widget _host(Widget child, {bool reduceMotion = false}) {
 }
 
 /// The pill compresses while the page is scrolled down (TASK-010's absolute-
-/// offset law) and hides its labels at full compression, so a tap on a
-/// label would miss. Rest the pill before tapping it — the same restore the
-/// shell performs when the page returns to its top.
+/// offset law), so a tap mid-compression would land on a moving target.
+/// Rest the pill before tapping it — the same restore the shell performs
+/// when the page returns to its top.
+///
+/// UX-CORRECTION §3/§4: the resting nav is icon-only (no visible labels),
+/// so taps target the stable `nav-item-N` keys on the nav buttons.
 Future<void> _restPill(WidgetTester tester) async {
   navScrollCompression.value = 0;
   await tester.pump(const Duration(milliseconds: 400));
@@ -173,7 +176,7 @@ void main() {
       expect(startOffset, greaterThan(500));
       await _restPill(tester);
 
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       // Sample the offset across the flight: the tap's callback may land in
       // the same frame the animation starts, so a single fixed pump can miss
       // the mid-flight point. What the contract requires: the page reaches 0,
@@ -211,7 +214,7 @@ void main() {
       }
 
       retap.liftCtrl.addListener(sample);
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       await tester.pumpAndSettle();
       retap.liftCtrl.removeListener(sample);
 
@@ -249,7 +252,7 @@ void main() {
       expect(_offset(0), greaterThan(500));
       await _restPill(tester);
 
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       // A few frames with a tiny time budget: a jump lands in the frame the
       // tap resolves; a 350ms spring would still be mid-flight here.
       await tester.pump(const Duration(milliseconds: 16));
@@ -299,7 +302,7 @@ void main() {
       await tester.pumpAndSettle();
       await _restPill(tester);
 
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       await tester.pumpAndSettle();
 
       // The OUTER list answered the retap: the tab's primary went to the
@@ -350,7 +353,7 @@ void main() {
 
       // Switch to Chat (tab 1) and scroll its own list.
       await _restPill(tester);
-      await tester.tap(find.text('Chat'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-1')));
       await tester.pumpAndSettle();
       await tester.drag(
           find.byKey(const Key('chat-list')), const Offset(0, -300));
@@ -364,7 +367,7 @@ void main() {
 
       // Re-tap on Chat answers with CHAT's list; Home's offset is untouched.
       await _restPill(tester);
-      await tester.tap(find.text('Chat'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-1')));
       await tester.pumpAndSettle();
       expect(_offset(1), 0);
       expect(_offset(0), homeOffset);
@@ -416,13 +419,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Active tab: the retap contract, not a re-selection.
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       await tester.pump();
       expect(retaps, 1);
       expect(selections, isEmpty);
 
       // A different tab is still a normal switch.
-      await tester.tap(find.text('Marketplace'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-2')));
       await tester.pump();
       expect(selections, [2]);
       expect(retaps, 1);
@@ -453,7 +456,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // No retap wired → the tap is inert, and never a re-selection.
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
       await tester.pump();
       expect(selections, isEmpty);
     });

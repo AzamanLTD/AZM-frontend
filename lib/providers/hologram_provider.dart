@@ -11,8 +11,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:azaman/config.dart';
+import 'package:http/http.dart' as http;
+import 'package:azaman/services/oracle_rates_client.dart';
 
 class BalanceData {
   final double availableBalance;
@@ -160,10 +161,11 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
 
   Future<void> refresh() async {
     try {
-      final response = await http
-          .get(Uri.parse('${AppConfig.apiUrl}/oracle/rates'))
-          .timeout(AppConfig.requestTimeout);
-      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      // §9 startup audit: the poller used to issue its own raw http.get to
+      // the same endpoint the home summary, FX and Susu providers fetch —
+      // and it bypassed the apiClient (so no demo-mode interceptor). It
+      // now shares the single-flight [getOracleRates] request.
+      final response = await getOracleRates();
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) return;
 
