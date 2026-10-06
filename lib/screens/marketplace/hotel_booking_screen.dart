@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
 import 'package:azaman/models/hotel_models.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/hotel_marketplace_service.dart' show HotelBookingFailureClass;
 import 'package:azaman/providers/hotel_marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -38,6 +40,14 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
   DateTime? _checkIn;
   DateTime? _checkOut;
   String? _selectedRoomId;
+
+  /// ONE logical booking intent for the life of this screen (deep-dive
+  /// step 6, parity with TransitSeatSelectionScreen._bookingRef): the
+  /// durable instance this screen's reservation retries converge on. A
+  /// materially changed room/dates/party begins a GENUINELY new
+  /// operation; the unfinished old instance stays journal-recoverable.
+  final FinancialOperationRef _bookingRef = FinancialOperationRef();
+  static const _bookingOperationType = 'hotel.reserve_room';
 
   @override
   void initState() {
@@ -133,6 +143,8 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
             roomId: room.id,
             checkIn: _checkIn!,
             checkOut: _checkOut!,
+            operationType: _bookingOperationType,
+            ref: _bookingRef,
           );
       if (!mounted) return;
 
@@ -154,7 +166,38 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      final message = ref.read(hotelMarketplaceProvider).error ?? 'Unable to complete the booking.';
+      // Economic failure presentation (deep-dive step 6, parity with the
+      // transit taxonomy): an UNPROVEN outcome (transport loss, 5xx,
+      // 408/425, malformed success) must NOT be asserted as a failed
+      // reservation — the room MAY be booked. The durable ref stays armed,
+      // so retrying the SAME room and dates reuses the same key and
+      // converges (the backend replays the committed reservation exactly).
+      // 409 (key used for a materially different reservation) and
+      // 401/429 get their own guidance; a definitive pre-economic 4xx
+      // surfaces the backend's own message.
+      final state = ref.read(hotelMarketplaceProvider);
+      final cls = state.bookingFailureClass;
+      String message =
+          (state.error ?? 'Unable to complete the booking.')
+              .replaceFirst('HotelMarketplaceException: ', '');
+      if (cls == HotelBookingFailureClass.ambiguousOrUnknown) {
+        message =
+            'We couldn\'t confirm your reservation. Check your bookings first — '
+            'if it isn\'t there, booking the same room and dates again will '
+            'safely reuse your request.';
+      } else if (cls == HotelBookingFailureClass.domainConflict) {
+        message =
+            'This reservation request conflicts with an earlier one. Check '
+            'your bookings before booking again.';
+      } else if (cls == HotelBookingFailureClass.authenticationRequired) {
+        message =
+            'Please sign in again, then book the same room and dates — your '
+            'request will be safely reused.';
+      } else if (cls == HotelBookingFailureClass.rateLimited) {
+        message =
+            'Too many attempts. Wait a moment, then book the same room and '
+            'dates — your request will be safely reused.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
