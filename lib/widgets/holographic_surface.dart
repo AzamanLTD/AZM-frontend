@@ -7,20 +7,27 @@
 // card, a membership tier, a boarding pass, a "PAID" seal.
 //
 // ── THE PHYSICS (why it reads as real) ───────────────────────────────────────
-// Two layers, and only one of them moves:
+// The material is fixed; the touch response is opt-in per surface:
 //
 //   1. THE MATERIAL — an anisotropic gradient in the accent's hue family. This
 //      is the surface's own iridescence. It is FIXED: real anodised/holographic
 //      material does not change colour when you look at it from a different
 //      angle, only the light on it does.
 //
-//   2. THE LIGHT — a soft specular band whose position follows the user's
-//      pointer, and which springs back to rest when the finger lifts. This is
-//      the ONLY moving part.
+//   2. THE SPECULAR SHEEN — a soft band whose position follows the user's
+//      pointer, and which springs back to rest when the finger lifts. The
+//      default touch response (`showSheen: true`).
 //
-// Keeping the material still and moving only the light is what separates this
-// from "an animated gradient". An animated gradient reads as decoration; a
-// moving highlight on a fixed material reads as a real object.
+//   3. THE REACTIVE PARTICLE FIELD — an OPT-IN accent (`showReactiveParticles:
+//      false` by default): a tiny, deterministic field of soft coloured points
+//      that breathes while the card rests and DEFORMS around the finger when
+//      it touches — nearest points lean away, the mid-band leans toward, and
+//      everything settles through the same rest spring as the sheen. The
+//      balance card adopts it as its sole touch response (`showSheen: false`).
+//
+// Keeping the material still and moving only opt-in responses is what separates
+// this from "an animated gradient". An animated gradient reads as decoration;
+// a moving highlight on a fixed material reads as a real object.
 //
 // ── WHY NOT TILT (sensors_plus) ──────────────────────────────────────────────
 // Deliberate decision: no sensor dependency. It would add a package, require
@@ -49,7 +56,11 @@
 //   )
 // =============================================================================
 
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -68,6 +79,9 @@ class HolographicSurface extends StatefulWidget {
     this.interactive = true,
     this.intensity = 1.0,
     this.sheenPeak = 0.18,
+    this.showSheen = true,
+    this.showReactiveParticles = false,
+    this.particleColors,
     this.enableShadow = true,
     this.shadowColor,
   });
@@ -97,6 +111,21 @@ class HolographicSurface extends StatefulWidget {
   /// as a rendering artefact rather than as light.
   final double sheenPeak;
 
+  /// Whether the touch-driven specular band renders. The balance card turns
+  /// this OFF and speaks through the reactive particle field instead — the
+  /// two responses are never run simultaneously on the same surface.
+  final bool showSheen;
+
+  /// Opt-in reactive particle field (default false): a small deterministic
+  /// set of soft coloured points behind the content that breathes at rest
+  /// and deforms around the pointer. No other consumer is affected.
+  final bool showReactiveParticles;
+
+  /// The particle family. Defaults to a single hue derived from [tint]; the
+  /// balance card passes the app's accent family. Keep to 2–3 restrained
+  /// colours — this is an accent, never a rainbow.
+  final List<Color>? particleColors;
+
   final bool enableShadow;
   final Color? shadowColor;
 
@@ -105,7 +134,7 @@ class HolographicSurface extends StatefulWidget {
 }
 
 class _HolographicSurfaceState extends State<HolographicSurface>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// Normalised sheen offset, −0.45 … +0.45 in each axis. 0,0 is centred/rest.
   double _dx = 0.0;
   double _dy = 0.0;
@@ -116,9 +145,23 @@ class _HolographicSurfaceState extends State<HolographicSurface>
 
   late final AnimationController _rest;
 
+  /// ONE shared ambient clock for every particle on this surface (~9s loop).
+  /// Created only when the surface opted into the particle field so default
+  /// consumers never pay for a second ticker. Stopped and zeroed under
+  /// reduced motion (see didChangeDependencies).
+  late final AnimationController? _ambient;
+
   @override
   void initState() {
     super.initState();
+    if (widget.showReactiveParticles) {
+      _ambient = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 9),
+      )..repeat();
+    } else {
+      _ambient = null;
+    }
     _rest = AnimationController(
       vsync: this,
       duration: MotionTokens.emphasized,
@@ -143,14 +186,28 @@ class _HolographicSurfaceState extends State<HolographicSurface>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!AzMotion.of(context).travel) {
+    final travel = AzMotion.of(context).travel;
+    if (!travel) {
       _rest.stop();
       _dx = _dy = _restFromDx = _restFromDy = 0;
+      // Reduced motion is authoritative for the ambient field too: the
+      // controller stops and the particles freeze at their resting phase.
+      final ambient = _ambient;
+      if (ambient != null && ambient.isAnimating) {
+        ambient.stop();
+        ambient.value = 0.0;
+      }
+    } else {
+      final ambient = _ambient;
+      if (ambient != null && !ambient.isAnimating && ambient.value == 0.0) {
+        ambient.repeat();
+      }
     }
   }
 
   @override
   void dispose() {
+    _ambient?.dispose();
     _rest.dispose();
     super.dispose();
   }
@@ -296,6 +353,31 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                   ),
                 ),
 
+              // ── LAYER 1d: the reactive particle field (OPT-IN) ───────────
+              // An Antigravity-inspired accent: a tiny deterministic field of
+              // soft coloured points that breathes at rest and deforms around
+              // the pointer — the balance card's sole touch response. It sits
+              // behind the iridescence and far behind the content, is gated by
+              // AzMotion (scaled dx/dy + a stopped ambient clock under reduced
+              // motion), and is isolated in a RepaintBoundary so the ambient
+              // repaint never invalidates the card content or the Home screen.
+              if (intensity > 0 && widget.showReactiveParticles)
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: ReactiveParticlePainter(
+                        phase: _ambient ?? const AlwaysStoppedAnimation(0.0),
+                        dx: dx,
+                        dy: dy,
+                        colors: widget.particleColors ??
+                            <Color>[widget.tint.withValues(alpha: 0.8)],
+                        intensity: intensity,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                ),
+
               // ── LAYER 2: the iridescence (FIXED — never animates) ──────────
               // EXPERIENCE PASS §2: an anisotropic brush in the accent's hue
               // family — the material's own colour shift. Two refinements:
@@ -332,13 +414,14 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                   ),
                 ),
 
-              // ── LAYER 3: the specular band (THE ONLY MOVING PART) ──────────
+              // ── LAYER 3: the specular band (opt-in touch response) ─────────
               // EXPERIENCE PASS §2: the band is narrower (0.34→0.66) so it
               // reads as a single bar of light sweeping the material rather
               // than as a broad brightening, and its peak respects the light-
               // mode gate. Still drawn before the content so it can never wash
-              // out text, and still the ONLY moving part.
-              if (intensity > 0 && widget.sheenPeak > 0)
+              // out text. The balance card disables it in favour of the
+              // particle field — the two responses never run together.
+              if (intensity > 0 && widget.showSheen && widget.sheenPeak > 0)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(
@@ -515,5 +598,212 @@ class _SheenTransform extends GradientTransform {
       bounds.height * dy,
       0.0,
     );
+  }
+}
+
+/// One particle of the reactive field — a FIXED row of the deterministic spec
+/// table (see [ReactiveParticlePainter.particleSpecs]). `x`/`y` are normalised
+/// 0–1 positions inside the surface; nothing is randomised per frame.
+class ReactiveParticleSpec {
+  const ReactiveParticleSpec(
+    this.x,
+    this.y,
+    this.radius,
+    this.phase,
+    this.speed,
+    this.colorIndex,
+  );
+
+  final double x;
+  final double y;
+  final double radius;
+  final double phase;
+  final double speed;
+  final int colorIndex;
+}
+
+/// The reactive particle field (Antigravity-inspired, Azaman-native).
+///
+/// A single painter, a single shared ambient clock, a bounded deterministic
+/// particle count — no BackdropFilter, no blur filter, no physics engine, no
+/// per-particle controllers. The radial gradients themselves supply the soft
+/// edges, so each point reads as a tiny luminous glow rather than a solid dot.
+///
+/// The field DEFORMS around the pointer instead of following it (see
+/// [particleLean]): particles nearest the finger are displaced aside as if the
+/// material itself is pressed, the mid-band leans toward the touch, distant
+/// points barely move — and everything settles through the surface's EXISTING
+/// rest spring because the painter consumes the same scaled `_dx`/`_dy`.
+class ReactiveParticlePainter extends CustomPainter {
+  ReactiveParticlePainter({
+    required this.phase,
+    required this.dx,
+    required this.dy,
+    required this.colors,
+    required this.intensity,
+    required this.isDark,
+  }) : super(repaint: phase);
+
+  /// The surface's ONE shared ambient clock (≈9s loop). Reduced motion stops
+  /// it and pins it at 0, freezing the field at its resting arrangement.
+  final Animation<double> phase;
+
+  /// The surface's normalised sheen offset (−0.45…+0.45 per axis), already
+  /// settle-animated and already reduced-motion-scaled by the surface.
+  final double dx;
+  final double dy;
+
+  /// The restrained particle family (2–3 colours from the app's accents).
+  final List<Color> colors;
+
+  final double intensity;
+  final bool isDark;
+
+  /// The fixed particle table — deterministic, bounded (18–28 points), tuned
+  /// so the card feels naturally populated rather than patterned.
+  static const List<ReactiveParticleSpec> particleSpecs = [
+    ReactiveParticleSpec(0.08, 0.20, 1.6, 0.00, 0.82, 0),
+    ReactiveParticleSpec(0.16, 0.62, 1.2, 0.14, 0.63, 1),
+    ReactiveParticleSpec(0.22, 0.36, 1.9, 0.27, 0.71, 2),
+    ReactiveParticleSpec(0.29, 0.79, 1.1, 0.38, 0.55, 0),
+    ReactiveParticleSpec(0.34, 0.12, 1.4, 0.09, 0.88, 1),
+    ReactiveParticleSpec(0.41, 0.48, 1.7, 0.52, 0.60, 2),
+    ReactiveParticleSpec(0.47, 0.28, 1.3, 0.33, 0.74, 0),
+    ReactiveParticleSpec(0.52, 0.66, 2.1, 0.61, 0.49, 1),
+    ReactiveParticleSpec(0.58, 0.17, 1.0, 0.21, 0.91, 2),
+    ReactiveParticleSpec(0.63, 0.42, 1.8, 0.44, 0.66, 0),
+    ReactiveParticleSpec(0.69, 0.71, 1.2, 0.72, 0.58, 1),
+    ReactiveParticleSpec(0.74, 0.23, 1.5, 0.06, 0.79, 2),
+    ReactiveParticleSpec(0.79, 0.55, 1.3, 0.55, 0.68, 0),
+    ReactiveParticleSpec(0.85, 0.33, 1.7, 0.29, 0.62, 1),
+    ReactiveParticleSpec(0.90, 0.68, 1.1, 0.83, 0.53, 2),
+    ReactiveParticleSpec(0.95, 0.15, 1.4, 0.18, 0.86, 0),
+    ReactiveParticleSpec(0.11, 0.44, 1.0, 0.66, 0.57, 1),
+    ReactiveParticleSpec(0.26, 0.20, 1.6, 0.47, 0.70, 2),
+    ReactiveParticleSpec(0.37, 0.86, 1.3, 0.77, 0.51, 0),
+    ReactiveParticleSpec(0.56, 0.84, 1.0, 0.12, 0.84, 1),
+    ReactiveParticleSpec(0.72, 0.87, 1.5, 0.36, 0.64, 2),
+    ReactiveParticleSpec(0.88, 0.47, 1.2, 0.58, 0.76, 0),
+  ];
+
+  /// The deterministic deformation of one particle around the pointer.
+  ///
+  /// `rest` is the particle's resting (ambient-drifted) centre, `pointer` the
+  /// touch position in the same coordinate space, `interactionRadius` the
+  /// reach of a touch. Nearest points lean AWAY from the finger (material
+  /// pressed aside), the mid-band leans TOWARD it (attraction), and points
+  /// beyond the radius do not move at all — a smooth signed blend so the
+  /// field bends around the finger instead of uniformly following it.
+  static Offset particleLean(
+    Offset rest,
+    Offset pointer,
+    double interactionRadius,
+  ) {
+    final away = rest - pointer;
+    final d = away.distance;
+    if (d <= 0 || d >= interactionRadius || interactionRadius <= 0) {
+      return rest;
+    }
+    final influence = 1.0 - d / interactionRadius;
+    final eased = influence * influence;
+    final dir = away / d;
+    final awayAmt = ((influence - 0.62) / 0.38).clamp(0.0, 1.0);
+    final towardAmt = ((0.62 - influence) / 0.62).clamp(0.0, 1.0) * 0.6;
+    final signed = (awayAmt - towardAmt) * eased;
+    return rest + dir * signed * interactionRadius * 0.22;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    if (w <= 0 || h <= 0 || colors.isEmpty || intensity <= 0) return;
+
+    // Reconstruct the normalised pointer from the surface's existing offset:
+    // the surface stores _dx = (nx − 0.5) × 0.9, so this is exact.
+    final pointer = Offset(
+      (0.5 + dx / 0.9) * w,
+      (0.5 + dy / 0.9) * h,
+    );
+    final interactionRadius = math.max(60.0, math.min(w, h) * 0.5);
+
+    // Interaction "heat" — how alive the touch is right now. dx/dy fold the
+    // settle animation, so the halo blooms under the finger and fades out
+    // naturally while the field settles; at rest it is exactly 0.
+    final heat =
+        math.sqrt(dx * dx + dy * dy) / 0.32;
+
+    // The ambient breathing phase (0…1 over the ~9s loop, pinned at 0 under
+    // reduced motion, so the resting arrangement itself is deterministic).
+    final t = phase.value * 2 * math.pi;
+
+    // Light mode stays restrained so the near-white card never reads stained;
+    // dark mode may carry slightly more luminosity — the same physical
+    // material under a stronger light.
+    final baseAlpha = (isDark ? 0.26 : 0.15) * intensity;
+
+    for (final spec in particleSpecs) {
+      // Microscopic deterministic drift — ≤ ~1.2% of the card dimension.
+      final angle = t * spec.speed + spec.phase * 2 * math.pi;
+      final driftX = math.sin(angle) * w * 0.011;
+      final driftY = math.cos(angle * 1.13 + spec.phase * 3.1) * h * 0.011;
+      final rest = Offset(spec.x * w + driftX, spec.y * h + driftY);
+
+      // Deform around the finger, and let the nearest points glow a touch
+      // brighter — the field explains the touch without shouting.
+      final pos = particleLean(rest, pointer, interactionRadius);
+      final d = (rest - pointer).distance;
+      final influence = d >= interactionRadius
+          ? 0.0
+          : (1.0 - d / interactionRadius);
+      final eased = influence * influence;
+
+      final color = colors[spec.colorIndex % colors.length];
+      final alpha = (baseAlpha * (1.0 + eased * 1.6)).clamp(0.0, 0.5);
+      final r = spec.radius * 3.4;
+
+      final paint = Paint()
+        ..shader = ui.Gradient.radial(
+          pos,
+          r,
+          [
+            color.withValues(alpha: alpha),
+            color.withValues(alpha: alpha * 0.45),
+            color.withValues(alpha: 0.0),
+          ],
+          [0.0, 0.35, 1.0],
+        );
+      canvas.drawCircle(pos, r, paint);
+    }
+
+    // The soft local halo that explains WHY the particles are responding —
+    // only while the interaction is active or settling, never at rest.
+    if (heat > 0.02) {
+      final haloAlpha = (isDark ? 0.07 : 0.045) * math.min(heat, 1.0);
+      final haloR = interactionRadius * 0.55;
+      final accent = colors.first;
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            pointer,
+            haloR,
+            [
+              accent.withValues(alpha: haloAlpha),
+              accent.withValues(alpha: 0.0),
+            ],
+            [0.0, 1.0],
+          ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ReactiveParticlePainter oldDelegate) {
+    return oldDelegate.dx != dx ||
+        oldDelegate.dy != dy ||
+        oldDelegate.intensity != intensity ||
+        oldDelegate.isDark != isDark ||
+        !listEquals(oldDelegate.colors, colors);
   }
 }

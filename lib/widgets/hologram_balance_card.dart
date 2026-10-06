@@ -143,6 +143,21 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
       // dominant fill.
       base: colors.card,
       tint: colors.textSecondary,
+      // PARTICLE FIELD (2026-10-06 correction): the balance card's sole touch
+      // response is the reactive particle field — the moving white specular
+      // band is OFF here (it reads as a rendering artefact on the graphite
+      // card, and two competing touch responses weaken both). The field
+      // DEFORMS around the finger, breathes at rest through one shared ~9s
+      // ambient clock, and settles through the surface's existing spring.
+      // Palette: the app's own accent family, restrained in light mode by the
+      // painter's theme gate — never a rainbow, never above the content.
+      showSheen: false,
+      showReactiveParticles: true,
+      particleColors: [
+        colors.accent,
+        colors.accentSecondary,
+        colors.glow,
+      ],
       borderRadius: AzRadius.xl,
       padding: const EdgeInsets.fromLTRB(
         AzSpace.xl,
