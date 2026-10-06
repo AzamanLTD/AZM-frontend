@@ -163,35 +163,42 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
                     ),
                   );
                 }
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.softSurface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Column(
-                          children: [
-                            for (int i = 0; i < ads.length; i++)
-                              KeyedSubtree(
-                                key: _keyFor(ads[i].id),
-                                child: VendorAdCard(
-                                  ad: ads[i],
-                                  showDivider: i < ads.length - 1,
-                                  onTap: () => _onCardTapped(
-                                    context,
-                                    ads[i],
-                                    colors,
-                                    cardKey: _keyFor(ads[i].id),
-                                  ),
-                                ),
-                              ),
-                          ],
+                // FINAL PASS §8 — the ad list is a LAZY sliver. The old
+                // block was one SliverToBoxAdapter wrapping an eager
+                // Column that built EVERY VendorAdCard on the first
+                // frame (50 ads = 50 builds, offscreen included).
+                // SliverList + SliverChildBuilderDelegate builds only
+                // what the viewport shows. The grouped-card look is
+                // preserved: one continuous softSurface field, rounded
+                // on the group's outer corners, dividers between rows.
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) => DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.softSurface,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(i == 0 ? 12 : 0),
+                            bottom: Radius.circular(
+                                i == ads.length - 1 ? 12 : 0),
+                          ),
+                        ),
+                        child: KeyedSubtree(
+                          key: _keyFor(ads[i].id),
+                          child: VendorAdCard(
+                            ad: ads[i],
+                            showDivider: i < ads.length - 1,
+                            onTap: () => _onCardTapped(
+                              context,
+                              ads[i],
+                              colors,
+                              cardKey: _keyFor(ads[i].id),
+                            ),
+                          ),
                         ),
                       ),
+                      childCount: ads.length,
                     ),
                   ),
                 );
