@@ -39,8 +39,9 @@ import 'package:azaman/router/auth_guard.dart';
 enum AuthStatus { idle, loading, authenticated, profileNotFound, unauthenticated, error }
 
 class AuthProvider with ChangeNotifier {
-  AuthProvider({this.ref});
+  AuthProvider({this.ref, ApiClient? client}) : _api = client ?? apiClient;
   final Ref? ref;
+  final ApiClient _api;
   User? _user;
   AuthStatus _status = AuthStatus.idle;
   String? _error;
@@ -96,7 +97,7 @@ class AuthProvider with ChangeNotifier {
     _error = null;
     _publish();
     try {
-      final response = await apiClient.get('/auth/me/${_user!.id}');
+      final response = await _api.get('/auth/me/${_user!.id}');
       if (generation != _hydrationGeneration) return;
       final body = jsonDecode(response.body);
       final Map<String, dynamic> profileJson = body is Map<String, dynamic>
@@ -123,37 +124,46 @@ class AuthProvider with ChangeNotifier {
       if (generation != _hydrationGeneration) return;
       if (e.statusCode == 404) {
         debugPrint('[Auth] Profile not found in DB — forcing setup flow.');
-        await apiClient.clearAuthData();
+        await _api.clearAuthData();
         _user = null;
         _status = AuthStatus.profileNotFound;
         AuthGuard.isAuthenticated = false;
         _error = 'Profile not found. Please complete registration.';
       } else if (e.statusCode == 401) {
         debugPrint('[Auth] JWT rejected — clearing session.');
-        await apiClient.clearAuthData();
+        await _api.clearAuthData();
         _user = null;
         _status = AuthStatus.unauthenticated;
         AuthGuard.isAuthenticated = false;
         _error = 'Session expired. Please log in again.';
       } else {
-        debugPrint('[Auth] Profile fetch failed (${e.statusCode}): $e');
-        _status = AuthStatus.error;
-        AuthGuard.isAuthenticated = false;
-        _error = e.toString();
+        // FINAL PASS §7 — transient failure (network / 5xx / timeout /
+        // temporary parsing): an otherwise-authenticated session must NOT
+        // be silently invalidated. The GoRouter redirect reads
+        // AuthGuard.isAuthenticated synchronously; flipping it here on a
+        // blip kicked live users back to '/'. Only an explicit logout, a
+        // rejected JWT (401) or a missing profile (404) invalidates.
+        debugPrint('[Auth] transient profile-fetch failure '
+            '(${e.statusCode}) — keeping authenticated session');
+        _status = AuthStatus.authenticated;
+        AuthGuard.isAuthenticated = true;
+        _error = 'Profile refresh unavailable. Showing last known data.';
       }
     } catch (e) {
       if (generation != _hydrationGeneration) return;
-      debugPrint('[Auth] Profile fetch error: $e');
-      _status = AuthStatus.error;
-      AuthGuard.isAuthenticated = false;
-      _error = 'Could not load profile. Check your connection.';
+      // FINAL PASS §7 — same rule for non-Api exceptions (socket failures,
+      // ClientException, decode blips): keep the session.
+        debugPrint('[Auth] transient profile-fetch error — keeping authenticated session');
+        _status = AuthStatus.authenticated;
+        AuthGuard.isAuthenticated = true;
+        _error = 'Could not refresh profile. Check your connection.';
     } finally {
       _publish();
     }
   }
 
   Future<bool> checkAuthStatus() async {
-    final ok = await apiClient.isAuthenticated();
+    final ok = await _api.isAuthenticated();
     if (!ok) {
       _user = null;
       _status = AuthStatus.unauthenticated;
@@ -165,7 +175,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     _hydrationGeneration++;
-    await apiClient.logout();
+    await _api.logout();
     _user = null;
     _status = AuthStatus.unauthenticated;
     AuthGuard.isAuthenticated = false;
