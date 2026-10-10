@@ -295,7 +295,7 @@ void main() {
       expect(find.text('Fiat'), findsNothing);
       expect(find.text('Crypto'), findsNothing);
       expect(find.byType(AmountKeypad), findsOneWidget);
-      expect(find.text('Deposit USDC'), findsNothing);
+      expect(find.text('Receive USDC'), findsNothing);
     });
   });
 }
