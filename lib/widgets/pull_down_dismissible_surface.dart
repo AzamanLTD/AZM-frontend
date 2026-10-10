@@ -17,10 +17,20 @@ class PullDownDismissibleSurface extends StatefulWidget {
   const PullDownDismissibleSurface({
     super.key,
     required this.onDismiss,
+    this.canDismiss,
+    this.onDismissRejected,
     required this.child,
   });
 
   final VoidCallback onDismiss;
+
+  /// Lets nested multi-state surfaces consume a committed downward pull before
+  /// the whole route closes. Return false to reject dismissal and spring back.
+  final bool Function()? canDismiss;
+
+  /// Called when a committed pull is rejected by [canDismiss].
+  final VoidCallback? onDismissRejected;
+
   final Widget child;
 
   @override
@@ -107,10 +117,20 @@ class _PullDownDismissibleSurfaceState
         _dragDy >= _commitThreshold ||
         details.velocity.pixelsPerSecond.dy >= _flingVelocity;
     if (committed) {
+      if (widget.canDismiss != null && !widget.canDismiss!()) {
+        widget.onDismissRejected?.call();
+        _springBack();
+        return;
+      }
       widget.onDismiss();
       return;
     }
+    _springBack();
+  }
+
+  void _springBack() {
     if (_dragDy <= 0) return;
+    _armed = false;
     if (MediaQuery.of(context).disableAnimations) {
       setState(() {
         _dragDy = 0;
