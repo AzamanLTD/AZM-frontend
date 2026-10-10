@@ -27,7 +27,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_elevation.dart';
