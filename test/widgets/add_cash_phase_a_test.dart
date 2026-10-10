@@ -286,21 +286,16 @@ void main() {
       }
     });
 
-    testWidgets('crypto follows the same grammar — no second selection '
-        'pattern', (tester) async {
+    testWidgets('Add Cash does not mount a Crypto destination', (tester) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
       await tester.pump(const Duration(seconds: 1));
 
-      await tester.tap(find.text('Crypto'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Deposit USDC'), findsOneWidget);
-      // The fiat method row is offstage on the crypto tab — the crypto
-      // surface does not invent its own method-selection row.
-      expect(find.text('Kwame Mensah'), findsNothing);
-      expect(find.text('Choose a payment method'), findsNothing);
+      expect(find.text('Fiat'), findsNothing);
+      expect(find.text('Crypto'), findsNothing);
+      expect(find.byType(AmountKeypad), findsOneWidget);
+      expect(find.text('Deposit USDC'), findsNothing);
     });
   });
 }

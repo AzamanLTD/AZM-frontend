@@ -323,10 +323,10 @@ void main() {
       final (notifier, history, _) = await _pumpHome(tester);
 
       expect(find.byType(RecentActivityDoorway), findsOneWidget);
-      // Two "Recent Activity" headings exist at rest: the doorway's and
+      // Two "Recent" buttons exist at rest: the doorway's and
       // the (opacity-0) activity surface's — the surface is mounted but
       // faded out, exactly like the deck's under-card at rest.
-      expect(find.text('Recent Activity'), findsNWidgets(2));
+      expect(find.text('Recent'), findsNWidgets(2));
       // No transaction rows, no skeletons on the resting Home.
       expect(find.byType(SkeletonBlock), findsNothing);
       // The surface is mounted (it fades in during the drag) but not
@@ -449,7 +449,7 @@ void main() {
       // pins that a 60px pull springs back.
       final header = find.descendant(
           of: find.byType(HomeActivitySurface),
-          matching: find.text('Recent Activity'));
+          matching: find.text('Recent'));
       expect(header, findsOneWidget);
       await tester.drag(header, const Offset(0, 260));
       await tester.pump();
@@ -473,7 +473,7 @@ void main() {
       await tester.drag(
           find.descendant(
               of: find.byType(HomeActivitySurface),
-              matching: find.text('Recent Activity')),
+              matching: find.text('Recent')),
           const Offset(0, 60));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
@@ -528,7 +528,7 @@ void main() {
           tester.getRect(find.byKey(const ValueKey('home-activity-list')));
       final headerRect = tester.getRect(find.descendant(
           of: find.byType(HomeActivitySurface),
-          matching: find.text('Recent Activity')));
+          matching: find.text('Recent')));
 
       // A spot strictly inside the surface but above the list and below
       // the heading text — the heading inset band.

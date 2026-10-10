@@ -4,12 +4,12 @@
 // The deposit surface redesigned as ONE composed product sheet:
 //
 //   [X] Add Cash            ← the single authoritative close affordance
-//   Fiat | Crypto           ← the switch, immediately below the header
 //   GH₵ 0                   ← odometer amount, huge, the visual anchor
 //   [50][100][200][500]     ← quick amounts
 //   1 2 3 / 4 5 6 / 7 8 9 / . 0 ⌫   ← custom keypad
 //   [network] Name / 024 … / ˅      ← ONE payment-method row → selector sheet
 //   [ Add Cash ]            ← CTA, bottom safe area
+// Crypto receiving lives on the separate full-page Receive destination.
 //
 // The canonical `/deposit` route (NEW-A) is unchanged: the rise transition at
 // route level is what makes this surface arrive from the bottom, and a
@@ -53,6 +53,7 @@ import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:azaman/widgets/momo_network.dart';
 import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart' show AddPayoutSheet;
 
@@ -88,65 +89,7 @@ class DepositScreen extends ConsumerStatefulWidget {
 
 enum DepositTab { crypto, fiat }
 
-class _DepositScreenState extends ConsumerState<DepositScreen>
-    with TickerProviderStateMixin {
-  late final TabController _tabController;
-
-  // ── Pull-down dismissal ─────────────────────────────────────────────────
-  // The Add Cash surface follows a downward finger pull with resistance and
-  // pops the route once the pull is committed (threshold or fling velocity).
-  // Below threshold it springs back to rest. Reduced motion keeps the
-  // interaction semantics and drops the travel choreography.
-  double _dragDy = 0;
-  double _settleFrom = 0;
-  bool _armed = false;
-  late final AnimationController _settle;
-
-  static const double _dragResistance = 0.55;
-  static const double _maxDragTravel = 240;
-  static const double _commitThreshold = 110;
-  static const double _flingVelocity = 700;
-
-  @override
-  void initState() {
-    super.initState();
-    // Phase 4 (Susu Sprint, 2026-05-31): when the screen is opened via a
-    // deep link carrying ?amount=… (e.g. the T-24h reminder), force the Fiat
-    // tab so the pre-filled amount is immediately visible.
-    final hasPrefill = (widget.prefillAmount?.isNotEmpty ?? false);
-    _tabController = TabController(
-      length: 2,
-      initialIndex: hasPrefill || widget.initialTab == DepositTab.fiat ? 1 : 0,
-      vsync: this,
-    );
-    _settle = AnimationController(
-      vsync: this,
-      duration: MotionTokens.control,
-      value: 1,
-    );
-    // When the spring-back completes, the builder falls back from the
-    // animated value to [_dragDy]. [_dragDy] must therefore be at rest by
-    // then, or the sheet visibly jumps back to the old dragged offset the
-    // frame after the spring finishes.
-    _settle.addStatusListener((status) {
-      if (status != AnimationStatus.completed) return;
-      if (_dragDy == 0 && _settleFrom == 0) return;
-      if (mounted) {
-        setState(() {
-          _dragDy = 0;
-          _settleFrom = 0;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _settle.dispose();
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _DepositScreenState extends ConsumerState<DepositScreen> {
   void _closeSurface() {
     AzamanHaptics.navigation();
     if (context.canPop()) {
@@ -154,62 +97,6 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
     } else {
       context.go('/');
     }
-  }
-
-  void _onDragStart(DragStartDetails _) {
-    // A new gesture may land while a spring-back is still running. The
-    // builder renders the animated offset while animating, so the drag
-    // must resume from the on-screen position — NOT from the stale
-    // pre-spring [_dragDy], which would visibly slam the sheet back down.
-    if (_settle.isAnimating) {
-      final visual =
-          _settleFrom * (1.0 - MotionTokens.enter.transform(_settle.value));
-      _settle.stop();
-      setState(() {
-        _dragDy = visual;
-        _settleFrom = 0;
-        _armed = visual >= _commitThreshold;
-      });
-      return;
-    }
-    _armed = false;
-    _settle.stop();
-  }
-
-  void _onDragUpdate(DragUpdateDetails details) {
-    if (details.delta.dy <= 0 && _dragDy == 0) return;
-    final next = (_dragDy + details.delta.dy * _dragResistance).clamp(
-      0.0,
-      _maxDragTravel,
-    );
-    if (next == _dragDy) return;
-    // The threshold haptic fires EXACTLY ONCE per crossing (see
-    // AzamanHaptics.threshold) — not on every frame past the line.
-    if (!_armed && next >= _commitThreshold) {
-      _armed = true;
-      AzamanHaptics.threshold();
-    } else if (_armed && next < _commitThreshold) {
-      _armed = false;
-    }
-    setState(() => _dragDy = next);
-  }
-
-  void _onDragEnd(DragEndDetails details) {
-    final committed =
-        _dragDy >= _commitThreshold ||
-        details.velocity.pixelsPerSecond.dy >= _flingVelocity;
-    if (committed) {
-      _closeSurface(); // keep the current offset; the route animates out
-      return;
-    }
-    if (_dragDy <= 0) return;
-    if (MediaQuery.of(context).disableAnimations) {
-      setState(() => _dragDy = 0);
-      return;
-    }
-    // Spring back to rest.
-    _settleFrom = _dragDy;
-    _settle.forward(from: 0);
   }
 
   @override
@@ -220,41 +107,19 @@ class _DepositScreenState extends ConsumerState<DepositScreen>
       backgroundColor: colors.surface,
       body: SafeArea(
         bottom: false,
-        child: GestureDetector(
-          // Translucent so taps pass through to buttons beneath; this
-          // recognizer only claims *vertical drag* gestures.
-          behavior: HitTestBehavior.translucent,
-          onVerticalDragStart: _onDragStart,
-          onVerticalDragUpdate: _onDragUpdate,
-          onVerticalDragEnd: _onDragEnd,
-          child: AnimatedBuilder(
-            animation: _settle,
-            builder: (context, child) {
-              final double dy = _settle.isAnimating
-                  ? _settleFrom *
-                        (1.0 - MotionTokens.enter.transform(_settle.value))
-                  : _dragDy;
-              return Transform.translate(offset: Offset(0, dy), child: child);
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _AddCashHeader(colors: colors, onClose: _closeSurface),
-                _FiatCryptoSwitch(controller: _tabController, colors: colors),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      const _CryptoDepositPanel(),
-                      _FiatDepositPanel(
-                        prefillAmount: widget.prefillAmount,
-                        memo: widget.memo,
-                      ),
-                    ],
-                  ),
+        child: PullDownDismissibleSurface(
+          onDismiss: _closeSurface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _AddCashHeader(colors: colors, onClose: _closeSurface),
+              Expanded(
+                child: _FiatDepositPanel(
+                  prefillAmount: widget.prefillAmount,
+                  memo: widget.memo,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -321,85 +186,6 @@ class _AddCashHeader extends StatelessWidget {
 // keeps the Crypto panel lazy: landing on Fiat does NOT fetch the Polygon
 // deposit address.
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _FiatCryptoSwitch extends StatelessWidget {
-  const _FiatCryptoSwitch({required this.controller, required this.colors});
-
-  final TabController controller;
-  final AzamanColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    // The selector must track the controller, not just its own taps: a
-    // swipe on the TabBarView (or a programmatic animateTo) changes the
-    // visible content without rebuilding a StatelessWidget sibling —
-    // leaving the selector claiming the wrong tab is selected.
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _switchTab('Fiat', 1),
-              const SizedBox(width: 28),
-              _switchTab('Crypto', 0),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _switchTab(String label, int index) {
-    final selected = controller.index == index;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '$label tab',
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (controller.index == index) return;
-          AzamanHaptics.toggle();
-          controller.animateTo(
-            index,
-            duration: MotionTokens.control,
-            curve: MotionTokens.enter,
-          );
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? colors.textPrimary : colors.textTertiary,
-                fontSize: 15,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 5),
-            AnimatedContainer(
-              duration: MotionTokens.control,
-              curve: MotionTokens.enter,
-              width: 26,
-              height: 3,
-              decoration: BoxDecoration(
-                color: selected ? colors.accent : Colors.transparent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // =============================================================================
 // FIAT PANEL — odometer amount, quick pills, keypad, method row, CTA.
@@ -1875,15 +1661,15 @@ class _PaymentOptionRow extends StatelessWidget {
 // switches to Crypto, so landing on Fiat never fetches the address.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CryptoDepositPanel extends ConsumerStatefulWidget {
-  const _CryptoDepositPanel();
+class CryptoReceivePanel extends ConsumerStatefulWidget {
+  const CryptoReceivePanel();
 
   @override
-  ConsumerState<_CryptoDepositPanel> createState() =>
-      _CryptoDepositPanelState();
+  ConsumerState<CryptoReceivePanel> createState() =>
+      CryptoReceivePanelState();
 }
 
-class _CryptoDepositPanelState extends ConsumerState<_CryptoDepositPanel>
+class CryptoReceivePanelState extends ConsumerState<CryptoReceivePanel>
     with AutomaticKeepAliveClientMixin {
   String? _address;
   bool _isLoading = true;

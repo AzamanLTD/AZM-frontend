@@ -127,19 +127,31 @@ class ActivityRestGeometry {
   static const double headingInset = 48;
 }
 
-/// The resting-state heading/doorway. Tapping enters the SAME second
-/// resting state as the upward drag (correction A) — the parent owns the
-/// handoff. Clean and minimal: identity bar, heading, directional arrow.
-/// No instructional sentence.
+/// The resting-state Recent bubble. Its visual state follows the same
+/// handoff controller as the wallet/activity composition: neutral when idle,
+/// progressively larger while pulled, and silver-green when it becomes the
+/// active header. The entire doorway band remains the tap target.
 class RecentActivityDoorway extends ConsumerWidget {
-  const RecentActivityDoorway({super.key, required this.onOpen});
+  const RecentActivityDoorway({
+    super.key,
+    required this.onOpen,
+    this.progress = 0,
+    this.armed = 0,
+    this.reduceMotion = false,
+  });
 
-  /// Enters the in-Home activity surface — identical to the pull-up handoff.
   final VoidCallback onOpen;
+  final double progress;
+  final double armed;
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
+    final t = progress.clamp(0.0, 1.0).toDouble();
+    final scale = reduceMotion ? 1.0 : 1.0 + 0.14 * t + 0.045 * armed;
+    final wobble = reduceMotion ? 0.0 : ActivityHandoffPhysics.wobbleFor(armed);
+
     return ScaleTap(
       key: const ValueKey('recent_activity_doorway'),
       onTap: () {
@@ -147,53 +159,92 @@ class RecentActivityDoorway extends ConsumerWidget {
         onOpen();
       },
       child: GestureDetector(
-        // PASS A4/F — the doorway is a FULL-WIDTH touch target at the
-        // fold. The heading text and arrow hug the left, but the door is
-        // the entire low band: this opaque hit layer keeps the row's
-        // empty right half tappable (a thumb lands anywhere on the
-        // band). No recognizers of its own — the ScaleTap above owns
-        // the tap.
         behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  // PASS E: the heading's identity marker is a restrained
-                  // detail — muted accent, never bright gold.
-                  color: colors.mutedAccent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: AzSpace.sm),
-              Flexible(
-                child: Text(
-                  'Recent Activity',
-                  style: AzText.titleXl.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
+          child: SizedBox(
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.lerp(
+                Alignment.centerLeft,
+                Alignment.center,
+                t,
+              )!,
+              child: Transform.rotate(
+                angle: wobble,
+                child: Transform.scale(
+                  scale: scale,
+                  child: _RecentBubbleFace(
+                    colors: colors,
+                    progress: t,
+                    selected: false,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
               ),
-              const SizedBox(width: AzSpace.xs),
-              Icon(
-                // PASS A4 — a state-driven directional contract: the RESTING
-                // Home doorway points DOWN because the content below is
-                // something the user pulls into view (the handoff is the
-                // continued downward page scroll at the end of Home). The
-                // committed Activity heading carries the UP arrow — the
-                // next downward pull there returns to Home.
-                HugeIconsSolid.arrowDown01,
-                size: 16,
-                color: colors.textTertiary,
-              ),
-            ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentBubbleFace extends StatelessWidget {
+  const _RecentBubbleFace({
+    required this.colors,
+    required this.progress,
+    required this.selected,
+  });
+
+  final AzamanColors colors;
+  final double progress;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = selected ? 1.0 : progress.clamp(0.0, 1.0).toDouble();
+    final idleSurface = colors.softSurface;
+    final activeSurface = colors.isDark
+        ? const Color(0xFF254B39)
+        : const Color(0xFFC9DDCF);
+    final idleInk = colors.textTertiary;
+    final activeInk = colors.isDark
+        ? const Color(0xFFD9EBDD)
+        : const Color(0xFF254B39);
+
+    return Semantics(
+      button: true,
+      label: 'Recent transactions',
+      selected: selected,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AzSpace.xl,
+          vertical: AzSpace.sm,
+        ),
+        decoration: BoxDecoration(
+          color: Color.lerp(idleSurface, activeSurface, active),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: Color.lerp(colors.border, activeSurface, active)!,
+            width: 1,
+          ),
+          boxShadow: active > 0.5
+              ? [
+                  BoxShadow(
+                    color: activeSurface.withValues(alpha: 0.16 * active),
+                    blurRadius: 14 * active,
+                    spreadRadius: 0.5 * active,
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          'Recent',
+          key: selected ? const ValueKey('home-activity-header-title') : null,
+          style: AzText.body.copyWith(
+            color: Color.lerp(idleInk, activeInk, active),
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.1,
           ),
         ),
       ),
@@ -434,6 +485,7 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
             progress: widget.headingProgress,
             armed: widget.armedCue,
             reduceMotion: reduceMotion,
+            onClose: widget.onClose,
           ),
         ),
         const SizedBox(height: AzSpace.lg),
@@ -573,71 +625,39 @@ class _CuedHeading extends StatelessWidget {
     required this.progress,
     required this.armed,
     required this.reduceMotion,
+    required this.onClose,
   });
 
   final AzamanColors colors;
   final double progress;
   final double armed;
   final bool reduceMotion;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final t = progress.clamp(0.0, 1.0);
-    // The directional contract (A4): the arrow is the DOWN glyph at the
-    // uncommitted extreme and rotates to UP as the reveal completes —
-    // the heading "begins its transition" during the pull and locks UP
-    // on commit. Reduced motion keeps the same two resting states with
-    // the rotation itself binary.
-    final arrowRotation = reduceMotion
-        ? (t >= 0.999 ? math.pi : 0.0)
-        : math.pi * t;
-    final scale = reduceMotion ? 1.0 : 1.0 + 0.05 * armed.clamp(0.0, 1.0);
+    final t = progress.clamp(0.0, 1.0).toDouble();
+    final scale = reduceMotion ? 1.0 : 1.0 + 0.14 * t + 0.045 * armed;
     final wobble = reduceMotion ? 0.0 : ActivityHandoffPhysics.wobbleFor(armed);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-      child: Transform.rotate(
-        angle: wobble,
-        child: Transform.scale(
-          scale: scale,
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  // PASS E: the identity marker is a restrained detail.
-                  color: colors.mutedAccent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      child: Center(
+        child: ScaleTap(
+          onTap: () {
+            AzamanHaptics.nav();
+            onClose();
+          },
+          child: Transform.rotate(
+            angle: wobble,
+            child: Transform.scale(
+              scale: scale,
+              child: _RecentBubbleFace(
+                colors: colors,
+                progress: 1,
+                selected: true,
               ),
-              const SizedBox(width: AzSpace.sm),
-              Flexible(
-                child: Text(
-                  'Recent Activity',
-                  key: const ValueKey('home-activity-header-title'),
-                  style: AzText.titleXl.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-              const SizedBox(width: AzSpace.xs),
-              Transform.rotate(
-                angle: arrowRotation,
-                child: Icon(
-                  // Rotated by [arrowRotation]: π at Activity rest — the
-                  // state-driven UP arrow of the committed state (A4).
-                  key: const ValueKey('activity-heading-arrow'),
-                  HugeIconsSolid.arrowDown01,
-                  size: 16,
-                  color: colors.textTertiary,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

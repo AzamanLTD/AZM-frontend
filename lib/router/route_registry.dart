@@ -39,6 +39,7 @@ abstract final class AzRouteNames {
   static const accountActivity = 'account-activity';
   static const accountDelete = 'account-delete';
   static const transactions = 'transactions';
+  static const receive = 'receive';
 
   // Social
   static const friends = 'friends';
@@ -167,6 +168,7 @@ abstract final class AzRoutes {
   /// The P2P crypto market — the FCM `OPEN_AD` target.
   static const marketplace = '/marketplace';
   static const savings = '/savings';
+  static const receive = '/receive';
 
   /// `/deposit?amount=&memo=` — Susu T-24h shortfall reminders pre-fill the
   /// Mobile Money tab with these two query parameters (Req 12.4).

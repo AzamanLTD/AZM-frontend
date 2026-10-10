@@ -156,7 +156,7 @@ void main() {
       expect(find.byIcon(Icons.arrow_back), findsNothing);
     });
 
-    testWidgets('switch defaults to Fiat with Crypto available', (
+    testWidgets('Add Cash is dedicated to fiat and has no currency toggle', (
       tester,
     ) async {
       _phoneSize(tester);
@@ -164,11 +164,10 @@ void main() {
       await _openDeposit(tester);
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Fiat'), findsOneWidget);
-      expect(find.text('Crypto'), findsOneWidget);
-      // Fiat is the default: the fiat instrument (keypad) is present.
+      expect(find.text('Fiat'), findsNothing);
+      expect(find.text('Crypto'), findsNothing);
+      expect(find.byType(AmountKeypad), findsOneWidget);
       expect(find.byIcon(Icons.backspace_outlined), findsOneWidget);
-      // The crypto surface is NOT present while resting on Fiat.
       expect(find.text('Deposit USDC'), findsNothing);
     });
 
@@ -401,9 +400,7 @@ void main() {
       // The close affordance is labeled.
       expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget);
 
-      // The switch tabs are buttons.
-      expect(find.bySemanticsLabel('Fiat tab'), findsOneWidget);
-      expect(find.bySemanticsLabel('Crypto tab'), findsOneWidget);
+      // Add Cash has no currency-selection tabs; Crypto lives on Receive.
 
       // Keypad keys carry labels — including the two non-digit keys.
       expect(find.bySemanticsLabel('Decimal point'), findsOneWidget);
