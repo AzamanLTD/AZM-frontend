@@ -150,7 +150,7 @@ void main() {
       expect(find.text('Crypto'), findsNothing);
       expect(find.byType(AmountKeypad), findsOneWidget);
       expect(find.byIcon(Icons.backspace_outlined), findsOneWidget);
-      expect(find.text('Deposit USDC'), findsNothing);
+      expect(find.text('Receive USDC'), findsNothing);
     });
 
     testWidgets('resting instrument: amount 0, pills, keypad, method, CTA', (
