@@ -787,6 +787,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                     5,
                                     RecentActivityDoorway(
                                       onOpen: _enterActivity,
+                                      progress: t,
+                                      armed: _handoffArmedDepth,
+                                      reduceMotion: reduceMotion,
                                     ),
                                     reduceMotion,
                                   ),

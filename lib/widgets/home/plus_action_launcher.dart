@@ -21,10 +21,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:go_router/go_router.dart';
 
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -599,72 +599,9 @@ class _LauncherRow extends ConsumerWidget {
 
 // ── RECEIVE (things I can DO) ─────────────────────────────────────────────
 
-/// The Receive action's target: shows the user's public AZM ID + a QR so
-/// anyone can pay them. No invented amounts, no fake activity — the only
-/// data is the user's real public ID.
-Future<void> showReceiveSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => const _ReceiveSheet(),
-  );
-}
-
-class _ReceiveSheet extends ConsumerWidget {
-  const _ReceiveSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    final user = ref.watch(authProvider).user;
-    final azmId = user?.azamanId ?? user?.username ?? '';
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AzSpace.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Receive money',
-              style: AzText.titleXl.copyWith(color: colors.textPrimary),
-            ),
-            const SizedBox(height: AzSpace.md),
-            Text(
-              'Share your AZM ID — anyone can send to it.',
-              style: AzText.bodyL.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: AzSpace.lg),
-            Container(
-              padding: const EdgeInsets.all(AzSpace.md),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: QrImageView(
-                data: azmId,
-                version: QrVersions.auto,
-                size: 180,
-                eyeStyle: QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: colors.textPrimary,
-                ),
-                dataModuleStyle: QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: colors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: AzSpace.lg),
-            SelectableText(
-              azmId,
-              style: AzText.title.copyWith(color: colors.textPrimary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+/// Opens Receive as a full-page route. The historical function name stays
+/// stable for existing launcher call sites, but this no longer presents a
+/// modal bottom sheet.
+Future<void> showReceiveSheet(BuildContext context) async {
+  await context.push<void>(AzRoutes.receive);
 }

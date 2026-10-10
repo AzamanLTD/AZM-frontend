@@ -6,7 +6,6 @@
 // panel is exercised end-to-end without network stubs.
 // =============================================================================
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/receive_screen.dart';
 import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 
@@ -30,9 +30,18 @@ GoRouter _router() => GoRouter(
       path: '/',
       builder: (c, s) => Scaffold(
         body: Center(
-          child: TextButton(
-            onPressed: () => GoRouter.of(c).push('/deposit'),
-            child: const Text('home-sentinel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: () => GoRouter.of(c).push('/deposit'),
+                child: const Text('home-sentinel'),
+              ),
+              TextButton(
+                onPressed: () => GoRouter.of(c).push('/receive'),
+                child: const Text('receive-sentinel'),
+              ),
+            ],
           ),
         ),
       ),
@@ -44,6 +53,15 @@ GoRouter _router() => GoRouter(
         key: s.pageKey,
         restorationId: s.name,
         child: const DepositScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/receive',
+      name: 'receive',
+      pageBuilder: (c, s) => risePage(
+        key: s.pageKey,
+        restorationId: s.name,
+        child: const ReceiveScreen(),
       ),
     ),
   ],
@@ -73,6 +91,15 @@ Future<void> _openDeposit(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 1));
   // The header title AND the CTA both say Add Cash.
   expect(find.text('Add Cash'), findsWidgets);
+}
+
+Future<void> _openReceive(WidgetTester tester) async {
+  await tester.tap(find.text('receive-sentinel'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(seconds: 1));
+  expect(find.text('Receive'), findsOneWidget);
 }
 
 /// A neutral spot to start a pull: the panel heading text — never a button,
@@ -170,17 +197,17 @@ void main() {
         'complete instrument', (tester) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
-      // On Fiat: the crypto instrument is not built (TabBarView is lazy).
-      expect(find.text('Deposit USDC'), findsNothing);
+      // Receive opens on Fiat, with its Crypto destination available at the top.
+      expect(find.text('Your Azaman ID'), findsOneWidget);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump(); // anchor the tab animation ticker
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Deposit USDC'), findsOneWidget);
+      expect(find.text('Receive USDC'), findsOneWidget);
       expect(find.text('Polygon'), findsWidgets); // network chip + copy
       // The QR is the main visual.
       expect(find.byType(AnimatedQrDust), findsOneWidget);
@@ -213,7 +240,7 @@ void main() {
 
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump();
@@ -234,7 +261,7 @@ void main() {
     ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump();
@@ -250,6 +277,107 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
+    });
+  });
+
+  group('I — Receive / Request resting-state interaction', () {
+    testWidgets('Request button snaps to the selected header and toggles back',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      // Semantics assertions need the semantics tree attached.
+      final semantics = tester.ensureSemantics();
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+
+      expect(
+        find.bySemanticsLabel(
+          'Request section, selected. Tap to return to Receive.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('downward pull from Request returns to Receive before close',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(find.text('Request money'), findsOneWidget);
+
+      // Pull from the Request heading, outside the nested contact list. The
+      // first committed downward pull returns to Receive; it must not dismiss
+      // the full-page route or leave its outer translation displaced.
+      final origin = tester.getCenter(find.text('Request money'));
+      final gesture = await tester.startGesture(origin);
+      await gesture.moveBy(const Offset(0, 240));
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('Receive'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+      semantics.dispose();
+      expect(find.text('receive-sentinel'), findsNothing);
+    });
+
+    testWidgets('an intentional pull snaps into Request; a short pull returns',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      final center = tester.getCenter(toggle);
+      final short = await tester.startGesture(center);
+      // Real pointers stream many small moves; a single large hop can lose
+      // the gesture arena to the scrollable behind the bubble.
+      for (var i = 0; i < 4; i++) {
+        await short.moveBy(const Offset(0, -18));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await short.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      final semantics = tester.ensureSemantics();
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+
+      final origin = tester.getCenter(toggle);
+      final committed = await tester.startGesture(origin);
+      for (var i = 0; i < 11; i++) {
+        await committed.moveBy(const Offset(0, -20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await committed.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(
+        find.bySemanticsLabel(
+          'Request section, selected. Tap to return to Receive.',
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
     });
   });
 }
