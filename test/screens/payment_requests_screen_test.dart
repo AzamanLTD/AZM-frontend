@@ -17,7 +17,7 @@ class _FakeApiClient extends ApiClient {
   final Future<http.Response> Function(
     String endpoint, {
     Map<String, String>? headers,
-    bool requireAuth,
+    bool? requireAuth,
   }) onGet;
 
   @override
