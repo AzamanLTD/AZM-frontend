@@ -122,7 +122,7 @@ void main() {
     expect(find.byType(RecentActivityDoorway), findsOneWidget);
     // Two headings at rest: the doorway's plus the (opacity-0) activity
     // surface's — mounted but faded out, like the deck's under-card.
-    expect(find.text('Recent Activity'), findsNWidgets(2));
+    expect(find.text('Recent'), findsNWidgets(2));
     expect(find.byType(RecentActivitySection), findsNothing);
     expect(find.byType(SkeletonBlock), findsNothing);
   });

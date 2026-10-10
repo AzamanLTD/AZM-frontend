@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/receive_screen.dart';
 import 'package:azaman/widgets/animated_qr_dust.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 
@@ -30,9 +31,18 @@ GoRouter _router() => GoRouter(
       path: '/',
       builder: (c, s) => Scaffold(
         body: Center(
-          child: TextButton(
-            onPressed: () => GoRouter.of(c).push('/deposit'),
-            child: const Text('home-sentinel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: () => GoRouter.of(c).push('/deposit'),
+                child: const Text('home-sentinel'),
+              ),
+              TextButton(
+                onPressed: () => GoRouter.of(c).push('/receive'),
+                child: const Text('receive-sentinel'),
+              ),
+            ],
           ),
         ),
       ),
@@ -44,6 +54,15 @@ GoRouter _router() => GoRouter(
         key: s.pageKey,
         restorationId: s.name,
         child: const DepositScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/receive',
+      name: 'receive',
+      pageBuilder: (c, s) => risePage(
+        key: s.pageKey,
+        restorationId: s.name,
+        child: const ReceiveScreen(),
       ),
     ),
   ],
@@ -73,6 +92,15 @@ Future<void> _openDeposit(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 1));
   // The header title AND the CTA both say Add Cash.
   expect(find.text('Add Cash'), findsWidgets);
+}
+
+Future<void> _openReceive(WidgetTester tester) async {
+  await tester.tap(find.text('receive-sentinel'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(seconds: 1));
+  expect(find.text('Receive'), findsOneWidget);
 }
 
 /// A neutral spot to start a pull: the panel heading text — never a button,
@@ -170,10 +198,10 @@ void main() {
         'complete instrument', (tester) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
-      // On Fiat: the crypto instrument is not built (TabBarView is lazy).
-      expect(find.text('Deposit USDC'), findsNothing);
+      // Receive opens on Fiat, with its Crypto destination available at the top.
+      expect(find.text('Your Azaman ID'), findsOneWidget);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump(); // anchor the tab animation ticker
@@ -213,7 +241,7 @@ void main() {
 
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump();
@@ -234,7 +262,7 @@ void main() {
     ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
-      await _openDeposit(tester);
+      await _openReceive(tester);
 
       await tester.tap(find.text('Crypto'));
       await tester.pump();
@@ -253,6 +281,66 @@ void main() {
     });
   });
 }
+
+  group('I — Receive / Request resting-state interaction', () {
+    testWidgets('Request button snaps to the selected header and toggles back',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+
+      expect(
+        find.bySemanticsLabel(
+          'Request section, selected. Tap to return to Receive.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+    });
+
+    testWidgets('an intentional pull snaps into Request; a short pull returns',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      final center = tester.getCenter(toggle);
+      final short = await tester.startGesture(center);
+      await short.moveBy(const Offset(0, -70));
+      await tester.pump(const Duration(milliseconds: 40));
+      await short.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+
+      final origin = tester.getCenter(toggle);
+      final committed = await tester.startGesture(origin);
+      await committed.moveBy(const Offset(0, -210));
+      await tester.pump(const Duration(milliseconds: 60));
+      await committed.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(
+        find.bySemanticsLabel(
+          'Request section, selected. Tap to return to Receive.',
+        ),
+        findsOneWidget,
+      );
+    });
+  });
 
 /// Captures what the app writes to the system clipboard, via the same
 /// platform channel the Clipboard utility uses.

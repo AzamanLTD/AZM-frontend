@@ -42,6 +42,7 @@ import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/receive_screen.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
@@ -337,6 +338,17 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: const SavingsScreen(),
+      ),
+    ),
+
+    // ── Receive (full-page fiat / crypto receiver) ───────────────────────
+    GoRoute(
+      path: '/receive',
+      name: AzRouteNames.receive,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const ReceiveScreen(),
       ),
     ),
 

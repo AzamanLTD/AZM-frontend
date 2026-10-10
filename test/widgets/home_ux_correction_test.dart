@@ -564,25 +564,19 @@ void main() {
     });
   });
 
-  // ── §6 — the doorway says "Pull up" and lives low ─────────────────────
+  // ── §6 — Recent bubble doorway and low placement ──────────────────────
 
   group('§6 doorway wording + low placement', () {
-    testWidgets('the doorway is minimal — heading identity + the A4 '
-        'state-driven DOWN arrow, no "Pull up" call to action', (tester) async {
+    testWidgets('the doorway is a neutral Recent button with no pull copy',
+        (tester) async {
       await _pumpHome(tester);
 
-      // CORRECTION A: the doorway opens the SAME second resting state on
-      // tap. The call-to-action wording is gone; the identity heading +
-      // the directional arrow carry the affordance.
-      expect(find.text('Recent Activity'), findsWidgets);
+      // Recent is a button, not a page heading or a directional-arrow CTA.
+      // Its selected silver-green counterpart becomes the Activity header.
+      expect(find.text('Recent'), findsWidgets);
       expect(find.text('Pull up'), findsNothing);
       expect(find.text('Pull down'), findsNothing);
-      // PASS A4 — the RESTING Home doorway points DOWN: the activity
-      // below is content the user pulls into view. (The committed
-      // Activity heading rotates the same glyph to UP — pinned in the
-      // handoff suite.)
-      expect(find.byIcon(HugeIconsSolid.arrowDown01), findsWidgets);
-      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsNothing);
+      expect(find.bySemanticsLabel('Recent transactions'), findsOneWidget);
       expect(find.text('← Wallet'), findsNothing);
     });
 
