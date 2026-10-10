@@ -36,24 +36,6 @@ class _FakeSavedMomo extends SavedMomoNotifier {
   Future<List<SavedMomoAccount>> build() async => accounts;
 }
 
-SavedMomoAccount _acct(
-  String id,
-  String nickname,
-  String provider,
-  String phone, {
-  String? accountName,
-  bool isPrimary = false,
-}) => SavedMomoAccount(
-  id: id,
-  nickname: nickname,
-  provider: provider,
-  phoneNumber: phone,
-  accountName: accountName,
-  isVerified: true,
-  isPrimary: isPrimary,
-  createdAt: DateTime.utc(2026, 9, 1),
-);
-
 /// The demo seed's two accounts, for tests that don't override the provider.
 Widget _app({List<SavedMomoAccount>? fakeAccounts}) {
   return ProviderScope(
