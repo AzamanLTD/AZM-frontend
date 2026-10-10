@@ -249,7 +249,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     // Contract for the standalone request API: this is intentionally separate
     // from /friends/transfer/request, which emits chat-oriented transfer
     // requests. The backend PR must implement this contract before release.
-    final response = await apiClient.postFinancial(
+    final response = await ref.read(apiClientProvider).postFinancial(
       '/payment-requests',
       {
         'amount': amount.toStringAsFixed(2),
