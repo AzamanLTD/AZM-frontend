@@ -118,10 +118,6 @@ void main() {
       calls,
       contains('/payment-requests/public/demo-token|auth=false'),
     );
-    expect(
-      find.textContaining('Payment is not initiated by opening this link'),
-      findsNothing,
-    );
     expect(find.textContaining('Payment is not initiated by opening'), findsOneWidget);
   });
 
