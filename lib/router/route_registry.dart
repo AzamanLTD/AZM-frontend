@@ -40,6 +40,8 @@ abstract final class AzRouteNames {
   static const accountDelete = 'account-delete';
   static const transactions = 'transactions';
   static const receive = 'receive';
+  static const paymentRequests = 'payment-requests';
+  static const paymentRequestLink = 'payment-request-link';
 
   // Social
   static const friends = 'friends';
@@ -169,6 +171,8 @@ abstract final class AzRoutes {
   static const marketplace = '/marketplace';
   static const savings = '/savings';
   static const receive = '/receive';
+  static const paymentRequests = '/payment-requests';
+  static String paymentRequestLink(String token) => '/request/${Uri.encodeComponent(token)}';
 
   /// `/deposit?amount=&memo=` — Susu T-24h shortfall reminders pre-fill the
   /// Mobile Money tab with these two query parameters (Req 12.4).
