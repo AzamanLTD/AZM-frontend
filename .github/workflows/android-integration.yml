@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -68,8 +70,8 @@ jobs:
           {
             "project_info": {
               "project_number": "000000000000",
-              "project_id": "azaman-ci",
-              "storage_bucket": "azaman-ci.appspot.com"
+              "storage_bucket": "azaman-ci.appspot.com",
+              "project_id": "azaman-ci"
             },
             "client": [
               {
