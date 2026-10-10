@@ -1736,10 +1736,10 @@ class CryptoReceivePanelState extends ConsumerState<CryptoReceivePanel>
     if (_address == null) return;
     AzamanHaptics.navigation();
     Share.share(
-      'My Azaman deposit address (Polygon USDC):\n$_address\n\n'
+      'My Azaman USDC receiving address (Polygon):\n$_address\n\n'
       'IMPORTANT: send only USDC on the Polygon network. '
       'Other tokens or networks will be lost.',
-      subject: 'Azaman Deposit Address',
+      subject: 'Azaman Receiving Address',
     );
   }
 
@@ -1763,7 +1763,7 @@ class CryptoReceivePanelState extends ConsumerState<CryptoReceivePanel>
             ),
             const SizedBox(height: 16),
             Text(
-              'Loading your deposit address…',
+              'Loading your receiving address…',
               style: TextStyle(
                 color: colors.textSecondary,
                 fontSize: 13.5,
@@ -1819,7 +1819,7 @@ class CryptoReceivePanelState extends ConsumerState<CryptoReceivePanel>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Deposit USDC',
+                      'Receive USDC',
                       style: TextStyle(
                         color: colors.textPrimary,
                         fontSize: compact ? 20 : 24,
