@@ -42,6 +42,8 @@ import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/payment_requests_screen.dart';
+import 'package:azaman/screens/payment_request_landing_screen.dart';
 import 'package:azaman/screens/receive_screen.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/screens/leaderboard_screen.dart';
@@ -140,7 +142,7 @@ final GoRouter appRouter = GoRouter(
     }
     final path = state.uri.path;
     // Public routes always pass
-    if (path == '/' || path.startsWith('/susu/invite/')) return null;
+    if (path == '/' || path.startsWith('/susu/invite/') || path.startsWith('/request/')) return null;
     // Demo mode: bypass auth gating entirely — demo build has no real session to protect.
     if (AppConfig.demoMode) return null;
     // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
@@ -338,6 +340,28 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: const SavingsScreen(),
+      ),
+    ),
+
+    // ── Standalone payment requests (not chat messages) ────────────────
+    GoRoute(
+      path: '/payment-requests',
+      name: AzRouteNames.paymentRequests,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const PaymentRequestsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/request/:token',
+      name: AzRouteNames.paymentRequestLink,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: PaymentRequestLandingScreen(
+          token: state.pathParameters['token']!,
+        ),
       ),
     ),
 
