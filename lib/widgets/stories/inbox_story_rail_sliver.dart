@@ -1,4 +1,6 @@
-/// The story rail as the sliver *before* the inbox center (Overhaul 04 §3.4).
+/// The story rail as the sliver *before* the inbox center (Overhaul 04 §3.4,
+/// UX pass C: the hub rests at the OPEN detent, so this sliver is fully
+/// revealed on entry; scrolling into the list collapses it).
 ///
 /// Fade/scale read the controller through an `AnimatedBuilder`; the rail's
 /// child is built once and only rewrapped on drag ticks — chat rows never
@@ -23,7 +25,10 @@ class InboxStoryRailSliver extends StatelessWidget {
   });
 
   /// 0 = hidden, 1 = fully open. Pure; exposed for tests.
-  static double revealExtent({required double minScrollExtent, required double pixels}) {
+  static double revealExtent({
+    required double minScrollExtent,
+    required double pixels,
+  }) {
     if (minScrollExtent >= 0) return 1;
     return (pixels / minScrollExtent).clamp(0.0, 1.0);
   }
@@ -42,7 +47,10 @@ class InboxStoryRailSliver extends StatelessWidget {
             if (controller.hasClients) {
               final pos = controller.position;
               if (pos.hasContentDimensions && pos.hasPixels) {
-                extent = revealExtent(minScrollExtent: pos.minScrollExtent, pixels: pos.pixels);
+                extent = revealExtent(
+                  minScrollExtent: pos.minScrollExtent,
+                  pixels: pos.pixels,
+                );
               } else {
                 extent = 0;
               }

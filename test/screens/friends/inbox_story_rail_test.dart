@@ -20,7 +20,11 @@ class _FakeFriends extends FriendProvider {
           'friend': {'id': 100 + i, 'username': 'friend$i'},
           'latestMessage': {
             'content': 'message $i',
-            'createdAt': DateTime(2026, 10, 1).add(Duration(minutes: i)).toIso8601String(),
+            'createdAt': DateTime(
+              2026,
+              10,
+              1,
+            ).add(Duration(minutes: i)).toIso8601String(),
           },
         },
     ];
@@ -53,139 +57,328 @@ class _FakeGroups extends GroupListNotifier {
 }
 
 List<StoryGroup> _stories() => [
-      for (var i = 0; i < 3; i++)
-        StoryGroup(authorId: i, authorUsername: 'author$i', hasUnseen: i < 2, isBoosted: false, stories: const []),
-    ];
+  for (var i = 0; i < 3; i++)
+    StoryGroup(
+      authorId: i,
+      authorUsername: 'author$i',
+      hasUnseen: i < 2,
+      isBoosted: false,
+      stories: const [],
+    ),
+];
 
 List<GroupSummary> _groups() => [
-      GroupSummary(
-        id: 'g1',
-        name: 'Market Mamas',
-        status: 'ACTIVE',
-        susuGroupId: 's1',
-        susuStatus: 'ACTIVE',
-        members: const [],
-        updatedAt: DateTime(2026, 10, 2),
-      ),
-      GroupSummary(id: 'g2', name: 'Trotro crew', status: 'ACTIVE', members: const [], updatedAt: DateTime(2026, 10, 1, 12)),
-    ];
+  GroupSummary(
+    id: 'g1',
+    name: 'Market Mamas',
+    status: 'ACTIVE',
+    susuGroupId: 's1',
+    susuStatus: 'ACTIVE',
+    members: const [],
+    updatedAt: DateTime(2026, 10, 2),
+  ),
+  GroupSummary(
+    id: 'g2',
+    name: 'Trotro crew',
+    status: 'ACTIVE',
+    members: const [],
+    updatedAt: DateTime(2026, 10, 1, 12),
+  ),
+];
 
-Future<ScrollController> _pump(WidgetTester tester, {bool reducedMotion = false, int friends = 20}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      friendProvider.overrideWith((ref) => _FakeFriends(ref, friends)),
-      storyFeedProvider.overrideWith((ref) => _FakeFeed(_stories())),
-      groupListProvider.overrideWith(() => _FakeGroups(_groups())),
-    ],
-    child: MediaQuery(
-      data: MediaQueryData(size: const Size(360, 720), disableAnimations: reducedMotion),
-      child: const MaterialApp(home: FriendsHubScreen()),
+/// Pumps the hub. With [settle] false only ONE frame is painted, so the
+/// caller can pin the FIRST-frame geometry (UX C: open by default, no
+/// initial-position jump).
+Future<ScrollController> _pump(
+  WidgetTester tester, {
+  bool reducedMotion = false,
+  int friends = 20,
+  bool settle = true,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        friendProvider.overrideWith((ref) => _FakeFriends(ref, friends)),
+        storyFeedProvider.overrideWith((ref) => _FakeFeed(_stories())),
+        groupListProvider.overrideWith(() => _FakeGroups(_groups())),
+      ],
+      child: MediaQuery(
+        data: MediaQueryData(
+          size: const Size(360, 720),
+          disableAnimations: reducedMotion,
+        ),
+        child: const MaterialApp(home: FriendsHubScreen()),
+      ),
     ),
-  ));
-  await tester.pumpAndSettle();
-  final scrollable = tester.widget<CustomScrollView>(find.byKey(const ValueKey('inbox_scroll')));
+  );
+  if (settle) await tester.pumpAndSettle();
+  final scrollable = tester.widget<CustomScrollView>(
+    find.byKey(const ValueKey('inbox_scroll')),
+  );
   return scrollable.controller!;
 }
 
 final _scroll = find.byKey(const ValueKey('inbox_scroll'));
 
 void main() {
-  testWidgets('closed at rest: offset 0, rail above the viewport, compact strip counts unseen', (tester) async {
+  testWidgets(
+    'UX C — OPEN AT REST on the FIRST frame: no initial-position jump',
+    (tester) async {
+      // One frame painted, nothing settled yet.
+      final c = await _pump(tester, settle: false);
+      final viewport = tester.getRect(_scroll);
+      final rail = tester.getRect(
+        find.byKey(
+          const ValueKey('inbox_story_rail_list'),
+          skipOffstage: false,
+        ),
+      );
+
+      // The position started AT the open detent — the rail is already fully
+      // visible above the message rows in the very first painted frame.
+      expect(c.offset, -StoryRailMetrics.height);
+      expect(c.position.minScrollExtent, -StoryRailMetrics.height);
+      expect(
+        rail.top,
+        closeTo(viewport.top, 1.0),
+        reason: 'the open rail must be the resting composition, not a jump',
+      );
+      expect(
+        rail.bottom,
+        lessThanOrEqualTo(viewport.top + StoryRailMetrics.height + 1),
+      );
+
+      // Nothing later moves it — the rest stays open.
+      await tester.pumpAndSettle();
+      expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+      expect(
+        find.text('author0'),
+        findsOneWidget,
+        reason: 'the open rail shows real story authors at rest',
+      );
+      expect(find.text('Market Mamas'), findsOneWidget);
+      expect(find.byKey(const ValueKey('inbox_title')), findsOneWidget);
+    },
+  );
+
+  testWidgets('UX C — the open rail REPLACES the compact strip at rest', (
+    tester,
+  ) async {
     final c = await _pump(tester);
-    expect(c.offset, 0);
-    expect(c.position.minScrollExtent, -StoryRailMetrics.height);
-    expect(find.text('2 new'), findsOneWidget);
-    // The rail is laid out (cache extent) but offstage above the viewport.
-    final rail = tester.getRect(find.byKey(const ValueKey('inbox_story_rail_list'), skipOffstage: false));
-    final viewport = tester.getRect(_scroll);
-    expect(rail.bottom, lessThanOrEqualTo(viewport.top + 0.01));
-    // Rows render; the header kept its tier.
-    expect(find.text('Market Mamas'), findsOneWidget);
-    expect(find.byKey(const ValueKey('inbox_title')), findsOneWidget);
+
+    // At rest the rail IS the story surface; the compact strip must be
+    // fully collapsed so no second smaller story surface shows underneath.
+    final stripEls = find
+        .byKey(const ValueKey('inbox_story_rail_compact'))
+        .evaluate();
+    if (stripEls.isNotEmpty) {
+      final stripRect = tester.getRect(
+        find.byKey(const ValueKey('inbox_story_rail_compact')),
+      );
+      expect(
+        stripRect.height,
+        closeTo(0, 0.5),
+        reason: 'CORRECTION J: at rest the open rail is the ONE story surface',
+      );
+    }
+    expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+    expect(find.byKey(const ValueKey('inbox_story_rail')), findsOneWidget);
   });
 
-  testWidgets('a short pull snaps closed; a longer pull snaps open', (tester) async {
+  testWidgets('UX C — a casual scroll into the list springs back OPEN', (
+    tester,
+  ) async {
     final c = await _pump(tester);
-    await tester.drag(_scroll, const Offset(0, StoryRailMetrics.height * 0.3));
-    await tester.pumpAndSettle();
-    expect(c.offset, 0);
 
-    await tester.drag(_scroll, const Offset(0, StoryRailMetrics.height * 0.6));
+    // A short, casual drag up (not committed) releases well inside the
+    // open↔closed band; the snap must return to the open detent.
+    await tester.drag(_scroll, const Offset(0, -StoryRailMetrics.height * 0.5));
     await tester.pumpAndSettle();
-    expect(c.offset, closeTo(c.position.minScrollExtent, 0.5));
+    expect(
+      c.offset,
+      closeTo(-StoryRailMetrics.height, 0.5),
+      reason: 'a casual scroll must not collapse the rail',
+    );
     expect(find.text('author0'), findsOneWidget);
   });
 
-  testWidgets('tapping the compact strip opens; pushing the list up closes and stops at 0', (tester) async {
+  testWidgets(
+    'UX C — a committed drag collapses into the compact presentation',
+    (tester) async {
+      final c = await _pump(tester);
+
+      await tester.drag(_scroll, const Offset(0, -150));
+      await tester.pumpAndSettle();
+      expect(
+        c.offset,
+        0,
+        reason: 'a committed gesture crosses the resistant band',
+      );
+
+      // Collapsed presentation: the compact strip is the story surface now.
+      final stripRect = tester.getRect(
+        find.byKey(const ValueKey('inbox_story_rail_compact')),
+      );
+      expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
+      expect(find.text('2 new'), findsOneWidget);
+
+      // The rail itself is offstage above the viewport.
+      final rail = tester.getRect(
+        find.byKey(
+          const ValueKey('inbox_story_rail_list'),
+          skipOffstage: false,
+        ),
+      );
+      final viewport = tester.getRect(_scroll);
+      expect(rail.bottom, lessThanOrEqualTo(viewport.top + 0.01));
+    },
+  );
+
+  testWidgets('UX C — the band carries deliberate resistance mid-drag', (
+    tester,
+  ) async {
     final c = await _pump(tester);
-    await tester.tap(find.byKey(const ValueKey('inbox_story_rail_compact')));
-    await tester.pumpAndSettle();
-    expect(c.offset, closeTo(c.position.minScrollExtent, 0.5));
 
-    // Scroll into the list: the rail closes first, then rows move.
-    await tester.drag(_scroll, const Offset(0, -400));
-    await tester.pumpAndSettle();
-    expect(c.offset, greaterThan(0));
-
-    // Back to the top stops at closed; no accidental reopen.
-    await tester.drag(_scroll, const Offset(0, 400));
-    await tester.pumpAndSettle();
-    expect(c.offset, 0);
-  });
-
-  testWidgets('CORRECTION J: the open rail REPLACES the compact strip — '
-      'no smaller story surface underneath', (tester) async {
-    final c = await _pump(tester);
-
-    // At rest the strip is the story surface's collapsed presentation.
-    var stripRect =
-        tester.getRect(find.byKey(const ValueKey('inbox_story_rail_compact')));
-    expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
-
-    // Open the rail.
-    await tester.tap(find.byKey(const ValueKey('inbox_story_rail_compact')));
-    await tester.pumpAndSettle();
-    expect(c.offset, closeTo(c.position.minScrollExtent, 0.5));
-
-    // The strip has fully collapsed — zero height (or culled entirely at
-    // zero extent), so NOTHING remains underneath the expanded story
-    // surface. The expanded rail IS the active story surface.
-    final stripEls =
-        find.byKey(const ValueKey('inbox_story_rail_compact')).evaluate();
-    if (stripEls.isNotEmpty) {
-      stripRect = tester.getRect(
-          find.byKey(const ValueKey('inbox_story_rail_compact')));
-      expect(stripRect.height, closeTo(0, 0.5),
-          reason: 'the ONE story surface: at full reveal the compact strip '
-              'must not remain as a second smaller story strip');
+    // Enter the band with a committed start of the gesture, then measure a
+    // known move: inside the open↔closed band the travel is scaled, so the
+    // position moves LESS than the finger.
+    // Probe-verified gesture shape: a stream of small moves with explicit
+    // timestamps (a single huge move does not resolve the gesture arena).
+    final gesture = await tester.startGesture(tester.getCenter(_scroll));
+    for (var i = 1; i <= 5; i++) {
+      await gesture.moveBy(
+        const Offset(0, -20),
+        timeStamp: Duration(milliseconds: 16 * i),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(find.byKey(const ValueKey('inbox_story_rail')), findsOneWidget);
+    final mid = c.offset;
+    expect(
+      mid,
+      greaterThan(-StoryRailMetrics.height),
+      reason: 'the drag entered the open↔closed band',
+    );
+    expect(mid, lessThan(0));
 
-    // Closing returns the strip cleanly — the collapsed presentation is
-    // back at its resting height.
-    await tester.drag(_scroll, const Offset(0, -400));
+    final before = c.offset;
+    await gesture.moveBy(
+      const Offset(0, -40),
+      timeStamp: const Duration(milliseconds: 96),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    final delta = c.offset - before;
+    expect(
+      delta,
+      lessThan(40),
+      reason: 'in-band drags are frictioned (railBandFriction)',
+    );
+    expect(
+      delta,
+      greaterThan(20),
+      reason: 'the drag still follows the finger, just resistant',
+    );
+    await gesture.up(timeStamp: const Duration(milliseconds: 120));
     await tester.pumpAndSettle();
-    await tester.drag(_scroll, const Offset(0, 400));
+  });
+
+  testWidgets('UX C — a committed FLING collapses; a casual flick does not', (
+    tester,
+  ) async {
+    final c = await _pump(tester);
+
+    // Committed fling: velocity alone decides (above the shared threshold).
+    await tester.fling(_scroll, const Offset(0, -120), 1200);
     await tester.pumpAndSettle();
     expect(c.offset, 0);
-    stripRect =
-        tester.getRect(find.byKey(const ValueKey('inbox_story_rail_compact')));
-    expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
   });
 
-  testWidgets('reduced motion: the rail toggles without a ballistic settle', (tester) async {
-    final c = await _pump(tester, reducedMotion: true);
-    await tester.drag(_scroll, const Offset(0, StoryRailMetrics.height * 0.6));
-    await tester.pump();
-    await tester.pump();
-    expect(c.offset, closeTo(c.position.minScrollExtent, 0.5));
-    expect(tester.hasRunningAnimations, isFalse);
+  testWidgets(
+    'UX C — returning to the top stays COLLAPSED: no automatic reopen',
+    (tester) async {
+      final c = await _pump(tester);
+
+      // Collapse first.
+      await tester.drag(_scroll, const Offset(0, -150));
+      await tester.pumpAndSettle();
+      expect(c.offset, 0);
+
+      // Scroll into the list and return to the top: the boundary condition
+      // stops at CLOSED (offset 0); the rail does not pop open by itself and
+      // the snap never oscillates.
+      await tester.drag(_scroll, const Offset(0, -400));
+      await tester.pumpAndSettle();
+      expect(c.offset, greaterThan(0));
+
+      await tester.drag(_scroll, const Offset(0, 400));
+      await tester.pumpAndSettle();
+      expect(
+        c.offset,
+        0,
+        reason: 'top of the list = the compact presentation, not the rail',
+      );
+      final stripRect = tester.getRect(
+        find.byKey(const ValueKey('inbox_story_rail_compact')),
+      );
+      expect(stripRect.height, closeTo(StoryRailCompact.height, 0.5));
+
+      // An explicit, committed pull reopens — deliberate, not automatic.
+      await tester.drag(
+        _scroll,
+        const Offset(0, StoryRailMetrics.height * 0.8),
+      );
+      await tester.pumpAndSettle();
+      expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+    },
+  );
+
+  testWidgets('tapping the compact strip reopens the rail', (tester) async {
+    final c = await _pump(tester);
+    await tester.drag(_scroll, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    expect(c.offset, 0);
+
+    await tester.tap(find.byKey(const ValueKey('inbox_story_rail_compact')));
+    await tester.pumpAndSettle();
+    expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+    expect(find.text('author0'), findsOneWidget);
   });
 
-  testWidgets('empty inbox still offers the rail and the empty state', (tester) async {
-    await _pump(tester, friends: 0);
-    expect(find.byKey(const ValueKey('inbox_story_rail_compact')), findsOneWidget);
-    // Groups exist, so the list is not empty; this just confirms no crash with 0 friends.
+  testWidgets(
+    'reduced motion: collapse and reopen toggle without a ballistic settle',
+    (tester) async {
+      final c = await _pump(tester, reducedMotion: true);
+      expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+
+      await tester.drag(_scroll, const Offset(0, -150));
+      await tester.pump();
+      await tester.pump();
+      expect(c.offset, 0);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(tester.hasRunningAnimations, isFalse);
+
+      // The band resists reopening too, so the pull must be committed
+      // (~1.5× the band travel in finger distance).
+      await tester.drag(
+        _scroll,
+        const Offset(0, StoryRailMetrics.height * 1.4),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+      // Flush the staggered flutter_animate entrance delays/tickers the
+      // reopen re-triggers, then confirm nothing is still animating.
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(tester.hasRunningAnimations, isFalse);
+    },
+  );
+
+  testWidgets('empty inbox still opens the rail at rest and renders no-crash', (
+    tester,
+  ) async {
+    final c = await _pump(tester, friends: 0);
+    expect(c.offset, closeTo(-StoryRailMetrics.height, 0.5));
+    expect(find.byKey(const ValueKey('inbox_story_rail')), findsOneWidget);
+    // Groups exist, so the list is not empty; this confirms no crash with 0 friends.
     expect(find.text('Trotro crew'), findsOneWidget);
   });
 }
