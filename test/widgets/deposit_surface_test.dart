@@ -280,7 +280,6 @@ void main() {
       handle.dispose();
     });
   });
-}
 
   group('I — Receive / Request resting-state interaction', () {
     testWidgets('Request button snaps to the selected header and toggles back',
@@ -341,6 +340,7 @@ void main() {
       );
     });
   });
+}
 
 /// Captures what the app writes to the system clipboard, via the same
 /// platform channel the Clipboard utility uses.
