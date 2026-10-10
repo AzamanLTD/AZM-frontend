@@ -254,7 +254,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
         'amount': amount.toStringAsFixed(2),
         'currency': 'GHS',
         'requestMode': linkOnly ? 'LINK' : 'DIRECT',
-        if (recipient != null && _recipientId(recipient).isNotEmpty)
+        if (!linkOnly && recipient != null && _recipientId(recipient).isNotEmpty)
           'recipientUserId': _recipientId(recipient),
       },
       operationType: 'payment.request.create',
@@ -290,7 +290,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
     try {
       final fingerprint =
-          '${_amountValue!.toStringAsFixed(2)}|GHS|${_selectedRecipient == null ? '' : _recipientId(_selectedRecipient!)}';
+          '${_amountValue!.toStringAsFixed(2)}|GHS|${linkOnly ? 'LINK' : 'DIRECT'}|${_selectedRecipient == null ? '' : _recipientId(_selectedRecipient!)}';
       final reuseCreatedRequest = _lastCreatedRequest != null &&
           _lastCreatedFingerprint == fingerprint;
       if (!reuseCreatedRequest) {
@@ -426,7 +426,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ReceiveHeader(colors: colors, onClose: _closeSurface),
+              _ReceiveHeader(
+                colors: colors,
+                onClose: _closeSurface,
+                onOpenRequests: () => context.push(AzRoutes.paymentRequests),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
                 child: Row(
@@ -903,10 +907,15 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 }
 
 class _ReceiveHeader extends StatelessWidget {
-  const _ReceiveHeader({required this.colors, required this.onClose});
+  const _ReceiveHeader({
+    required this.colors,
+    required this.onClose,
+    required this.onOpenRequests,
+  });
 
   final AzamanColors colors;
   final VoidCallback onClose;
+  final VoidCallback onOpenRequests;
 
   @override
   Widget build(BuildContext context) {
@@ -937,13 +946,21 @@ class _ReceiveHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          Text(
-            'Receive',
-            style: AzText.title.copyWith(
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Text(
+              'Receive',
+              style: AzText.title.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
+          IconButton(
+            tooltip: 'Payment requests',
+            onPressed: onOpenRequests,
+            icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
+          ),
+
         ],
       ),
     );
