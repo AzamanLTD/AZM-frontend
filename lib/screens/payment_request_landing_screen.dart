@@ -56,7 +56,7 @@ class _PaymentRequestLandingScreenState
     });
     try {
       final token = Uri.encodeComponent(widget.token);
-      final response = await apiClient.get(
+      final response = await ref.read(apiClientProvider).get(
         '/payment-requests/public/$token',
         requireAuth: false,
       );
