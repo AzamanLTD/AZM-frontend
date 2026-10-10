@@ -308,6 +308,34 @@ void main() {
       expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
     });
 
+    testWidgets('downward pull from Request returns to Receive before close',
+        (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(_app());
+      await _openReceive(tester);
+
+      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(find.text('Request money'), findsOneWidget);
+
+      // Pull from the Request heading, outside the nested contact list. The
+      // first committed downward pull returns to Receive; it must not dismiss
+      // the full-page route or leave its outer translation displaced.
+      final origin = tester.getCenter(find.text('Request money'));
+      final gesture = await tester.startGesture(origin);
+      await gesture.moveBy(const Offset(0, 240));
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('Receive'), findsOneWidget);
+      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+      expect(find.text('receive-sentinel'), findsNothing);
+    });
+
     testWidgets('an intentional pull snaps into Request; a short pull returns',
         (tester) async {
       _phoneSize(tester);
