@@ -130,7 +130,18 @@ class _PaymentRequestLandingScreenState
   }
 
   void _copyLink() {
-    Clipboard.setData(ClipboardData(text: Uri.base.toString()));
+    final link = (_request?['shareUrl'] ?? _request?['requestUrl'] ?? '')
+        .toString()
+        .trim();
+    if (link.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The server did not provide a shareable link for this request.'),
+        ),
+      );
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: link));
     AzamanHaptics.confirm();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Request link copied')),
