@@ -45,7 +45,7 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
     try {
       final direction =
           _direction == _RequestDirection.incoming ? 'INCOMING' : 'OUTGOING';
-      final response = await apiClient.get('/payment-requests?direction=$direction');
+      final response = await ref.read(apiClientProvider).get('/payment-requests?direction=$direction');
       final decoded = jsonDecode(response.body);
       final root = decoded is Map<String, dynamic>
           ? decoded
