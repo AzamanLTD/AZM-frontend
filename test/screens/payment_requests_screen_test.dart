@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/services/api_client.dart';
