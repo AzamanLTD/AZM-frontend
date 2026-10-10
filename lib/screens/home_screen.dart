@@ -112,9 +112,27 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   /// until the post-entrance measurement — the deck renders natural.
   double _deckFill = 0;
 
+  /// TASK-B — the wallet band's height: the VISIBLE fold of the resting
+  /// Home. The scrollable's viewport box is NOT a stable fold reference:
+  /// under loose constraints the SingleChildScrollView sizes its viewport
+  /// to its CONTENT, so every fill increment grew the "viewport" in
+  /// lockstep and the measured delta never converged (the deck crept
+  /// +8px per pass — the delayed visible resize). The band height, read
+  /// from the LayoutBuilder each build, is the true first-viewport fold
+  /// regardless of how the scrollable's constraints arrive.
+  double? _visibleBandHeight;
+
   /// Bounded confirmation passes after a gap change: geometry re-read
-  /// from the settled layout converges in at most a couple of frames.
+  /// from the settled layout converges within a few frames. The budget
+  /// covers the entrance window — content that lands during the entrance
+  /// is absorbed while the choreography still masks the reflow, so the
+  /// composition is FINAL by the time the entrance settles.
   int _doorwayGapPasses = 0;
+
+  /// TASK-B: how many convergence passes may run. Each pass is one frame
+  /// after a delta; normal layouts converge in 1-2, the budget absorbs
+  /// late provider landings inside the entrance window.
+  static const int _doorwayGapPassBudget = 6;
   bool _scrollHandoffActive = false;
   final GlobalKey _reminderDeckKey = GlobalKey();
 
@@ -191,15 +209,28 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   bool get _reduceMotion => !AzMotion.of(context).travel;
 
   void _scheduleDoorwayGapMeasurement() {
-    // MotionTokens.staggerDelay(5) + standard travel stays well under a
-    // second; 1200ms lets the last block's entrance settle on any device.
-    // A cancelable Timer, NOT Future.delayed: the measurement belongs to
-    // this State's lifetime, and a bare delayed future would keep a
-    // timer pending after the widget is disposed.
-    _doorwayGapTimer?.cancel();
-    _doorwayGapTimer = Timer(const Duration(milliseconds: 1200), () {
-      _doorwayGapTimer = null;
-      if (mounted) _measureDoorwayGap();
+    // TASK-B — stable first-frame geometry. The layout probes are
+    // UNTRANSFORMED (_LayoutMarker slots sit outside the entrance
+    // transforms), so the content geometry is authoritative from the
+    // very first settled layout. The composition is therefore measured
+    // DURING the entrance (the choreography masks the reflow) instead
+    // of resizing visibly at a fixed 1200ms mark.
+    //
+    // One cancelable verification Timer remains as a safety net: if a
+    // provider lands after the convergence passes ran out, the
+    // entrance-end pass corrects the composition once. When the
+    // first-frame measurement is right — the normal case — this pass
+    // finds ZERO delta and changes nothing (idempotent by design, see
+    // _measureDoorwayGap). The Timer belongs to this State's lifetime
+    // and is cancelled in dispose.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _measureDoorwayGap();
+      _doorwayGapTimer?.cancel();
+      _doorwayGapTimer = Timer(const Duration(milliseconds: 1200), () {
+        _doorwayGapTimer = null;
+        if (mounted) _measureDoorwayGap();
+      });
     });
   }
 
@@ -229,15 +260,19 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
         scrollOrigin +
         doorwayBox.size.height;
 
-    // The content's TRUE bottom edge (the nav-clearance padding below
-    // the doorway is part of the scroll content) vs the viewport box.
-    // Clamping physics floors maxScrollExtent at 0 when the content
-    // under-fills, so the deficit must be read from geometry, never
-    // from the position.
+    // TASK-B — the fold is the VISIBLE band (the wallet surface region),
+    // never the scrollable's viewport box: under loose constraints the
+    // SingleChildScrollView sizes its viewport to the CONTENT, so a
+    // content-sized "viewport" grows in lockstep with the measured fill
+    // and the fixed point degenerates into +8px-per-pass creep. The
+    // band height is constraint-stable: the composition converges and
+    // stays converged. The nav-clearance padding below the doorway is
+    // part of the scroll content and counts towards the fold.
+    final foldHeight = _visibleBandHeight ?? scrollBox.size.height;
     final trueExtent =
         doorwayBottomUnscrolled +
         AzSpace.navClearance.bottom -
-        scrollBox.size.height;
+        foldHeight;
 
     // PASS B5 — the deck is a FIXED compact strip; the measured spacer is
     // the deck→doorway gap. The content must end a deliberate few pixels
@@ -273,16 +308,26 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
       if (rem < 0) newFill = math.max(0.0, newFill + rem);
     }
     _doorwayGapSettled = true;
-    if ((newGap - _doorwayGap).abs() > 0.5 ||
-        (newFill - _deckFill).abs() > 0.5) {
+    // TASK-B — apply tolerance: layout rounds to whole pixels, so the
+    // measured residual drifts by fractions of a pixel between passes.
+    // Re-applying sub-tolerance deltas would round to a 1px visible
+    // reflow AFTER the entrance settled — exactly the delayed resize
+    // this pass must never cause. Real imbalances (late provider
+    // landings, rotation, font-scale changes) are orders of magnitude
+    // larger and still apply.
+    const applyTolerance = 2.0;
+    if ((newGap - _doorwayGap).abs() > applyTolerance ||
+        (newFill - _deckFill).abs() > applyTolerance) {
       setState(() {
         _doorwayGap = newGap;
         _deckFill = newFill;
       });
-      // One bounded confirmation pass after the relayout: geometry re-read
+      // Bounded confirmation passes after the relayout: geometry re-read
       // from the FINAL layout converges even if the first pass caught the
-      // content mid-settle.
-      if (_doorwayGapPasses < 2) {
+      // content mid-settle. The budget covers the entrance window so any
+      // reflow is absorbed while the choreography still runs — the
+      // composition must already be final when the entrance settles.
+      if (_doorwayGapPasses < _doorwayGapPassBudget) {
         _doorwayGapPasses++;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _measureDoorwayGap();
@@ -602,6 +647,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final fullH = constraints.maxHeight;
+                  _visibleBandHeight = fullH;
                   final clipH = fullH - (fullH - peekBand) * t;
                   return ClipRect(
                     clipper: _TopBandClipper(height: clipH),
@@ -728,15 +774,22 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                 // own bottom overscroll drives the handoff.
                                 // The doorway stays tappable as the
                                 // explicit fallback.
-                                _stage(
-                                  5,
-                                  KeyedSubtree(
-                                    key: _doorwayKey,
-                                    child: RecentActivityDoorway(
+                                //
+                                // TASK-B: the measurement key sits on a
+                                // _LayoutMarker OUTSIDE the entrance
+                                // transform — the marker's render box reports
+                                // the doorway's LAYOUT position from the
+                                // first frame, immune to the slide-in
+                                // transform applied to the visual doorway.
+                                _LayoutMarker(
+                                  key: _doorwayKey,
+                                  child: _stage(
+                                    5,
+                                    RecentActivityDoorway(
                                       onOpen: _enterActivity,
                                     ),
+                                    reduceMotion,
                                   ),
-                                  reduceMotion,
                                 ),
                               ],
                             ),
@@ -1056,4 +1109,22 @@ class _TopBandClipper extends CustomClipper<Rect> {
 
   @override
   bool shouldReclip(_TopBandClipper oldClipper) => oldClipper.height != height;
+}
+
+/// TASK-B — an untransformed layout marker.
+///
+/// A pure layout slot: [SizedBox] creates its own render box at the
+/// child's LAYOUT position while any entrance transform applied inside
+/// the child subtree (the staged slide/fade choreography) stays BELOW
+/// it. Measuring via this box therefore reports the doorway's true
+/// content-space geometry from the very first frame — the prerequisite
+/// for first-frame composition measurement without a delayed visible
+/// resize (see _measureDoorwayGap).
+class _LayoutMarker extends StatelessWidget {
+  const _LayoutMarker({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(child: child);
 }

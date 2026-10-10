@@ -30,6 +30,8 @@ import 'package:azaman/widgets/inbox/inbox_entry.dart';
 import 'package:azaman/widgets/inbox/inbox_row.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
 import 'package:azaman/widgets/stories/story_rail_compact.dart';
+import 'package:azaman/widgets/stories/story_rail_strip.dart'
+    show StoryRailMetrics;
 import 'package:azaman/widgets/stories/story_rail_snap_physics.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
@@ -44,12 +46,21 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
   bool _isSearching = false;
 
   /// One scroll owner for rail + rows (Overhaul 04 §2).
-  final ScrollController _inboxScroll = ScrollController();
+  ///
+  /// UX pass C: the rail is OPEN BY DEFAULT. The rail is a fixed-extent
+  /// sliver before the center, so its open detent is the compile-time
+  /// `-StoryRailMetrics.height` — starting the position THERE (instead of
+  /// post-frame jumping to `minScrollExtent`) means the FIRST painted
+  /// frame already shows the open rail: no visible initial-position jump.
+  final ScrollController _inboxScroll = ScrollController(
+    initialScrollOffset: -StoryRailMetrics.height,
+  );
   static const _centerKey = ValueKey('inbox_center');
 
   /// Flips on open/closed transitions only (never per frame) so the compact
   /// strip's live region announces "Stories shown/hidden" exactly once.
-  final ValueNotifier<bool> _railOpenNotifier = ValueNotifier<bool>(false);
+  /// Starts OPEN — the rail's default state (UX pass C).
+  final ValueNotifier<bool> _railOpenNotifier = ValueNotifier<bool>(true);
 
   @override
   void initState() {
@@ -73,8 +84,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     if (!_inboxScroll.hasClients) return false;
     final pos = _inboxScroll.position;
     if (!pos.hasContentDimensions || !pos.hasPixels) return false;
-    return pos.minScrollExtent < 0 &&
-        pos.pixels <= pos.minScrollExtent + 0.5;
+    return pos.minScrollExtent < 0 && pos.pixels <= pos.minScrollExtent + 0.5;
   }
 
   void _onInboxScroll() {
@@ -768,10 +778,13 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     );
   }
 
-  // ── Inbox (Overhaul 04) ───────────────────────────────────────────────
+  // ── Inbox (Overhaul 04 · UX pass C) ──────────────────────────────────
   // The chat list is the only vertical scroll owner. The story rail is a
-  // sliver *before* the center, so it lives at negative offsets: hidden at
-  // rest (offset 0), pulled in by the same gesture that scrolls the list.
+  // sliver *before* the center, so it lives at negative offsets — and the
+  // hub STARTS at the open detent: the rail is open by default on entry.
+  // Scrolling into the message list collapses it into the compact strip
+  // (snap physics: deliberate band resistance, casual flicks spring back);
+  // returning to the top stops at CLOSED (offset 0) — no automatic reopen.
 
   Widget _buildInbox(AzamanColors colors, FriendProvider provider) {
     final travel = AzMotion.of(context).travel;
@@ -797,7 +810,8 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
         parent: const AlwaysScrollableScrollPhysics(),
       ),
       slivers: [
-        // Before center → negative offsets → hidden at rest.
+        // Before center → negative offsets → the OPEN detent sits at
+        // minScrollExtent, where the controller starts (UX pass C).
         InboxStoryRailSliver(
           controller: _inboxScroll,
           onOpenGroup: (groups, i) => StoryViewerScreen.open(
@@ -851,7 +865,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
   /// Friends (typed via [InboxEntry.fromFriend]) and groups in one list,
   /// pinned first then most-recent activity — the same ordering the old
   /// `_ChatListEntry` produced.
-  List<InboxEntry> _entries(FriendProvider provider, List<GroupSummary> groups) {
+  List<InboxEntry> _entries(
+    FriendProvider provider,
+    List<GroupSummary> groups,
+  ) {
     final currentUsername = ref.read(authProvider).user?.username ?? '';
     final list = <InboxEntry>[
       for (final f in provider.friends)
@@ -883,22 +900,22 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
 
   /// The soft 1px band between rows (a flat divider read as a hard rule).
   Widget _softRule(AzamanColors colors) => Container(
-        height: 1,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.transparent,
-              Colors.black.withValues(alpha: colors.isDark ? 0.35 : 0.07),
-              Colors.transparent,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-      );
+    height: 1,
+    margin: const EdgeInsets.symmetric(horizontal: 2),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Colors.transparent,
+          Colors.black.withValues(alpha: colors.isDark ? 0.35 : 0.07),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ),
+    ),
+  );
 
   Widget _emptyInbox(AzamanColors colors) {
-  return Center(
+    return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(

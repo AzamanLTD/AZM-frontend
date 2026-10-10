@@ -36,7 +36,20 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // SavingsScreen is mounted bare by the /savings route (Home "Save" ->
+    // context.push('/savings')). Without its own Scaffold there is NO
+    // Material ancestor, so every Text falls back to Flutter's debug style:
+    // yellow double underline + monospace. The Scaffold below is that
+    // Material host; bottom:false because the contextual nav band is
+    // rendered above the navigator by the MaterialApp builder.
     final colors = ref.watch(themeProvider).colors;
+    return Scaffold(
+      backgroundColor: colors.surface,
+      body: SafeArea(bottom: false, child: _buildBody(colors)),
+    );
+  }
+
+  Widget _buildBody(AzamanColors colors) {
 
     if (_isLoading && _overview == null) {
       return const SkeletonList(itemHeight: 100, count: 4);

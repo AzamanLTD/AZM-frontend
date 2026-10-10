@@ -363,7 +363,7 @@ void main() {
     // signal content — but the slot is never blank either. The honest
     // placeholder renders at the same band and parks in the peek band
     // above Activity, exactly like the living deck.
-    expect(find.text('Your reminders will appear here'), findsNWidgets(3));
+    expect(find.text('Your reminders will appear here'), findsNWidgets(2));
     final deckCtx = tester.element(find.byType(HomeReminderDeck));
     final deckBox = deckCtx.findRenderObject() as RenderBox;
     final deckBottom =

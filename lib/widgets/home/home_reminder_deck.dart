@@ -60,15 +60,11 @@ import 'package:azaman/providers/marketplace_resume_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/theme/az_motion.dart';
-import 'package:azaman/theme/az_radius.dart';
-import 'package:azaman/theme/az_space.dart';
-import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/widgets/home/home_deck_separator.dart';
+import 'package:azaman/widgets/home/home_reminder_ticket.dart';
 
 /// A single reminder card's honest content + its destination. `onTap` is
 /// null for the placeholder — it is informational, not a destination.
@@ -137,6 +133,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   // Drag + flight snapshot state.
   double _dragDx = 0;
   double _flightFromDx = 0;
+  double _flightFromFlip = 0;
   double _flightDirection = 1;
 
   // Cached per build (inherited lookups stay inside build).
@@ -325,6 +322,10 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       }
       setState(() {
         _flightFromDx = _dragDx;
+        _flightFromFlip = (_dragDx * _DeckGeometry.flipPerPx).clamp(
+          -math.pi / 2,
+          math.pi / 2,
+        );
         _flightDirection = _dragDx != 0
             ? _dragDx.sign.toDouble()
             : (velocity != 0 ? velocity.sign.toDouble() : 1.0);
@@ -437,14 +438,21 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     final n = cards.length;
     final children = <Widget>[];
 
-    // FAN PASS — the cards behind the front peek out above it, each
-    // tilted AWAY from its neighbour, so the stack reads as a spread
-    // hand of cards. At most two peek: the rest of the order stays
-    // virtual (never a fan of stale ghosts). During a committed flight
-    // the whole visible fan CHAIN-PROMOTES: each card glides into the
-    // slot in front of it, straightening as it arrives, so the promoted
-    // card is fully readable the moment the old front leaves.
-    final maxDepth = math.min(n - 1, 2);
+    // Deterministic, set-distinct tones from reminder identity: every
+    // ticket in the active set reads with its own muted background.
+    final toneOf = <String, int>{
+      for (final c in cards)
+        c.id: homeTicketToneIndex(id: c.id, allIds: cards.map((c) => c.id)),
+    };
+
+    // TICKET PREVIEW PASS (owner direction, 2026-10-10): the front
+    // ticket is the one fully readable thing; at most ONE ticket peeks
+    // above it — deliberate and quiet, no rotation, a whisper of
+    // scale/offset — never a pile of overlapping rotated cards. During
+    // a committed flip the peek CHAIN-PROMOTES into the front slot so
+    // the promoted ticket is fully readable the moment the old front
+    // leaves.
+    final maxDepth = math.min(n - 1, 1);
     final settle = _travelKind == _TravelKind.flight
         ? Curves.easeOutCubic.transform(t.clamp(0.0, 1.0))
         : 0.0;
@@ -467,10 +475,11 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
                   ..translateByDouble(g.dx, 0, 0, 1.0)
                   ..scaleByDouble(g.scale, 1, 1, 1)
                   ..rotateZ(g.rotate),
-                child: _ReminderCardFace(
+                child: HomeReminderTicketFace(
                   card: card,
                   colors: colors,
                   height: _cardH,
+                  toneIndex: toneOf[card.id] ?? 0,
                 ),
               ),
             ),
@@ -489,20 +498,21 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
         onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
         onHorizontalDragEnd: swipable ? _onDragEnd : null,
         child: _frontTransformed(
-          _ReminderCardFace(card: frontData, colors: colors, height: _cardH),
+          HomeReminderTicketFace(
+            card: frontData,
+            colors: colors,
+            height: _cardH,
+            toneIndex: toneOf[frontData.id] ?? 0,
+          ),
           t,
           n,
         ),
       ),
     );
 
-    // §5: mid-flight the card drops BEHIND the deck — paint-order swap.
-    final flying = _travelKind == _TravelKind.flight && t > 0 && t < 1;
-    if (flying && t >= _DeckGeometry.behindSwapT) {
-      children.insert(0, front);
-    } else {
-      children.add(front);
-    }
+    // §5/ticket pass: the flip turns the front edge-on (invisible at
+    // 90°) while the peek promotes — no paint-order swap needed.
+    children.add(front);
 
     // The pagination dots ARE the card-count indicator: one dot per
     // real card, the active dot following the front. The visual stack
@@ -528,41 +538,41 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   /// resting tilt (owner direction: the deck must never look straight),
   /// with scale 1.0 and full readability.
   Widget _frontTransformed(Widget child, double t, int n) {
-    var dx = _dragDx;
+    var dx = _dragDx * _DeckGeometry.driftPerPx;
     var dy = 0.0;
     var rotate = _DeckGeometry.frontRestRotate;
+    var flipY = _dragDx * _DeckGeometry.flipPerPx;
     var scale = 1.0;
     var opacity = 1.0;
 
     if (n > 1 && _travelAllowed) {
-      // Finger-following drag: a restrained rising rotation, a slight
-      // upward arc, a slightly reduced scale/opacity.
+      // Finger-following drag: the ticket starts its page-turn around
+      // the vertical spine, a whisper of lift and scale — tactile,
+      // still fully readable at rest.
       final drag = _dragDx.abs();
-      dy = -drag * drag * _DeckGeometry.arcK;
-      rotate += _dragDx * _DeckGeometry.rotatePerPx;
-      scale = (1.0 - drag * _DeckGeometry.scalePerPx).clamp(0.85, 1.0);
-      opacity = (1.0 - drag * _DeckGeometry.opacityPerPx).clamp(0.4, 1.0);
+      flipY = flipY.clamp(
+        -_DeckGeometry.dragFlipCap,
+        _DeckGeometry.dragFlipCap,
+      );
+      dy = -drag * 0.06;
+      scale = (1.0 - drag * 0.0005).clamp(0.9, 1.0);
     }
 
     if (t > 0 && _travelKind != _TravelKind.none) {
       if (_travelKind == _TravelKind.flight) {
-        // The curved committed trajectory: continue the gesture's
-        // direction outward along the arc; rotation keeps rising,
-        // scale/opacity ease away, and the card disappears
-        // behind/out of the deck.
+        // The committed PAGE-TURN: continue the gesture's direction to
+        // a 90° flip — the ticket vanishes edge-on while the peek
+        // promotes into the front slot.
         final eased = Curves.easeInCubic.transform(t);
-        final width = MediaQuery.sizeOf(context).width;
+        flipY =
+            _flightFromFlip +
+            _flightDirection * (math.pi / 2 - _flightFromFlip.abs()) * eased;
         dx =
-            _flightFromDx +
-            _flightDirection * (width * 0.85 - _flightFromDx.abs()) * eased;
-        final d = dx.abs();
-        dy = -d * d * _DeckGeometry.arcK;
-        rotate += dx * _DeckGeometry.rotatePerPx * (1 + eased * 2.2);
-        scale = (1.0 - d * _DeckGeometry.scalePerPx * (1 + eased)).clamp(
-          0.6,
-          1.0,
-        );
-        opacity = (1.0 - eased * 0.55).clamp(0.0, 1.0);
+            _flightFromDx * _DeckGeometry.driftPerPx +
+            _flightDirection * 14 * eased;
+        dy = -8 * eased;
+        scale = (1.0 - 0.08 * eased).clamp(0.9, 1.0);
+        opacity = (1.0 - eased * 0.9).clamp(0.0, 1.0);
         if (t >= 1.0) {
           // Flight complete: rotate the order; the flown card reappears
           // at the back (shuffle, not delete).
@@ -579,7 +589,9 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
         }
       } else {
         // Elastic settle back to rest.
-        dx = _dragDx * (1 - Curves.elasticOut.transform(t));
+        final e = 1 - Curves.elasticOut.transform(t);
+        dx = _dragDx * _DeckGeometry.driftPerPx * e;
+        flipY = _dragDx * _DeckGeometry.flipPerPx * e;
         if (t >= 1.0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _travelKind == _TravelKind.settle) {
@@ -599,7 +611,9 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.0016) // perspective for the page-turn
           ..translateByDouble(dx, dy, 0, 1.0)
+          ..rotateY(flipY)
           ..scaleByDouble(scale, 1, 1, 1)
           ..rotateZ(rotate),
         child: child,
@@ -636,23 +650,23 @@ class _DeckGeometry {
   static const double dotsHeight = 12;
   static const double dotsGap = 8;
 
-  /// The front card's GENTLE resting tilt (~1.7°): readable, but the
-  /// deck never looks rigid (owner direction: "not too straight").
+  /// The front ticket's GENTLE resting tilt (~1.7°): readable, but
+  /// the booklet never looks rigid (owner direction: "not too
+  /// straight").
   static const double frontRestRotate = 0.03;
 
-  /// A visible fan slot. depth 0 is the FRONT slot itself — straight
-  /// into the resting tilt, scale 1, full opacity, so a promoted card
-  /// has a real destination to glide to. Deeper slots tilt AWAY from
-  /// their neighbours (alternating signs), stagger horizontally, and
-  /// dim slightly with depth so the stack reads as a spread hand of
-  /// physical cards, never a straight stack.
+  /// A booklet slot. depth 0 is the FRONT slot itself — into the
+  /// resting tilt, scale 1, full opacity, so a promoted ticket has a
+  /// real destination to glide to. depth 1 is the QUIET preview: no
+  /// rotation, a whisper of scale, straight behind the front — a
+  /// deliberate preview, never a pile of overlapping rotated cards.
   static _FanSlot fan(int depth, double fanPeek) {
-    assert(depth >= 0 && depth <= 2);
-    const rotateBy = [frontRestRotate, -0.05, 0.075]; // +1.7°, −2.9°, +4.3°
-    const dxBy = [0.0, -7.0, 11.0];
-    const scaleBy = [1.0, 0.97, 0.94];
-    const opacityBy = [1.0, 0.95, 0.85];
-    final top = fanPeek * (1 - depth * 0.5); // front at the peek, back above
+    assert(depth >= 0 && depth <= 1);
+    const rotateBy = [frontRestRotate, 0.0];
+    const dxBy = [0.0, 0.0];
+    const scaleBy = [1.0, 0.985];
+    const opacityBy = [1.0, 0.9];
+    final top = fanPeek * (1 - depth * 0.5); // front at the peek, preview above
     return _FanSlot(
       rotate: rotateBy[depth],
       top: top,
@@ -670,12 +684,11 @@ class _DeckGeometry {
     opacity: a.opacity + (b.opacity - a.opacity) * t,
   );
 
-  // §5 + flight coefficients.
-  static const arcK = 0.00035; // upward arc: dy = −k·dx²
-  static const rotatePerPx = 0.0006; // radians/px (≈3.4° per 100px)
-  static const scalePerPx = 0.0004;
-  static const opacityPerPx = 0.0022;
-  static const behindSwapT = 0.45; // when the card passes behind the deck
+  // Ticket pass: page-turn flip coefficients (one controller, one
+  // coherent trajectory — see _frontTransformed).
+  static const flipPerPx = 0.0075; // radians of rotateY per drag px
+  static const dragFlipCap = 1.2; // max flip while following a finger
+  static const driftPerPx = 0.45; // lateral drift fraction of the drag
 }
 
 /// One slot in the visible fan — pure geometry, so the chain promotion
@@ -694,109 +707,6 @@ class _FanSlot {
     required this.dx,
     required this.opacity,
   });
-}
-
-/// One elevated reminder card face. Tapping navigates to the real
-/// destination behind the signal. The icon chip is a MUTED accent
-/// (bright gold is reserved for primary actions and the balance/visa
-/// cards — the deck must never out-shout them) and the corners use the
-/// AzRadius system's larger token. At FILL heights the face goes TALL —
-/// a bigger chip, larger type, roomier padding — so a filled deck never
-/// reads as a thin strip stretched.
-class _ReminderCardFace extends StatelessWidget {
-  const _ReminderCardFace({
-    required this.card,
-    required this.colors,
-    required this.height,
-  });
-
-  final HomeReminderCardData card;
-  final AzamanColors colors;
-
-  /// The face's height: drives the tall-mode typography.
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final tall = height >= 150;
-    final chip = tall ? 56.0 : 40.0;
-    final iconSize = tall ? 26.0 : 20.0;
-    final body = Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          card.eyebrow,
-          style: AzText.caption.copyWith(
-            color: colors.textTertiary,
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        SizedBox(height: tall ? 4 : 2),
-        Text(
-          card.title,
-          style: (tall ? AzText.titleL : AzText.title).copyWith(
-            color: colors.textPrimary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        SizedBox(height: tall ? 4 : 2),
-        Text(
-          card.subtitle,
-          style: (tall ? AzText.bodyL : AzText.bodyS).copyWith(
-            color: colors.textSecondary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-
-    final content = Row(
-      children: [
-        Container(
-          width: chip,
-          height: chip,
-          decoration: BoxDecoration(
-            color: colors.accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AzRadius.md),
-          ),
-          child: Icon(card.icon, color: colors.mutedAccent, size: iconSize),
-        ),
-        SizedBox(width: tall ? AzSpace.lg : AzSpace.md),
-        Expanded(child: body),
-        if (card.onTap != null)
-          Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
-      ],
-    );
-
-    return SizedBox(
-      height: height,
-      child: card.onTap != null
-          ? ScaleTap(
-              onTap: card.onTap,
-              child: _surface(child: content),
-            )
-          : _surface(child: content),
-    );
-  }
-
-  Widget _surface({required Widget child}) => Container(
-    key: ValueKey('reminder-card-${card.id}'),
-    padding: EdgeInsets.symmetric(
-      horizontal: AzSpace.lg,
-      vertical: height >= 150 ? AzSpace.lg : AzSpace.sm,
-    ),
-    decoration: BoxDecoration(
-      color: colors.card,
-      borderRadius: BorderRadius.circular(AzRadius.lg),
-      border: Border.all(color: colors.border),
-      boxShadow: AzElevation.level1(colors.isDark),
-    ),
-    child: child,
-  );
 }
 
 /// The resting placeholder — a new user's deck slot, never blank (owner
@@ -831,7 +741,7 @@ class _PlaceholderDeck extends StatelessWidget {
         // The stacked deck behind: the same fan slots the real deck
         // uses, dimmed so the placeholder reads as a ghost of the
         // living thing.
-        for (final depth in const [2, 1])
+        for (final depth in const [1])
           Positioned(
             top: _DeckGeometry.fan(depth, fan).top,
             left: 0,
@@ -855,10 +765,11 @@ class _PlaceholderDeck extends StatelessWidget {
                       1,
                     )
                     ..rotateZ(_DeckGeometry.fan(depth, fan).rotate),
-                  child: _ReminderCardFace(
+                  child: HomeReminderTicketFace(
                     card: _placeholder,
                     colors: colors,
                     height: cardH,
+                    toneIndex: 0,
                   ),
                 ),
               ),
@@ -877,10 +788,11 @@ class _PlaceholderDeck extends StatelessWidget {
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
                   ..rotateZ(_DeckGeometry.frontRestRotate),
-                child: _ReminderCardFace(
+                child: HomeReminderTicketFace(
                   card: _placeholder,
                   colors: colors,
                   height: cardH,
+                  toneIndex: 0,
                 ),
               ),
             ),

@@ -132,16 +132,13 @@ Future<void> _pumpDeck(
 
 /// The reminder-card keys, in tree order. The FRONT card is always the
 /// last Stack child at rest, so tree order = [behind..., front].
-Iterable<Key> _cardKeys(WidgetTester tester) => tester
-    .widgetList<Container>(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.key is ValueKey<String> &&
-            (w.key as ValueKey<String>).value.startsWith('reminder-card-'),
-      ),
+Iterable<Key> _cardKeys(WidgetTester tester) => tester.allWidgets
+    .where(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('reminder-card-'),
     )
-    .map((c) => c.key!);
+    .map((w) => w.key!);
 
 /// The pagination-dot keys (pass B3): one per REAL card, in rail order.
 Iterable<Key> _dotKeys(WidgetTester tester) => tester
@@ -162,12 +159,12 @@ void main() {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
     // PLACEHOLDER PASS (owner direction): honest copy, never fabricated
     // signal content — and never a blank slot either.
-    // The placeholder fans three faces (front + two dimmed backs) with
-    // the same honest copy — the deck's shape reads before any signal.
-    expect(find.text('Your reminders will appear here'), findsNWidgets(3));
+    // The placeholder shows the front + ONE quiet dimmed preview with
+    // the same honest copy — the ticket shape reads before any signal.
+    expect(find.text('Your reminders will appear here'), findsNWidgets(2));
     expect(
       find.text('Join a susu or browse the marketplace to get started'),
-      findsNWidgets(3),
+      findsNWidgets(2),
     );
     // Informational, not a destination: no chevron anywhere.
     expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
@@ -199,17 +196,17 @@ void main() {
     await _pumpDeck(tester, susu: [_inactiveSusu('d1')], intent: null);
     expect(find.text('Susu Circle - August'), findsOneWidget);
     expect(find.text("Chef Abby's"), findsOneWidget);
-    // FAN PASS — the stack mounts the full visible fan (front + two
-    // fanned backs, capped at depth 2). The dot rail carries one dot
-    // per REAL card (3).
+    // TICKET PREVIEW PASS — the deck mounts the front + ONE quiet
+    // preview; the rest of the order stays virtual. The dot rail
+    // carries one dot per REAL card (3).
     expect(
       _cardKeys(tester).length,
-      3,
-      reason: 'the fan shows the whole visible stack',
+      2,
+      reason: 'front + one quiet preview; deeper tickets stay virtual',
     );
-    expect(find.text('Coastline Suites'), findsOneWidget);
+    expect(find.text('Coastline Suites'), findsNothing);
     expect(_dotKeys(tester).length, 3);
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(2));
   });
 
   testWidgets('natural geometry — band 150 (card 116 + fan 14 + dots '
@@ -310,9 +307,9 @@ void main() {
     );
   });
 
-  testWidgets('fan — the resting deck is a spread hand: the front tilts '
-      'gently, the back card tilts the OTHER way (never a straight '
-      'stack, never unreadable)', (tester) async {
+  testWidgets('ticket preview — the front ticket is the readable one; '
+      'at most ONE quiet, unrotated preview peeks behind it (never a '
+      'pile of overlapping rotated cards)', (tester) async {
     await _pumpDeck(
       tester,
       susu: [
@@ -322,8 +319,8 @@ void main() {
     );
 
     // The front rests at the gentle frontRestRotate (~1.7°), scale 1:
-    // readable, but the deck never looks rigid. The Transform WRAPS the
-    // card, so it is the card's ancestor.
+    // readable, but the booklet never looks rigid. The Transform WRAPS
+    // the ticket, so it is the ticket's ancestor.
     double rotateOf(Key cardKey) => tester
         .widgetList<Transform>(
           find.ancestor(
@@ -335,18 +332,64 @@ void main() {
     expect(
       rotateOf(const ValueKey('reminder-card-susu-s1')),
       closeTo(0.03, 0.005),
-      reason: 'the front card rests at the gentle deck tilt',
+      reason: 'the front ticket rests at the gentle deck tilt',
     );
 
-    // The fanned back card tilts AWAY from the front (opposite sign,
-    // deeper) — the stack reads as a deck of physical cards.
+    // The preview ticket is DELIBERATE AND QUIET: zero rotation.
     expect(
       rotateOf(const ValueKey('reminder-card-resume-biz-1')),
-      closeTo(-0.05, 0.005),
-      reason: 'the back card leans the opposite way — a real fan',
+      closeTo(0.0, 0.0005),
+      reason: 'the preview ticket does not rotate — a quiet preview',
     );
+
+    // A third ticket never joins the visible stack: with three real
+    // signals only front + one preview render.
     // One dot per card (2 cards, 2 dots).
     expect(_dotKeys(tester).length, 2);
+  });
+
+  testWidgets('tickets — the tone palette is deterministic and distinct '
+      'within the active set', (tester) async {
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
+
+    Color toneOf(Key cardKey) => tester
+        .widget<ColoredBox>(
+          find.descendant(
+            of: find.byKey(cardKey),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .color;
+
+    final frontTone = toneOf(const ValueKey('reminder-card-susu-s1'));
+    final peekTone = toneOf(const ValueKey('reminder-card-resume-biz-1'));
+    expect(
+      frontTone,
+      isNot(equals(peekTone)),
+      reason: 'every ticket in the active set has a distinct background',
+    );
+
+    // Deterministic from identity, not randomness: rebuilding the deck
+    // with the same signals produces the same tones.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpDeck(
+      tester,
+      susu: [
+        _activeSusu(DateTime(2026, 10, 12), id: 's1', name: 'Circle Susu'),
+      ],
+      intent: _cartIntent,
+    );
+    expect(
+      toneOf(const ValueKey('reminder-card-susu-s1')),
+      frontTone,
+      reason: 'tone assignment is stable across rebuilds',
+    );
   });
 
   testWidgets('§4 — the SOONEST pending susu cycle is the one shown, with '
