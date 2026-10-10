@@ -22,6 +22,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_space.dart';
