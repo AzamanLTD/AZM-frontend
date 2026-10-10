@@ -69,7 +69,12 @@ class _RequestApiClient extends ApiClient {
 
 class _SeedFriendProvider extends FriendProvider {
   _SeedFriendProvider(Ref ref) : super(ref) {
-    friends.add({'userId': '42', 'username': 'ama'});
+    friends.add({
+      'id': 'friendship-999',
+      'friendshipId': 'friendship-999',
+      'friendUsername': 'ama',
+      'friend': {'id': '42', 'username': 'ama'},
+    });
   }
 
   @override
