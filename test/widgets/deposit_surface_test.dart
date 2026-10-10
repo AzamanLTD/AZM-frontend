@@ -207,7 +207,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Deposit USDC'), findsOneWidget);
+      expect(find.text('Receive USDC'), findsOneWidget);
       expect(find.text('Polygon'), findsWidgets); // network chip + copy
       // The QR is the main visual.
       expect(find.byType(AnimatedQrDust), findsOneWidget);
