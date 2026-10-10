@@ -47,7 +47,6 @@ import 'package:flutter/rendering.dart' show RenderDecoratedBox;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _surfaceSize = Size(400, 900);
