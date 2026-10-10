@@ -420,15 +420,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
       body: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
-          onDismiss: () {
-            // While the Request section is open, a committed downward pull
-            // returns to Receive before the outer surface can be dismissed.
-            if (_requestOpen) {
-              _snapRequest(false);
-            } else {
-              _closeSurface();
-            }
-          },
+          onDismiss: _closeSurface,
+          canDismiss: () => !_requestOpen,
+          onDismissRejected: () => _snapRequest(false),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
