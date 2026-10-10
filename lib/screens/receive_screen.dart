@@ -1068,6 +1068,9 @@ class _RequestBubble extends StatelessWidget {
       button: true,
       selected: selected,
       label: selected ? 'Request section, selected. Tap to return to Receive.' : 'Open Request section',
+      // The visible "Request" face text is redundant with the label —
+      // without this they merge and screen readers announce both.
+      excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AzSpace.xl,

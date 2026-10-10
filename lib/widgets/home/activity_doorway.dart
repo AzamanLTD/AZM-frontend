@@ -215,6 +215,10 @@ class _RecentBubbleFace extends StatelessWidget {
       button: true,
       label: 'Recent transactions',
       selected: selected,
+      // The visible "Recent" face text is redundant with the label —
+      // without this, the two merge and screen readers announce
+      // "Recent transactions Recent".
+      excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AzSpace.xl,

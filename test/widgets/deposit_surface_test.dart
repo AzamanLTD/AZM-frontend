@@ -288,6 +288,8 @@ void main() {
       await _openReceive(tester);
 
       final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+      // Semantics assertions need the semantics tree attached.
+      final semantics = tester.ensureSemantics();
       expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
 
       await tester.tap(toggle);
@@ -306,6 +308,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 650));
 
       expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('downward pull from Request returns to Receive before close',
@@ -332,7 +335,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
 
       expect(find.text('Receive'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
       expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+      semantics.dispose();
       expect(find.text('receive-sentinel'), findsNothing);
     });
 
@@ -345,17 +350,24 @@ void main() {
       final toggle = find.byKey(const ValueKey('receive-request-toggle'));
       final center = tester.getCenter(toggle);
       final short = await tester.startGesture(center);
-      await short.moveBy(const Offset(0, -70));
-      await tester.pump(const Duration(milliseconds: 40));
+      // Real pointers stream many small moves; a single large hop can lose
+      // the gesture arena to the scrollable behind the bubble.
+      for (var i = 0; i < 4; i++) {
+        await short.moveBy(const Offset(0, -18));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       await short.up();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 650));
+      final semantics = tester.ensureSemantics();
       expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
 
       final origin = tester.getCenter(toggle);
       final committed = await tester.startGesture(origin);
-      await committed.moveBy(const Offset(0, -210));
-      await tester.pump(const Duration(milliseconds: 60));
+      for (var i = 0; i < 11; i++) {
+        await committed.moveBy(const Offset(0, -20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       await committed.up();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 650));
@@ -365,6 +377,7 @@ void main() {
         ),
         findsOneWidget,
       );
+      semantics.dispose();
     });
   });
 }

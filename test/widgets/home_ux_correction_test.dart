@@ -575,7 +575,9 @@ void main() {
       expect(find.text('Recent'), findsWidgets);
       expect(find.text('Pull up'), findsNothing);
       expect(find.text('Pull down'), findsNothing);
+      final semantics = tester.ensureSemantics();
       expect(find.bySemanticsLabel('Recent transactions'), findsOneWidget);
+      semantics.dispose();
       expect(find.text('← Wallet'), findsNothing);
     });
 
