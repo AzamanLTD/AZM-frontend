@@ -205,17 +205,34 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     return contacts.friends;
   }
 
+  Map<String, dynamic> _recipientUser(Map<String, dynamic> row) {
+    final nested = row['friend'] ?? row['user'];
+    return nested is Map
+        ? Map<String, dynamic>.from(nested)
+        : row;
+  }
+
   String _recipientName(Map<String, dynamic> user) {
-    final value = user['username'] ??
+    final person = _recipientUser(user);
+    final value = person['username'] ??
+        person['displayName'] ??
+        person['name'] ??
         user['friendUsername'] ??
-        user['displayName'] ??
-        user['name'];
+        user['username'];
     return value?.toString().trim().isNotEmpty == true
         ? value.toString()
         : 'Azaman contact';
   }
 
   String _recipientId(Map<String, dynamic> user) {
+    // Friends-list rows have a top-level friendship id; the recipient account
+    // id lives under the nested friend object. Never submit the relationship
+    // id as recipientUserId when the nested user object is available.
+    final person = _recipientUser(user);
+    final nestedId = person['userId'] ?? person['id'];
+    if (nestedId != null && nestedId.toString().trim().isNotEmpty) {
+      return nestedId.toString();
+    }
     return (user['userId'] ?? user['friendId'] ?? user['id'] ?? '').toString();
   }
 
