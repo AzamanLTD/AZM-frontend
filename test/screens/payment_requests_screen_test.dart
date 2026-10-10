@@ -92,6 +92,13 @@ Widget _testApp({
   );
 }
 
+void _phoneSize(WidgetTester tester) {
+  tester.view.physicalSize = const Size(420, 920);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -102,6 +109,7 @@ void main() {
 
   testWidgets('direct Request creates a standalone payment request and reuses its identity on repeat',
       (tester) async {
+    _phoneSize(tester);
     final api = _RequestApiClient();
 
     await tester.pumpWidget(
