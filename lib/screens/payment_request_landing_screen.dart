@@ -1,23 +1,25 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:intl/intl.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 /// Public, share-link landing for a standalone payment request.
 ///
-/// The public details endpoint is a backend dependency. This screen never
-/// marks a request paid or attempts a transfer itself; settlement belongs to
-/// the authenticated financial API and will be enabled once that contract is
-/// implemented and reviewed.
+/// Backed by the live backend contract (AZM-backend PR #332):
+/// GET /payment-requests/public/:token returns ONLY the public DTO
+/// (id, amount, currency, status, mode, createdAt, expiresAt, requester).
+/// There is NO pay/accept-and-pay endpoint and NO PAID status — GHS
+/// settlement is a separate, still-missing backend dependency. This screen is
+/// informational: opening the link never initiates, authorizes or completes a
+/// payment, and this page renders no payment action and no fake success.
 class PaymentRequestLandingScreen extends ConsumerStatefulWidget {
   const PaymentRequestLandingScreen({super.key, required this.token});
 
@@ -124,28 +126,18 @@ class _PaymentRequestLandingScreenState
     return prefix + amount + (currency == 'USDC' ? ' USDC' : '');
   }
 
-  bool _isActive(Map<String, dynamic> request) {
-    final status = request['status']?.toString().toUpperCase();
-    return status == 'PENDING' || status == 'OPEN' || status == 'ACTIVE';
+  String? _date(Map<String, dynamic> request, String key) {
+    final raw = request[key];
+    if (raw == null) return null;
+    final parsed = DateTime.tryParse(raw.toString());
+    if (parsed == null) return raw.toString();
+    return DateFormat('d MMM y, HH:mm').format(parsed.toLocal());
   }
 
-  void _copyLink() {
-    final link = (_request?['shareUrl'] ?? _request?['requestUrl'] ?? '')
-        .toString()
-        .trim();
-    if (link.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('The server did not provide a shareable link for this request.'),
-        ),
-      );
-      return;
-    }
-    Clipboard.setData(ClipboardData(text: link));
-    AzamanHaptics.confirm();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Request link copied')),
-    );
+  bool _isActive(Map<String, dynamic> request) {
+    // The backend contract's only non-terminal status is PENDING; expired
+    // rows 410 server-side, and cancelled/declined rows resolve honestly.
+    return request['status']?.toString().toUpperCase() == 'PENDING';
   }
 
   @override
@@ -187,11 +179,6 @@ class _PaymentRequestLandingScreenState
                       'Payment request',
                       style: AzText.title.copyWith(color: colors.textPrimary),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Copy request link',
-                    onPressed: _copyLink,
-                    icon: Icon(Icons.link_rounded, color: colors.textPrimary),
                   ),
                 ],
               ),
@@ -280,28 +267,30 @@ class _PaymentRequestLandingScreenState
                                                       'UNKNOWN')
                                                   .replaceAll('_', ' '),
                                             ),
-                                            if (request['description'] != null &&
-                                                request['description']
-                                                    .toString()
-                                                    .trim()
-                                                    .isNotEmpty) ...[
-                                              const SizedBox(
-                                                height: AzSpace.md,
-                                              ),
+                                            if (_date(request, 'createdAt') !=
+                                                null)
                                               _RequestDetailRow(
-                                                label: 'Note',
-                                                value: request['description']
-                                                    .toString(),
+                                                label: 'Created',
+                                                value: _date(
+                                                  request,
+                                                  'createdAt',
+                                                )!,
                                               ),
-                                            ],
+                                            if (_date(request, 'expiresAt') !=
+                                                null)
+                                              _RequestDetailRow(
+                                                label: 'Expires',
+                                                value: _date(
+                                                  request,
+                                                  'expiresAt',
+                                                )!,
+                                              ),
                                             const SizedBox(
                                               height: AzSpace.md,
                                             ),
                                             _RequestDetailRow(
                                               label: 'Request ID',
-                                              value: (request['publicId'] ??
-                                                      request['requestId'] ??
-                                                      request['id'] ??
+                                              value: (request['id'] ??
                                                       'Unavailable')
                                                   .toString(),
                                             ),
@@ -311,7 +300,7 @@ class _PaymentRequestLandingScreenState
                                       const SizedBox(height: AzSpace.lg),
                                       Text(
                                         active
-                                            ? 'The request is still active. Payment is not initiated by opening this link; the secure payment action will be enabled with the standalone request API.'
+                                            ? 'This link only shows this request. Opening it does not start, authorize or complete any payment. In-app GHS settlement is a separate Azaman feature and is not part of this link.'
                                             : 'This request is no longer active. Contact the requester if you need an updated request.',
                                         style: AzText.body.copyWith(
                                           color: colors.textSecondary,
@@ -319,11 +308,6 @@ class _PaymentRequestLandingScreenState
                                         textAlign: TextAlign.center,
                                       ),
                                       const SizedBox(height: AzSpace.md),
-                                      OutlinedButton.icon(
-                                        onPressed: _copyLink,
-                                        icon: const Icon(Icons.copy_rounded),
-                                        label: const Text('Copy request link'),
-                                      ),
                                     ],
                                   ),
                                 ),

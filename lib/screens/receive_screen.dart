@@ -49,7 +49,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     with TickerProviderStateMixin {
   _ReceiveTab _tab = _ReceiveTab.fiat;
   late final AnimationController _requestProgress;
-  final TextEditingController _searchController = TextEditingController();
   String _amountRaw = '';
   Map<String, dynamic>? _selectedRecipient;
   bool _creatingRequest = false;
@@ -95,7 +94,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     _requestProgress
       ..removeListener(_handleProgressTick)
       ..dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -199,12 +197,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     _setAmount(AmountInput.applyKey(_amountRaw, key));
   }
 
-  List<Map<String, dynamic>> _visibleRecipients(FriendProvider contacts) {
-    final query = _searchController.text.trim();
-    if (query.length >= 2) return contacts.searchResults;
-    return contacts.friends;
-  }
-
   Map<String, dynamic> _recipientUser(Map<String, dynamic> row) {
     final nested = row['friend'] ?? row['user'];
     return nested is Map
@@ -236,19 +228,31 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     return (user['userId'] ?? user['friendId'] ?? user['id'] ?? '').toString();
   }
 
-  Future<void> _search(String query) async {
-    if (_requestOperationUnresolved) return;
+  /// Opens the searchable single-choice contact picker. The compact
+  /// composer row shows the outcome; exactly one contact can be selected
+  /// (tapping a row pops the sheet and records the choice).
+  Future<void> _chooseRecipient() async {
+    if (_requestOperationUnresolved || _creatingRequest) return;
+    AzamanHaptics.navigation();
+    final colors = ref.read(themeProvider).colors;
+    final recipient = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _ContactPickerSheet(colors: colors),
+    );
+    if (!mounted || recipient == null) return;
+    AzamanHaptics.toggle();
     setState(() {
-      _selectedRecipient = null;
+      _selectedRecipient = recipient;
       _requestError = null;
       _lastCreatedRequest = null;
       _lastCreatedFingerprint = null;
     });
-    if (query.trim().length >= 2) {
-      await ref.read(friendProvider).searchUsers(query.trim());
-    } else {
-      ref.read(friendProvider).clearSearch();
-    }
   }
 
   Future<Map<String, dynamic>> _createRequest({
@@ -263,9 +267,14 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
       throw StateError('Choose an Azaman contact to request money from.');
     }
 
-    // Contract for the standalone request API: this is intentionally separate
-    // from /friends/transfer/request, which emits chat-oriented transfer
-    // requests. The backend PR must implement this contract before release.
+    // Contract for the standalone request API (implemented by AZM-backend
+    // PR #332): POST /api/payment-requests with `amount` as an EXACT
+    // two-decimal GHS string, `currency: GHS`, `requestMode: DIRECT|LINK`
+    // and a numeric Azaman account id as `recipientUserId` for DIRECT
+    // (never a friendship-row id). The canonical LINK `shareUrl` comes
+    // from this create response only. There is NO pay/accept-and-pay
+    // endpoint and NO PAID transition — GHS settlement is a separate,
+    // still-missing dependency, so this composer never fakes success.
     final response = await ref.read(apiClientProvider).postFinancial(
       '/payment-requests',
       {
@@ -435,6 +444,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
     return Scaffold(
       backgroundColor: colors.surface,
+      // This surface holds no direct text input (the contact search lives
+      // in its own modal sheet route with its own keyboard handling), so it
+      // must NOT resize under the system keyboard: resizing would overflow
+      // the resting composer geometry behind the sheet.
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
@@ -558,7 +572,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
   Widget _buildReceiveDetails(AzamanColors colors, String azamanId) {
     final idAvailable = azamanId.isNotEmpty;
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(top: AzSpace.lg, bottom: AzSpace.md),
+      // Bottom content must scroll fully clear of the home-indicator inset
+      // (the surface optS out of SafeArea at the bottom).
+      padding: EdgeInsets.only(
+        top: AzSpace.lg,
+        bottom: AzSpace.md + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -675,9 +694,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
   }
 
   Widget _buildRequestComposer(AzamanColors colors, double availableHeight) {
-    final contacts = ref.watch(friendProvider);
     final compact = availableHeight < 680;
-    final recipients = _visibleRecipients(contacts);
     final amountDisplay = AmountInput.display(_amountRaw);
 
     return Column(
@@ -745,54 +762,25 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
           ),
         ),
         const SizedBox(height: 6),
-        SizedBox(
-          height: compact ? 40 : 44,
-          child: TextField(
-            controller: _searchController,
-            enabled: !_requestOperationUnresolved && !_creatingRequest,
-            onChanged: _search,
-            style: AzText.body.copyWith(color: colors.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Search an Azaman contact',
-              hintStyle: AzText.body.copyWith(color: colors.textTertiary),
-              prefixIcon: Icon(Icons.search, color: colors.textTertiary),
-              filled: true,
-              fillColor: colors.card,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: colors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: colors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: colors.accent, width: 1.5),
-              ),
-            ),
-          ),
+        _ContactSelectorRow(
+          key: const ValueKey('receive-request-contact-row'),
+          name: _selectedRecipient == null
+              ? ''
+              : _recipientName(_selectedRecipient!),
+          username: _selectedRecipient == null
+              ? null
+              : _recipientUser(_selectedRecipient!)['username']?.toString(),
+          enabled: !_requestOperationUnresolved && !_creatingRequest,
+          onChoose: _chooseRecipient,
+          onClear: _requestOperationUnresolved || _creatingRequest
+              ? null
+              : () => setState(() {
+                      _selectedRecipient = null;
+                      _lastCreatedRequest = null;
+                      _lastCreatedFingerprint = null;
+                    }),
+          colors: colors,
         ),
-        if (_selectedRecipient != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: InputChip(
-                label: Text(_recipientName(_selectedRecipient!)),
-                onDeleted: _requestOperationUnresolved || _creatingRequest
-                    ? null
-                    : () => setState(() {
-                        _selectedRecipient = null;
-                        _lastCreatedRequest = null;
-                        _lastCreatedFingerprint = null;
-                      }),
-                backgroundColor: colors.softSurface,
-                side: BorderSide(color: colors.border),
-              ),
-            ),
-          ),
         if (_requestError != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -801,86 +789,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
               style: AzText.bodyS.copyWith(color: colors.danger),
             ),
           ),
-        const SizedBox(height: 4),
-        Expanded(
-          child: recipients.isEmpty
-              ? Center(
-                  child: Text(
-                    contacts.isLoading
-                        ? 'Searching contacts…'
-                        : _searchController.text.trim().length >= 2
-                            ? 'No matching Azaman users found.'
-                            : 'Your Azaman contacts will appear here. Search by name or username.',
-                    textAlign: TextAlign.center,
-                    style: AzText.bodyS.copyWith(color: colors.textTertiary),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: recipients.length.clamp(0, 5).toInt(),
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: colors.border),
-                  itemBuilder: (context, index) {
-                    final recipient = recipients[index];
-                    final selected = _selectedRecipient != null &&
-                        _recipientId(_selectedRecipient!) ==
-                            _recipientId(recipient);
-                    final name = _recipientName(recipient);
-                    final username = recipient['username']?.toString();
-                    return ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        radius: 17,
-                        backgroundColor: colors.softSurface,
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: AzText.bodyS.copyWith(
-                            color: colors.textPrimary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AzText.body.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: username == null
-                          ? null
-                          : Text(
-                              '@$username',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AzText.bodyS.copyWith(
-                                color: colors.textSecondary,
-                              ),
-                            ),
-                      trailing: Icon(
-                        selected
-                            ? Icons.check_circle
-                            : Icons.circle_outlined,
-                        color: selected ? colors.accent : colors.textTertiary,
-                        size: 20,
-                      ),
-                      onTap: _requestOperationUnresolved || _creatingRequest
-                          ? null
-                          : () {
-                              AzamanHaptics.toggle();
-                              setState(() {
-                                _selectedRecipient = recipient;
-                                _requestError = null;
-                                _lastCreatedRequest = null;
-                                _lastCreatedFingerprint = null;
-                              });
-                            },
-                    );
-                  },
-                ),
-        ),
+        const Spacer(),
         Padding(
           padding: EdgeInsets.fromLTRB(
             0,
@@ -1156,6 +1065,357 @@ class _RequestActionButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Compact resting-state row for the selected (or not-yet-chosen) contact.
+/// It replaces the old always-visible inline contact list: the full list
+/// only appears inside the searchable picker sheet, keeping the composer
+/// clear of permanent scroll content and timer/controller state.
+class _ContactSelectorRow extends StatelessWidget {
+  const _ContactSelectorRow({
+    super.key,
+    required this.name,
+    required this.username,
+    required this.enabled,
+    required this.onChoose,
+    required this.onClear,
+    required this.colors,
+  });
+
+  final String name;
+  final String? username;
+  final bool enabled;
+  final VoidCallback onChoose;
+  final VoidCallback? onClear;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = name.isNotEmpty;
+    return Semantics(
+      button: true,
+      label: selected
+          ? 'Selected contact $name. Tap to change.'
+          : 'Choose a contact to request money from',
+      child: Material(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: enabled ? onChoose : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AzSpace.md,
+              vertical: 10,
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: colors.softSurface,
+                  child: Icon(
+                    selected ? Icons.person_rounded : Icons.person_search_rounded,
+                    size: 18,
+                    color: selected ? colors.textPrimary : colors.textTertiary,
+                  ),
+                ),
+                const SizedBox(width: AzSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        selected ? name : 'Choose contact',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AzText.body.copyWith(
+                          color: enabled
+                              ? colors.textPrimary
+                              : colors.textTertiary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (selected && username != null && username!.isNotEmpty)
+                        Text(
+                          '@$username',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AzText.bodyS.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AzSpace.sm),
+                if (selected && onClear != null)
+                  Semantics(
+                    button: true,
+                    label: 'Clear selected contact',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onClear,
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.cancel_rounded,
+                          size: 20,
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.keyboard_arrow_right_rounded,
+                    color: enabled ? colors.textTertiary : colors.border,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Searchable single-choice contact picker (modal bottom sheet).
+///
+/// State owned here: the search TextField's controller is created and
+/// disposed with this sheet — no timers, no perpetual animation
+/// controllers. Exactly one selection: tapping a row pops the sheet with
+/// the chosen contact.
+class _ContactPickerSheet extends ConsumerStatefulWidget {
+  const _ContactPickerSheet({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  ConsumerState<_ContactPickerSheet> createState() =>
+      _ContactPickerSheetState();
+}
+
+class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onQueryChanged(String query) async {
+    if (query.trim().length >= 2) {
+      await ref.read(friendProvider).searchUsers(query.trim());
+    } else {
+      ref.read(friendProvider).clearSearch();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final contacts = ref.watch(friendProvider);
+    final query = _searchController.text.trim();
+    final searching = query.length >= 2;
+    final results = searching ? contacts.searchResults : contacts.friends;
+
+    // The keyboard lift: the sheet pads itself above the system keyboard
+    // and its content budget shrinks by the same amount, so results stay
+    // reachable and nothing overflows under the lifted geometry.
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight:
+              (MediaQuery.of(context).size.height - viewInsets) * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AzSpace.lg, AzSpace.lg, AzSpace.lg, AzSpace.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose contact',
+                    style: AzText.title.copyWith(color: colors.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pick exactly one Azaman contact for this request.',
+                    style: AzText.bodyS.copyWith(color: colors.textSecondary),
+                  ),
+                  const SizedBox(height: AzSpace.sm),
+                  TextField(
+                    key: const ValueKey('contact-picker-search'),
+                    controller: _searchController,
+                    autofocus: true,
+                    onChanged: _onQueryChanged,
+                    style: AzText.body.copyWith(color: colors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search name or username',
+                      hintStyle: AzText.body.copyWith(
+                        color: colors.textTertiary,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: colors.textTertiary,
+                      ),
+                      filled: true,
+                      fillColor: colors.softSurface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: colors.accent,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: _buildResults(context, colors, contacts, searching, results),
+            ),
+            SizedBox(height: AzSpace.md + MediaQuery.of(context).padding.bottom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(
+    BuildContext context,
+    AzamanColors colors,
+    FriendProvider contacts,
+    bool searching,
+    List<Map<String, dynamic>> results,
+  ) {
+    if (searching && contacts.isLoading) {
+      return _sheetMessage(colors, Icons.search, 'Searching contacts…');
+    }
+    if (searching && contacts.searchError != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _sheetMessage(
+            colors,
+            Icons.cloud_off_rounded,
+            contacts.searchError!,
+          ),
+          TextButton(
+            onPressed: () => _onQueryChanged(_searchController.text),
+            child: const Text('Try again'),
+          ),
+        ],
+      );
+    }
+    if (results.isEmpty) {
+      return _sheetMessage(
+        colors,
+        Icons.person_off_rounded,
+        searching
+            ? 'No matching Azaman users found.'
+            : contacts.isLoading
+                ? 'Loading your contacts…'
+                : 'Your Azaman contacts will appear here. '
+                    'Search by name or username to find anyone on Azaman.',
+      );
+    }
+    return ListView.separated(
+      key: const ValueKey('contact-picker-results'),
+      shrinkWrap: true,
+      padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+      itemCount: results.length,
+      separatorBuilder: (_, _) => Divider(height: 1, color: colors.border),
+      itemBuilder: (context, index) {
+        final recipient = results[index];
+        final person = recipient['friend'] ?? recipient['user'];
+        final row = person is Map
+            ? Map<String, dynamic>.from(person)
+            : recipient;
+        final displayName = (row['displayName'] ?? row['username'] ??
+                row['name'] ?? recipient['friendUsername'] ?? '')
+            .toString();
+        final name = displayName.trim().isNotEmpty
+            ? displayName
+            : 'Azaman contact';
+        final username = row['username']?.toString();
+        return ListTile(
+          dense: true,
+          leading: CircleAvatar(
+            radius: 17,
+            backgroundColor: colors.softSurface,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: AzText.bodyS.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          title: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AzText.body.copyWith(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: username == null || username.isEmpty
+              ? null
+              : Text(
+                  '@$username',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AzText.bodyS.copyWith(color: colors.textSecondary),
+                ),
+          onTap: () {
+            AzamanHaptics.toggle();
+            Navigator.of(context).pop(recipient);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _sheetMessage(AzamanColors colors, IconData icon, String message) {
+    return Padding(
+      padding: const EdgeInsets.all(AzSpace.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: colors.textTertiary, size: 36),
+          const SizedBox(height: AzSpace.sm),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AzText.bodyS.copyWith(color: colors.textTertiary),
+          ),
+        ],
       ),
     );
   }
