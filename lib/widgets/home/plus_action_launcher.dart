@@ -30,6 +30,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/az_logo_mark.dart';
 
 class PlusLauncherAction {
   final IconData icon;
@@ -70,8 +71,7 @@ class PlusLauncherController extends ChangeNotifier {
   /// LeaderLayer invariant (asserted every frame in debug). Measured
   /// geometry keeps the exact same anchor contract with zero
   /// layer-order hazards.
-  final GlobalKey triggerKey =
-      GlobalKey(debugLabel: 'plus-launcher-anchor');
+  final GlobalKey triggerKey = GlobalKey(debugLabel: 'plus-launcher-anchor');
 
   Rect? _storedTriggerRect;
 
@@ -126,22 +126,15 @@ class PlusLauncherTrigger extends ConsumerStatefulWidget {
 
 class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _rot = AnimationController(
+  /// The single well-owned animation clock for the cumulative logo fill.
+  /// 0 = outline-only brand mark; 1 = all three segments filled.
+  late final AnimationController _fill = AnimationController(
     vsync: this,
     duration: MotionTokens.standard,
     value: 0,
   );
 
-  void _sync() {
-    if (!mounted) return;
-    widget.controller.isOpen ? _rot.forward() : _rot.reverse();
-    // Rebuild on the controller state change itself: in reduced-motion
-    // mode the visual step must land IMMEDIATELY, and `_rot` may have no
-    // value distance to travel (a close from value 0 never fires a value
-    // notification). The per-tick rebuilds in normal-motion mode come
-    // from the AnimatedBuilder listening to `_rot` below.
-    setState(() {});
-  }
+  bool _filling = false;
 
   @override
   void initState() {
@@ -152,27 +145,65 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   @override
   void dispose() {
     widget.controller.removeListener(_sync);
-    _rot.dispose();
+    _fill.dispose();
     super.dispose();
+  }
+
+  void _sync() {
+    if (!mounted) return;
+    // Rebuild on EVERY controller transition — the label ("Open actions" /
+    // "Close actions") and the open-state fill must reflect the CURRENT
+    // state even when no fill animation is running (reduced motion, or a
+    // programmatic open from elsewhere).
+    setState(() {});
+    if (!widget.controller.isOpen) {
+      // Closing/resetting the launcher resets its visual state predictably
+      // so the next opening plays the full fill again (never leaves the
+      // logo half-filled while the menu is closed).
+      _filling = false;
+      if (_reduceMotion) {
+        _fill.value = 0;
+      } else {
+        _fill.reverse();
+      }
+    }
+  }
+
+  bool get _reduceMotion => !AzMotion.of(context).travel;
+
+  Future<void> _playLogoFill() async {
+    if (_filling || widget.controller.isOpen) return;
+    _filling = true;
+    try {
+      await _fill.forward(from: 0);
+    } finally {
+      _filling = false;
+    }
+  }
+
+  /// CUMULATIVE bottom-up segment fill (2026-10-12): the logo's BASE
+  /// (part3) fills first, then the middle band (part2), then the top peak
+  /// (part1). Once a lower segment fills it STAYS filled while the next
+  /// segment fills — the Home launcher fill is cumulative, unlike the chat
+  /// send button's sequential one-part-at-a-time treatment.
+  static double _cumulativeFill(int partFromBottom, double t) {
+    const seg = 1.0 / 3;
+    // Segment k occupies t = [k*seg, (k+1)*seg); all earlier segments are
+    // already fully filled (cumulative), later ones untouched.
+    return ((t - partFromBottom * seg) / seg).clamp(0.0, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final reduceMotion = !AzMotion.of(context).travel;
 
-    // AUDIT (post-merge §2): the trigger rebuilds FROM THE ANIMATION
-    // CONTROLLER, not from incidental parent rebuilds. AnimatedBuilder
-    // listens to `_rot` directly, so the rotation tracks every tick of
-    // the open/close transition in normal-motion mode, and the
-    // controller-driven step mapping still applies instantly in
-    // reduced-motion mode (`_rot` runs either way; only the mapping
-    // differs).
     return AnimatedBuilder(
-      animation: _rot,
+      animation: _fill,
       builder: (context, _) {
         final open = widget.controller.isOpen;
-        final turns = reduceMotion ? (open ? 0.125 : 0.0) : _rot.value * 0.125;
+        // While the menu is open the brand mark reads as ACTIVE: fully
+        // filled. On close, _sync resets the fill so the next open plays.
+        final t = open ? 1.0 : _fill.value;
         return Semantics(
           button: true,
           excludeSemantics: true,
@@ -181,22 +212,26 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
           label: open ? 'Close actions' : 'Open actions',
           child: GestureDetector(
             key: const ValueKey('plus-launcher-trigger'),
-            onTap: () {
+            onTap: () async {
               if (widget.controller.isOpen) {
                 // Dismissal is silent (the liquid-launcher haptic
                 // convention).
                 widget.controller.close();
-              } else {
-                AzamanHaptics.nav();
-                // §5 anchor: measure MY OWN rect in global coordinates —
-                // the overlay positions the group from this.
-                final box = context.findRenderObject();
-                Rect? rect;
-                if (box is RenderBox && box.attached) {
-                  rect = box.localToGlobal(Offset.zero) & box.size;
-                }
-                widget.controller.open(fromTriggerRect: rect);
+                return;
               }
+              if (_filling) return; // rapid duplicate taps never stack
+              AzamanHaptics.nav();
+              if (_reduceMotion) {
+                // Reduced motion: same semantics and final state, no
+                // travel animation.
+                _openFromTrigger();
+                return;
+              }
+              await _playLogoFill();
+              if (!mounted) return;
+              if (widget.controller.isOpen) return;
+              // Only after the FINAL segment completes does the menu open.
+              _openFromTrigger();
             },
             child: Container(
               key: widget.controller.triggerKey,
@@ -219,16 +254,36 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                   ),
                 ],
               ),
-              child: Transform.rotate(
-                angle: turns * 2 * 3.141592653589793,
-                child: Icon(Icons.add,
-                    color: colors.onAccent, size: widget.size * 0.52),
+              // The plus glyph and its rotation are GONE. This is the real
+              // AZM brand mark (same geometry/vocabulary as the chat send
+              // affordance), rendered UPRIGHT as an intentional brand mark
+              // becoming active — no rotation, no × transformation.
+              child: Center(
+                child: AzLogoMark(
+                  size: Size.square(widget.size * 0.5),
+                  outlineColor: colors.onAccent,
+                  fillColor: colors.onAccent,
+                  fill3: _cumulativeFill(0, t),
+                  fill2: _cumulativeFill(1, t),
+                  fill1: _cumulativeFill(2, t),
+                ),
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  void _openFromTrigger() {
+    // §5 anchor: measure MY OWN rect in global coordinates — the overlay
+    // positions the group from this.
+    final box = context.findRenderObject();
+    Rect? rect;
+    if (box is RenderBox && box.attached) {
+      rect = box.localToGlobal(Offset.zero) & box.size;
+    }
+    widget.controller.open(fromTriggerRect: rect);
   }
 }
 
@@ -250,8 +305,7 @@ class PlusActionLauncher extends ConsumerStatefulWidget {
   final List<PlusLauncherAction> actions;
 
   @override
-  ConsumerState<PlusActionLauncher> createState() =>
-      _PlusActionLauncherState();
+  ConsumerState<PlusActionLauncher> createState() => _PlusActionLauncherState();
 }
 
 class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
@@ -406,98 +460,100 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
       animation: _open,
       builder: (context, _) {
         final t = _open.value;
-        return Stack(children: [
-          // De-emphasis: dim + blur the content behind the launcher. The
-          // scrim fades in with the launcher, so the background reads as
-          // going out of focus, not as a modal box.
-          //
-          // PASS G — a MODEST blur: sigma 8 was too aggressive (the whole
-          // app read as fogged frosted glass). Sigma 5 + a slightly
-          // lighter scrim de-emphasize the background while it stays
-          // RECOGNIZABLE: subtle depth separation, not erasure. The scrim
-          // stays; the background never goes sharp.
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.controller.isOpen ? _dismiss : null,
-              child: FadeTransition(
-                opacity: Tween(begin: 0.0, end: 1.0).animate(
-                  CurvedAnimation(parent: _open, curve: MotionTokens.enter),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 5 * t, sigmaY: 5 * t),
-                  child: Container(
-                    color: colors.background.withValues(alpha: 0.50 * t),
+        return Stack(
+          children: [
+            // De-emphasis: dim + blur the content behind the launcher. The
+            // scrim fades in with the launcher, so the background reads as
+            // going out of focus, not as a modal box.
+            //
+            // PASS G — a MODEST blur: sigma 8 was too aggressive (the whole
+            // app read as fogged frosted glass). Sigma 5 + a slightly
+            // lighter scrim de-emphasize the background while it stays
+            // RECOGNIZABLE: subtle depth separation, not erasure. The scrim
+            // stays; the background never goes sharp.
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.controller.isOpen ? _dismiss : null,
+                child: FadeTransition(
+                  opacity: Tween(begin: 0.0, end: 1.0).animate(
+                    CurvedAnimation(parent: _open, curve: MotionTokens.enter),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5 * t, sigmaY: 5 * t),
+                    child: Container(
+                      color: colors.background.withValues(alpha: 0.50 * t),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          // UX-CORRECTION §5: the actions visually ORIGINATE from the +
-          // control. The group is a CompositedTransformFollower of the
-          // trigger's LayerLink — its bottom-right pins to the trigger's
-          // top-right, so the column rises from the plus itself and stays
-          // right-aligned to the plus-side of the screen. Never centered,
-          // never a full-width modal column. Width is bounded (not
-          // stretched) so the group reads as an anchored action cluster;
-          // the scrim behind still covers the whole screen.
-          // CORRECTION F (geometry fix): the trigger's physical render
-          // box is measured LIVE (controller.triggerRect) and the group
-          // is Positioned so its bottom edge rises from just above the +
-          // and its RIGHT edge is flush with the + button's RIGHT edge
-          // (_anchorRight) — the column hangs off the physical plus, on
-          // the plus side of the screen, never centered, never a
-          // full-width modal column. Width is bounded (not stretched) so
-          // the group reads as an anchored action cluster; the scrim
-          // behind still covers the whole screen.
-          //
-          // (Measured geometry, not a LayerLink follower: the trigger
-          // lives in the nav band which paints AFTER this body-stack
-          // overlay, and the framework requires the leader to paint
-          // BEFORE the follower — the link form asserted every frame in
-          // debug.)
-          Positioned(
-            right: _anchorRight(context),
-            bottom: _anchorBottom(context),
-            child: IgnorePointer(
-              ignoring: t < 0.5,
-              // CORRECTION G: a bounded INTRINSIC-width cluster. The
-              // ConstrainedBox only caps how wide the cluster is ALLOWED
-              // to get (so a very long label can't blow past the
-              // viewport); it is `IntrinsicWidth` that makes the Column
-              // actually size itself to its content instead of
-              // ballooning to that cap on every open. `stretch` is gone
-              // — each row keeps its own natural width and the Column
-              // right-aligns every row to a shared trailing edge, so the
-              // rows read as "[ action ]" blocks hanging off the plus,
-              // never a full-width mass centered across the screen.
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: math.min(
-                    MediaQuery.sizeOf(context).width - 2 * AzSpace.lg,
-                    300.0,
+            // UX-CORRECTION §5: the actions visually ORIGINATE from the +
+            // control. The group is a CompositedTransformFollower of the
+            // trigger's LayerLink — its bottom-right pins to the trigger's
+            // top-right, so the column rises from the plus itself and stays
+            // right-aligned to the plus-side of the screen. Never centered,
+            // never a full-width modal column. Width is bounded (not
+            // stretched) so the group reads as an anchored action cluster;
+            // the scrim behind still covers the whole screen.
+            // CORRECTION F (geometry fix): the trigger's physical render
+            // box is measured LIVE (controller.triggerRect) and the group
+            // is Positioned so its bottom edge rises from just above the +
+            // and its RIGHT edge is flush with the + button's RIGHT edge
+            // (_anchorRight) — the column hangs off the physical plus, on
+            // the plus side of the screen, never centered, never a
+            // full-width modal column. Width is bounded (not stretched) so
+            // the group reads as an anchored action cluster; the scrim
+            // behind still covers the whole screen.
+            //
+            // (Measured geometry, not a LayerLink follower: the trigger
+            // lives in the nav band which paints AFTER this body-stack
+            // overlay, and the framework requires the leader to paint
+            // BEFORE the follower — the link form asserted every frame in
+            // debug.)
+            Positioned(
+              right: _anchorRight(context),
+              bottom: _anchorBottom(context),
+              child: IgnorePointer(
+                ignoring: t < 0.5,
+                // CORRECTION G: a bounded INTRINSIC-width cluster. The
+                // ConstrainedBox only caps how wide the cluster is ALLOWED
+                // to get (so a very long label can't blow past the
+                // viewport); it is `IntrinsicWidth` that makes the Column
+                // actually size itself to its content instead of
+                // ballooning to that cap on every open. `stretch` is gone
+                // — each row keeps its own natural width and the Column
+                // right-aligns every row to a shared trailing edge, so the
+                // rows read as "[ action ]" blocks hanging off the plus,
+                // never a full-width mass centered across the screen.
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: math.min(
+                      MediaQuery.sizeOf(context).width - 2 * AzSpace.lg,
+                      300.0,
+                    ),
                   ),
-                ),
-                child: IntrinsicWidth(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (var i = 0; i < widget.actions.length; i++)
-                        _LauncherRow(
-                          action: widget.actions[i],
-                          index: i,
-                          progress: _open,
-                          reduceMotion: _reduceMotion,
-                          onPick: _pick,
-                        ),
-                    ],
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 0; i < widget.actions.length; i++)
+                          _LauncherRow(
+                            action: widget.actions[i],
+                            index: i,
+                            progress: _open,
+                            reduceMotion: _reduceMotion,
+                            onPick: _pick,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ]);
+          ],
+        );
       },
     );
   }
@@ -526,9 +582,11 @@ class _LauncherRow extends ConsumerWidget {
     final spanMs = MotionTokens.spatial.inMilliseconds;
     final appear = reduceMotion
         ? 1.0
-        : Interval((delayMs / spanMs).clamp(0.0, 0.8), 1.0,
-                curve: MotionTokens.enter)
-            .transform(t);
+        : Interval(
+            (delayMs / spanMs).clamp(0.0, 0.8),
+            1.0,
+            curve: MotionTokens.enter,
+          ).transform(t);
 
     return Opacity(
       opacity: appear,
@@ -562,8 +620,7 @@ class _LauncherRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: AzSpace.md),
                 Container(
-                  key: ValueKey(
-                      'plus-launcher-chip-${action.label}'),
+                  key: ValueKey('plus-launcher-chip-${action.label}'),
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(

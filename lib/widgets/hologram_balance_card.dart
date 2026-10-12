@@ -34,11 +34,20 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
+import 'package:azaman/widgets/balance_visibility_eye.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
-  const HologramBalanceCard({super.key});
+  /// NESTED-GESTURE CONTRACT (2026-10-12 refresh): when this front face is
+  /// hosted inside FlippableBalanceCard, the flip card passes its eye-claim
+  /// guard so the relocated visibility control can mark its gestures and the
+  /// flip card's raw Listener does not ALSO flip the card for an eye tap.
+  /// Null when hosted standalone (the control then works, the host simply
+  /// has no tap-through conflict to arbitrate).
+  const HologramBalanceCard({super.key, this.flipGuard});
+
+  final ValueNotifier<bool>? flipGuard;
 
   @override
   ConsumerState<HologramBalanceCard> createState() =>
@@ -162,17 +171,17 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
       // reference's cyan/violet/gold trio) — so the three channels are
       // perceptibly different when visible together while staying Azaman-
       // compatible.
-      particleColors: [
-        colors.accent,
-        kParticleCoolCyan,
-        kParticleSoftViolet,
-      ],
+      particleColors: [colors.accent, kParticleCoolCyan, kParticleSoftViolet],
       borderRadius: AzRadius.xl,
+      // 2026-10-12 footprint pass: vertical padding md (was lg) — the
+      // card is 165px tall now and the interior must fit the relocated
+      // 32px visibility control in the header without squeezing the hero
+      // figure.
       padding: const EdgeInsets.fromLTRB(
         AzSpace.xl,
-        AzSpace.lg,
+        AzSpace.md,
         AzSpace.xl,
-        AzSpace.lg,
+        AzSpace.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,16 +199,14 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 style: AzText.eyebrow.copyWith(color: colors.textTertiary),
               ),
               const Spacer(),
-              // EXPERIENCE PASS §1: the 'USDC' header chip is gone — the
-              // principal figure itself now reads "USDC 123.45", so a second
-              // unit label above it would be a duplicate. Only the hidden
-              // state keeps a visible affordance.
-              if (!isVisible)
-                Icon(
-                  HugeIconsSolid.viewOff,
-                  size: 13,
-                  color: colors.textTertiary,
-                ),
+              // HOME REFRESH (2026-10-12): the balance-visibility control now
+              // LIVES HERE — the exact control relocated from Home's greeting
+              // header (same provider toggle, surface, press, glyph transition
+              // and haptic; see BalanceVisibilityEye). The old hidden-state
+              // only affordance is gone: one control, both states visible.
+              // The eye is a card-local control; its tap must not flip the
+              // card (see the nested-gesture contract in the widget docs).
+              BalanceVisibilityEye(flipGuard: widget.flipGuard, size: 32),
             ],
           ),
 
@@ -211,7 +218,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
               // The delta chip sits ABOVE the figure and fades in/out, so the
               // number itself never moves to make room for it.
               SizedBox(
-                height: 18,
+                height: 14,
                 child: AnimatedOpacity(
                   opacity: chipDelta == null ? 0.0 : 1.0,
                   duration: chipMotion,
@@ -232,7 +239,9 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                                     ? HugeIconsSolid.arrowUp01
                                     : HugeIconsSolid.arrowDown01,
                                 size: 12,
-                                color: chipDelta >= 0 ? colors.success : colors.danger,
+                                color: chipDelta >= 0
+                                    ? colors.success
+                                    : colors.danger,
                               ),
                               const SizedBox(width: AzSpace.xxs),
                               Text(
@@ -241,7 +250,9 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                                   symbol: AzMoney.usdcSymbol,
                                 ),
                                 style: AzText.delta(
-                                  chipDelta >= 0 ? colors.success : colors.danger,
+                                  chipDelta >= 0
+                                      ? colors.success
+                                      : colors.danger,
                                 ),
                               ),
                             ],
@@ -332,7 +343,6 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
               // affordance. The rate is public market data, so it stays
               // rendered even while the balance itself is masked.
               const SizedBox(height: AzSpace.sm),
-              const SizedBox(height: AzSpace.sm),
               // RICHTEXT CORRECTIONS §3: the rate row now uses the card's
               // FULL width — the conversion text anchors the left, the
               // refresh/countdown anchors the right, via a real
@@ -356,8 +366,9 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                         fit: BoxFit.scaleDown,
                         child: Text(
                           '1 USDC = ${AzMoney.ghs(rate)}',
-                          style: AzText.caption
-                              .copyWith(color: colors.textTertiary),
+                          style: AzText.caption.copyWith(
+                            color: colors.textTertiary,
+                          ),
                         ),
                       ),
                     ),
