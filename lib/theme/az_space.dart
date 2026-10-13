@@ -89,10 +89,12 @@ abstract final class AzSpace {
   /// + its bottom gutter (16) + ~42px of breathing
   /// room so the last card in a list is not visually crowded by the pill.
   ///
-  /// **120 is not arbitrary â€” it is the value Home already uses**
-  /// (`home_screen.dart` L81: `EdgeInsets.only(bottom: 120)`). It is promoted to
-  /// a token so that if the pill's height ever changes, exactly one number
-  /// changes. Do NOT lower this to a "tidier" number: content would slide under
+  /// **Constraint-stable form.** This fixed token remains ONLY where a
+  /// stable number is genuinely required (Home's fold composition measures
+  /// against a fixed extent and must not re-read a live inset mid-gesture).
+  /// Every other surface reads the LIVE band height the shell publishes via
+  /// `navBandClearance()` (lib/theme/nav_band_clearance.dart).
+  /// Do NOT lower this to a "tidier" number: content would slide under
   /// the pill and the bug would be invisible in review until a user hit it.
   static const double navClearanceHeight = 106;
 
