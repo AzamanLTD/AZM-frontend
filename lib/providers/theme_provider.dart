@@ -8,13 +8,13 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_page_transitions.dart';
 
-
 // ============================================================
 // AZAMAN THEME ENGINE — V5
 //
-// Two brightnesses (light / dark) × four accent identities
-// (gold / teal / indigo / rose). The SURFACE ladder is shared by
-// all eight combinations; only the accent family changes. That is
+// Two brightnesses (light / dark) × eight accent identities
+// (gold / teal / indigo / rose / blue / violet / emerald / coral). The
+// SURFACE ladder is shared by all sixteen combinations; only the accent
+// family changes. That is
 // deliberate: a user picking an identity must never get a
 // different contrast contract, and no screen needs eight sets of
 // visual QA.
@@ -38,8 +38,41 @@ enum AzamanTheme {
   dark,
 }
 
-/// The four accent identities. Surfaces never change; only the accent family does.
-enum AzAccent { gold, teal, indigo, rose }
+/// The accent identities. Surfaces never change; only the accent family does.
+///
+/// **Index stability contract:** the persisted `azaman_accent` SharedPreferences
+/// value is `AzAccent.values[index]`, so the order of the first four entries is
+/// FROZEN — gold/teal/indigo/rose keep indices 0-3 exactly as shipped in
+/// TASK-025. New identities (Home/Settings refresh §8, 2026-10-13) are APPENDED
+/// only; never reorder, renumber or remove an existing entry.
+enum AzAccent {
+  gold, // 0 — frozen
+  teal, // 1 — frozen
+  indigo, // 2 — frozen
+  rose, // 3 — frozen
+  // Appended 2026-10-13 (Home/Settings refresh §8): indices 4-7 are new,
+  // so every existing user keeps the identity they selected.
+  blue, // 4
+  violet, // 5
+  emerald, // 6
+  coral, // 7
+}
+
+/// Human-readable label for each accent identity — used by the Themes page
+/// picker so selection is never colour-only (accessibility: label + selected
+/// state, not hue alone).
+extension AzAccentLabel on AzAccent {
+  String get label => switch (this) {
+    AzAccent.gold => 'Gold',
+    AzAccent.teal => 'Teal',
+    AzAccent.indigo => 'Indigo',
+    AzAccent.rose => 'Rose',
+    AzAccent.blue => 'Blue',
+    AzAccent.violet => 'Violet',
+    AzAccent.emerald => 'Emerald',
+    AzAccent.coral => 'Coral',
+  };
+}
 
 /// One accent family in both brightnesses.
 ///
@@ -105,6 +138,48 @@ class AzAccentFamily {
       darkAccent: Color(0xFFFB7185),
       darkOnAccent: Colors.black,
       darkSecondary: Color(0xFFFDA4AF),
+    ),
+    // ── Appended identities (Home/Settings refresh §8, 2026-10-13) ──
+    // Chosen against the existing surface ladder, not in isolation: light
+    // accents are deep 700-range tones that keep white ink readable on
+    // controls (WCAG ≥ 3.0, see test/theme/accent_identities_test.dart);
+    // dark accents are luminous 400-range tints that stay clean on the
+    // true-black dark surface and carry black ink.
+    AzAccent.blue: AzAccentFamily(
+      id: AzAccent.blue,
+      lightAccent: Color(0xFF1D4ED8),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF1E40AF),
+      darkAccent: Color(0xFF60A5FA),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFF93C5FD),
+    ),
+    AzAccent.violet: AzAccentFamily(
+      id: AzAccent.violet,
+      lightAccent: Color(0xFF6D28D9),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF5B21B6),
+      darkAccent: Color(0xFFA78BFA),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFFC4B5FD),
+    ),
+    AzAccent.emerald: AzAccentFamily(
+      id: AzAccent.emerald,
+      lightAccent: Color(0xFF047857),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFF065F46),
+      darkAccent: Color(0xFF34D399),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFF6EE7B7),
+    ),
+    AzAccent.coral: AzAccentFamily(
+      id: AzAccent.coral,
+      lightAccent: Color(0xFFEA580C),
+      lightOnAccent: Colors.white,
+      lightSecondary: Color(0xFFC2410C),
+      darkAccent: Color(0xFFFB923C),
+      darkOnAccent: Colors.black,
+      darkSecondary: Color(0xFFFDBA74),
     ),
   };
 }
@@ -210,9 +285,7 @@ class ThemeProvider with ChangeNotifier {
   /// Called automatically on every setTheme() call.
   Future<void> _syncToBackend(AzamanTheme theme) async {
     try {
-      await apiClient.put('/users/preferences/theme', {
-        'theme': theme.name,
-      });
+      await apiClient.put('/users/preferences/theme', {'theme': theme.name});
     } catch (e) {
       // Non-fatal: backend sync failure should never affect local UX, but it
       // must stay diagnosable in debug builds.
@@ -274,11 +347,10 @@ class ThemeProvider with ChangeNotifier {
 
     return switch (decoded) {
       // Shape: {"data": {"theme": "dark"}}
-      {'data': final Map<String, dynamic> data} =>
-        switch (data['theme']) {
-          final String theme when theme.isNotEmpty => theme,
-          _ => null,
-        },
+      {'data': final Map<String, dynamic> data} => switch (data['theme']) {
+        final String theme when theme.isNotEmpty => theme,
+        _ => null,
+      },
       // Shape: {"theme": "dark"} — some deployments unwrap `data` already.
       {'theme': final String theme} when theme.isNotEmpty => theme,
       _ => null,
@@ -304,7 +376,9 @@ class ThemeProvider with ChangeNotifier {
   /// exact current visuals. Passing an explicit [accent] resolves it through
   /// the accent family. The INSTANCE getters always pass the user's accent.
   static ThemeData getThemeData(AzamanTheme theme, {AzAccent? accent}) {
-    final c = accent == null ? getColors(theme) : getColors(theme).withAccent(accent);
+    final c = accent == null
+        ? getColors(theme)
+        : getColors(theme).withAccent(accent);
     // Derived once and threaded through both ThemeData and its ColorScheme so
     // the two can never disagree about which mode the palette is in.
     final brightness = brightnessOf(c);
@@ -393,7 +467,8 @@ class ThemeProvider with ChangeNotifier {
           return c.textTertiary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return c.accent.withValues(alpha: 0.3);
+          if (states.contains(WidgetState.selected))
+            return c.accent.withValues(alpha: 0.3);
           return c.divider;
         }),
       ),
@@ -406,7 +481,9 @@ class ThemeProvider with ChangeNotifier {
               ? Colors.black
               : Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -454,7 +531,10 @@ class ThemeProvider with ChangeNotifier {
   /// `copyWith` below then pins the roles Azaman owns to real palette values.
   /// Anything Material adds later therefore arrives seed-derived (gold/teal
   /// tonal palette) instead of purple.
-  static ColorScheme buildColorScheme(AzamanColors c, [Brightness? brightness]) {
+  static ColorScheme buildColorScheme(
+    AzamanColors c, [
+    Brightness? brightness,
+  ]) {
     final resolved = brightness ?? brightnessOf(c);
 
     return ColorScheme.fromSeed(
@@ -559,19 +639,19 @@ class ThemeProvider with ChangeNotifier {
           surface: const Color(0xFF0A0A0A),
           card: const Color(0xFF161616),
           softSurface: const Color(0xFF0F0F0F),
-          divider: const Color(0x12FFFFFF),       // white @ 7%
-          accent: const Color(0xFF2DD4BF),         // teal — primary CTA color
+          divider: const Color(0x12FFFFFF), // white @ 7%
+          accent: const Color(0xFF2DD4BF), // teal — primary CTA color
           accentSecondary: const Color(0xFFF59E0B), // amber — warm secondary
-          accentSurface: const Color(0x1A2DD4BF),  // teal @ 10%
+          accentSurface: const Color(0x1A2DD4BF), // teal @ 10%
           success: const Color(0xFF34D399),
           danger: const Color(0xFFF87171),
           warning: const Color(0xFFFBBF24),
           textPrimary: Colors.white,
           textSecondary: Colors.white70,
           textTertiary: Colors.white38,
-          glow: const Color(0xFF2DD4BF),           // luminous teal glow
+          glow: const Color(0xFF2DD4BF), // luminous teal glow
           scaffoldBackground: const Color(0xFF000000),
-          border: const Color(0x14FFFFFF),          // white @ 8%
+          border: const Color(0x14FFFFFF), // white @ 8%
         );
     }
   }
@@ -732,8 +812,6 @@ class AzamanColors {
     );
   }
 }
-
-
 
 // =============================================================================
 // RIVERPOD HANDLE  (canonical V2 access path)
