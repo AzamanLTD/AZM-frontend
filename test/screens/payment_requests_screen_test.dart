@@ -81,6 +81,35 @@ class _SeedFriendProvider extends FriendProvider {
   Future<void> fetchFriends() async {}
 }
 
+class _TwoFriendProvider extends FriendProvider {
+  _TwoFriendProvider(Ref ref) : super(ref) {
+    friends.addAll([
+      {
+        'id': 'friendship-999',
+        'friendshipId': 'friendship-999',
+        'friendUsername': 'ama',
+        'friend': {'id': '42', 'username': 'ama'},
+      },
+      {
+        'id': 'friendship-1000',
+        'friendshipId': 'friendship-1000',
+        'friendUsername': 'kojo',
+        'friend': {'id': '77', 'username': 'kojo'},
+      },
+    ]);
+  }
+
+  @override
+  Future<void> fetchFriends() async {}
+}
+
+class _EmptyFriendProvider extends FriendProvider {
+  _EmptyFriendProvider(Ref ref) : super(ref);
+
+  @override
+  Future<void> fetchFriends() async {}
+}
+
 
 Widget _testApp({
   required ApiClient api,
@@ -131,12 +160,41 @@ void main() {
 
     await tester.tap(find.widgetWithText(ActionChip, 'GH₵ 10'));
     await tester.pump();
-    final recipientTile = find.ancestor(
-      of: find.text('ama'),
-      matching: find.byType(ListTile),
+    // New contact-picker contract: the composer surface shows ONE compact
+    // select-contact row, never a contact list under the keypad. The row
+    // opens the searchable sheet; choosing commits and closes it.
+    final composerSurface = find.ancestor(
+      of: find.byKey(const ValueKey('receive-request-contact-row')),
+      matching: find.byType(ReceiveScreen),
     );
-    await tester.tap(recipientTile);
+    expect(
+      find.descendant(
+        of: composerSurface,
+        matching: find.byType(ListTile),
+      ),
+      findsNothing,
+      reason: 'the composer must not carry a contact list under the keypad',
+    );
+    await tester.tap(find.byKey(const ValueKey('receive-request-contact-row')));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(
+      find.ancestor(
+        of: find.text('ama'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    // Sheet closed; the row now shows the chosen contact.
+    expect(find.text('Search name or username'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('receive-request-contact-row')),
+        matching: find.text('ama'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('receive-request-submit')));
     await tester.pump();
@@ -162,6 +220,111 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(api.postCount, 1,
         reason: 'repeating a successful request must reuse the created record, not create a duplicate');
+  });
+
+
+testWidgets('composer keeps ONE recipient: choosing again replaces, search never clears a selection',
+      (tester) async {
+    _phoneSize(tester);
+    final api = _RequestApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          friendProvider.overrideWith((ref) => _TwoFriendProvider(ref)),
+        ],
+        child: const MaterialApp(home: ReceiveScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byKey(const ValueKey('receive-request-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+
+    Future<void> choose(String name) async {
+      await tester.tap(
+        find.byKey(const ValueKey('receive-request-contact-row')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(
+        find.ancestor(
+          of: find.text(name),
+          matching: find.byType(ListTile),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    await choose('ama');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('receive-request-contact-row')),
+        matching: find.text('ama'),
+      ),
+      findsOneWidget,
+    );
+
+    // Changing the selection REOPENS the sheet with the current contact
+    // checked and replacing it on the composer — never a second recipient.
+    await choose('kojo');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('receive-request-contact-row')),
+        matching: find.text('kojo'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('receive-request-contact-row')),
+        matching: find.text('ama'),
+      ),
+      findsNothing,
+      reason: 'a direct request targets exactly ONE contact',
+    );
+  });
+
+  testWidgets('empty-contact state is honest on both surface and sheet',
+      (tester) async {
+    _phoneSize(tester);
+    final api = _RequestApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          friendProvider.overrideWith((ref) => _EmptyFriendProvider(ref)),
+        ],
+        child: const MaterialApp(home: ReceiveScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byKey(const ValueKey('receive-request-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+
+    // The unselected row invites selection; no fabricated contacts on the
+    // composer surface.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('receive-request-contact-row')),
+        matching: find.text('Select contact'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('receive-request-contact-row')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('Your Azaman contacts will appear here'),
+        findsOneWidget);
   });
 
   testWidgets('incoming request list renders real server response and status',
