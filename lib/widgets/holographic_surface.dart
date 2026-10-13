@@ -20,10 +20,13 @@
 //
 //   3. THE REACTIVE PARTICLE FIELD — an OPT-IN accent (`showReactiveParticles:
 //      false` by default): a tiny, deterministic field of soft coloured points
-//      that breathes while the card rests and DEFORMS around the finger when
+//      that is STATIC while the card rests and DEFORMS around the finger when
 //      it touches — nearest points lean away, the mid-band leans toward, and
 //      everything settles through the same rest spring as the sheen. The
 //      balance card adopts it as its sole touch response (`showSheen: false`).
+//      (2026-10-13 §10.E audit: the field's former ~9s ambient breathing
+//      clock was removed — interaction-only response, no perpetual idle
+//      animation.)
 //
 // Keeping the material still and moving only opt-in responses is what separates
 // this from "an animated gradient". An animated gradient reads as decoration;
@@ -145,23 +148,13 @@ class _HolographicSurfaceState extends State<HolographicSurface>
 
   late final AnimationController _rest;
 
-  /// ONE shared ambient clock for every particle on this surface (~9s loop).
-  /// Created only when the surface opted into the particle field so default
-  /// consumers never pay for a second ticker. Stopped and zeroed under
-  /// reduced motion (see didChangeDependencies).
-  late final AnimationController? _ambient;
-
   @override
   void initState() {
     super.initState();
-    if (widget.showReactiveParticles) {
-      _ambient = AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 9),
-      )..repeat();
-    } else {
-      _ambient = null;
-    }
+    // §10.E correction (2026-10-13): the reactive particle field no longer
+    // owns a perpetual ambient controller. The field is a STATIC resting
+    // arrangement that deforms around the pointer and settles back through
+    // the surface's existing spring — no idle animation, no second ticker.
     _rest = AnimationController(
       vsync: this,
       duration: MotionTokens.emphasized,
@@ -190,24 +183,11 @@ class _HolographicSurfaceState extends State<HolographicSurface>
     if (!travel) {
       _rest.stop();
       _dx = _dy = _restFromDx = _restFromDy = 0;
-      // Reduced motion is authoritative for the ambient field too: the
-      // controller stops and the particles freeze at their resting phase.
-      final ambient = _ambient;
-      if (ambient != null && ambient.isAnimating) {
-        ambient.stop();
-        ambient.value = 0.0;
-      }
-    } else {
-      final ambient = _ambient;
-      if (ambient != null && !ambient.isAnimating && ambient.value == 0.0) {
-        ambient.repeat();
-      }
     }
   }
 
   @override
   void dispose() {
-    _ambient?.dispose();
     _rest.dispose();
     super.dispose();
   }
@@ -355,18 +335,22 @@ class _HolographicSurfaceState extends State<HolographicSurface>
 
               // ── LAYER 1d: the reactive particle field (OPT-IN) ───────────
               // An Antigravity-inspired accent: a tiny deterministic field of
-              // soft coloured points that breathes at rest and deforms around
-              // the pointer — the balance card's sole touch response. It sits
-              // behind the iridescence and far behind the content, is gated by
-              // AzMotion (scaled dx/dy + a stopped ambient clock under reduced
-              // motion), and is isolated in a RepaintBoundary so the ambient
-              // repaint never invalidates the card content or the Home screen.
+              // soft coloured points. §10.E correction (2026-10-13): the field
+              // is STATIC at rest — the ~9s ambient breathing clock is GONE.
+              // The particles now respond only to pointer interaction (they
+              // deform around the finger through the existing Listener) and
+              // settle back to rest through the surface's existing spring.
+              // No perpetual idle animation, no second ticker, no blur; the
+              // repaint footprint is now interaction-only (setState through
+              // pointer moves and the settle spring), isolated in a
+              // RepaintBoundary so it never invalidates the card content or
+              // the Home screen.
               if (intensity > 0 && widget.showReactiveParticles)
                 Positioned.fill(
                   child: RepaintBoundary(
                     child: CustomPaint(
                       painter: ReactiveParticlePainter(
-                        phase: _ambient ?? const AlwaysStoppedAnimation(0.0),
+                        phase: const AlwaysStoppedAnimation(0.0),
                         dx: dx,
                         dy: dy,
                         colors: widget.particleColors ??

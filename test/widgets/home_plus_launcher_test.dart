@@ -5,11 +5,14 @@
 // modal); the + becomes the close affordance; a pick closes, fires the
 // action, and reports exactly once. The launcher is a reusable component:
 // these tests pass their own actions, nothing Home-specific is involved.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_logo_mark.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
@@ -17,6 +20,18 @@ import 'package:azaman/widgets/premium_bottom_nav.dart';
 /// A fresh controller per pump — the shell owns the controller so it can
 /// toggle the launcher from the nav band; the tests own one each.
 PlusLauncherController? _lastController;
+
+/// True when the Transform's matrix is exactly a clockwise Z rotation of
+/// 45° (column-major storage: [0]=cos, [1]=sin, [4]=-sin, [5]=cos).
+bool _isClockwiseQuarterPiRotation(Transform t) {
+  final c = math.cos(math.pi / 4);
+  final s = math.sin(math.pi / 4);
+  final m = t.transform.storage;
+  return (m[0] - c).abs() < 1e-3 &&
+      (m[1] - s).abs() < 1e-3 &&
+      (m[4] + s).abs() < 1e-3 &&
+      (m[5] - c).abs() < 1e-3;
+}
 
 Future<void> _pumpLauncher(
   WidgetTester tester, {
@@ -91,6 +106,46 @@ Future<void> _pumpShell(
 }
 
 void main() {
+  testWidgets(
+      '§2A: the launcher mark is a STATIC 45° clockwise rotation — the '
+      'chat-send orientation, never animated, never the container',
+      (tester) async {
+    // The trigger (with the mark) mounts beside a bottom bar, exactly
+    // like the real shell — the §2A orientation lives in the trigger's
+    // mark, not the overlay.
+    await _pumpShell(tester, actions: const []);
+
+    final logo = find.descendant(
+      of: find.byType(PlusLauncherTrigger),
+      matching: find.byType(AzLogoMark),
+    );
+    expect(logo, findsOneWidget);
+
+    // Exactly ONE rotation Transform exists in the trigger — the mark
+    // itself, never the clickable container (hit geometry unchanged).
+    final transforms = tester.widgetList<Transform>(
+      find.descendant(
+        of: find.byType(PlusLauncherTrigger),
+        matching: find.byType(Transform),
+      ),
+    );
+    final quarterPiRotations =
+        transforms.where(_isClockwiseQuarterPiRotation).toList();
+    expect(quarterPiRotations, hasLength(1),
+        reason: 'exactly one rotation exists in the launcher: the mark — '
+            'the AZM mark reads as a send arrow, a fixed 45° clockwise '
+            'rotation identical to the chat send button treatment');
+
+    // The trigger still opens and closes the launcher with the rotated
+    // mark in place — the fixed orientation costs no functionality.
+    await tester.tap(find.byType(PlusLauncherTrigger));
+    await tester.pumpAndSettle();
+    expect(find.byType(AzLogoMark), findsOneWidget);
+    await tester.tap(find.byType(PlusLauncherTrigger));
+    await tester.pumpAndSettle();
+    expect(find.byType(AzLogoMark), findsOneWidget);
+  });
+
   testWidgets('closed at rest: the overlay layer is empty — the trigger '
       'lives in the nav band, not here', (tester) async {
     await _pumpLauncher(

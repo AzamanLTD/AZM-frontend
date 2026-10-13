@@ -241,7 +241,20 @@ class PullRevealCardDeckState extends ConsumerState<PullRevealCardDeck>
           onVerticalDragEnd: _onDragEnd,
           child: SizedBox(
             height: h + peek,
-            child: ClipRect(
+            // §2C (2026-10-13): the peek window used a plain ClipRect,
+            // so the default Visa card's visible sliver ended in a straight
+            // cut — square bottom corners against the app's rounded card
+            // language. The window now rounds ONLY the bottom corners (24,
+            // the deck's own card-corner step), so the resting peek reads
+            // as the lower edge of a real physical card. The top edge stays
+            // straight: the pulled hero still exits upward through it, and
+            // once revealed the Visa card's own 22-radius face sits fully
+            // inside the window, untouched by the clip. Shadows are painted
+            // inside the window exactly as before; nothing new is masked.
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(24),
+              ),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [

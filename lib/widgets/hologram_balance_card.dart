@@ -54,7 +54,8 @@ class HologramBalanceCard extends ConsumerStatefulWidget {
       _HologramBalanceCardState();
 }
 
-class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
+class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
+    with SingleTickerProviderStateMixin {
   /// The primary figure as of the previous build. Compared against the new one
   /// to derive the delta chip — a change is only interesting if we know what
   /// the value was a moment ago.
@@ -66,11 +67,50 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
   /// Clears [_delta] after it has been on screen long enough to read.
   Timer? _deltaTimer;
 
+  /// ONE-SHOT TEXT-FREE FADE (Home refresh §2B, 2026-10-13): on Hide the
+  /// card's ENTIRE text content fades out over a single 3-second window
+  /// until the eye is the only visible item on the card. This is a
+  /// one-shot AnimationController per hide action — NOT a repeating timer
+  /// and NOT a perpetual animation. Show mid-fade reverses it cleanly
+  /// (no stale callbacks); reduced-motion collapses the window to zero.
+  static const Duration _hideFadeWindow = Duration(seconds: 3);
+
+  late final AnimationController _hideFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _hideFade = AnimationController(
+      vsync: this,
+      duration: _hideFadeWindow,
+      // A persisted hidden balance must not replay a 3-second fade on
+      // mount: the card starts already text-free when it mounts hidden.
+      value: ref.read(balanceVisibleProvider) ? 0.0 : 1.0,
+    );
+  }
+
   @override
   void dispose() {
+    _hideFade.dispose();
     _deltaTimer?.cancel();
     super.dispose();
   }
+
+  /// Wraps one fading region of the card. Opacity only — the subtree keeps
+  /// its layout geometry (no jump, no reflow), and at the fully-hidden end
+  /// of the fade the region is also excluded from semantics so no text or
+  /// placeholder leaks to accessibility while the balance is hidden.
+  Widget _fadingText(Widget child) => AnimatedBuilder(
+        animation: _hideFade,
+        child: child,
+        builder: (context, child) => ExcludeSemantics(
+          excluding: _hideFade.isCompleted,
+          child: Opacity(
+            opacity: 1.0 - _hideFade.value,
+            child: child,
+          ),
+        ),
+      );
 
   /// Called during build (before the figure is painted) so the delta is always
   /// computed from the freshest value. Deliberately NOT in `didUpdateWidget`:
@@ -102,6 +142,29 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
 
   @override
   Widget build(BuildContext context) {
+    // ONE-SHOT fade wiring (§2B): the provider toggle drives the fade —
+    // Hide runs the 3s window forward, Show reverses it cleanly. The
+    // window respects reduced motion (collapses to zero), and starting
+    // from the persisted state in initState means a card mounted hidden
+    // never animates on mount.
+    ref.listen<bool>(balanceVisibleProvider, (previous, next) {
+      // forward()/reverse() carry no duration parameter on this Flutter
+      // version; the window is set on the controller before each leg.
+      if (next) {
+        _hideFade.duration = MotionTokens.accessibleDuration(
+          context,
+          const Duration(milliseconds: 350),
+        );
+        _hideFade.reverse();
+      } else {
+        _hideFade.duration = MotionTokens.accessibleDuration(
+          context,
+          _hideFadeWindow,
+        );
+        _hideFade.forward();
+      }
+    });
+
     final colors = ref.watch(themeProvider).colors;
     final balance = ref.watch(balanceDataProvider);
     final isVisible = ref.watch(balanceVisibleProvider);
@@ -152,12 +215,14 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
       // dominant fill.
       base: colors.card,
       tint: colors.textSecondary,
-      // PARTICLE FIELD (2026-10-06 correction): the balance card's sole touch
-      // response is the reactive particle field — the moving white specular
-      // band is OFF here (it reads as a rendering artefact on the graphite
-      // card, and two competing touch responses weaken both). The field
-      // DEFORMS around the finger, breathes at rest through one shared ~9s
-      // ambient clock, and settles through the surface's existing spring.
+      // PARTICLE FIELD (2026-10-06 correction; §10.E audit 2026-10-13): the
+      // balance card's sole touch response is the reactive particle field —
+      // the moving white specular band is OFF here (it reads as a rendering
+      // artefact on the graphite card, and two competing touch responses
+      // weaken both). The field DEFORMS around the finger and settles through
+      // the surface's existing spring. It is now fully STATIC while idle
+      // (the ~9s ambient breathing clock was removed in the §10.E audit:
+      // a restrained interaction response, not perpetual idle animation).
       // Palette: the app's own accent family, restrained in light mode by the
       // painter's theme gate — never a rainbow, never above the content.
       showSheen: false,
@@ -190,13 +255,29 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
           // ── Header: label + visibility state ──────────────────────────
           Row(
             children: [
-              // RICHTEXT CORRECTIONS §2C: the one small accent highlight
-              // on the now-neutral graphite surface.
-              Icon(HugeIconsSolid.wallet01, size: 14, color: colors.accent),
-              const SizedBox(width: AzSpace.sm),
-              Text(
-                'AVAILABLE',
-                style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+              // §2B: the header's label group is part of the card's text
+              // content and fades with it; the EYE stays outside the fade
+              // and remains the only visible item at the hidden end state.
+              _fadingText(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // RICHTEXT CORRECTIONS §2C: the one small accent
+                    // highlight on the now-neutral graphite surface.
+                    Icon(
+                      HugeIconsSolid.wallet01,
+                      size: 14,
+                      color: colors.accent,
+                    ),
+                    const SizedBox(width: AzSpace.sm),
+                    Text(
+                      'AVAILABLE',
+                      style: AzText.eyebrow.copyWith(
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
               // HOME REFRESH (2026-10-12): the balance-visibility control now
@@ -211,6 +292,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
           ),
 
           // ── The figure ────────────────────────────────────────────────
+          // §2B: the entire figure block (delta chip, USDC unit + amount
+          // or mask, secondary GHS line, live rate row + indicator) is
+          // card text and fades with it — at the hidden end state the eye
+          // is the ONLY visible item, with no dots, ellipses, currency
+          // labels or rate text left behind.
+          _fadingText(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -378,6 +465,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard> {
                 ],
               ),
             ],
+          ),
           ),
         ],
       ),

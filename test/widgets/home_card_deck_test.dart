@@ -95,6 +95,42 @@ void main() {
     });
   });
 
+  group('Home refresh §2C — default Visa-card silhouette', () {
+    testWidgets(
+      'the peek window rounds the visible Visa card bottom corners — '
+      'the resting sliver is never a straight cut',
+      (tester) async {
+        await _pumpDeck(tester);
+
+        // The window clip itself carries the rounded bottom corners.
+        final clip = tester.widget<ClipRRect>(
+          find.byType(ClipRRect).first,
+        );
+        expect(clip.borderRadius, isNotNull);
+        final radius = clip.borderRadius as BorderRadius;
+        expect(radius.bottomLeft, const Radius.circular(24),
+            reason: 'the visible Visa card must end in a rounded '
+                'bottom-left corner, matching the deck card-corner step');
+        expect(radius.bottomRight, const Radius.circular(24),
+            reason: 'the visible Visa card must end in a rounded '
+                'bottom-right corner');
+        // The top edge of the window stays straight — the pulled hero
+        // exits upward through it and the top-card reveal grammar is
+        // unchanged.
+        expect(radius.topLeft, Radius.zero);
+        expect(radius.topRight, Radius.zero);
+
+        // The resting geometry still holds: the bottom card peeks beneath
+        // the hero and sits fully inside the peek window (its bottom edge
+        // is the rounded clip, not a square cut from a bare ClipRect).
+        expect(find.byKey(const Key('deck-bottom')), findsOneWidget);
+        expect(find.byType(ClipRect), findsNothing,
+            reason: 'the deck must no longer clip the peek with a bare '
+                'ClipRect — that is the geometry defect §2C fixes');
+      },
+    );
+  });
+
   group('PullRevealCardDeck widget — the physical gesture feel', () {
     testWidgets('resting state: the bottom card peeks beneath the hero', (
       tester,

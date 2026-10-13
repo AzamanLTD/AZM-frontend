@@ -254,18 +254,23 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                   ),
                 ],
               ),
-              // The plus glyph and its rotation are GONE. This is the real
-              // AZM brand mark (same geometry/vocabulary as the chat send
-              // affordance), rendered UPRIGHT as an intentional brand mark
-              // becoming active — no rotation, no × transformation.
+              // The plus glyph is GONE. This is the real AZM brand mark
+              // (same geometry/vocabulary as the chat send affordance),
+              // rendered as a STATIC 45° clockwise rotation so it reads like
+              // a send arrow — the same treatment as the chat send button.
+              // The rotation is applied to the mark ONLY, never the clickable
+              // container (hit geometry unchanged); it does not animate.
               child: Center(
-                child: AzLogoMark(
-                  size: Size.square(widget.size * 0.5),
-                  outlineColor: colors.onAccent,
-                  fillColor: colors.onAccent,
-                  fill3: _cumulativeFill(0, t),
-                  fill2: _cumulativeFill(1, t),
-                  fill1: _cumulativeFill(2, t),
+                child: Transform.rotate(
+                  angle: math.pi / 4, // fixed 45° clockwise — no animation
+                  child: AzLogoMark(
+                    size: Size.square(widget.size * 0.5),
+                    outlineColor: colors.onAccent,
+                    fillColor: colors.onAccent,
+                    fill3: _cumulativeFill(0, t),
+                    fill2: _cumulativeFill(1, t),
+                    fill1: _cumulativeFill(2, t),
+                  ),
                 ),
               ),
             ),

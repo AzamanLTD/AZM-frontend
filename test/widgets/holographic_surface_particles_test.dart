@@ -14,8 +14,9 @@
 //   • showSheen:false removes the moving band; particles do NOT replace it as
 //     another moving band — the field DEFORMS around the finger, spatially
 //     (distance-based falloff, near leans away, mid-band leans toward)
-//   • the ambient clock is a single shared controller: ~9s, running only when
-//     travel is allowed, fully static under reduced motion
+//   • IDLE IS STATIC (§10.E audit, 2026-10-13): the former ~9s ambient
+//     breathing clock is GONE — no perpetual idle animation under any motion
+//     setting; the field moves only for pointer interaction and the settle
 //   • release settles through the EXISTING rest spring — no second animation
 //   • the pointer mechanism stays Listener (no gesture arena entry)
 //   • positions are deterministic (fixed spec table, no per-frame randomness)
@@ -139,13 +140,20 @@ void main() {
     expect(tester.widgetList(boundary), isNotEmpty);
   });
 
-  testWidgets('the ambient clock runs while travel is allowed', (tester) async {
+  testWidgets('idle is STATIC: no perpetual animation while the card rests '
+      '(§10.E audit — the ~9s ambient clock is gone)', (tester) async {
     await _pumpSurface(tester, showReactiveParticles: true);
-    final before = _painter(tester)!.phase.value;
-    await tester.pump(const Duration(seconds: 2));
-    final after = _painter(tester)!.phase.value;
-    expect(after, greaterThan(before),
-        reason: 'a single shared ~9s ambient clock gives idle life');
+    final painter = _painter(tester)!;
+    expect(painter.phase.value, 0.0);
+
+    // Pump a full former ambient loop and beyond: the phase must not
+    // advance — nothing runs while the card rests. (Value-based evidence:
+    // AlwaysStoppedAnimation reports status `forward` by design, so
+    // isAnimating is NOT a reliable stillness probe here.)
+    await tester.pump(const Duration(seconds: 12));
+    expect(_painter(tester)!.phase.value, 0.0,
+        reason: 'no ambient clock may exist — the §10.E contract is a '
+            'restrained interaction response, not perpetual idle motion');
   });
 
   testWidgets('pointer move deforms the field through the existing Listener',
@@ -206,7 +214,8 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 2));
     expect(_painter(tester)!.phase.value, 0.0,
-        reason: 'the ambient controller must stop under reduced motion');
+        reason: 'the field is static at rest under every motion setting '
+            '(no ambient controller exists at all since the §10.E audit)');
 
     // The Listener (and therefore any particle response) is also gone.
     expect(
