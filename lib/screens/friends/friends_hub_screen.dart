@@ -23,7 +23,7 @@ import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/theme/az_motion.dart';
-import 'package:azaman/theme/az_space.dart';
+import 'package:azaman/theme/nav_band_clearance.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/inbox/inbox_entry.dart';
@@ -655,7 +655,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+      key: const ValueKey('friends_search_results_list'),
+      // Live band clearance (see lib/theme/nav_band_clearance.dart) plus
+      // breathing room — replaces the previous hardcoded 120.
+      padding: EdgeInsets.fromLTRB(20, 8, 20, navBandClearance(context) + kNavBandGap),
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];
@@ -855,7 +858,15 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   );
                 },
               ),
-            const SliverPadding(padding: AzSpace.navClearance),
+            // Live band clearance — the shell publishes the exact height
+            // (lib/theme/nav_band_clearance.dart), so the last inbox row
+            // clears the pill on every device.
+            SliverPadding(
+              key: const ValueKey('inbox_nav_clearance_sliver'),
+              padding: EdgeInsets.only(
+                bottom: navBandClearance(context) + kNavBandGap,
+              ),
+            ),
           ],
         ),
       ],

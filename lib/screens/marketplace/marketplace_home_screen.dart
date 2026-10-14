@@ -28,6 +28,7 @@ import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
+import 'package:azaman/theme/nav_band_clearance.dart';
 import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -1103,8 +1104,12 @@ class _MarketplaceHomeScreenState
       }
 
     return ListView.builder(
+        key: const ValueKey('marketplace_results_list'),
         controller: _scrollCtrl,
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 120),
+        // Persistent-nav occlusion fix: the bottom inset is the LIVE band
+        // height the shell publishes (navBandClearance) — not a magic 120
+        // that could under/over-pad per device — plus breathing room.
+        padding: EdgeInsets.fromLTRB(8, 6, 8, navBandClearance(context) + kNavBandGap),
         itemCount: results.length + (state.hasMore ? 1 : 0),
         itemBuilder: (ctx, i) {
           // Infinite-scroll loader sentinel
@@ -1143,7 +1148,13 @@ class _MarketplaceHomeScreenState
       baseColor: colors.card,
       highlightColor: colors.softSurface,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 60),
+        key: const ValueKey('marketplace_shimmer_list'),
+        // Occlusion fix: the loading list is a scrollable under the
+        // persistent band too — the old hardcoded 60 left the last
+        // skeleton rows painting behind the pill on devices where the
+        // band's published inset is larger. Same live clearance as the
+        // results list, plus the same breathing room.
+        padding: EdgeInsets.fromLTRB(8, 6, 8, navBandClearance(context) + kNavBandGap),
         itemCount: 8,
         itemBuilder: (_, __) => Container(
           margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1236,7 +1247,11 @@ class _MarketplaceHomeScreenState
         ),
         Positioned(
           right: 16,
-          bottom: 16,
+          // Occlusion fix: this Expanded area ends BEHIND the persistent
+          // band (the page is the Marketplace root tab under extendBody),
+          // so a fixed 16 sat the button under the pill. Anchor it to the
+          // live band clearance instead.
+          bottom: navBandClearance(context) + kNavBandGap,
           child: _recenterButton(colors),
         ),
       ],
