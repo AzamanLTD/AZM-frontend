@@ -76,10 +76,12 @@ class SensoryPreferencesSection extends ConsumerWidget {
               _SensoryRow(
                 colors: colors,
                 title: 'Success sounds only',
-                subtitle: 'Silence the interface tick and the transition whoosh',
+                subtitle:
+                    'Silence the interface tick and the transition whoosh',
                 value: p.soundSuccessOnly,
                 enabled: p.soundEnabled,
-                onChanged: (v) => ref.read(sensoryProvider).setSoundSuccessOnly(v),
+                onChanged: (v) =>
+                    ref.read(sensoryProvider).setSoundSuccessOnly(v),
               ),
               _divider(colors),
               _SensoryRow(
@@ -87,24 +89,23 @@ class SensoryPreferencesSection extends ConsumerWidget {
                 title: 'Ambient motion',
                 subtitle: 'The slow sheen drift on your balance card when idle',
                 value: p.ambientMotionEnabled,
-                onChanged: (v) => ref.read(sensoryProvider).setAmbientMotionEnabled(v),
+                onChanged: (v) =>
+                    ref.read(sensoryProvider).setAmbientMotionEnabled(v),
               ),
               _divider(colors),
               _ReduceMotionRow(colors: colors, prefs: p, ref: ref),
             ],
           ),
         ),
-        // TASK-025: the identity picker sits directly under the Feel group —
         // one row, four discs, no labels, no generic colour picker.
-        const AccentIdentityRow(),
       ],
     );
   }
 
   Widget _divider(AzamanColors colors) => Padding(
-        padding: const EdgeInsets.only(left: 16),
-        child: Divider(height: 1, thickness: 0.5, color: colors.divider),
-      );
+    padding: const EdgeInsets.only(left: 16),
+    child: Divider(height: 1, thickness: 0.5, color: colors.divider),
+  );
 }
 
 class _SensoryRow extends StatelessWidget {
@@ -136,19 +137,23 @@ class _SensoryRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 12,
-                        height: 1.35,
-                      )),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -188,15 +193,23 @@ class _ReduceMotionRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Reduce motion',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w600,
-              )),
+          Text(
+            'Reduce motion',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text('Follows your phone by default. Override it if you prefer.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 12, height: 1.35)),
+          Text(
+            'Follows your phone by default. Override it if you prefer.',
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -260,10 +273,14 @@ class _Segment extends StatelessWidget {
         curve: MotionTokens.symmetric,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? colors.accent.withValues(alpha: 0.14) : colors.softSurface,
+          color: active
+              ? colors.accent.withValues(alpha: 0.14)
+              : colors.softSurface,
           borderRadius: BorderRadius.circular(9),
           border: Border.all(
-            color: active ? colors.accent.withValues(alpha: 0.55) : colors.border,
+            color: active
+                ? colors.accent.withValues(alpha: 0.55)
+                : colors.border,
             width: 0.5,
           ),
         ),
@@ -280,76 +297,4 @@ class _Segment extends StatelessWidget {
   }
 }
 
-
 // =============================================================================
-// TASK-025 — Accent identity picker.
-//
-// Exactly four discs (gold / teal / indigo / rose). Tapping one commits the
-// identity immediately — no restart, no dialog — via ThemeProvider.setAccent.
-// Deliberately unlabeled: the discs are self-evident and labels would turn a
-// whisper row into a form.
-// =============================================================================
-class AccentIdentityRow extends ConsumerWidget {
-  const AccentIdentityRow({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider.select((t) => t.colors));
-    final current = ref.watch(themeProvider.select((t) => t.accent));
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Identity',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Your accent, everywhere in Azaman',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              for (final a in AzAccent.values) ...[
-                GestureDetector(
-                  key: ValueKey('accent_disc_${a.name}'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    ref.read(themeProvider).setAccent(a);
-                    AzamanHaptics.selection();
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AzAccentFamily.all[a]!
-                          .accentFor(colors.isDark),
-                      border: Border.all(
-                        color: current == a
-                            ? colors.textPrimary
-                            : colors.border,
-                        width: current == a ? 2.5 : 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -1,8 +1,9 @@
 // =============================================================================
 // TASK-025 — Accent identities regression guards.
 //
-// Pins the four-identity accent system end to end:
-//   • the identity table itself (exactly four families, exact hex values);
+// Pins the accent system end to end (Home/Settings refresh §8, 2026-10-13:
+// extended four → eight identities, historical four frozen):
+//   • the identity table itself (eight families, exact hex values, frozen indices);
 //   • the additive withAccent() contract (surfaces/semantics untouched);
 //   • ThemeProvider persistence (azaman_accent, gold fallback);
 //   • the historical static baseline (getThemeData(theme) / getColors(theme)
@@ -14,6 +15,8 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/semantics.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_vertical_accent.dart';
-import 'package:azaman/widgets/sensory_preferences_section.dart';
+import 'package:azaman/screens/theme_picker_screen.dart';
 
 void main() {
   setUp(() {
@@ -29,14 +32,37 @@ void main() {
   });
 
   group('identity table', () {
-    test('1. AzAccent exposes exactly four identities', () {
-      expect(AzAccent.values, hasLength(4));
-      expect(AzAccent.values, containsAll(<AzAccent>[
-        AzAccent.gold,
-        AzAccent.teal,
-        AzAccent.indigo,
-        AzAccent.rose,
-      ]));
+    test('1. AzAccent exposes exactly eight identities with frozen order', () {
+      expect(AzAccent.values, hasLength(8));
+      expect(
+        AzAccent.values,
+        containsAll(<AzAccent>[
+          AzAccent.gold,
+          AzAccent.teal,
+          AzAccent.indigo,
+          AzAccent.rose,
+          AzAccent.blue,
+          AzAccent.violet,
+          AzAccent.emerald,
+          AzAccent.coral,
+        ]),
+      );
+      // Index-stability contract: persisted azaman_accent integers must
+      // keep resolving to the identity the user selected. The historical
+      // four are FROZEN at 0-3; the refresh appends 4-7.
+      expect(AzAccent.values[0], AzAccent.gold);
+      expect(AzAccent.values[1], AzAccent.teal);
+      expect(AzAccent.values[2], AzAccent.indigo);
+      expect(AzAccent.values[3], AzAccent.rose);
+      expect(AzAccent.values[4], AzAccent.blue);
+      expect(AzAccent.values[5], AzAccent.violet);
+      expect(AzAccent.values[6], AzAccent.emerald);
+      expect(AzAccent.values[7], AzAccent.coral);
+      // Every identity has a complete family and a non-empty label.
+      for (final a in AzAccent.values) {
+        expect(AzAccentFamily.all[a], isNotNull, reason: '$a family');
+        expect(a.label, isNotEmpty, reason: '$a label');
+      }
     });
 
     test('2. gold on light reproduces the existing light accent values', () {
@@ -52,13 +78,15 @@ void main() {
     });
 
     test('3. gold in dark is gold, not the historical dark teal', () {
-      final darkGold =
-          ThemeProvider.getColors(AzamanTheme.dark).withAccent(AzAccent.gold);
+      final darkGold = ThemeProvider.getColors(
+        AzamanTheme.dark,
+      ).withAccent(AzAccent.gold);
       expect(darkGold.accent, const Color(0xFFE0AE3A));
       expect(darkGold.accent, isNot(const Color(0xFF2DD4BF)));
       // The historical dark teal remains reachable — as the Teal identity.
-      final darkTeal =
-          ThemeProvider.getColors(AzamanTheme.dark).withAccent(AzAccent.teal);
+      final darkTeal = ThemeProvider.getColors(
+        AzamanTheme.dark,
+      ).withAccent(AzAccent.teal);
       expect(darkTeal.accent, ThemeProvider.getColors(AzamanTheme.dark).accent);
       expect(darkTeal.accent, const Color(0xFF2DD4BF));
     });
@@ -108,43 +136,51 @@ void main() {
   });
 
   group('ThemeProvider.getThemeData', () {
-    test('6. the historical no-accent call still works and matches the baseline', () {
-      for (final theme in AzamanTheme.values) {
-        final historical = ThemeProvider.getColors(theme);
-        final data = ThemeProvider.getThemeData(theme);
-        // Pre-TASK-025 callers keep their exact visuals: the static baseline
-        // is the historical identity (gold on light, teal on dark).
-        expect(data.colorScheme.primary, historical.accent, reason: '$theme');
-        expect(data.primaryColor, historical.accent);
-        expect(data.brightness, ThemeProvider.brightnessOf(historical));
-      }
-    });
-
-    test('7. an explicit accent maps colorScheme.primary to the family accent', () {
-      for (final theme in AzamanTheme.values) {
-        final isDark = theme == AzamanTheme.dark;
-        for (final a in AzAccent.values) {
-          final data = ThemeProvider.getThemeData(theme, accent: a);
-          expect(
-            data.colorScheme.primary,
-            AzAccentFamily.all[a]!.accentFor(isDark),
-            reason: '$theme $a',
-          );
-          expect(
-            data.colorScheme.primary,
-            ThemeProvider.getColors(theme).withAccent(a).accent,
-          );
+    test(
+      '6. the historical no-accent call still works and matches the baseline',
+      () {
+        for (final theme in AzamanTheme.values) {
+          final historical = ThemeProvider.getColors(theme);
+          final data = ThemeProvider.getThemeData(theme);
+          // Pre-TASK-025 callers keep their exact visuals: the static baseline
+          // is the historical identity (gold on light, teal on dark).
+          expect(data.colorScheme.primary, historical.accent, reason: '$theme');
+          expect(data.primaryColor, historical.accent);
+          expect(data.brightness, ThemeProvider.brightnessOf(historical));
         }
-      }
-    });
+      },
+    );
+
+    test(
+      '7. an explicit accent maps colorScheme.primary to the family accent',
+      () {
+        for (final theme in AzamanTheme.values) {
+          final isDark = theme == AzamanTheme.dark;
+          for (final a in AzAccent.values) {
+            final data = ThemeProvider.getThemeData(theme, accent: a);
+            expect(
+              data.colorScheme.primary,
+              AzAccentFamily.all[a]!.accentFor(isDark),
+              reason: '$theme $a',
+            );
+            expect(
+              data.colorScheme.primary,
+              ThemeProvider.getColors(theme).withAccent(a).accent,
+            );
+          }
+        }
+      },
+    );
 
     test('8. M3 roles stay populated and non-lavender in all combinations', () {
       for (final theme in AzamanTheme.values) {
         final isDark = theme == AzamanTheme.dark;
         for (final a in AzAccent.values) {
           final c = ThemeProvider.getColors(theme).withAccent(a);
-          final scheme =
-              ThemeProvider.getThemeData(theme, accent: a).colorScheme;
+          final scheme = ThemeProvider.getThemeData(
+            theme,
+            accent: a,
+          ).colorScheme;
           expect(scheme.onSurfaceVariant, c.textSecondary);
           expect(scheme.surfaceContainerHighest, c.card);
           expect(scheme.primaryContainer, c.accentSurface);
@@ -161,7 +197,9 @@ void main() {
   });
 
   group('accent persistence', () {
-    Future<ThemeProvider> loaded({Map<String, Object> values = const {}}) async {
+    Future<ThemeProvider> loaded({
+      Map<String, Object> values = const {},
+    }) async {
       SharedPreferences.setMockInitialValues(values);
       final p = ThemeProvider();
       // The constructor's prefs read is async; wait for it to land.
@@ -190,9 +228,11 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('azaman_accent'), AzAccent.teal.index);
       // Force-quit/relaunch simulation: a fresh provider over the same prefs.
-      final reopened = await loaded(values: <String, Object>{
-        'azaman_accent': prefs.getInt('azaman_accent') as Object,
-      });
+      final reopened = await loaded(
+        values: <String, Object>{
+          'azaman_accent': prefs.getInt('azaman_accent') as Object,
+        },
+      );
       expect(reopened.accent, AzAccent.teal);
     });
   });
@@ -202,8 +242,7 @@ void main() {
       // WCAG relative luminance.
       double luminance(Color color) {
         // Color.r/.g/.b are linear 0..1 doubles — no /255 normalization.
-        double channel(double s) =>
-            s <= 0.03928 ? s / 12.92 : _pow(s);
+        double channel(double s) => s <= 0.03928 ? s / 12.92 : _pow(s);
 
         return 0.2126 * channel(color.r) +
             0.7152 * channel(color.g) +
@@ -235,65 +274,96 @@ void main() {
   });
 
   group('shell resolution', () {
-    test('16. shell resolution uses vertical when set, user accent otherwise', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      // No vertical: the user's saved accent (default gold) drives the shell.
-      expect(
-        container.read(resolvedAzamanColorsProvider).accent,
-        AzAccentFamily.all[AzAccent.gold]!.lightAccent,
-      );
-      // A vertical is active: its session accent wins.
-      container.read(verticalAccentProvider.notifier).state = AzAccent.teal;
-      expect(
-        container.read(resolvedAzamanColorsProvider).accent,
-        AzAccentFamily.all[AzAccent.teal]!.lightAccent,
-      );
-      // Cleared: back to the user's accent.
-      container.read(verticalAccentProvider.notifier).state = null;
-      expect(
-        container.read(resolvedAzamanColorsProvider).accent,
-        AzAccentFamily.all[AzAccent.gold]!.lightAccent,
-      );
-    });
+    test(
+      '16. shell resolution uses vertical when set, user accent otherwise',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        // No vertical: the user's saved accent (default gold) drives the shell.
+        expect(
+          container.read(resolvedAzamanColorsProvider).accent,
+          AzAccentFamily.all[AzAccent.gold]!.lightAccent,
+        );
+        // A vertical is active: its session accent wins.
+        container.read(verticalAccentProvider.notifier).state = AzAccent.teal;
+        expect(
+          container.read(resolvedAzamanColorsProvider).accent,
+          AzAccentFamily.all[AzAccent.teal]!.lightAccent,
+        );
+        // Cleared: back to the user's accent.
+        container.read(verticalAccentProvider.notifier).state = null;
+        expect(
+          container.read(resolvedAzamanColorsProvider).accent,
+          AzAccentFamily.all[AzAccent.gold]!.lightAccent,
+        );
+      },
+    );
   });
 
-  group('settings picker', () {
+  group('themes screen accent picker (Home/Settings refresh §8)', () {
     Widget harness(ThemeProvider tp) => ProviderScope(
-          overrides: [themeProvider.overrideWith((ref) => tp)],
-          child: const MaterialApp(
-            home: Scaffold(body: SingleChildScrollView(child: SensoryPreferencesSection())),
-          ),
-        );
+      overrides: [themeProvider.overrideWith((ref) => tp)],
+      child: const MaterialApp(home: ThemePickerScreen()),
+    );
 
-    Finder discs() => find.byWidgetPredicate(
-          (w) =>
-              w.key is ValueKey<String> &&
-              (w.key as ValueKey<String>).value.startsWith('accent_disc_'),
-        );
+    Finder swatches() => find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('accent_swatch_'),
+    );
 
-    testWidgets('11. AccentIdentityRow renders exactly four discs', (tester) async {
+    testWidgets('11. the palette renders all eight labelled swatches', (
+      tester,
+    ) async {
       final p = (await tester.runAsync(_loadedProvider))!;
       await tester.pumpWidget(harness(p));
-      expect(discs(), findsNWidgets(4));
-      expect(find.text('Identity'), findsOneWidget);
-      expect(find.text('Your accent, everywhere in Azaman'), findsOneWidget);
+      expect(swatches(), findsNWidgets(8));
+      // Labels — selection is never colour-only.
+      for (final a in AzAccent.values) {
+        expect(find.text(a.label), findsWidgets, reason: a.label);
+      }
+      await tester.pumpAndSettle();
     });
 
-    testWidgets('12. selecting a disc updates the provider', (tester) async {
+    testWidgets('12. selecting a swatch updates the provider and persists', (
+      tester,
+    ) async {
       final p = (await tester.runAsync(_loadedProvider))!;
       await tester.pumpWidget(harness(p));
+      await tester.pump(const Duration(seconds: 1));
       expect(p.accent, AzAccent.gold);
-      await tester.tap(discs().at(1)); // teal
+      await tester.tap(find.byKey(const ValueKey('accent_swatch_teal')));
       await tester.pump();
       expect(p.accent, AzAccent.teal);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('azaman_accent'), AzAccent.teal.index);
     });
+
+    testWidgets('12b. the selected swatch exposes a semantic selected state', (
+      tester,
+    ) async {
+      final p = (await tester.runAsync(_loadedProvider))!;
+      await tester.pumpWidget(harness(p));
+      // Gold is active: its swatch is semantically selected and labelled.
+      final goldSem = tester.getSemantics(
+        find.byKey(const ValueKey('accent_swatch_gold')),
+      );
+      expect(goldSem.label, contains('Gold'));
+      expect(goldSem.label, contains('selected'));
+      expect(goldSem.hasFlag(SemanticsFlag.isSelected), isTrue);
+      // Teal is not.
+      final tealSem = tester.getSemantics(
+        find.byKey(const ValueKey('accent_swatch_teal')),
+      );
+      expect(tealSem.hasFlag(SemanticsFlag.isSelected), isFalse);
+      await tester.pumpAndSettle();
+    });
   });
 
   group('vertical accent scope', () {
-    testWidgets('13. the scope applies a session-only override', (tester) async {
+    testWidgets('13. the scope applies a session-only override', (
+      tester,
+    ) async {
       final p = (await tester.runAsync(_loadedProvider))!;
       final container = ProviderContainer(
         overrides: [themeProvider.overrideWith((ref) => p)],
@@ -327,7 +397,9 @@ void main() {
       );
     });
 
-    testWidgets('14. leaving/disposal clears the vertical override', (tester) async {
+    testWidgets('14. leaving/disposal clears the vertical override', (
+      tester,
+    ) async {
       final p = (await tester.runAsync(_loadedProvider))!;
       final container = ProviderContainer(
         overrides: [themeProvider.overrideWith((ref) => p)],
@@ -363,40 +435,44 @@ void main() {
       );
     });
 
-    testWidgets('15. a vertical override never changes the persisted user accent', (tester) async {
-      final p = (await tester.runAsync(_loadedProvider))!;
-      await p.setAccent(AzAccent.indigo);
-      final container = ProviderContainer(
-        overrides: [themeProvider.overrideWith((ref) => p)],
-      );
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: AzVerticalAccentScope(
-              accent: AzAccent.rose,
-              child: SizedBox(),
+    testWidgets(
+      '15. a vertical override never changes the persisted user accent',
+      (tester) async {
+        final p = (await tester.runAsync(_loadedProvider))!;
+        await p.setAccent(AzAccent.indigo);
+        final container = ProviderContainer(
+          overrides: [themeProvider.overrideWith((ref) => p)],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: AzVerticalAccentScope(
+                accent: AzAccent.rose,
+                child: SizedBox(),
+              ),
             ),
           ),
-        ),
-      );
-      expect(container.read(verticalAccentProvider), AzAccent.rose);
-      // The provider-level identity and the persisted value are untouched.
-      expect(p.accent, AzAccent.indigo);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('azaman_accent'), AzAccent.indigo.index);
-      // ...and after leaving the vertical, the user's indigo returns.
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: SizedBox()),
-        ),
-      );
-      expect(container.read(resolvedAzamanColorsProvider).accent,
-          _shellAccent(AzAccent.indigo, p));
-    });
-
+        );
+        expect(container.read(verticalAccentProvider), AzAccent.rose);
+        // The provider-level identity and the persisted value are untouched.
+        expect(p.accent, AzAccent.indigo);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getInt('azaman_accent'), AzAccent.indigo.index);
+        // ...and after leaving the vertical, the user's indigo returns.
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: SizedBox()),
+          ),
+        );
+        expect(
+          container.read(resolvedAzamanColorsProvider).accent,
+          _shellAccent(AzAccent.indigo, p),
+        );
+      },
+    );
   });
 }
 
@@ -411,8 +487,8 @@ void main() {
 /// is now dark — assertions must follow the theme instead of assuming light.
 Color _shellAccent(AzAccent accent, ThemeProvider p) =>
     p.currentTheme == AzamanTheme.dark
-        ? AzAccentFamily.all[accent]!.darkAccent
-        : AzAccentFamily.all[accent]!.lightAccent;
+    ? AzAccentFamily.all[accent]!.darkAccent
+    : AzAccentFamily.all[accent]!.lightAccent;
 
 Future<ThemeProvider> _loadedProvider() async {
   SharedPreferences.setMockInitialValues(<String, Object>{});

@@ -55,7 +55,6 @@ import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -91,22 +90,29 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         physics: const BouncingScrollPhysics(),
         children: [
-              _SettingsLogoHeader(colors: colors),
-              Center(
-                child: Text(
-                  'Azaman Protocol v3.1',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
+          _SettingsLogoHeader(colors: colors),
+          Center(
+            child: Text(
+              'Azaman Protocol v3.1',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 20),
-          // ── ACCOUNT ─────────────────────────────────────────────────
-          // Phase M (2026-05-25): wires three orphan screens that had
-          // product value but no inbound import — Edit Profile (orphan
-          // profile_details_screen.dart), Refer & Earn (orphan
-          // referral_screen.dart), Delete Account (orphan
-          // account_deactivation_screen.dart, distinct from the
-          // duplicate account_deactivation.dart removed in same PR).
-          _SectionHeader('Account', colors: colors),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // =====================================================================
+          // Home/Settings refresh S9 (2026-10-13) - information architecture
+          // regroup. Every destination from the previous layout survives
+          // verbatim; only the grouping, order and icon system change.
+          // Sign-out, account deactivation and every security control keep
+          // their exact behaviour.
+          // =====================================================================
+
+          // -- PROFILE & IDENTITY ----------------------------------------------
+          _SectionHeader('Profile & Identity', colors: colors),
           _Card(
             colors: colors,
             children: [
@@ -114,37 +120,106 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
-                onTap: () => pushWithVerticalTransition(context, const ProfileDetailsScreen()),
+                subtitle: 'Name, photo and contact details',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const ProfileDetailsScreen(),
+                ),
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.verified_user_outlined,
+                title: 'Identity Verification',
+                subtitle: 'KYC status and limits',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const KycVerificationScreen(),
+                ),
               ),
               _Divider(colors),
               _NavRow(
                 colors: colors,
                 icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
-                onTap: () => pushWithVerticalTransition(context, const ReferralScreen()),
+                subtitle: 'Invite friends, earn rewards',
+                onTap: () =>
+                    pushWithVerticalTransition(context, const ReferralScreen()),
               ),
             ],
           ),
 
-          // ── APPEARANCE ──────────────────────────────────────────────
-          _SectionHeader('Appearance', colors: colors),
+          // -- MONEY & PAYMENT METHODS -------------------------------------------
+          // Phase UI-2 note stands: Trade Accounts (vendor P2P ad payout
+          // handles) stay OUT of the user surface - vendor dashboard only.
+          _SectionHeader('Money & Payment Methods', colors: colors),
           _Card(
             colors: colors,
             children: [
               _NavRow(
                 colors: colors,
-                icon: Icons.palette_outlined,
-                title: 'Theme',
-                trailingText: themeLabel,
-                onTap: () {
-                  AzamanHaptics.nav();
-                  pushWithVerticalTransition(context, const ThemePickerScreen());
-                },
+                icon: Icons.outbox_outlined,
+                title: 'Withdrawal Addresses',
+                subtitle: 'Saved wallets for payouts',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const SavedWalletsScreen(),
+                ),
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.inbox_outlined,
+                title: 'Deposit Addresses',
+                subtitle: 'Saved MoMo accounts',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const SavedMomoAccountsScreen(),
+                ),
               ),
             ],
           ),
 
-          // ── NOTIFICATIONS ───────────────────────────────────────────
+          // -- SECURITY & PRIVACY ------------------------------------------------
+          _SectionHeader('Security & Privacy', colors: colors),
+          _Card(
+            colors: colors,
+            children: [
+              _NavRow(
+                colors: colors,
+                icon: Icons.security_outlined,
+                title: 'Two-Factor & PIN',
+                subtitle: 'Login protection and app lock',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const SecuritySettingsScreen(),
+                ),
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.lock_outline,
+                title: 'Change Password',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const ChangePasswordScreen(),
+                ),
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.history,
+                title: 'Account Activity',
+                subtitle: 'Recent sign-ins and security events',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const AccountActivityScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // -- NOTIFICATIONS -----------------------------------------------------
           _SectionHeader('Notifications', colors: colors),
           _Card(
             colors: colors,
@@ -177,7 +252,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               _Divider(colors),
               // Master Sprint v2 (2026-05-27): vendor-tag visibility.
-              // Off by default — only users who actually want the
+              // Off by default - only users who actually want the
               // vendor portal entry point need to see the side ribbon.
               _ToggleRow(
                 colors: colors,
@@ -190,11 +265,35 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
 
-          // ── FEEL (TASK-026) ─────────────────────────────────────────
-          const SensoryPreferencesSection(),
+          // -- APPEARANCE & ACCESSIBILITY ----------------------------------------
+          // The identity/colour experience (appearance + accent) lives in
+          // Themes, not duplicated here; the Theme row routes there. The
+          // accent picker no longer lives in sensory preferences.
+          _SectionHeader('Appearance & Accessibility', colors: colors),
+          _Card(
+            colors: colors,
+            children: [
+              _NavRow(
+                colors: colors,
+                icon: Icons.palette_outlined,
+                title: 'Theme',
+                subtitle: 'Appearance and accent identity',
+                trailingText:
+                    '$themeLabel \u00b7 ${themeNotifier.accent.label}',
+                onTap: () {
+                  AzamanHaptics.nav();
+                  pushWithVerticalTransition(
+                    context,
+                    const ThemePickerScreen(),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SensoryPreferencesSection(title: 'Sensory'),
 
-          // ── PREFERENCES ─────────────────────────────────────────────
-          _SectionHeader('Preferences', colors: colors),
+          // -- LANGUAGE & REGIONAL PREFERENCES -----------------------------------
+          _SectionHeader('Language & Regional Preferences', colors: colors),
           _Card(
             colors: colors,
             children: [
@@ -210,8 +309,12 @@ class SettingsScreen extends ConsumerWidget {
                   options: const ['USDC', 'GHS'],
                   current: ref.watch(currencyProvider).name.toUpperCase(),
                   onPicked: (v) {
-                    ref.read(currencyProvider.notifier).set(
-                          v == 'GHS' ? DisplayCurrency.ghs : DisplayCurrency.usdc,
+                    ref
+                        .read(currencyProvider.notifier)
+                        .set(
+                          v == 'GHS'
+                              ? DisplayCurrency.ghs
+                              : DisplayCurrency.usdc,
                         );
                   },
                 ),
@@ -226,7 +329,13 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   colors,
                   title: 'Language',
-                  options: const ['English', 'French', 'Spanish', 'Arabic', 'Twi'],
+                  options: const [
+                    'English',
+                    'French',
+                    'Spanish',
+                    'Arabic',
+                    'Twi',
+                  ],
                   current: settings.appLanguage,
                   onPicked: settings.setAppLanguage,
                 ),
@@ -234,87 +343,22 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
 
-          // ── SECURITY & PRIVACY ──────────────────────────────────────
-          _SectionHeader('Security & Privacy', colors: colors),
+          // -- ABOUT -------------------------------------------------------------
+          _SectionHeader('About', colors: colors),
           _Card(
             colors: colors,
             children: [
               _NavRow(
                 colors: colors,
-                icon: Icons.shield_outlined,
-                title: 'Identity Verification (KYC)',
-                onTap: () => pushWithVerticalTransition(context, const KycVerificationScreen()),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.security,
-                title: 'Two-Factor & PIN',
-                onTap: () => pushWithVerticalTransition(context, const SecuritySettingsScreen()),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.lock_outline,
-                title: 'Change Password',
-                onTap: () => pushWithVerticalTransition(context, const ChangePasswordScreen()),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.history,
-                title: 'Account Activity',
-                onTap: () => pushWithVerticalTransition(context, const AccountActivityScreen()),
-              ),
-            ],
-          ),
-
-          // ── PAYMENT ─────────────────────────────────────────────────
-          // Phase UI-2 (2026-05-26): "Trade Accounts" tile REMOVED from
-          // this section. Trade Accounts hold global fiat handles
-          // (Zelle, CashApp, Venmo, PayPal, Apple Pay, etc.) that are
-          // EXCLUSIVELY used by vendors when posting P2P ads. Surfacing
-          // them under a regular user's Settings → Payment area
-          // conflated payout destinations (where Azaman sends money to
-          // the user) with vendor-side ad-receipt accounts (where ad
-          // counterparties send money to the vendor). The vendor
-          // dashboard already has a "MANAGE TRADE ACCOUNTS" button — that
-          // is now the only entry point.
-          _SectionHeader('Payment', colors: colors),
-          _Card(
-            colors: colors,
-            children: [
-              _NavRow(
-                colors: colors,
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Withdrawal Addresses',
-                onTap: () => pushWithVerticalTransition(context, const SavedWalletsScreen()),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.arrow_downward,
-                title: 'Deposit Addresses',
-                onTap: () => pushWithVerticalTransition(context, const SavedMomoAccountsScreen()),
-              ),
-            ],
-          ),
-
-          // ── OTHER ───────────────────────────────────────────────────
-          _SectionHeader('Other', colors: colors),
-          _Card(
-            colors: colors,
-            children: [
-              _NavRow(
-                colors: colors,
-                icon: Icons.delete_outline,
+                icon: Icons.cleaning_services_outlined,
                 title: 'Clear Cache',
                 onTap: () {
                   AzamanHaptics.nav();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content:
-                          const Text('System cache cleared. (42 MB freed)'),
+                      content: const Text(
+                        'System cache cleared. (42 MB freed)',
+                      ),
                       backgroundColor: colors.success,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -341,23 +385,14 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              _Divider(colors),
-              // Phase M: wired the orphan account_deactivation_screen.dart.
-              // Lives at the bottom of "Other" (next to Sign Out below) so
-              // it's not the first thing users see, and uses danger-coloured
-              // copy + icon to discourage accidental taps.
-              _NavRow(
-                colors: colors,
-                icon: Icons.delete_outline,
-                title: 'Delete Account',
-                onTap: () => pushWithVerticalTransition(context, const AccountDeactivationScreen()),
-              ),
             ],
           ),
 
           const SizedBox(height: 24),
 
-          // ── SIGN OUT ────────────────────────────────────────────────
+          // -- ACCOUNT MANAGEMENT (destructive) ----------------------------------
+          // Phase M: account_deactivation_screen.dart stays wired, directly
+          // under Sign Out so destructive actions read as a distinct zone.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
@@ -369,18 +404,38 @@ class SettingsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side:
-                        BorderSide(color: colors.danger.withValues(alpha: 0.25)),
+                    side: BorderSide(
+                      color: colors.danger.withValues(alpha: 0.25),
+                    ),
                   ),
                   elevation: 0,
                 ),
                 onPressed: () => _confirmSignOut(context, ref, colors),
                 child: const Text(
                   'Sign Out',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _Card(
+              colors: colors,
+              children: [
+                _NavRow(
+                  colors: colors,
+                  icon: Icons.no_accounts_outlined,
+                  title: 'Delete Account',
+                  subtitle: 'Permanently deactivate your Azaman account',
+                  isDestructive: true,
+                  onTap: () => pushWithVerticalTransition(
+                    context,
+                    const AccountDeactivationScreen(),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -413,37 +468,36 @@ class SettingsScreen extends ConsumerWidget {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final isSelected = opt == current;
-                return ListTile(
-                  onTap: () => Navigator.pop(ctx, opt),
-                  title: Text(
-                    opt,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                    ),
+            ),
+            const SizedBox(height: 8),
+            ...options.map((opt) {
+              final isSelected = opt == current;
+              return ListTile(
+                onTap: () => Navigator.pop(ctx, opt),
+                title: Text(
+                  opt,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
-                  trailing: isSelected
-                      ? Icon(Icons.check_circle_outline, color: colors.accent)
-                      : null,
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check_circle_outline, color: colors.accent)
+                    : null,
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
         );
       },
     );
@@ -549,11 +603,7 @@ class _Divider extends StatelessWidget {
     // matches iOS Settings exactly.
     return Padding(
       padding: const EdgeInsets.only(left: 56),
-      child: Divider(
-        height: 1,
-        thickness: 0.5,
-        color: colors.divider,
-      ),
+      child: Divider(height: 1, thickness: 0.5, color: colors.divider),
     );
   }
 }
@@ -562,19 +612,25 @@ class _NavRow extends StatelessWidget {
   final AzamanColors colors;
   final IconData icon;
   final String title;
+  final String? subtitle;
   final String? trailingText;
+  final bool isDestructive;
   final VoidCallback? onTap;
 
   const _NavRow({
     required this.colors,
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailingText,
+    this.isDestructive = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final titleColor = isDestructive ? colors.danger : colors.textPrimary;
+    final iconColor = isDestructive ? colors.danger : colors.textSecondary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -582,30 +638,42 @@ class _NavRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
           children: [
-            Icon(icon, color: colors.textSecondary, size: 22),
+            Icon(icon, color: iconColor, size: 22),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (trailingText != null) ...[
               Text(
                 trailingText!,
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colors.textTertiary, fontSize: 13),
               ),
               const SizedBox(width: 6),
             ],
-            Icon(Icons.arrow_forward,
-                color: colors.textTertiary, size: 13),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 13),
           ],
         ),
       ),
@@ -654,10 +722,7 @@ class _ToggleRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ],
@@ -682,7 +747,8 @@ class _SettingsLogoHeader extends ConsumerStatefulWidget {
   const _SettingsLogoHeader({required this.colors});
 
   @override
-  ConsumerState<_SettingsLogoHeader> createState() => _SettingsLogoHeaderState();
+  ConsumerState<_SettingsLogoHeader> createState() =>
+      _SettingsLogoHeaderState();
 }
 
 class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
@@ -692,8 +758,10 @@ class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
   @override
   void initState() {
     super.initState();
-    _ringCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))
-      ..repeat();
+    _ringCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
   }
 
   @override
