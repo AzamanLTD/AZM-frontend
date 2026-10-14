@@ -8,7 +8,10 @@
 //   • "All" stays the neutral base selector pill
 //   • TYPOGRAPHY INVARIANCE: selecting a category changes only the state
 //     colour/indicator — font, weight, spacing, family, size all stay put
-//   • Near You sits at the FAR END of the control row, after a Spacer
+//   • Near You sits at the FAR END of the control row, past the dial+Mix
+//     cluster — separated by free row width (spaceBetween; a flex Spacer
+//     is illegal inside the strip's horizontal scrollable), not hugging
+//     the fan
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -131,8 +134,8 @@ void main() {
     expect(eatStyle.decoration, allStyle.decoration);
   });
 
-  testWidgets('Near You sits at the FAR END of the control row, after the '
-      'category dial and a Spacer — not hugging the fan', (tester) async {
+  testWidgets('Near You sits at the FAR END of the control row, past the '
+      'dial+Mix cluster — not hugging the fan', (tester) async {
     final notifier = _RecordingSearchNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -161,14 +164,28 @@ void main() {
     // And the dial itself stays anchored left.
     expect(dial.left, lessThan(30));
 
-    // A Spacer separates them: the row is NOT stretched to force it.
-    final row = tester.widget<Row>(
-      find
-          .ancestor(
-              of: find.byKey(const ValueKey('marketplace-category-dial')),
-              matching: find.byType(Row))
-          .first,
+    // The strip's control row separates the clusters with spaceBetween —
+    // the same far-end grammar the Spacer used to deliver — because a flex
+    // Spacer is illegal inside the horizontal scrollable the strip needs
+    // on narrow phones (unbounded width). The dial+Mix cluster must sit
+    // adjacent (same cluster, no stretch between them), with the free row
+    // width falling between that cluster and Near You.
+    final mixEntry = tester
+        .getRect(find.byKey(const ValueKey('marketplace-mix-entry')));
+    expect(mixEntry.left, greaterThanOrEqualTo(dial.right),
+        reason: 'the Mix pill must sit in the dial\'s own cluster, not '
+            'floating in the row\'s free space');
+    expect(nearYou.left, greaterThan(mixEntry.right + 8),
+        reason: 'the free row width must separate the dial+Mix cluster '
+            'from Near You — Near You never hugs the cluster');
+    final controlRowFinder = find.ancestor(
+      of: find.byKey(const ValueKey('marketplace-near-you')),
+      matching: find.byWidgetPredicate(
+          (w) => w is Row && w.mainAxisAlignment == MainAxisAlignment.spaceBetween),
     );
-    expect(row.children.whereType<Spacer>().length, 1);
+    expect(controlRowFinder, findsOneWidget,
+        reason: 'the control row must pin the clusters apart with '
+            'spaceBetween — no flex Spacer inside the scrollable strip');
+    expect(controlRowFinder.evaluate().single.widget is Row, true);
   });
 }

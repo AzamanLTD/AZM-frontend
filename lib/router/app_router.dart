@@ -77,6 +77,7 @@ import 'package:azaman/screens/susu/susu_hub_screen.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
 // V3 Marketplace Sprint (2026-06-21) — Premium Marketplace surfaces.
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
+import 'package:azaman/screens/marketplace/marketplace_mix_screen.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/screens/marketplace/business_search_screen.dart';
@@ -472,6 +473,20 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: const TransitTripListScreen(),
+      ),
+    ),
+    GoRoute(
+      // Marketplace Mix — the category-first, cross-store browse mode. MUST
+      // stay ABOVE the '/business-market/:bizId/...' routes so the literal
+      // path wins (GoRouter matches top-down).
+      path: '/business-market/mix',
+      name: AzRouteNames.businessMarketMix,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: MarketplaceMixScreen(
+          category: state.uri.queryParameters['category'],
+        ),
       ),
     ),
     GoRoute(

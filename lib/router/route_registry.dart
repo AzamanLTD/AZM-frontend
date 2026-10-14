@@ -66,6 +66,7 @@ abstract final class AzRouteNames {
 
   // Business marketplace
   static const businessMarketHome = 'business-market-home';
+  static const businessMarketMix = 'business-market-mix';
   static const checkinQr = 'checkin-qr';
   static const businessCheckin = 'business-checkin';
   static const transitTrips = 'transit-trips';
@@ -197,6 +198,7 @@ abstract final class AzRoutes {
 
   // ── Business marketplace ─────────────────────────────────────────────────
   static const businessMarketHome = '/business-market';
+  static const businessMarketMix = '/business-market/mix';
   static const businessMarketDashboard = '/business-market/dashboard';
   static const businessMarketOrders = '/business-market/orders';
   static const businessMarketInvoices = '/business-market/invoices';
