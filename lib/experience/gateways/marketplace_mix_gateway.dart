@@ -223,16 +223,37 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
     if (rows is! List) {
       throw const MixRetryableException('discovery response carried no items array');
     }
-    final offers = rows
-        .whereType<Map>()
-        .map((m) => MixOffer.fromDiscoveryDto(Map<String, dynamic>.from(m)))
-        .toList();
+    // A malformed row fails the WHOLE page as retryable — it is never
+    // silently dropped (which would fake a truncated, successful page).
+    final offers = <MixOffer>[];
+    for (final row in rows) {
+      if (row is! Map) {
+        throw const MixRetryableException(
+            'discovery page contained a malformed item row');
+      }
+      offers.add(MixOffer.fromDiscoveryDto(Map<String, dynamic>.from(row)));
+    }
 
+    // The envelope must declare its cursor: `nextCursor: null` is the valid
+    // end-of-feed value; a non-empty string is the next page cursor. A
+    // MISSING key, an empty string, or a wrong-typed value means the
+    // envelope is malformed — retryable, never a silent end-of-feed.
+    if (!decoded.containsKey('nextCursor')) {
+      throw const MixRetryableException(
+          'discovery envelope did not declare nextCursor');
+    }
     final next = decoded['nextCursor'];
-    return (
-      offers: offers,
-      nextCursor: next is String && next.isNotEmpty ? next : null,
-    );
+    String? nextCursor;
+    if (next == null) {
+      nextCursor = null; // the valid, server-declared end of feed
+    } else if (next is String && next.isNotEmpty) {
+      nextCursor = next;
+    } else {
+      throw const MixRetryableException(
+          'discovery envelope carried a malformed nextCursor');
+    }
+
+    return (offers: offers, nextCursor: nextCursor);
   }
 
   /// Maps the ApiClient's [ApiException] (thrown for every non-2xx by

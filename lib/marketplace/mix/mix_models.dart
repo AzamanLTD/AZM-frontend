@@ -155,11 +155,15 @@ class MixOfferPrice {
   /// NEVER falls back to `priceUsdc`, never converts, never zeroes.
   static MixOfferPrice fromPricing(Map<String, dynamic>? pricing) {
     if (pricing == null) return const MixOfferPrice.unknown();
+    // The CANONICAL currency must be GHS — displayCurrency is never a
+    // substitute for it, so a USDC canonical currency stays unknown no
+    // matter what displayCurrency claims.
     final currency = pricing['currency']?.toString();
+    if (currency != 'GHS') return const MixOfferPrice.unknown();
     final displayCurrency = pricing['displayCurrency']?.toString();
-    // The backend serves currency: 'GHS' and displayCurrency: 'GHS'. Require
-    // the expected GHS currency before anything else can render.
-    if (currency != 'GHS' && displayCurrency != 'GHS') {
+    // When displayCurrency is present it must not contradict the canonical
+    // currency. A contradiction (e.g. GHS vs USDC) fails closed: unknown.
+    if (displayCurrency != null && displayCurrency != 'GHS') {
       return const MixOfferPrice.unknown();
     }
     final amount = pricing['amount'];

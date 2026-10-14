@@ -174,13 +174,80 @@ void main() {
       expect(page.nextCursor, isNull);
     });
 
-    test('an empty-string nextCursor is treated as end-of-feed', () async {
+    test('an explicit nextCursor: null is the valid end-of-feed', () async {
       final wire = _Wire()
-        ..reply = http.Response(
-            jsonEncode({'success': true, 'items': [], 'nextCursor': ''}), 200);
+        ..reply = http.Response(jsonEncode(_envelope()), 200);
       final page = await HttpMarketplaceMixGateway(apiClient: _api(wire))
           .fetchItems();
       expect(page.nextCursor, isNull);
+      expect(page.offers, isEmpty);
+    });
+
+    test('a MISSING nextCursor key is a malformed success → retryable, never a silent end-of-feed',
+        () async {
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({'success': true, 'items': []}), 200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
+    });
+
+    test('an EMPTY-STRING nextCursor is a malformed success → retryable',
+        () async {
+      // The server never sends '' for end-of-feed — it sends null. An empty
+      // string on the wire means the envelope is broken.
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({'success': true, 'items': [], 'nextCursor': ''}), 200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
+    });
+
+    test('a WRONG-TYPED nextCursor (number) is a malformed success → retryable',
+        () async {
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({'success': true, 'items': [], 'nextCursor': 7}), 200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
+    });
+
+    test('a WRONG-TYPED nextCursor (bool) is a malformed success → retryable',
+        () async {
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({'success': true, 'items': [], 'nextCursor': false}),
+            200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
+    });
+
+    test('a NON-MAP item row fails the whole page as retryable — never a silent truncation',
+        () async {
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({
+              'success': true,
+              'items': [
+                _row('i-1', 'bp-1'),
+                'a broken string row', // silently dropped would fake a page
+                _row('i-2', 'bp-2'),
+              ],
+              'nextCursor': null,
+            }),
+            200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
     });
   });
 

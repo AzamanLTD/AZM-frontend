@@ -26,7 +26,7 @@ Map<String, dynamic> _dto({
   String businessCategory = 'FOOD_BEVERAGE',
   String name = 'Jollof Rice',
   String? amount = '25.00',
-  String currency = 'GHS',
+  String? currency = 'GHS',
   String? displayCurrency = 'GHS',
   dynamic hasUsdcListPrice = true,
   dynamic isAvailable = true,
@@ -55,7 +55,7 @@ Map<String, dynamic> _dto({
       },
       'pricing': {
         if (amount != null) 'amount': amount,
-        'currency': currency,
+        if (currency != null) 'currency': currency,
         if (displayCurrency != null) 'displayCurrency': displayCurrency,
         'hasUsdcListPrice': hasUsdcListPrice,
       },
@@ -213,11 +213,52 @@ void main() {
           reason: 'a USDC amount is never relabelled or converted');
     });
 
+    test('a USDC canonical currency is unknown even when displayCurrency says GHS',
+        () {
+      // displayCurrency is never a substitute for the canonical currency —
+      // a USDC amount must not be relabelled as GHS.
+      final offer = MixOffer.fromDiscoveryDto(_dto(
+          amount: '12.50', currency: 'USDC', displayCurrency: 'GHS'));
+      expect(offer.price.status, MixPriceStatus.unknown);
+      expect(offer.price.amountExact, isNull);
+    });
+
+    test('a missing canonical currency fails closed even with displayCurrency GHS',
+        () {
+      final offer = MixOffer.fromDiscoveryDto(
+          _dto(amount: '12.50', currency: null, displayCurrency: 'GHS'));
+      expect(offer.price.status, MixPriceStatus.unknown);
+      expect(offer.price.amountExact, isNull);
+    });
+
+    test('a wrong canonical currency fails closed even with displayCurrency GHS',
+        () {
+      final offer = MixOffer.fromDiscoveryDto(_dto(
+          amount: '12.50', currency: 'EUR', displayCurrency: 'GHS'));
+      expect(offer.price.status, MixPriceStatus.unknown);
+    });
+
+    test('a GHS displayCurrency contradicting a GHS canonical currency fails closed',
+        () {
+      // currency: GHS but displayCurrency: USDC — contradictory fields are
+      // never resolved in favour of GHS rendering.
+      final offer = MixOffer.fromDiscoveryDto(_dto(
+          amount: '12.50', currency: 'GHS', displayCurrency: 'USDC'));
+      expect(offer.price.status, MixPriceStatus.unknown);
+      expect(offer.price.amountExact, isNull);
+    });
+
     test('a JSON-number amount is a contract violation → unknown (never floated)',
         () {
-      final offer = MixOffer.fromDiscoveryDto(_dto(amount: 'ignored')
-            ..['amount'] = 12.5);
-      expect(offer.price.status, MixPriceStatus.unknown);
+      // The number belongs to the NESTED pricing object the parser reads
+      // (pricing.amount) — assigning it to the root DTO would prove nothing.
+      final dto = _dto(amount: '12.50', currency: 'GHS', displayCurrency: 'GHS');
+      (dto['pricing'] as Map<String, dynamic>)['amount'] = 12.5;
+      final offer = MixOffer.fromDiscoveryDto(dto);
+      expect(offer.price.status, MixPriceStatus.unknown,
+          reason: 'a double amount is never parsed or floated, even with '
+              'both currency fields agreeing on GHS');
+      expect(offer.price.amountExact, isNull);
     });
 
     test('malformed amounts parse to unknown — never zero', () {
