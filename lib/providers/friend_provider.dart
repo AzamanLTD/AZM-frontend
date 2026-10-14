@@ -29,6 +29,11 @@ class FriendProvider with ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  /// Non-null when the most recent user search FAILED (network/server error).
+  /// UI must distinguish this from a successful empty result: an empty
+  /// result is honest "no matches", an error must offer a retry.
+  String? searchError;
+
   // ── Socket ────────────────────────────────────────────────────────────────
   IO.Socket? _socket;
   bool _socketInitialized = false;
@@ -216,11 +221,13 @@ class FriendProvider with ChangeNotifier {
 
     if (query.trim().length < 2) {
       searchResults = [];
+      searchError = null;
       notifyListeners();
       return;
     }
 
     isLoading = true;
+    searchError = null;
     notifyListeners();
 
     try {
@@ -228,6 +235,7 @@ class FriendProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('FriendProvider.searchUsers error: $e');
       searchResults = [];
+      searchError = 'Contact search failed. Check your connection and try again.';
     } finally {
       isLoading = false;
       notifyListeners();
@@ -306,6 +314,7 @@ class FriendProvider with ChangeNotifier {
   /// Clear search results
   void clearSearch() {
     searchResults = [];
+    searchError = null;
     notifyListeners();
   }
 

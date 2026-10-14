@@ -346,9 +346,10 @@ void main() {
     final header = tester.getTopLeft(
       find.byKey(const ValueKey('home-activity-header-title')),
     );
-    // ~144: the 96px peek band + the 48px heading inset (text metrics sit
-    // a hair above the padded inset).
-    expect(header.dy, closeTo(144, 3));
+    // ~151: the 96px peek band + the 48px heading inset + the header
+    // pill's own vertical padding and glyph metrics (the committed
+    // heading is the selected doorway pill, not a bare text heading).
+    expect(header.dy, closeTo(151, 3));
   });
 
   testWidgets('§7 — no deck signal: the honest PLACEHOLDER deck still parks in '
@@ -382,8 +383,9 @@ void main() {
     final header = tester.getTopLeft(
       find.byKey(const ValueKey('home-activity-header-title')),
     );
-    // ~144: the 96px peek band + the 48px heading inset.
-    expect(header.dy, closeTo(144, 3));
+    // ~151: the 96px peek band + the 48px heading inset + the header
+    // pill's own vertical padding and glyph metrics.
+    expect(header.dy, closeTo(151, 3));
   });
 
   testWidgets(

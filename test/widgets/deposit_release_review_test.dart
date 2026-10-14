@@ -4,9 +4,8 @@
 // Runtime blockers found in independent review of head bf8d903 that the
 // existing suites could not catch:
 //
-//   1. Fiat/Crypto selector synchronization — _FiatCryptoSwitch must LISTEN
-//      to the TabController; a swipe (or animateTo) previously left the
-//      selector claiming the wrong tab.
+//   1. Add Cash must start in the dedicated Fiat composition; Crypto now lives
+//      on the separate full-page Receive destination.
 //   2. Pull-down spring-back — the rendered translation must actually be
 //      ZERO after the spring completes (not merely "route still open"), and
 //      a new gesture interrupting a spring must resume from the on-screen
@@ -37,6 +36,7 @@ import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
+import 'package:azaman/widgets/amount_keypad.dart';
 
 // ── Stubbed dart:io HTTP layer (only the surface IOClient touches) ─────────
 
@@ -276,20 +276,8 @@ Future<void> _enterAmount(WidgetTester tester) async {
 /// The sheet-level Transform — the ONLY Transform that is an ancestor of
 /// the TabBarView. Its rendered y translation is what the user sees.
 double _sheetTranslateY(WidgetTester tester) {
-  final f = find
-      .ancestor(of: find.byType(TabBarView), matching: find.byType(Transform))
-      .first;
+  final f = find.byKey(const ValueKey('pull-down-dismiss-transform'));
   return tester.widget<Transform>(f).transform.getTranslation().y;
-}
-
-Finder _tab(String label) => find.descendant(
-      of: find.bySemanticsLabel('$label tab'),
-      matching: find.text(label),
-    );
-
-bool _isSelected(WidgetTester tester, String label) {
-  final s = tester.widget<Semantics>(find.bySemanticsLabel('$label tab'));
-  return s.properties.selected ?? false;
 }
 
 void main() {
@@ -315,68 +303,20 @@ void main() {
     DurableOperationRegistry.storageWriterOverride = null;
   });
 
-  // ── Blocker 1: selector tracks the TabController ─────────────────────────
+  // ── Regression: Add Cash is a fiat-only surface ──────────────────────────
 
-  group('1 — Fiat/Crypto selector synchronization', () {
-    testWidgets('tapping Crypto updates the selector selected state', (
+  group('1 — Add Cash is fiat-only', () {
+    testWidgets('Add Cash opens directly into fiat with no currency switch', (
       tester,
     ) async {
-      final handle = tester.ensureSemantics();
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
 
-      // Default landing: Fiat (index 1).
-      expect(_isSelected(tester, 'Fiat'), isTrue);
-      expect(_isSelected(tester, 'Crypto'), isFalse);
-
-      await tester.tap(_tab('Crypto'));
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(_isSelected(tester, 'Crypto'), isTrue,
-          reason: 'the switch must rebuild through the controller');
-      expect(_isSelected(tester, 'Fiat'), isFalse);
-      handle.dispose();
-    });
-
-    testWidgets('tapping back to Fiat re-selects Fiat', (tester) async {
-      final handle = tester.ensureSemantics();
-      _phoneSize(tester);
-      await tester.pumpWidget(_app());
-      await _openDeposit(tester);
-
-      await tester.tap(_tab('Crypto'));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(_tab('Fiat'));
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(_isSelected(tester, 'Fiat'), isTrue);
-      expect(_isSelected(tester, 'Crypto'), isFalse);
-      handle.dispose();
-    });
-
-    testWidgets('swiping the TabBarView updates the selector (the case a '
-        'StatelessWidget switch missed)', (tester) async {
-      final handle = tester.ensureSemantics();
-      _phoneSize(tester);
-      await tester.pumpWidget(_app());
-      await _openDeposit(tester);
-
-      // Land on Crypto (index 0)…
-      await tester.tap(_tab('Crypto'));
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(_isSelected(tester, 'Crypto'), isTrue);
-
-      // …then SWIPE back to Fiat. The swipe changes controller.index
-      // without any tap on the selector — the switch must still follow.
-      await tester.drag(find.byType(TabBarView), const Offset(-300, 0));
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(_isSelected(tester, 'Fiat'), isTrue,
-          reason: 'a swipe must update the selector — index changed without '
-              'the switch being tapped');
-      expect(_isSelected(tester, 'Crypto'), isFalse);
-      handle.dispose();
+      expect(find.text('Add Cash'), findsWidgets);
+      expect(find.byType(AmountKeypad), findsOneWidget);
+      expect(find.text('Crypto'), findsNothing);
+      expect(find.text('Fiat'), findsNothing);
     });
   });
 
