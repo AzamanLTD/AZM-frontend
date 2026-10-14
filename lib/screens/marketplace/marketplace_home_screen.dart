@@ -849,6 +849,47 @@ class _MarketplaceHomeScreenState
               _fireSearch();
             },
           ),
+          // MARKETPLACE MIX — the category-first, cross-store browse mode.
+          // One entry pill in the SAME control row grammar as Near You: it
+          // opens /business-market/mix with the dial's selected category as
+          // the initial Mix category (or Eat by default when no category is
+          // selected). Isolated, additive row slot — no other control moves.
+          GestureDetector(
+            key: const ValueKey('marketplace-mix-entry'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              AzamanHaptics.toggle();
+              final wire = _selectedCategory;
+              context.push(wire == null
+                  ? AzRoutes.businessMarketMix
+                  : '${AzRoutes.businessMarketMix}?category=$wire');
+            },
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: colors.divider, width: 0.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome_mosaic_outlined,
+                      size: 14, color: colors.accent),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Mix',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
           // control row: it reads as the secondary location/filter
           // utility, visually belonging to the row's end rather than to the
