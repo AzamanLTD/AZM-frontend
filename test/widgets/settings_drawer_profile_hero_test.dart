@@ -1,0 +1,264 @@
+// PR-B — Settings drawer profile hero, QR popup, declutter & regrouping.
+//
+// Pins the binding acceptance criteria from the refresh spec §5:
+//   • real user data renders in the hero with a fallback when absent;
+//   • the QR preview + popup encode the `azaman://user/$username` payload
+//     that qr_scanner_screen.dart parses (add-friend contract), the popup
+//     dismisses back to the SAME drawer state, and the close button works;
+//   • the hero opens the genuine profile EDIT flow (ProfileScreen —
+//     audited: ProfileDetailsScreen is read-only);
+//   • HQ SHORTCUTS / Vaults / Rewards are gone from the drawer while the
+//     canonical destinations stay reachable via the regrouped sections;
+//   • the pinned hero collapses under scroll and keeps @username + a QR
+//     affordance visible in the compact bar.
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:azaman/models/user_model.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/services/business_service.dart';
+import 'package:azaman/providers/worker_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/profile_screen.dart';
+import 'package:azaman/widgets/qr_profile_popup.dart';
+import 'package:azaman/widgets/settings_drawer.dart';
+
+User _verifiedUser() => User(
+  id: 'u1',
+  username: 'kofi',
+  email: 'kofi@example.com',
+  token: 't',
+  role: 'USER',
+  azamanId: 'AZM-8273941',
+  kycStatus: KycStatus.verified,
+);
+
+/// Idle stub so the drawer's business-prefetch postFrameCallback never
+/// starts network work under test.
+class _IdleBusinessNotifier extends MyBusinessNotifier {
+  _IdleBusinessNotifier() : super(BusinessService());
+
+  @override
+  Future<void> load() async {}
+}
+
+Future<ProviderContainer> _pumpDrawer(
+  WidgetTester tester, {
+  User? user,
+  Size surface = const Size(420, 2400),
+}) async {
+  // Tall mobile surface so the regrouped sections below the hero are
+  // actually laid out by the lazy sliver list.
+  tester.view.physicalSize = surface;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  final container = ProviderContainer(
+    overrides: [
+      currentUserProvider.overrideWith((ref) => Stream.value(user)),
+      myEmployeeProvider.overrideWith((ref) => Future.value(null)),
+      myBusinessProvider.overrideWith((ref) => _IdleBusinessNotifier()),
+    ],
+  );
+  addTearDown(container.dispose);
+
+  final scaffoldKey = GlobalKey<ScaffoldState>();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: container.read(themeProvider).themeData,
+        home: Scaffold(
+          key: scaffoldKey,
+          endDrawer: const SettingsDrawer(),
+          body: const SizedBox.expand(),
+        ),
+      ),
+    ),
+  );
+  scaffoldKey.currentState!.openEndDrawer();
+  await tester.pumpAndSettle();
+  return container;
+}
+
+void main() {
+  setUp(() {
+    // ThemeProvider reads SharedPreferences in its constructor.
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  group('qr payload contract', () {
+    test('encodes azaman://user/{username} exactly', () {
+      expect(qrProfilePayload('kofi'), 'azaman://user/kofi');
+    });
+
+    testWidgets('hero thumbnail and popup encode the same payload', (
+      tester,
+    ) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      final thumb = tester.widget<QrProfileThumbnail>(
+        find.byType(QrProfileThumbnail),
+      );
+      expect(
+        thumb.username,
+        'kofi',
+        reason:
+            'payload is derived from the username via '
+            'qrProfilePayload, which the contract test pins',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('profile_hero_qr')));
+      await tester.pumpAndSettle();
+
+      final popup = tester.widget<QrProfilePopup>(find.byType(QrProfilePopup));
+      expect(popup.username, 'kofi');
+      expect(
+        find.byType(QrImageView),
+        findsWidgets,
+        reason: 'the large popup QR must be present',
+      );
+      expect(find.text('@kofi'), findsWidgets);
+      expect(find.text('Scan to add me on Azaman'), findsOneWidget);
+    });
+
+    testWidgets('popup closes back to the same open drawer', (tester) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+      await tester.tap(find.byKey(const ValueKey('profile_hero_qr')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Drawer is still mounted and open — the dialog popped only itself.
+      expect(find.byType(QrProfilePopup), findsNothing);
+      expect(find.byType(SettingsDrawer), findsOneWidget);
+      // The hero is still intact behind the closed popup.
+      expect(find.text('AZM-8273941'), findsOneWidget);
+    });
+  });
+
+  group('hero', () {
+    testWidgets('renders real user data: @username, Azaman ID, KYC badge', (
+      tester,
+    ) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      expect(find.text('@kofi'), findsOneWidget);
+      expect(find.text('AZM-8273941'), findsOneWidget);
+      expect(find.text('VERIFIED'), findsOneWidget);
+      expect(find.byType(QrProfileThumbnail), findsOneWidget);
+    });
+
+    testWidgets('falls back gracefully with no user', (tester) async {
+      await _pumpDrawer(tester, user: null);
+
+      expect(find.text('@Guest'), findsOneWidget);
+      expect(
+        find.byType(QrProfileThumbnail),
+        findsOneWidget,
+        reason: 'QR stays renderable with the placeholder identity',
+      );
+      expect(find.text('AZM-—'), findsOneWidget);
+    });
+
+    testWidgets('hero tap opens the genuine profile EDIT flow', (tester) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      // Tap the hero avatar (keyed for testability; semantics label
+      // 'Open profile editor' is present for assistive tech).
+      final avatar = find.byKey(const ValueKey('profile_hero_avatar'));
+      expect(avatar, findsOneWidget);
+      await tester.tap(avatar);
+      // Fixed-frame pumps: ProfileScreen keeps a progress affordance
+      // running while its profile fetch is outstanding (no network under
+      // test), so pumpAndSettle would never settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(
+        find.byType(ProfileScreen),
+        findsOneWidget,
+        reason:
+            'ProfileScreen holds the real edit capability '
+            '(photo/name/bio/phone); ProfileDetailsScreen is read-only',
+      );
+    });
+  });
+
+  group('declutter and regrouping', () {
+    testWidgets('HQ shortcuts, Vaults and Rewards are gone from the drawer', (
+      tester,
+    ) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      expect(find.text('HQ SHORTCUTS'), findsNothing);
+      expect(find.text('Vaults'), findsNothing);
+      expect(find.text('Rewards'), findsNothing);
+      expect(find.text('AZM Auction'), findsNothing);
+      expect(find.text('Referral Rewards'), findsNothing);
+      expect(find.text('Leaderboard'), findsNothing);
+      expect(find.text('Deposit'), findsNothing);
+    });
+
+    testWidgets('regrouped destination sections are present', (tester) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      expect(find.text('PROFILE & IDENTITY'), findsOneWidget);
+      expect(find.text('MONEY & PAYMENT METHODS'), findsOneWidget);
+      expect(find.text('SECURITY & PRIVACY'), findsOneWidget);
+      expect(find.text('APPEARANCE & PREFERENCES'), findsOneWidget);
+
+      // Canonical destinations stay reachable from the drawer.
+      expect(find.text('Profile Details'), findsOneWidget);
+      expect(find.text('Share Profile'), findsOneWidget);
+      expect(find.text('Withdraw'), findsOneWidget);
+      expect(find.text('Deposit Addresses'), findsOneWidget);
+      expect(find.text('Withdrawal Addresses'), findsOneWidget);
+      expect(find.text('Azaman Store'), findsOneWidget);
+      expect(find.text('Security Center'), findsOneWidget);
+      expect(find.text('Theme'), findsOneWidget);
+    });
+  });
+
+  group('scroll-driven morph', () {
+    testWidgets('pinned hero collapses and keeps username + QR visible', (
+      tester,
+    ) async {
+      await _pumpDrawer(
+        tester,
+        user: _verifiedUser(),
+        surface: const Size(420, 800),
+      );
+
+      // Expanded: hero content visible.
+      expect(find.text('AZM-8273941'), findsOneWidget);
+
+      // Scroll the drawer content up — the pinned header must shrink to
+      // its compact bar, not scroll away.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('@kofi'),
+        findsOneWidget,
+        reason: 'collapsed bar keeps the username visible',
+      );
+      expect(
+        find.byKey(const ValueKey('profile_hero_qr_icon')),
+        findsOneWidget,
+        reason: 'collapsed bar keeps a QR affordance',
+      );
+
+      // Scroll back — expanded hero returns.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 400));
+      await tester.pumpAndSettle();
+      expect(find.text('AZM-8273941'), findsOneWidget);
+    });
+  });
+}
