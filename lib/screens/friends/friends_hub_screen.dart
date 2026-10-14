@@ -655,6 +655,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     }
 
     return ListView.builder(
+      key: const ValueKey('friends_search_results_list'),
       // Live band clearance (see lib/theme/nav_band_clearance.dart) plus
       // breathing room — replaces the previous hardcoded 120.
       padding: EdgeInsets.fromLTRB(20, 8, 20, navBandClearance(context) + kNavBandGap),
@@ -861,6 +862,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             // (lib/theme/nav_band_clearance.dart), so the last inbox row
             // clears the pill on every device.
             SliverPadding(
+              key: const ValueKey('inbox_nav_clearance_sliver'),
               padding: EdgeInsets.only(
                 bottom: navBandClearance(context) + kNavBandGap,
               ),

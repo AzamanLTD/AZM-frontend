@@ -1104,6 +1104,7 @@ class _MarketplaceHomeScreenState
       }
 
     return ListView.builder(
+        key: const ValueKey('marketplace_results_list'),
         controller: _scrollCtrl,
         // Persistent-nav occlusion fix: the bottom inset is the LIVE band
         // height the shell publishes (navBandClearance) — not a magic 120
@@ -1147,7 +1148,13 @@ class _MarketplaceHomeScreenState
       baseColor: colors.card,
       highlightColor: colors.softSurface,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 60),
+        key: const ValueKey('marketplace_shimmer_list'),
+        // Occlusion fix: the loading list is a scrollable under the
+        // persistent band too — the old hardcoded 60 left the last
+        // skeleton rows painting behind the pill on devices where the
+        // band's published inset is larger. Same live clearance as the
+        // results list, plus the same breathing room.
+        padding: EdgeInsets.fromLTRB(8, 6, 8, navBandClearance(context) + kNavBandGap),
         itemCount: 8,
         itemBuilder: (_, __) => Container(
           margin: const EdgeInsets.symmetric(vertical: 3),
