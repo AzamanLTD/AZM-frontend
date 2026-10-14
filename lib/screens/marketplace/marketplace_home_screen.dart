@@ -831,13 +831,37 @@ class _MarketplaceHomeScreenState
     final nearYou = _viewMode == _ViewMode.map;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
-          // Expanded stretch. The radial fan anchors to the pill's real
-          // box; a stretched slot made the whole empty row-width part of
-          // the anchor (and the fan fanned off a rect the eye doesn't
-          // see).
+      // MARKETPLACE MIX overflow fix (rebase audit): the Mix entry pill made
+      // the row's natural width exceed phone content widths (16px over at
+      // 360dp). The strip stays PIXEL-IDENTICAL whenever the row fits —
+      // ConstrainedBox minWidth stretches the row to the full available
+      // width, so the dial/Mix/Near-You grammar is unchanged — and only
+      // when the controls would overflow does it become horizontally
+      // scrollable (every control stays reachable; nothing is dropped or
+      // shrunk).
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              // spaceBetween (NOT a flex Spacer — a Spacer is illegal in a
+              // horizontal scrollable's unbounded width) keeps the dial+Mix
+              // cluster at the left edge and Near You pinned to the right
+              // edge exactly as the old Spacer did whenever the strip fits.
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+            // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
+            // Expanded stretch. The radial fan anchors to the pill's real
+            // box; a stretched slot made the whole empty row-width part of
+            // the anchor (and the fan fanned off a rect the eye doesn't
+            // see). The dial and the Mix pill form the LEFT cluster that
+            // spaceBetween pins to the row's leading edge.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
           CategorySpeedDial(
             key: const ValueKey('marketplace-category-dial'),
             categories: _dialCategories,
@@ -890,12 +914,15 @@ class _MarketplaceHomeScreenState
               ),
             ),
           ),
+              ],
+            ),
           // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
           // control row: it reads as the secondary location/filter
           // utility, visually belonging to the row's end rather than to the
           // category fan. The dial is NOT stretched to force the
-          // alignment; the Spacer takes the free row width between them.
-          const Spacer(),
+          // alignment; spaceBetween takes the free row width between the
+          // clusters (a flex Spacer is illegal inside a horizontal
+          // scrollable, where the strip can exceed the viewport).
           // Near You — the ONLY control outside the category selector
           // (location icon, same pill language). Toggling off returns to
           // the list view.
@@ -938,8 +965,12 @@ class _MarketplaceHomeScreenState
                 ],
               ),
             ),
-          ),
-        ],
+            ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
