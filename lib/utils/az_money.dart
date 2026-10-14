@@ -100,6 +100,34 @@ abstract final class AzMoney {
     return '$ghsSymbol$nbsp$body';
   }
 
+  /// EXACT-DECIMAL GHS — the Marketplace Mix listing-price formatter
+  /// (backend `GET /api/discovery/items` companion contract §3.2).
+  ///
+  /// The verified `BusinessPrice` GHS amount arrives as an EXACT two-decimal
+  /// STRING (e.g. `"1240.42"`). Money must never round-trip through a
+  /// [double] (binary floats cannot represent 0.10 pesewa-exactly), so this
+  /// formatter is PURE STRING MATH: validate the shape, group the integer
+  /// part in threes, keep the fraction untouched. No parsing, no rounding,
+  /// no `toStringAsFixed` — every digit the server sent is the digit shown.
+  ///
+  /// `"1240.42"` → `"GH₵ 1,240.42"`; `"25.00"` → `"GH₵ 25.00"`.
+  /// A value that is not a plain non-negative `ddd.dd`-shape decimal string
+  /// (empty, negative, signed, grouped, >2 fractional digits, non-numeric)
+  /// returns `null` — the CALLER then renders "Price unavailable" rather than
+  /// a fabricated figure. `ghsExact` never invents a zero and never falls
+  /// back to another currency.
+  static String? ghsExact(String? amount2dp) {
+    if (amount2dp == null) return null;
+    final v = amount2dp.trim();
+    // Exactly two fractional digits, plain digits only, no sign/space/exponent.
+    final ok = RegExp(r'^\d+\.\d{2}$').hasMatch(v);
+    if (!ok) return null;
+    final dot = v.indexOf('.');
+    final intPart = v.substring(0, dot);
+    final fracPart = v.substring(dot); // includes the dot
+    return '$ghsSymbol$nbsp${_group(intPart)}$fracPart';
+  }
+
   /// EXPERIENCE PASS §1 — USDC-first hero figure: `123.45` → `"USDC 123.45"`
   /// (symbol first, matching the GHS presentation grammar). Only the Home
   /// balance hero reads this; [usdc] keeps the amount-first form everywhere

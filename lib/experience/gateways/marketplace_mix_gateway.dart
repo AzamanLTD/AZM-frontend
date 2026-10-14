@@ -1,20 +1,31 @@
 // =============================================================================
 // AZAMAN — GATEWAYS: MARKETPLACE MIX (category-first, cross-store)
 //
-// Mirrors `marketplace_discovery_gateway.dart`: a typed surface the Mix screen
-// reads through, with the CAPABILITY TRUTH declared on the gateway — the UI
-// hides any signal this build cannot compute from real backend data.
+// THE CANONICAL ENDPOINT (backend PR #349, merged on main):
+//   `GET /api/discovery/items` — ONE bounded request per feed page. The old
+//   composition (store search + per-store catalogue fan-out) and the
+//   exploratory `/api/marketplace/mix/offers` sketch are both dead: this
+//   build talks to the server's discovery surface only.
 //
-// COMPOSITION (real endpoints only — see lib/marketplace/mix/mix_models.dart
-// for the full capability matrix):
-//   1. `GET /api/business/search?q=&category=<wire>` — stores in the selected
-//      category, cursor-paginated (server default sort: totalEscrows desc).
-//   2. `GET /api/business/<bizId>/products?limit=…` — each store's listings,
-//      raw rows (carries `priceUsdc` and `isAvailable`).
-// No endpoint is invented, no DTO field is guessed, no price is fabricated.
+// SUPPORTED QUERY PARAMETERS (exactly what the merged implementation parses
+// — see backend services/marketplace/discoveryService.js parseParams; sending
+// anything else is a contract violation, not a soft no-op):
+//   category · q · taxonomy (REPEATABLE: ?taxonomy=MEALS&taxonomy=DRINKS) ·
+//   city · region · limit (1..50, server default 24) · cursor (opaque)
 //
-// NOT a Mix ranking source: the round-robin interleave across stores is
-// presentation only and never masquerades as server-backed ranking.
+// FAILURE MODEL (typed, so the provider renders each state honestly):
+//   404 → [MixEndpointDisabledException] — the discovery feature flag
+//         (AZM_MARKETPLACE_DISCOVERY_ENABLED) is off or the surface is
+//         unavailable. NOT an empty feed; NOT silently retried.
+//   422 → [MixInvalidFilterException] — the server rejected a request
+//         parameter (unknown category/chip, bad cursor, limit out of
+//         range). Rendered as an invalid-request state; never retried
+//         in a loop.
+//   everything else (network loss, timeout, 5xx, 429, malformed body) →
+//         [MixRetryableException] — the existing retryable failure path.
+//
+// NOT a Mix ranking source: the feed renders the server's order and
+// `rank.score` untouched; no client-side scoring or re-sorting exists.
 // =============================================================================
 
 import 'dart:convert';
@@ -23,138 +34,220 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/services/business_service.dart';
 
 /// Capabilities the Mix UI may truthfully render. A capability is only in the
 /// set when a REAL backend contract backs it today.
 enum MixCapability {
-  /// Browse items across many stores within one category (composed fan-out).
+  /// Cross-store item discovery per category (canonical discovery endpoint).
   crossStoreCategoryBrowse,
 
   /// Item identity + offering business identity on every offer.
   offerIdentity,
 
-  /// The USDC list price from the public product payloads.
-  usdcListPrice,
+  /// Verified GHS listing prices (`pricing.amount`, exact 2dp string from
+  /// the effective BusinessPrice row) — display data, never a payment claim.
+  ghsListPrice,
 
-  /// Raw availability (`isAvailable`) from the product payloads.
+  /// Server-evaluated availability (`isAvailable`, `sectionWindowOpen`).
   availabilitySignal,
+
+  /// Canonical taxonomy chips (`section.taxonomy` + the repeatable
+  /// `taxonomy` filter parameter).
+  taxonomyFilters,
 
   /// Item+store interaction recording via the real
   /// `POST /api/storefront/:businessProfileId/events` (`product_tap`).
   itemStoreInteractions,
 }
 
-/// One page of stores from `GET /api/business/search`.
-typedef MixStorePage = ({
-  List<MixStore> stores,
-  bool hasMore,
+/// One page of `GET /api/discovery/items`.
+typedef MixDiscoveryPage = ({
+  List<MixOffer> offers,
   String? nextCursor,
 });
 
-/// One store's offers from `GET /api/business/:bizId/products`.
-typedef MixStoreOffers = ({
-  MixStore store,
-  List<MixOffer> offers,
-});
+/// The discovery surface is not enabled/available (404). Distinct from both
+/// an empty feed and a retryable failure.
+class MixEndpointDisabledException implements Exception {
+  const MixEndpointDisabledException();
+
+  @override
+  String toString() => 'MixEndpointDisabledException: discovery endpoint unavailable (404)';
+}
+
+/// The server rejected a request parameter (422). Carries the server's
+/// message so the UI can surface an honest invalid-request state.
+class MixInvalidFilterException implements Exception {
+  final String message;
+  const MixInvalidFilterException(this.message);
+
+  @override
+  String toString() => 'MixInvalidFilterException: $message';
+}
+
+/// Network/server failure (timeout, connection loss, 5xx, 429, malformed
+/// success body). Retryable — the existing failure/retry experience.
+class MixRetryableException implements Exception {
+  final String message;
+  const MixRetryableException(this.message);
+
+  @override
+  String toString() => 'MixRetryableException: $message';
+}
 
 abstract interface class MarketplaceMixGateway {
   /// Which capabilities this build can compute truthfully.
   Set<MixCapability> get supportedCapabilities;
 
-  /// Stores in `category` (server wire value, e.g. `FOOD_BEVERAGE`).
-  Future<MixStorePage> searchStores({
-    required String category,
-    int limit = 10,
+  /// ONE page of cross-store offers from the canonical discovery endpoint.
+  Future<MixDiscoveryPage> fetchItems({
+    String? category,
+    String? q,
+    List<String> taxonomies,
+    String? city,
+    String? region,
+    int limit,
     String? cursor,
   });
-
-  /// The raw listings of one store, as offer pairs carrying the store identity.
-  Future<MixStoreOffers> productsFor(MixStore store, {int limit = 50});
 }
 
-/// Real adapter over the EXISTING public marketplace endpoints.
-class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
-  HttpMarketplaceMixGateway({BusinessService? businessService, ApiClient? apiClient})
-      : _businessService = businessService ?? BusinessService(),
-        _apiClient = apiClient ?? ApiClient();
+/// Builds the `/discovery/items` query string with PROPER encoding:
+/// repeatable `taxonomy` parameters, encoded values, no invented parameters.
+/// Pure + public for query-shape tests.
+String buildDiscoveryItemsQuery({
+  String? category,
+  String? q,
+  List<String>? taxonomies,
+  String? city,
+  String? region,
+  int? limit,
+  String? cursor,
+}) {
+  final params = <String>[];
+  void add(String name, String? value) {
+    if (value == null) return;
+    final v = value.trim();
+    if (v.isEmpty) return;
+    params.add('$name=${Uri.encodeQueryComponent(v)}');
+  }
 
-  final BusinessService _businessService;
+  add('category', category);
+  add('q', q);
+  // Repeatable chips: one `taxonomy=` pair each, order preserved (the server
+  // dedupes first-seen anyway).
+  for (final t in taxonomies ?? const <String>[]) {
+    add('taxonomy', t);
+  }
+  add('city', city);
+  add('region', region);
+  // The server caps limit at 50 (parseParams); a bigger value is a 422, so
+  // the gateway clamps to the supported maximum rather than sending garbage.
+  if (limit != null) params.add('limit=${limit.clamp(1, 50)}');
+  add('cursor', cursor);
+  return params.join('&');
+}
+
+/// Real adapter over the canonical discovery endpoint.
+class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
+  HttpMarketplaceMixGateway({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+
   final ApiClient _apiClient;
+
+  /// Backend server default page size (discoveryService DEFAULT_LIMIT).
+  static const int kDefaultLimit = 24;
 
   @override
   Set<MixCapability> get supportedCapabilities => const {
         MixCapability.crossStoreCategoryBrowse,
         MixCapability.offerIdentity,
-        MixCapability.usdcListPrice,
+        MixCapability.ghsListPrice,
         MixCapability.availabilitySignal,
+        MixCapability.taxonomyFilters,
         MixCapability.itemStoreInteractions,
         // Deliberately absent (do not add without a real contract):
-        //  - a GHS listing price (BusinessPrice has no public surface yet)
-        //  - price-on-request (no quotation opt-in flag on any payload)
+        //  - GHS payment/settlement (payableIn reports USDC only today)
+        //  - price-on-request (the feed excludes unpriced items entirely)
         //  - same-item-across-stores grouping (no global item identity)
-        //  - server ranking / engagement labels (MarketplaceDiscoveryEvent
-        //    is planned, not shipped)
+        //  - analytics-backed ranking labels (rank.label is null until P3)
       };
 
   @override
-  Future<MixStorePage> searchStores({
-    required String category,
-    int limit = 10,
+  Future<MixDiscoveryPage> fetchItems({
+    String? category,
+    String? q,
+    List<String> taxonomies = const [],
+    String? city,
+    String? region,
+    int? limit,
     String? cursor,
   }) async {
-    final page = await _businessService.searchBusinesses(
-      q: '',
+    final query = buildDiscoveryItemsQuery(
       category: category,
-      limit: limit,
+      q: q,
+      taxonomies: taxonomies,
+      city: city,
+      region: region,
+      limit: limit ?? kDefaultLimit,
       cursor: cursor,
     );
-    final stores = page.businesses
-        .map((b) => MixStore(
-              id: b.id,
-              bizId: b.bizId,
-              businessName: b.businessName,
-              category: b.category,
-            ))
+    final path = '/discovery/items${query.isEmpty ? '' : '?$query'}';
+
+    String body;
+    try {
+      // Public, unauthenticated by contract (browsable pre-login, like
+      // business search).
+      final res = await _apiClient.get(path, requireAuth: false);
+      body = res.body;
+    } on ApiException catch (e) {
+      throw _mapApiException(e);
+    } catch (e) {
+      throw MixRetryableException(e.toString());
+    }
+
+    Map<String, dynamic> decoded;
+    try {
+      final parsed = jsonDecode(body);
+      if (parsed is! Map<String, dynamic>) throw const FormatException('not an object');
+      decoded = parsed;
+    } on FormatException {
+      // A 200 that is not the discovery envelope is a broken surface —
+      // retryable, never an empty success.
+      throw const MixRetryableException('discovery response was not the expected envelope');
+    }
+
+    if (decoded['success'] != true) {
+      throw const MixRetryableException('discovery request was not successful');
+    }
+
+    final rows = decoded['items'];
+    if (rows is! List) {
+      throw const MixRetryableException('discovery response carried no items array');
+    }
+    final offers = rows
+        .whereType<Map>()
+        .map((m) => MixOffer.fromDiscoveryDto(Map<String, dynamic>.from(m)))
         .toList();
+
+    final next = decoded['nextCursor'];
     return (
-      stores: stores,
-      hasMore: page.hasMore,
-      nextCursor: page.nextCursor,
+      offers: offers,
+      nextCursor: next is String && next.isNotEmpty ? next : null,
     );
   }
 
-  @override
-  Future<MixStoreOffers> productsFor(MixStore store, {int limit = 50}) async {
-    // Raw rows, not the shared BusinessProduct model: the model's
-    // `_toDouble(null) == 0.0` default would silently turn a MISSING price
-    // into zero. The raw row keeps the missing field absent so the parser
-    // can mark the price unknown.
-    final res = await _apiClient.get(
-      '/business/${store.bizId}/products?limit=$limit',
-      requireAuth: false,
-    );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    // Real controller failures surface as `success: false` (or a non-2xx via
-    // ApiException). The demo seeds' `{'products': [...]}` shape carries no
-    // `success` key — only an explicit false is an error.
-    if (body['success'] == false) {
-      throw Exception(body['message'] ?? 'Store listings failed');
+  /// Maps the ApiClient's [ApiException] (thrown for every non-2xx by
+  /// ApiClient._handleResponse) onto the typed discovery failure model.
+  Exception _mapApiException(ApiException e) {
+    switch (e.statusCode) {
+      case 404:
+        // The flag is deliberately off by default — indistinguishable from
+        // an unknown route. Honest state: the surface does not exist yet.
+        return const MixEndpointDisabledException();
+      case 422:
+        return MixInvalidFilterException(e.message);
+      default:
+        return MixRetryableException('server error (${e.statusCode})');
     }
-    final rows = body['products'];
-    final offers = rows is List
-        ? rows
-            .whereType<Map>()
-            .map((m) => MixOffer.fromJson(
-                  Map<String, dynamic>.from(m),
-                  businessProfileId: store.id,
-                  bizId: store.bizId,
-                  businessName: store.businessName,
-                  businessCategory: store.category,
-                ))
-            .toList()
-        : <MixOffer>[];
-    return (store: store, offers: offers);
   }
 }
 

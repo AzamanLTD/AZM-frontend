@@ -1,19 +1,29 @@
 // =============================================================================
 // AZAMAN — MARKETPLACE MIX STATE (category-first, cross-store)
 //
-// Drives the Mix browse surface: category selection, per-category fan-out
-// (stores via /business/search, then each store's listings via
-// /business/:bizId/products), and the composed cross-store offer feed.
+// Drives the Mix browse surface against the canonical discovery endpoint
+// (`GET /api/discovery/items`, backend PR #349): one bounded request per
+// feed page, cursor-paginated by the server.
 //
-// ORDERING HONESTY: offers render in SERVER order. The fan-out only
-// interleaves stores round-robin so one store's long catalogue does not bury
-// every other store — a presentation choice, NOT a ranking claim. No scoring,
-// popularity or price sort is applied client-side; server-backed ranking waits
-// for the backend discovery-event contract (see the PR description).
+// PAGING & RESET HONESTY:
+//   • Changing the category or any filter RESETS the feed — stale
+//     cross-selection content is never shown.
+//   • Stale-response protection: every load carries a monotonic request id;
+//     a response for an older request (the user switched category while the
+//     request was in flight) is DISCARDED — an out-of-order response can
+//     never overwrite a newer selection's feed.
 //
-// FAILURE MODEL: a store-page failure is fatal (phase: failed, retryable);
-// individual store listing failures are partial (that store is skipped,
-// [failedStores] counts it) so one broken catalogue never empties the feed.
+// ORDERING HONESTY: offers render in SERVER order (totalOrders desc /
+// createdAt desc). No client-side scoring, popularity or price sort exists;
+// `rank.score` passes through untouched.
+//
+// FAILURE MODEL (typed from the gateway):
+//   • 404  → [MixPhase.disabled] — the discovery surface is off/unavailable.
+//     Distinct from an empty feed; never misreported as "no items".
+//   • 422  → [MixPhase.invalidRequest] — surfaced, never retried in a loop.
+//   • network/server → [MixPhase.failed] — the retryable experience.
+//   • 200 with zero items → [MixPhase.ready] + empty feed — a LEGITIMATE
+//     empty result, never rendered as an error.
 // =============================================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,69 +68,79 @@ class StorefrontMixTapRecorder implements MixTapRecorder {
   }
 }
 
-enum MixPhase { idle, loading, ready, failed }
+enum MixPhase {
+  idle,
+  loading,
+
+  /// 200 success — feed (possibly legitimately empty) is rendered.
+  ready,
+
+  /// Retryable failure (network/5xx/malformed body). Existing retry UX.
+  failed,
+
+  /// 404 — the discovery surface is not enabled/available. NOT an empty
+  /// feed and NOT retryable-as-if-transient.
+  disabled,
+
+  /// 422 — the server rejected a request parameter. Surfaced honestly;
+  /// never auto-retried.
+  invalidRequest,
+}
 
 class MarketplaceMixState {
   /// Selected category wire (FOOD_BEVERAGE / RETAIL / LOGISTICS / HOSPITALITY).
   final String categoryWire;
 
+  /// Selected canonical taxonomy chip ids (repeatable `taxonomy` filter).
+  /// Changing this list resets the feed.
+  final List<String> taxonomies;
+
   final MixPhase phase;
 
-  /// Loading the NEXT store page (feed stays interactive).
+  /// Loading the NEXT page (feed stays interactive).
   final bool loadingMore;
 
-  /// Offers in display order — server order within each store, stores
-  /// interleaved round-robin.
+  /// Offers in display order — the SERVER's order, untouched.
   final List<MixOffer> offers;
 
-  /// Stores whose offers are in the feed (in server order).
-  final List<MixStore> stores;
-
-  /// Stores in the last page whose listing fetch failed (partial failures).
-  final int failedStores;
-
-  final bool hasMoreStores;
-  final String? nextStoreCursor;
+  /// Opaque server cursor for the next page; null = end of feed.
+  final String? nextCursor;
 
   /// One-sentence user-facing failure message; never a raw exception string.
   final String? error;
 
   const MarketplaceMixState({
     this.categoryWire = 'FOOD_BEVERAGE',
+    this.taxonomies = const [],
     this.phase = MixPhase.idle,
     this.loadingMore = false,
     this.offers = const [],
-    this.stores = const [],
-    this.failedStores = 0,
-    this.hasMoreStores = false,
-    this.nextStoreCursor,
+    this.nextCursor,
     this.error,
   });
 
   bool get isLoading => phase == MixPhase.loading;
 
+  bool get hasMore => nextCursor != null;
+
   MarketplaceMixState copyWith({
     String? categoryWire,
+    List<String>? taxonomies,
     MixPhase? phase,
     bool? loadingMore,
     List<MixOffer>? offers,
-    List<MixStore>? stores,
-    int? failedStores,
-    bool? hasMoreStores,
-    Object? nextStoreCursor = _unset,
+    Object? nextCursor = _unset,
     Object? error = _unset,
   }) =>
       MarketplaceMixState(
         categoryWire: categoryWire ?? this.categoryWire,
+        taxonomies: taxonomies ?? this.taxonomies,
         phase: phase ?? this.phase,
         loadingMore: loadingMore ?? this.loadingMore,
         offers: offers ?? this.offers,
-        stores: stores ?? this.stores,
-        failedStores: failedStores ?? this.failedStores,
-        hasMoreStores: hasMoreStores ?? this.hasMoreStores,
-        nextStoreCursor: nextStoreCursor == _unset
-            ? this.nextStoreCursor
-            : nextStoreCursor as String?,
+        nextCursor: nextCursor == _unset
+            ? this.nextCursor
+            : nextCursor as String?,
         error: error == _unset ? this.error : error as String?,
       );
 
@@ -135,18 +155,58 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
         _recorder = recorder ?? const StorefrontMixTapRecorder(),
         super(const MarketplaceMixState());
 
-  /// Fan-out bound per store page — keeps request volume predictable.
-  static const int kStoresPerPage = 10;
-  static const int kProductsPerStore = 50;
+  /// Backend default page size (discoveryService DEFAULT_LIMIT = 24). One
+  /// bounded request per feed page — the whole point of the canonical
+  /// endpoint.
+  static const int kPageSize = 24;
 
   final MarketplaceMixGateway _gateway;
   final MixTapRecorder _recorder;
 
-  /// A category switch resets the feed (no stale cross-category content).
+  /// Monotonic request id for stale-response protection. Every accepted
+  /// result must carry the id it was issued; a response for a superseded
+  /// request is discarded.
+  int _requestSeq = 0;
+
+  /// Switches category. Resets any taxonomy filters (chips are
+  /// category-scoped) and reloads the first page — stale cross-category
+  /// content never survives the switch.
   Future<void> selectCategory(String wire) async {
-    if (state.categoryWire == wire && state.phase != MixPhase.idle) return;
+    if (state.categoryWire == wire &&
+        state.taxonomies.isEmpty &&
+        state.phase != MixPhase.idle &&
+        state.phase != MixPhase.failed &&
+        state.phase != MixPhase.disabled) {
+      return;
+    }
     state = MarketplaceMixState(categoryWire: wire, phase: MixPhase.loading);
-    await _load(reset: true);
+    await _loadFirstPage();
+  }
+
+  /// Toggles one canonical taxonomy chip. Changing the filter RESETS
+  /// pagination and removes stale results, then reloads page one.
+  Future<void> toggleTaxonomy(String chipId) async {
+    final next = List<String>.of(state.taxonomies);
+    next.contains(chipId) ? next.remove(chipId) : next.add(chipId);
+    state = MarketplaceMixState(
+      categoryWire: state.categoryWire,
+      taxonomies: next,
+      phase: MixPhase.loading,
+    );
+    await _loadFirstPage();
+  }
+
+  /// Clears every taxonomy filter (the 422 recovery affordance): resets to
+  /// the selected category, unfiltered, page one. Deliberately NOT guarded
+  /// by an empty-taxononomies short-circuit — an invalid request may have
+  /// come from the unfiltered default load itself, and "Clear filters" is
+  /// the explicit, non-looping recovery action for exactly that state.
+  Future<void> clearTaxonomies() async {
+    state = MarketplaceMixState(
+      categoryWire: state.categoryWire,
+      phase: MixPhase.loading,
+    );
+    await _loadFirstPage();
   }
 
   /// Initial load of the default category (screen entry).
@@ -154,134 +214,117 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
     if (state.phase == MixPhase.idle) {
       state = state.copyWith(phase: MixPhase.loading);
     }
-    await _load(reset: true);
+    await _loadFirstPage();
   }
 
   Future<void> retry() async {
-    // Not selectCategory(): a failed load of the SAME wire must not be
+    // Not selectCategory(): a failed load of the SAME selection must not be
     // short-circuited by the same-category no-op guard.
     state = state.copyWith(
       phase: MixPhase.loading,
       loadingMore: false,
-      offers: const [],
-      stores: const [],
-      failedStores: 0,
       error: null,
     );
-    await _load(reset: true);
+    await _loadFirstPage();
   }
 
-  /// Loads the next page of stores (and their listings), APPENDING to the
-  /// existing feed so nothing the user is looking at reshuffles mid-scroll.
-  Future<void> loadMoreStores() async {
-    if (state.loadingMore ||
-        !state.hasMoreStores ||
-        state.nextStoreCursor == null) {
+  /// Loads the next cursor page, APPENDING to the existing feed so nothing
+  /// the user is looking at reshuffles mid-scroll. Preserves the selected
+  /// category and filters in the request.
+  Future<void> loadMore() async {
+    if (state.loadingMore || !state.hasMore || state.phase != MixPhase.ready) {
       return;
     }
+    final seq = ++_requestSeq;
     state = state.copyWith(loadingMore: true);
     try {
-      final page = await _gateway.searchStores(
+      final page = await _gateway.fetchItems(
         category: state.categoryWire,
-        limit: kStoresPerPage,
-        cursor: state.nextStoreCursor,
+        taxonomies: state.taxonomies,
+        limit: kPageSize,
+        cursor: state.nextCursor,
       );
-      final fetched = await _fetchOffersFor(page.stores);
+      // Stale-response guard: the selection may have changed while the page
+      // was in flight — a late page never appends to a newer feed.
+      if (seq != _requestSeq) return;
       state = state.copyWith(
         loadingMore: false,
-        offers: [...state.offers, ..._interleave(fetched.pages)],
-        stores: [...state.stores, ...page.stores],
-        failedStores: state.failedStores + fetched.failed,
-        hasMoreStores: page.hasMore,
-        nextStoreCursor: page.nextCursor,
+        offers: [...state.offers, ...page.offers],
+        nextCursor: page.nextCursor,
       );
     } catch (_) {
-      // Partial page failure keeps the current feed; the retry affordance is
+      if (seq != _requestSeq) return;
+      // Page-load failure keeps the current feed; the retry affordance is
       // the pull-to-refresh / reselect path.
-      state = state.copyWith(loadingMore: false);
+      state = state.copyWith(
+        loadingMore: false,
+        nextCursor: state.nextCursor,
+      );
     }
   }
 
   /// Records a tap on one item+store offer pair through the real backend
-  /// events contract (`product_tap` with the offer identity `productId` plus
-  /// the mix surface in metadata), so server-side ranking can later
-  /// distinguish the same item in different stores. Only sent while the
-  /// real interaction contract is a supported capability.
+  /// events contract (`product_tap` with the offer identity `productId`
+  /// plus the mix surface in metadata). Only sent while the real
+  /// interaction contract is a supported capability. The existing
+  /// `product_tap` event is an interaction record ONLY — it does NOT drive
+  /// any ranking system (the discovery-events/ranking contract is separate
+  /// future backend work).
   void trackOfferTap(MixOffer offer) {
     if (!_gateway.supportedCapabilities
         .contains(MixCapability.itemStoreInteractions)) {
       return;
     }
     _recorder.recordProductTap(
-      businessProfileId: offer.businessProfileId,
+      businessProfileId: offer.businessId,
       productId: offer.productId,
       mixCategory: state.categoryWire,
     );
   }
 
-  Future<void> _load({required bool reset}) async {
+  Future<void> _loadFirstPage() async {
+    final seq = ++_requestSeq;
     try {
-      final page = await _gateway.searchStores(
+      final page = await _gateway.fetchItems(
         category: state.categoryWire,
-        limit: kStoresPerPage,
+        taxonomies: state.taxonomies,
+        limit: kPageSize,
       );
-      final fetched = await _fetchOffersFor(page.stores);
+      // Stale-response guard: a newer selection superseded this request —
+      // its result is discarded entirely.
+      if (seq != _requestSeq) return;
       state = MarketplaceMixState(
         categoryWire: state.categoryWire,
+        taxonomies: state.taxonomies,
         phase: MixPhase.ready,
-        offers: _interleave(fetched.pages),
-        stores: page.stores,
-        failedStores: fetched.failed,
-        hasMoreStores: page.hasMore,
-        nextStoreCursor: page.nextCursor,
+        offers: page.offers,
+        nextCursor: page.nextCursor,
+      );
+    } on MixEndpointDisabledException {
+      if (seq != _requestSeq) return;
+      state = state.copyWith(
+        phase: MixPhase.disabled,
+        offers: const [],
+        nextCursor: null,
+        error: null,
+      );
+    } on MixInvalidFilterException catch (e) {
+      if (seq != _requestSeq) return;
+      state = state.copyWith(
+        phase: MixPhase.invalidRequest,
+        offers: const [],
+        nextCursor: null,
+        error: e.message,
       );
     } catch (_) {
+      if (seq != _requestSeq) return;
       state = state.copyWith(
         phase: MixPhase.failed,
+        offers: const [],
+        nextCursor: null,
         error: 'We couldn\'t load this category right now.',
       );
     }
-  }
-
-  Future<({List<MixStoreOffers> pages, int failed})> _fetchOffersFor(
-      List<MixStore> stores) async {
-    final pages = <MixStoreOffers>[];
-    var failed = 0;
-    // Parallel fan-out; per-store failures never fail the whole feed.
-    final results = await Future.wait(stores.map((s) async {
-      try {
-        return await _gateway.productsFor(s, limit: kProductsPerStore);
-      } catch (_) {
-        return null;
-      }
-    }));
-    for (final r in results) {
-      if (r == null) {
-        failed++;
-      } else {
-        pages.add(r);
-      }
-    }
-    return (pages: pages, failed: failed);
-  }
-
-  /// Round-robin interleave across stores, preserving server order inside
-  /// each store. Presentation only — no ranking signal.
-  static List<MixOffer> _interleave(List<MixStoreOffers> pages) {
-    final out = <MixOffer>[];
-    var index = 0;
-    var anyAdvanced = true;
-    while (anyAdvanced) {
-      anyAdvanced = false;
-      for (final p in pages) {
-        if (index < p.offers.length) {
-          out.add(p.offers[index]);
-          anyAdvanced = true;
-        }
-      }
-      index++;
-    }
-    return out;
   }
 }
 

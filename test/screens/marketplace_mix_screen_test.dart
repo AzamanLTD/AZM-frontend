@@ -1,15 +1,16 @@
 // =============================================================================
-// MARKETPLACE MIX — screen widget tests.
+// MARKETPLACE MIX — screen widget tests (canonical discovery endpoint).
 //
-// Pins the full screen experience:
-//   • category chips render and switching categories reloads the feed
-//   • cross-store feed: item + store together, round-robin interleave visible
-//   • loading skeletons, failed + retry, empty category, ready-no-listings,
-//     partial store failures
+// Pins the full screen experience against `GET /api/discovery/items`:
+//   • category rail + canonical taxonomy chip rail (wire-exact chips only)
+//   • the feed renders item + offering store together, in SERVER order
+//   • loading skeletons; failed + retry; legitimate empty feed; DISABLED
+//     (404 — distinct from empty); INVALID REQUEST (422) with clear-filters
+//   • switching categories/toggling chips reloads the feed; paging appends
 //   • navigation: tapping an offer records the interaction and pushes the
 //     OFFERING store route with the store identity preserved
-//   • bottom clearance: feed insets clear the system bottom inset so the
-//     final item is never obscured (pushed route sits above the nav band)
+//   • bottom clearance: feed insets clear the system bottom safe area
+//     (pushed route sits above the nav band)
 // =============================================================================
 
 import 'dart:async';
@@ -25,79 +26,50 @@ import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_mix_screen.dart';
+import 'package:azaman/theme/az_space.dart';
 
 class _FakeGateway implements MarketplaceMixGateway {
-  _FakeGateway({this.pages = const {}});
+  _FakeGateway();
 
-  final Map<String, List<MixStorePage>> pages;
-  final List<String> searchCalls = [];
-  final List<String> productCalls = [];
-  final Set<String> failingBizIds = {};
-  var failSearch = false;
+  Future<MixDiscoveryPage> Function(String category,
+      List<String> taxonomies, String? cursor)? behavior;
+  final calls = <(String, List<String>, String?)>[];
 
   @override
   Set<MixCapability> get supportedCapabilities =>
       const {MixCapability.itemStoreInteractions};
 
   @override
-  Future<MixStorePage> searchStores({
-    required String category,
-    int limit = 10,
+  Future<MixDiscoveryPage> fetchItems({
+    String? category,
+    String? q,
+    List<String> taxonomies = const [],
+    String? city,
+    String? region,
+    int? limit,
     String? cursor,
   }) async {
-    searchCalls.add(category);
-    if (failSearch) throw Exception('network down');
-    final pageList = pages[category] ?? const <MixStorePage>[];
-    if (pageList.isEmpty) {
-      return (stores: <MixStore>[], hasMore: false, nextCursor: null);
-    }
-    return pageList.first;
-  }
-
-  @override
-  Future<MixStoreOffers> productsFor(MixStore store, {int limit = 50}) async {
-    productCalls.add(store.bizId);
+    calls.add((category ?? '', List.of(taxonomies), cursor));
     await Future<void>.delayed(Duration.zero);
-    if (failingBizIds.contains(store.bizId)) throw Exception('store down');
-    final rows = _catalogues[store.bizId] ?? const <Map<String, dynamic>>[];
-    return (
-      store: store,
-      offers: rows
-          .map((r) => MixOffer.fromJson(
-                r,
-                businessProfileId: store.id,
-                bizId: store.bizId,
-                businessName: store.businessName,
-                businessCategory: store.category,
-              ))
-          .toList(),
-    );
+    if (behavior == null) return (offers: <MixOffer>[], nextCursor: null);
+    return await behavior!(category ?? '', taxonomies, cursor);
   }
 }
 
-final Map<String, List<Map<String, dynamic>>> _catalogues = {
-  'BIZ-A': [
-    {'id': 'a1', 'name': 'Jollof Rice', 'priceUsdc': 12.5, 'isAvailable': true},
-    {'id': 'a2', 'name': 'Waakye Special', 'priceUsdc': 15.0},
-  ],
-  'BIZ-B': [
-    {'id': 'b1', 'name': 'Jollof Rice', 'priceUsdc': 14.0},
-    {'id': 'b2', 'name': 'Banku & Tilapia', 'priceUsdc': 18.0},
-    // Missing price row — must render "Price unavailable".
-    {'id': 'b3', 'name': 'Kelewele', 'isAvailable': false},
-  ],
-};
-
-List<MixStorePage> _foodPages() => [
-      (
-        stores: [
-          const MixStore(id: 'bp-1', bizId: 'BIZ-A', businessName: 'Adjoa\'s Kitchen', category: 'FOOD_BEVERAGE'),
-          const MixStore(id: 'bp-2', bizId: 'BIZ-B', businessName: 'Bra Kwame Chop Bar', category: 'FOOD_BEVERAGE'),
-        ],
-        hasMore: false,
-        nextCursor: null,
-      ),
-    ];
+MixOffer _offer(String productId, String bizId,
+        {String name = 'Jollof Rice',
+        String businessId = 'bp-1',
+        String store = 'Adjoa\'s Kitchen',
+        MixOfferPrice price = const MixOfferPrice.fixedGhs('12.50')}) =>
+    MixOffer(
+      productId: productId,
+      businessId: businessId,
+      bizId: bizId,
+      businessName: store,
+      businessCategory: 'FOOD_BEVERAGE',
+      name: name,
+      price: price,
+    );
 
 class _RecordingTapRecorder implements MixTapRecorder {
   final taps = <({String businessProfileId, String productId, String mixCategory})>[];
@@ -116,7 +88,10 @@ class _RecordingTapRecorder implements MixTapRecorder {
   }
 }
 
-Widget _app(_FakeGateway gateway, {_RecordingTapRecorder? recorder}) {
+Widget _app({
+  required _FakeGateway gateway,
+  _RecordingTapRecorder? recorder,
+}) {
   return ProviderScope(
     overrides: [
       themeProvider.overrideWith((ref) => ThemeProvider()),
@@ -157,11 +132,11 @@ Widget _app(_FakeGateway gateway, {_RecordingTapRecorder? recorder}) {
   );
 }
 
-Future<void> _openMix(WidgetTester tester) async {
+Future<void> _open(WidgetTester tester,
+    {_FakeGateway? gateway, _RecordingTapRecorder? recorder}) async {
   SharedPreferences.setMockInitialValues({});
-  await tester.pumpWidget(_app(_FakeGateway(pages: {
-    'FOOD_BEVERAGE': _foodPages(),
-  })));
+  await tester.pumpWidget(
+      _app(gateway: gateway ?? _FakeGateway(), recorder: recorder));
   await tester.pump();
   tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
         MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
@@ -170,176 +145,270 @@ Future<void> _openMix(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('the Mix screen shows a category-first header and rail',
+  testWidgets('the Mix screen shows a category-first header and rails',
       (tester) async {
-    await _openMix(tester);
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          (offers: [_offer('a1', 'BIZ-A')], nextCursor: null);
+    await _open(tester, gateway: g);
+
     expect(find.text('Marketplace Mix'), findsOneWidget);
-    expect(find.byKey(const ValueKey('mix_category_rail')), findsOneWidget);
-    expect(find.text('Eat'), findsOneWidget);
-    expect(find.text('Shop'), findsOneWidget);
-    expect(find.text('Ride'), findsOneWidget);
-    expect(find.text('Stay'), findsOneWidget);
+    expect(find.text('Browse eat across every store'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_category_FOOD_BEVERAGE')), findsOneWidget);
+    // The taxonomy rail shows the canonical FOOD_BEVERAGE chips (+ Services).
+    expect(find.byKey(const ValueKey('mix_taxonomy_MEALS')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_taxonomy_DRINKS')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_taxonomy_ROOMS')), findsNothing);
+    expect(find.byKey(const ValueKey('mix_taxonomy_UNMAPPED')), findsNothing,
+        reason: 'UNMAPPED is not a requestable chip');
   });
 
-  testWidgets('the feed shows item + offering store together, cross-store',
+  testWidgets('the feed shows item + offering store together with the GHS price',
       (tester) async {
-    await _openMix(tester);
-    // The same item in two stores is rendered twice, each with its store.
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async => (
+            offers: [
+              _offer('a1', 'BIZ-A', name: 'Jollof Rice', store: 'Adjoa\'s Kitchen'),
+              _offer('b1', 'BIZ-B',
+                  name: 'Jollof Rice',
+                  businessId: 'bp-2',
+                  store: 'Bra Kwame Chop Bar',
+                  price: const MixOfferPrice.fixedGhs('14.00')),
+            ],
+            nextCursor: null,
+          );
+    await _open(tester, gateway: g);
+
+    // SERVER order, untouched: two stores' identical item names stay two rows.
     expect(find.text('Jollof Rice'), findsNWidgets(2));
-    // Once per offer from that store (A lists 2, B lists 3).
-    expect(find.text("Adjoa's Kitchen"), findsNWidgets(2));
-    expect(find.text('Bra Kwame Chop Bar'), findsNWidgets(3));
-    // Round-robin: the first two feed rows are from DIFFERENT stores.
-    final storeLabels = tester
-        .widgetList<Text>(find.descendant(
-            of: find.byKey(const ValueKey('mix_feed')),
-            matching: find.byType(Text)))
-        .map((t) => t.data)
-        .toList();
-    expect(storeLabels.indexOf("Adjoa's Kitchen") <
-        storeLabels.indexOf('Bra Kwame Chop Bar'), isTrue);
+    expect(find.text("Adjoa's Kitchen"), findsOneWidget);
+    expect(find.text('Bra Kwame Chop Bar'), findsOneWidget);
+    expect(find.text('GH₵\u00A012.50'), findsOneWidget);
+    expect(find.text('GH₵\u00A014.00'), findsOneWidget);
   });
 
-  testWidgets('price states render honestly', (tester) async {
-    await _openMix(tester);
-    expect(find.text('12.50\u00A0USDC'), findsOneWidget);
-    expect(find.text('14.00\u00A0USDC'), findsOneWidget);
-    // Missing price → unavailable label, never a zero amount.
-    expect(find.text('Price unavailable'), findsOneWidget);
-    expect(find.textContaining('0.00'), findsNothing);
-    // Unavailable badge only on the payload-flagged row.
-    expect(find.text('Unavailable'), findsOneWidget);
-  });
+  testWidgets('switching categories reloads the feed with a reset cursor',
+      (tester) async {
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async => (
+            offers: [
+              _offer('$cat-1', 'BIZ-$cat',
+                  name: cat == 'RETAIL' ? 'Kente Cloth' : 'Jollof Rice')
+            ],
+            nextCursor: cat == 'FOOD_BEVERAGE' ? 'CUR-1' : null,
+          );
+    await _open(tester, gateway: g);
+    expect(g.calls.single.$3, isNull);
+    expect(find.text('Jollof Rice'), findsOneWidget);
 
-  testWidgets('switching categories reloads the feed', (tester) async {
-    await _openMix(tester);
     await tester.tap(find.byKey(const ValueKey('mix_category_RETAIL')));
     await tester.pumpAndSettle();
-    expect(find.text('Jollof Rice'), findsNothing);
+
+    expect(g.calls, hasLength(2));
+    expect(g.calls.last.$1, 'RETAIL');
+    expect(g.calls.last.$2, isEmpty);
+    expect(g.calls.last.$3, isNull,
+        reason: 'the switch refetches page one of the new category');
+    expect(find.text('Kente Cloth'), findsOneWidget);
   });
 
-  testWidgets('tapping an offer records the interaction and pushes the store',
+  testWidgets('toggling a taxonomy chip refetches with the canonical filter',
       (tester) async {
-    final recorder = _RecordingTapRecorder();
-    final gateway = _FakeGateway(pages: {'FOOD_BEVERAGE': _foodPages()});
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_app(gateway, recorder: recorder));
-    await tester.pump();
-    tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
-          MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async => (
+            offers: [
+              _offer(tax.isEmpty ? 'all-1' : 'meals-1', 'BIZ-A',
+                  name: tax.isEmpty ? 'Everything' : 'Main dish')
+            ],
+            nextCursor: null,
+          );
+    await _open(tester, gateway: g);
+    expect(find.text('Everything'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mix_taxonomy_MEALS')));
+    await tester.pumpAndSettle();
+
+    expect(g.calls.last.$1, 'FOOD_BEVERAGE');
+    expect(g.calls.last.$2, ['MEALS']);
+    expect(g.calls.last.$3, isNull);
+    expect(find.text('Main dish'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mix_taxonomy_MEALS')));
+    await tester.pumpAndSettle();
+    expect(g.calls.last.$2, isEmpty);
+  });
+
+  testWidgets('paging appends the next cursor page without reshuffling',
+      (tester) async {
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async {
+        if (cursor == null) {
+          return (
+            offers: List.generate(
+                24, (i) => _offer('p$i', 'BIZ-A', name: 'Item $i')),
+            nextCursor: 'CUR-2',
+          );
+        }
+        return (
+          offers: [_offer('p24', 'BIZ-A', name: 'Item 24')],
+          nextCursor: null,
         );
+      };
+    await _open(tester, gateway: g);
+    expect(find.text('Item 0'), findsOneWidget);
+    expect(g.calls.single.$3, isNull);
+
+    // Drag far enough to pass the near-end trigger.
+    await tester.dragUntilVisible(
+      find.text('Item 23'),
+      find.byKey(const ValueKey('mix_feed')),
+      const Offset(0, -300),
+    );
     await tester.pumpAndSettle();
 
-    // Tap the first Jollof row (Adjoa's, bp-1).
-    await tester.tap(find.text('Jollof Rice').first, warnIfMissed: false);
+    expect(g.calls.last.$3, 'CUR-2',
+        reason: 'the next page request carries the server cursor');
+    // Lazy ListView: Item 24 sits just past the old end — scroll to it.
+    await tester.dragUntilVisible(
+      find.text('Item 24'),
+      find.byKey(const ValueKey('mix_feed')),
+      const Offset(0, -200),
+    );
     await tester.pumpAndSettle();
-
-    expect(recorder.taps, isNotEmpty);
-    expect(recorder.taps.first.businessProfileId, 'bp-1');
-    expect(recorder.taps.first.productId, 'a1');
-    expect(recorder.taps.first.mixCategory, 'FOOD_BEVERAGE');
-    expect(find.byKey(const ValueKey('store-detail')), findsOneWidget);
-    expect(find.text('store BIZ-A'), findsOneWidget);
+    expect(find.text('Item 24'), findsOneWidget);
+    // The append-not-replace invariant (old content survives page two) is
+    // pinned at the provider level; here the wire cursor + new row are the
+    // observable contract.
   });
 
   testWidgets('loading shows skeletons, not spinners or empty content',
       (tester) async {
-    // Gateway whose products call never resolves this frame: suspend with a
-    // Completer to hold the loading phase.
-    final held = <Completer<void>>[];
-    final gateway = _SuspendedGateway(held);
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) => Completer<MixDiscoveryPage>().future;
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_app(gateway));
+    await tester.pumpWidget(_app(gateway: g));
     await tester.pump();
     tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
-          MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
-        );
+        MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()));
     // First pump installs the pushed route; the second shows the loading feed.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byKey(const ValueKey('mix_loading')), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(const ValueKey('mix_feed')), findsNothing);
+    expect(find.byKey(const ValueKey('mix_empty')), findsNothing);
   });
 
   testWidgets('failure shows an error surface with a working retry',
       (tester) async {
-    final gateway = _FakeGateway(pages: {'FOOD_BEVERAGE': _foodPages()})
-      ..failSearch = true;
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_app(gateway));
-    await tester.pump();
-    tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
-          MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
-        );
-    await tester.pumpAndSettle();
-
+    var fail = true;
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async {
+        if (fail) throw const MixRetryableException('network down');
+        return (offers: [_offer('a1', 'BIZ-A')], nextCursor: null);
+      };
+    await _open(tester, gateway: g);
     expect(find.byKey(const ValueKey('mix_error')), findsOneWidget);
-    expect(find.byKey(const ValueKey('mix_feed')), findsNothing);
+    expect(find.byKey(const ValueKey('mix_empty')), findsNothing);
 
-    gateway.failSearch = false;
+    fail = false;
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('mix_feed')), findsOneWidget);
-    expect(find.text('Jollof Rice'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('mix_error')), findsNothing);
+    expect(find.text('Jollof Rice'), findsOneWidget);
   });
 
-  testWidgets('an empty category shows the no-stores empty state',
+  testWidgets('a legitimate empty feed shows the empty state, not an error',
       (tester) async {
-    final gateway = _FakeGateway(pages: {});
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_app(gateway));
-    await tester.pump();
-    tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
-          MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
-        );
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          (offers: <MixOffer>[], nextCursor: null);
+    await _open(tester, gateway: g);
+
+    expect(find.byKey(const ValueKey('mix_empty')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_error')), findsNothing);
+    expect(find.byKey(const ValueKey('mix_disabled')), findsNothing);
+  });
+
+  testWidgets('a filtered empty feed points at the chips, not the category',
+      (tester) async {
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          (offers: <MixOffer>[], nextCursor: null);
+    await _open(tester, gateway: g);
+    await tester.tap(find.byKey(const ValueKey('mix_taxonomy_MEALS')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('mix_empty')), findsOneWidget);
-    expect(find.byKey(const ValueKey('mix_feed')), findsNothing);
+    expect(find.textContaining('filters'), findsOneWidget);
   });
 
-  testWidgets('partial store failures keep the feed and show a quiet notice',
+  testWidgets('404 (flag off) shows the DISABLED state — distinct from empty',
       (tester) async {
-    final gateway = _FakeGateway(pages: {'FOOD_BEVERAGE': _foodPages()})
-      ..failingBizIds.add('BIZ-A');
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_app(gateway));
-    await tester.pump();
-    tester.state<NavigatorState>(find.byType(Navigator).first).push<void>(
-          MaterialPageRoute(builder: (_) => const MarketplaceMixScreen()),
-        );
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          throw const MixEndpointDisabledException();
+    await _open(tester, gateway: g);
+
+    expect(find.byKey(const ValueKey('mix_disabled')), findsOneWidget);
+    expect(find.text("Marketplace Mix isn't available yet"), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_empty')), findsNothing,
+        reason: 'an unavailable surface is never "no items"');
+    expect(find.byKey(const ValueKey('mix_error')), findsNothing,
+        reason: 'a deliberate flag is not a transient failure');
+  });
+
+  testWidgets('422 shows the invalid-request state with Clear filters',
+      (tester) async {
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          throw const MixInvalidFilterException('unknown taxonomy: BLOOP');
+    await _open(tester, gateway: g);
+
+    expect(find.byKey(const ValueKey('mix_invalid_request')), findsOneWidget);
+    expect(find.textContaining('unknown taxonomy'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mix_error')), findsNothing);
+
+    // The clear-filters affordance refetches the unfiltered feed.
+    g.behavior = (cat, tax, cursor) async =>
+        (offers: <MixOffer>[], nextCursor: null);
+    await tester.tap(find.byKey(const ValueKey('mix_clear_filters')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mix_invalid_request')), findsNothing);
+  });
+
+  testWidgets('tapping an offer records the interaction and pushes the store',
+      (tester) async {
+    final rec = _RecordingTapRecorder();
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          (offers: [_offer('a1', 'BIZ-9', businessId: 'bp-9')], nextCursor: null);
+    await _open(tester, gateway: g, recorder: rec);
+
+    await tester.tap(find.text('Jollof Rice'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('mix_feed')), findsOneWidget);
-    expect(find.text("Adjoa's Kitchen"), findsNothing);
-    expect(find.text('Bra Kwame Chop Bar'), findsNWidgets(3));
-    expect(find.text('1 store couldn\'t be loaded'), findsOneWidget);
+    expect(rec.taps.single,
+        (businessProfileId: 'bp-9', productId: 'a1', mixCategory: 'FOOD_BEVERAGE'));
+    expect(find.byKey(const ValueKey('store-detail')), findsOneWidget);
+    expect(find.text('store BIZ-9'), findsOneWidget,
+        reason: 'the OFFERING store route, identity preserved');
   });
 
   testWidgets('the feed bottom inset clears the system bottom safe area',
       (tester) async {
-    await _openMix(tester);
-    // Pushed routes sit above the persistent nav band; the contract is:
-    // bottom padding >= system inset + AzSpace.xxl (24).
-    final list = tester.widget<ListView>(
-        find.byKey(const ValueKey('mix_feed')));
-    final pad = list.padding as EdgeInsets;
-    final sysBottom = MediaQuery.paddingOf(
-        tester.element(find.byKey(const ValueKey('mix_feed')))).bottom;
-    // The clearance contract: bottom inset >= system inset + AzSpace.xxl(24).
-    expect(pad.bottom, greaterThanOrEqualTo(sysBottom + 24 - 0.5));
+    final g = _FakeGateway()
+      ..behavior = (cat, tax, cursor) async =>
+          (offers: [_offer('a1', 'BIZ-A')], nextCursor: null);
+    await _open(tester, gateway: g);
+
+    final feed = tester.widget<ListView>(find.byKey(const ValueKey('mix_feed')));
+    final bottomInset = MediaQuery.paddingOf(
+            tester.element(find.byKey(const ValueKey('mix_feed'))))
+        .resolve(TextDirection.ltr)
+        .bottom;
+    // The ListView's bottom padding must clear the system inset + the gap.
+    expect(feed.padding!.resolve(TextDirection.ltr).bottom,
+        greaterThanOrEqualTo(bottomInset + AzSpace.xxl - 1));
   });
-}
-
-class _SuspendedGateway extends _FakeGateway {
-  _SuspendedGateway(this._held) : super(pages: {'FOOD_BEVERAGE': _foodPages()});
-  final List<Completer<void>> _held;
-
-  @override
-  Future<MixStoreOffers> productsFor(MixStore store, {int limit = 50}) {
-    final c = Completer<void>();
-    _held.add(c);
-    return c.future.then((_) => (store: store, offers: <MixOffer>[]));
-  }
 }

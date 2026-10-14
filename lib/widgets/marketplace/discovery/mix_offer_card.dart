@@ -2,17 +2,29 @@
 // AZAMAN — MIX OFFER CARD
 //
 // One item offered by ONE business in the selected category: item identity
-// and offering store rendered TOGETHER (the Mix invariant), plus honest price
-// and availability states.
+// and offering store rendered TOGETHER (the Mix invariant), plus honest
+// price, payment-rail and availability states.
 //
 // PRICE GRAMMAR (pinned in test/widgets/mix_offer_card_test.dart):
-//   • Known price  → `AzMoney.usdc(amount)` — the ONLY price the public payload
-//     carries today. NEVER relabelled as GHS (the GHS contract forbids
-//     converting `priceUsdc`), never zero-invented.
-//   • Unknown price → "Price unavailable" — never "USDC 0.00" / "GH₵ 0.00".
+//   • Known price  → `AzMoney.ghsExact(pricing.amount)` — the EXACT
+//     two-decimal GHS string from the server's verified BusinessPrice row.
+//     String in, string out: the amount is NEVER parsed into a double, so
+//     no float can ever round a pesewa.
+//   • Unknown price (absent/malformed/non-GHS payload) → "Price
+//     unavailable" — never `priceUsdc`, never a converted USDC figure, never
+//     "GH₵ 0.00", never "Price on request".
+// PAYMENT-RAIL GRAMMAR (honest capability, §5.3):
+//   • `capabilities.payableIn` renders as a quiet "USDC" rail chip when
+//     non-empty (today the merged endpoint reports `['USDC']`).
+//   • A GHS LISTING price never implies GHS payment: no GHS payment chip
+//     exists in this build because the server does not report one.
 // AVAILABILITY GRAMMAR:
 //   • `isAvailable == false` → a quiet "Unavailable" chip.
-//   • `isAvailable == null` (payload had no field) → NO availability signal.
+//   • `sectionWindowOpen == false` → a quiet "Opens later" chip (the
+//     item's serving window is closed right now).
+//   • `isAvailable == null` / `sectionWindowOpen == null` (absent fields)
+//     → NO availability signal. Availability is never inferred from a
+//     price or a missing field.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -44,6 +56,7 @@ class MixOfferCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final price = offer.price;
+    final priceText = price.isKnown ? AzMoney.ghsExact(price.amountExact) : null;
 
     return Padding(
       // Screen-level list insets own the horizontal gutter; the card itself
@@ -109,11 +122,12 @@ class MixOfferCard extends ConsumerWidget {
                       const SizedBox(height: AzSpace.sm),
                       Row(
                         children: [
-                          // Price — see the grammar in the file header.
-                          if (price.isKnown) ...[
+                          // Price — see the grammar in the file header. The
+                          // exact string never touches a double.
+                          if (priceText != null) ...[
                             Flexible(
                               child: Text(
-                                AzMoney.usdc(price.amount),
+                                priceText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style:
@@ -123,24 +137,23 @@ class MixOfferCard extends ConsumerWidget {
                           ] else
                             Text(
                               'Price unavailable',
+                              key: const ValueKey('mix_price_unavailable'),
                               style: AzText.bodyS.copyWith(color: colors.textTertiary),
                             ),
+                          // Payment rail — only what the SERVER reported as
+                          // supported (today USDC). Never GHS payment.
+                          if (offer.capabilities.payableIn.isNotEmpty) ...[
+                            const SizedBox(width: AzSpace.sm),
+                            _chip(colors, offer.capabilities.payableIn.join('/')),
+                          ],
                           // Availability — only when the payload said so.
                           if (offer.isAvailable == false) ...[
                             const SizedBox(width: AzSpace.sm),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colors.softSurface,
-                                borderRadius:
-                                    BorderRadius.circular(AzRadius.xs),
-                              ),
-                              child: Text(
-                                'Unavailable',
-                                style: AzText.caption.copyWith(color: colors.textTertiary, fontSize: 10),
-                              ),
-                            ),
+                            _chip(colors, 'Unavailable'),
+                          ],
+                          if (offer.sectionWindowOpen == false) ...[
+                            const SizedBox(width: AzSpace.sm),
+                            _chip(colors, 'Opens later'),
                           ],
                         ],
                       ),
@@ -154,6 +167,19 @@ class MixOfferCard extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _chip(AzamanColors colors, String label) => Container(
+        key: ValueKey('mix_chip_$label'),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(AzRadius.xs),
+        ),
+        child: Text(
+          label,
+          style: AzText.caption.copyWith(color: colors.textTertiary, fontSize: 10),
+        ),
+      );
 
   Widget _imageFallback(colors) => Container(
         color: colors.softSurface,

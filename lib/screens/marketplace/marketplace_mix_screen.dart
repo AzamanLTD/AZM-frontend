@@ -3,7 +3,10 @@
 //
 // The Mix mode from the Marketplace Mix redesign: pick a CATEGORY, see items
 // from MANY businesses in that category in one feed, compare offers, open the
-// offering store — never entering a store to browse a category.
+// offering store — never entering a store to browse a category. The feed is
+// ONE bounded request per page to the canonical backend endpoint
+// `GET /api/discovery/items` (backend PR #349), cursor-paginated, with the
+// selected category and taxonomy chips preserved while paging.
 //
 // REACHABILITY: pushed above the shell (the persistent bottom-nav band does
 // not overlap pushed routes), so bottom clearance is the system safe area +
@@ -11,10 +14,13 @@
 // adopt PR #151's `navBandClearance` helper instead — deliberately NOT
 // duplicated here (that helper only exists on #151's branch).
 //
-// STATES: loading skeletons · failed + retry · empty category (no stores) ·
-// ready with no listings · partial store failures (slim notice). Reduced
-// motion is honoured by the shared widgets (ScaleTap) and the absence of
-// enter/scroll animations on this screen.
+// STATES (each rendered honestly — see the provider's failure model):
+//   loading skeletons · failed + retry (network/5xx) · empty feed (a
+//   LEGITIMATE zero-item success) · disabled (the discovery surface is off —
+//   distinct from empty) · invalid request (a filter the server rejected) ·
+//   ready feed + taxonomy chip rail. Reduced motion is honoured by the
+//   shared widgets (ScaleTap) and the absence of enter/scroll animations on
+//   this screen.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -61,6 +67,7 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     final current = ref.read(marketplaceMixProvider);
     // Same category and already (successfully) loaded: no-op, like the dial.
     if (current.categoryWire == wire &&
+        current.taxonomies.isEmpty &&
         current.phase != MixPhase.failed &&
         current.phase != MixPhase.idle) {
       return;
@@ -92,11 +99,14 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
           children: [
             _header(colors, state.categoryWire),
             _categoryRail(colors, state.categoryWire),
+            _taxonomyRail(colors, state),
             Expanded(
               key: const ValueKey('mix_feed_slot'),
               child: switch (state.phase) {
                 MixPhase.idle || MixPhase.loading => _loading(colors),
                 MixPhase.failed => _failed(colors),
+                MixPhase.disabled => _disabled(colors),
+                MixPhase.invalidRequest => _invalidRequest(colors, state),
                 MixPhase.ready => _feed(colors, state),
               },
             ),
@@ -197,6 +207,63 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     );
   }
 
+  /// Canonical taxonomy chips for the selected category. Wire values only
+  /// ([MixTaxonomy.canonical] mirrors the backend overlay); a chip is NEVER
+  /// inferred from a section name.
+  Widget _taxonomyRail(AzamanColors colors, MarketplaceMixState state) {
+    final chips = MixTaxonomy.forCategory(state.categoryWire);
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AzSpace.xs),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          key: const ValueKey('mix_taxonomy_rail'),
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+          itemCount: chips.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AzSpace.xs),
+          itemBuilder: (_, i) {
+            final chip = chips[i];
+            final selected = state.taxonomies.contains(chip.id);
+            return GestureDetector(
+              key: ValueKey('mix_taxonomy_${chip.id}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                AzamanHaptics.selection();
+                ref
+                    .read(marketplaceMixProvider.notifier)
+                    .toggleTaxonomy(chip.id);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? colors.accent.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: selected ? colors.accent : colors.divider,
+                    width: selected ? 1.0 : 0.5,
+                  ),
+                ),
+                child: Text(
+                  chip.label,
+                  style: AzText.caption.copyWith(
+                    color: selected ? colors.accent : colors.textSecondary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _loading(AzamanColors colors) {
     return ListView.builder(
       key: const ValueKey('mix_loading'),
@@ -240,6 +307,52 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     );
   }
 
+  /// 404 — the discovery surface is not enabled/available. Deliberately
+  /// distinct from an empty feed: "no items yet" would be a false claim about
+  /// the backend state, and "error, retry" would misreport a deliberate flag
+  /// as a transient failure.
+  Widget _disabled(AzamanColors colors) {
+    return const Center(
+      child: SingleChildScrollView(
+        child: AzamanEmptyState(
+          key: ValueKey('mix_disabled'),
+          icon: Icons.travel_explore_outlined,
+          title: 'Marketplace Mix isn\'t available yet',
+          subtitle:
+              'Cross-store browsing is still being switched on. Please check back soon.',
+        ),
+      ),
+    );
+  }
+
+  /// 422 — the server rejected a request parameter. Surfaced honestly with
+  /// the server's own message and a filter-clear affordance; never retried
+  /// in a loop.
+  Widget _invalidRequest(AzamanColors colors, MarketplaceMixState state) {
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AzamanEmptyState(
+              key: const ValueKey('mix_invalid_request'),
+              icon: Icons.filter_alt_off_outlined,
+              title: 'That filter isn\'t supported',
+              subtitle: state.error ?? 'Please change the filters and try again.',
+            ),
+            const SizedBox(height: AzSpace.sm),
+            TextButton(
+              key: const ValueKey('mix_clear_filters'),
+              onPressed: () =>
+                  ref.read(marketplaceMixProvider.notifier).clearTaxonomies(),
+              child: const Text('Clear filters'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _feed(colors, MarketplaceMixState state) {
     if (state.offers.isEmpty) {
       final category = MixCategory.byWire(state.categoryWire);
@@ -248,12 +361,10 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
           child: AzamanEmptyState(
             key: const ValueKey('mix_empty'),
             icon: category?.icon ?? Icons.inventory_2_outlined,
-            title: state.stores.isEmpty
-                ? 'No stores in ${category?.label ?? 'this category'} yet'
-                : 'No listings yet in ${category?.label ?? 'this category'}',
-            subtitle: state.stores.isEmpty
-                ? 'New stores appear here as they join Azaman.'
-                : 'Stores in this category haven\'t listed any items yet.',
+            title: 'Nothing in ${category?.label ?? 'this category'} yet',
+            subtitle: state.taxonomies.isEmpty
+                ? 'New items appear here as stores list them.'
+                : 'No items match these filters. Try clearing a chip or two.',
           ),
         ),
       );
@@ -261,17 +372,17 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
-        // Near-end trigger for the next store page (deterministic, no
-        // infinite-loop risk: loadMoreStores is a no-op without a cursor).
+        // Near-end trigger for the next cursor page (deterministic, no
+        // infinite-loop risk: loadMore is a no-op without a cursor).
         if (n.metrics.extentAfter < 400) {
-          ref.read(marketplaceMixProvider.notifier).loadMoreStores();
+          ref.read(marketplaceMixProvider.notifier).loadMore();
         }
         return false;
       },
       child: ListView.builder(
         key: const ValueKey('mix_feed'),
         padding: _feedInsets(),
-        // +1 for the partial-failure notice / load-more tail row.
+        // +1 for the load-more tail row.
         itemCount: state.offers.length + 1,
         itemBuilder: (context, i) {
           if (i < state.offers.length) {
@@ -292,18 +403,6 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AzSpace.lg),
         child: Center(child: AzSkeleton(width: 120, height: 12)),
-      );
-    }
-    if (state.failedStores > 0) {
-      return Padding(
-        key: const ValueKey('mix_partial_failure'),
-        padding: const EdgeInsets.symmetric(vertical: AzSpace.sm),
-        child: Center(
-          child: Text(
-            '${state.failedStores} store${state.failedStores == 1 ? '' : 's'} couldn\'t be loaded',
-            style: AzText.caption.copyWith(color: colors.textTertiary),
-          ),
-        ),
       );
     }
     return const SizedBox(height: AzSpace.xxs);
