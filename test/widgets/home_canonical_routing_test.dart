@@ -20,12 +20,15 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/widgets/home/activity_actions.dart';
+import 'package:azaman/widgets/az_logo_mark.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 
-TransactionRecord _record(String rawType,
-    {double amountUsdc = -1,
-    Map<String, dynamic> metadata = const {},
-    String? providerRef}) {
+TransactionRecord _record(
+  String rawType, {
+  double amountUsdc = -1,
+  Map<String, dynamic> metadata = const {},
+  String? providerRef,
+}) {
   return TransactionRecord(
     id: 'txn-$rawType',
     rawType: rawType,
@@ -58,37 +61,41 @@ class _DispatchHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: ElevatedButton(
-            onPressed: () => ActivityActionResolver.dispatch(context, record),
-            child: const Text('dispatch'),
-          ),
-        ),
-      );
+    body: Center(
+      child: ElevatedButton(
+        onPressed: () => ActivityActionResolver.dispatch(context, record),
+        child: const Text('dispatch'),
+      ),
+    ),
+  );
 }
 
 Future<void> _pumpDispatchHost(
-    WidgetTester tester, TransactionRecord record) async {
+  WidgetTester tester,
+  TransactionRecord record,
+) async {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
+      GoRoute(path: '/', builder: (c, s) => _DispatchHost(record)),
       GoRoute(
-          path: '/',
-          builder: (c, s) => _DispatchHost(record)),
+        path: AzRoutes.accountActivity,
+        builder: (c, s) => _Sentinel(s.uri.toString()),
+      ),
       GoRoute(
-          path: AzRoutes.accountActivity,
-          builder: (c, s) => _Sentinel(s.uri.toString())),
+        path: '/deposit',
+        name: AzRouteNames.deposit,
+        builder: (c, s) => _Sentinel(s.uri.toString()),
+      ),
       GoRoute(
-          path: '/deposit',
-          name: AzRouteNames.deposit,
-          builder: (c, s) => _Sentinel(s.uri.toString())),
-      GoRoute(
-          path: '/trade/:tradeId',
-          builder: (c, s) => _Sentinel(s.uri.toString())),
+        path: '/trade/:tradeId',
+        builder: (c, s) => _Sentinel(s.uri.toString()),
+      ),
     ],
   );
   await tester.pumpWidget(
-      ProviderScope(child: MaterialApp.router(routerConfig: router)));
+    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+  );
 }
 
 void main() {
@@ -97,21 +104,26 @@ void main() {
         'MaterialPageRoute', (tester) async {
       // An unmappable raw type resolves to the Details fallback.
       await _pumpDispatchHost(
-          tester, _record('SYSTEM_MAINTENANCE', amountUsdc: 0));
+        tester,
+        _record('SYSTEM_MAINTENANCE', amountUsdc: 0),
+      );
 
       await tester.tap(find.text('dispatch'));
       await tester.pumpAndSettle();
 
-      expect(find.text(AzRoutes.accountActivity), findsOneWidget,
-          reason: 'the sentinel reached via the canonical location '
-              'renders it — Details went through the router, not a '
-              'MaterialPageRoute');
+      expect(
+        find.text(AzRoutes.accountActivity),
+        findsOneWidget,
+        reason:
+            'the sentinel reached via the canonical location '
+            'renders it — Details went through the router, not a '
+            'MaterialPageRoute',
+      );
     });
 
     testWidgets('View Deposit lands on /deposit (the fiat-default '
         'canonical route)', (tester) async {
-      await _pumpDispatchHost(
-          tester, _record('DEPOSIT_FIAT', amountUsdc: 5));
+      await _pumpDispatchHost(tester, _record('DEPOSIT_FIAT', amountUsdc: 5));
 
       await tester.tap(find.text('dispatch'));
       await tester.pumpAndSettle();
@@ -119,52 +131,73 @@ void main() {
       // AzRoutes.deposit() with no parameters — the query string stays
       // empty, so the route's own fiat-default builder behavior is
       // preserved exactly.
-      expect(find.text(AzRoutes.deposit()), findsOneWidget,
-          reason: 'View Deposit landed on the canonical /deposit '
-              'location with no query parameters — the fiat-default '
-              'behavior');
+      expect(
+        find.text(AzRoutes.deposit()),
+        findsOneWidget,
+        reason:
+            'View Deposit landed on the canonical /deposit '
+            'location with no query parameters — the fiat-default '
+            'behavior',
+      );
     });
 
     testWidgets('View Trade with a reference lands on /trade/:id via the '
         'registry', (tester) async {
-      await _pumpDispatchHost(tester,
-          _record('TRADE', metadata: {'tradeId': 'tx-9'}, providerRef: null));
+      await _pumpDispatchHost(
+        tester,
+        _record('TRADE', metadata: {'tradeId': 'tx-9'}, providerRef: null),
+      );
 
       await tester.tap(find.text('dispatch'));
       await tester.pumpAndSettle();
 
-      expect(find.text(AzRoutes.trade('tx-9')), findsOneWidget,
-          reason: 'the trade route is built by AzRoutes, not '
-              'interpolation');
+      expect(
+        find.text(AzRoutes.trade('tx-9')),
+        findsOneWidget,
+        reason:
+            'the trade route is built by AzRoutes, not '
+            'interpolation',
+      );
     });
 
     testWidgets('trade fallback without a reference lands on '
         '/account/activity, canonically', (tester) async {
       await _pumpDispatchHost(
-          tester, _record('P2P', amountUsdc: 3, providerRef: null));
+        tester,
+        _record('P2P', amountUsdc: 3, providerRef: null),
+      );
 
       await tester.tap(find.text('dispatch'));
       await tester.pumpAndSettle();
 
-      expect(find.text(AzRoutes.accountActivity), findsOneWidget,
-          reason: 'the no-reference trade fallback is the canonical '
-              'activity screen, reached through the router');
+      expect(
+        find.text(AzRoutes.accountActivity),
+        findsOneWidget,
+        reason:
+            'the no-reference trade fallback is the canonical '
+            'activity screen, reached through the router',
+      );
     });
   });
 
   group('PlusLauncherTrigger — semantics + animation-driven visuals', () {
-    Future<void> pumpTrigger(WidgetTester tester,
-        {required PlusLauncherController controller,
-        bool reducedMotion = false}) async {
+    Future<void> pumpTrigger(
+      WidgetTester tester, {
+      required PlusLauncherController controller,
+      bool reducedMotion = false,
+    }) async {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
             theme: ThemeProvider.getThemeData(AzamanTheme.light),
             home: MediaQuery(
-              data: const MediaQueryData(size: Size(400, 900))
-                  .copyWith(disableAnimations: reducedMotion),
+              data: const MediaQueryData(
+                size: Size(400, 900),
+              ).copyWith(disableAnimations: reducedMotion),
               child: Scaffold(
-                body: Center(child: PlusLauncherTrigger(controller: controller)),
+                body: Center(
+                  child: PlusLauncherTrigger(controller: controller),
+                ),
               ),
             ),
           ),
@@ -172,20 +205,23 @@ void main() {
       );
     }
 
-    final triggerFinder =
-        find.byKey(const ValueKey('plus-launcher-trigger'));
+    final triggerFinder = find.byKey(const ValueKey('plus-launcher-trigger'));
 
-    /// The rotation angle of the trigger's Transform, read from its
-    /// matrix (Transform.rotate stores a Matrix4, not a `angle` field).
-    /// Pure rotation about z: storage[0]=cos, storage[1]=sin.
-    double angle(WidgetTester tester) {
-      final m = tester
-          .widget<Transform>(find
-              .descendant(of: triggerFinder, matching: find.byType(Transform))
-              .first)
-          .transform
-          .storage;
-      return math.atan2(m[1], m[0]).abs();
+    /// 2026-10-12: the trigger no longer rotates a plus glyph — the real
+    /// AZM brand mark fills cumulatively (bottom-up: fill3 → fill2 →
+    /// fill1) as the affordance becomes active. The measurable visual
+    /// state is the AzLogoMark's per-segment fill.
+    AzLogoMark logo(WidgetTester tester) => tester.widget(
+      find.descendant(of: triggerFinder, matching: find.byType(AzLogoMark)),
+    );
+
+    /// Pumps the logo-fill (220ms) to completion plus the menu's own
+    /// settlement — the menu only opens after the FINAL segment lands.
+    Future<void> pumpThroughFill(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 110));
+      await tester.pump(const Duration(milliseconds: 110));
+      await tester.pump(const Duration(milliseconds: 50));
     }
 
     testWidgets('icon-only trigger announces "Open actions" closed and '
@@ -196,18 +232,27 @@ void main() {
 
       await pumpTrigger(tester, controller: controller);
 
-      expect(find.bySemanticsLabel('Open actions'), findsOneWidget,
-          reason: 'the closed state announces what the button does');
+      expect(
+        find.bySemanticsLabel('Open actions'),
+        findsOneWidget,
+        reason: 'the closed state announces what the button does',
+      );
       expect(find.bySemanticsLabel('Close actions'), findsNothing);
 
+      // 2026-10-12: the tap first plays the cumulative logo fill; the
+      // menu (and the honest "Close actions" label) arrive only after the
+      // final segment lands.
       await tester.tap(triggerFinder);
-      await tester.pump();
+      await pumpThroughFill(tester);
 
-      expect(find.bySemanticsLabel('Close actions'), findsOneWidget,
-          reason: 'the open state announces the current affordance');
+      expect(
+        find.bySemanticsLabel('Close actions'),
+        findsOneWidget,
+        reason: 'the open state announces the current affordance',
+      );
       expect(find.bySemanticsLabel('Open actions'), findsNothing);
 
-      // And back: closing flips the label again.
+      // And back: closing flips the label again (silently, immediately).
       await tester.tap(triggerFinder);
       await tester.pump();
       expect(find.bySemanticsLabel('Open actions'), findsOneWidget);
@@ -215,44 +260,79 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('the rotation rebuilds from the animation controller — '
-        'the visual state tracks the transition mid-flight (normal '
-        'motion)', (tester) async {
+    testWidgets('the cumulative logo fill tracks the transition '
+        'mid-flight (normal motion) — bottom-up, lower segments stay '
+        'filled', (tester) async {
       final controller = PlusLauncherController();
       addTearDown(controller.dispose);
 
       await pumpTrigger(tester, controller: controller);
 
-      // Closed at rest: no rotation at all.
-      expect(angle(tester), 0.0);
+      // Closed at rest: the brand mark is outline-only.
+      final rest = logo(tester);
+      expect(rest.fill3, 0.0);
+      expect(rest.fill2, 0.0);
+      expect(rest.fill1, 0.0);
+      expect(controller.isOpen, isFalse);
 
-      // Open. The controller starts the animation; the angle must track
-      // it tick by tick WITHOUT any parent rebuild happening — if the
-      // trigger relied on incidental rebuilds, the mid-flight angles
-      // below would all still read 0.
+      // Open. The tap plays the 220ms cumulative fill; the tree must
+      // rebuild from the fill controller tick by tick WITHOUT any parent
+      // rebuild — if the trigger relied on incidental rebuilds, the
+      // mid-flight fills below would all still read 0.
       await tester.tap(triggerFinder);
-      // A zero-duration pump anchors the ticker's clock (its first tick
-      // reports elapsed 0) — after this, advancing the clock moves the
-      // animation value.
+      // A zero-duration pump anchors the ticker's clock.
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 30));
-      final a1 = angle(tester);
-      expect(a1, allOf(greaterThan(0), lessThan(0.125 * 2 * math.pi)),
-          reason: 'mid-transition: partially rotated');
+      await tester.pump(const Duration(milliseconds: 55));
+      final m1 = logo(tester);
+      // t = 0.25 → the BASE segment (fill3) is a quarter-turned in…
+      expect(
+        m1.fill3,
+        allOf(greaterThan(0), lessThan(1)),
+        reason: 'the base segment fills first',
+      );
+      // …while the upper segments are still untouched.
+      expect(m1.fill2, 0.0, reason: 'the middle band has not started');
+      expect(m1.fill1, 0.0, reason: 'the top peak has not started');
+      expect(
+        controller.isOpen,
+        isFalse,
+        reason: 'the menu opens only after the final segment lands',
+      );
 
-      await tester.pump(const Duration(milliseconds: 60));
-      final a2 = angle(tester);
-      expect(a2, greaterThan(a1),
-          reason: 'the tree keeps rebuilding from _rot as it advances');
+      await tester.pump(const Duration(milliseconds: 55));
+      final m2 = logo(tester);
+      // t = 0.5 → the base is fully filled and STAYS filled, the middle
+      // band is in flight, the peak is still untouched.
+      expect(
+        m2.fill3,
+        1.0,
+        reason: 'the base stays filled while the next segment fills',
+      );
+      expect(
+        m2.fill2,
+        allOf(greaterThan(0), lessThan(1)),
+        reason: 'the middle band fills second',
+      );
+      expect(m2.fill1, 0.0);
 
-      await tester.pumpAndSettle();
-      expect(angle(tester), moreOrLessEquals(0.125 * 2 * math.pi),
-          reason: 'settled at the open-state quarter-eighth turn');
+      await pumpThroughFill(tester);
+      final m3 = logo(tester);
+      expect(m3.fill3, 1.0);
+      expect(m2.fill3, 1.0); // (unchanged guard, restated for clarity)
+      expect(m3.fill2, 1.0);
+      expect(m3.fill1, 1.0, reason: 'settled: the mark is fully filled');
+      expect(
+        controller.isOpen,
+        isTrue,
+        reason: 'the menu opens once the fill completes',
+      );
 
-      // Closing reverses through the same controller-driven path.
+      // Closing resets the mark predictably — never left half-filled.
       await tester.tap(triggerFinder);
       await tester.pumpAndSettle();
-      expect(angle(tester), 0.0);
+      final m4 = logo(tester);
+      expect(m4.fill3 + m4.fill2 + m4.fill1, 0.0);
+      expect(controller.isOpen, isFalse);
     });
 
     testWidgets('reduced motion: the visual state steps instantly between '
@@ -260,19 +340,28 @@ void main() {
       final controller = PlusLauncherController();
       addTearDown(controller.dispose);
 
-      await pumpTrigger(
-          tester, controller: controller, reducedMotion: true);
+      await pumpTrigger(tester, controller: controller, reducedMotion: true);
 
-      expect(angle(tester), 0.0);
-
-      await tester.tap(triggerFinder);
-      await tester.pump();
-      // A step, not an animation: the full open-state angle immediately.
-      expect(angle(tester), moreOrLessEquals(0.125 * 2 * math.pi));
+      expect(logo(tester).fill1, 0.0);
 
       await tester.tap(triggerFinder);
       await tester.pump();
-      expect(angle(tester), 0.0);
+      // A step, not an animation: the mark is fully filled and the menu
+      // open immediately.
+      final m = logo(tester);
+      expect(m.fill3, 1.0);
+      expect(m.fill2, 1.0);
+      expect(m.fill1, 1.0);
+      expect(controller.isOpen, isTrue);
+
+      await tester.tap(triggerFinder);
+      await tester.pump();
+      expect(
+        logo(tester).fill3,
+        0.0,
+        reason: 'closing resets the mark instantly',
+      );
+      expect(controller.isOpen, isFalse);
     });
   });
 
@@ -280,27 +369,41 @@ void main() {
     test('main.dart: the + launcher Add Cash action pushes the canonical '
         'deposit route', () {
       final source = File('lib/main.dart').readAsStringSync();
-      expect(source, contains('context.push(AzRoutes.deposit())'),
-          reason: 'Add Cash goes through the route registry');
       expect(
-          source,
-          isNot(contains(
-              "pushWithVerticalTransition(\n                        context,\n                        const DepositScreen")),
-          reason: 'the old imperative deposit helper is gone');
+        source,
+        contains('context.push(AzRoutes.deposit())'),
+        reason: 'Add Cash goes through the route registry',
+      );
+      expect(
+        source,
+        isNot(
+          contains(
+            "pushWithVerticalTransition(\n                        context,\n                        const DepositScreen",
+          ),
+        ),
+        reason: 'the old imperative deposit helper is gone',
+      );
     });
 
     test('activity_actions.dart: Details and Deposit navigate through '
-        'AzRoutes; the migrated screens are no longer constructed here',
-        () {
-      final source =
-          File('lib/widgets/home/activity_actions.dart').readAsStringSync();
+        'AzRoutes; the migrated screens are no longer constructed here', () {
+      final source = File(
+        'lib/widgets/home/activity_actions.dart',
+      ).readAsStringSync();
       expect(source, contains('AzRoutes.accountActivity'));
       expect(source, contains('AzRoutes.deposit()'));
-      expect(source, isNot(contains('const AccountActivityScreen(')),
-          reason: 'the details screen is reached by location, not by '
-              'constructing it over the router');
-      expect(source, isNot(contains('const DepositScreen(')),
-          reason: 'the deposit screen is reached by location too');
+      expect(
+        source,
+        isNot(contains('const AccountActivityScreen(')),
+        reason:
+            'the details screen is reached by location, not by '
+            'constructing it over the router',
+      );
+      expect(
+        source,
+        isNot(contains('const DepositScreen(')),
+        reason: 'the deposit screen is reached by location too',
+      );
       // SendMoney and Withdrawal still genuinely have no canonical
       // routes — their imperative navigation is the sanctioned exception.
       expect(source, contains('SendMoneyScreen'));
@@ -309,10 +412,14 @@ void main() {
 
     test('the + trigger rebuilds from the animation controller and '
         'announces both states', () {
-      final source = File('lib/widgets/home/plus_action_launcher.dart')
-          .readAsStringSync();
-      expect(source, contains('AnimatedBuilder'),
-          reason: 'the trigger listens to the rotation controller');
+      final source = File(
+        'lib/widgets/home/plus_action_launcher.dart',
+      ).readAsStringSync();
+      expect(
+        source,
+        contains('AnimatedBuilder'),
+        reason: 'the trigger listens to the rotation controller',
+      );
       expect(source, contains("'Open actions'"));
       expect(source, contains("'Close actions'"));
     });

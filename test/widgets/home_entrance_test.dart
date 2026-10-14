@@ -34,6 +34,7 @@ import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
+import 'package:azaman/widgets/notification_bell.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/material.dart';
@@ -53,20 +54,19 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
 
 /// Seeds the first-time tap hint as seen (it pulses on a repeating
 /// controller — real UX, but not part of the entrance) and pumps Home.
-Future<void> _pumpHome(
-  WidgetTester tester, {
-  bool reduceMotion = false,
-}) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+Future<void> _pumpHome(WidgetTester tester, {bool reduceMotion = false}) async {
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   // `runAsync` is required: reading the font file is real async I/O, which
   // the fake-async zone never completes on its own (it hangs the test) — the
   // golden harness documents the same constraint.
@@ -79,7 +79,8 @@ Future<void> _pumpHome(
       // initial fetch) out of the tree entirely.
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => BalanceData(availableBalance: 100)),
+        (ref) => BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
     ],
   );
@@ -93,8 +94,9 @@ Future<void> _pumpHome(
         // and fails layout on screens it actually fits.
         theme: ThemeProvider.getThemeData(AzamanTheme.light),
         home: MediaQuery(
-          data: MediaQueryData(size: _surfaceSize)
-              .copyWith(disableAnimations: reduceMotion),
+          data: MediaQueryData(
+            size: _surfaceSize,
+          ).copyWith(disableAnimations: reduceMotion),
           child: const Scaffold(body: AzamanHomePage()),
         ),
       ),
@@ -112,14 +114,11 @@ Future<void> _pumpHome(
 Iterable<Element> _ancestorsWithinHome(WidgetTester tester, Finder anchor) {
   final home = find.byType(AzamanHomePage).evaluate().first;
   final elements = <Element>[];
-  anchor
-      .evaluate()
-      .first
-      .visitAncestorElements((e) {
-        if (e == home) return false;
-        elements.add(e);
-        return true;
-      });
+  anchor.evaluate().first.visitAncestorElements((e) {
+    if (e == home) return false;
+    elements.add(e);
+    return true;
+  });
   return elements;
 }
 
@@ -146,36 +145,52 @@ List<SlideTransition> _ancestorSlides(WidgetTester tester, Finder anchor) {
 bool _hasNonIdentityScale(WidgetTester tester, Finder anchor) {
   return _ancestorsWithinHome(tester, anchor)
       .where((e) => e.widget is Transform)
-      .any((e) =>
-          ((e.widget as Transform).transform.getMaxScaleOnAxis() - 1).abs() >
-          0.01);
+      .any(
+        (e) =>
+            ((e.widget as Transform).transform.getMaxScaleOnAxis() - 1).abs() >
+            0.01,
+      );
 }
 
 // Content anchors, one per choreographed block (see the block map in
 // home_screen.dart's _stage — NEW-HOME's five-block composition). Block 1's
 // anchor is the heading WIDGET, not its text: the typewriter types its
 // message after the first frame, so the text is deliberately empty at t=0.
-Finder get _headerGift => find.byIcon(HugeIconsSolid.gift); // block 0
+// 2026-10-12 header refresh: block 0's anchor is the notification bell —
+// the rewards pill (and its gift icon) is gone; the bell is now the
+// leftmost header control and still part of the same entrance block.
+Finder get _headerAnchor => find.byType(NotificationBell); // block 0
 Finder get _heading => find.byType(AzTypewriterHeading); // block 1
 Finder get _deck => find.byType(PullRevealCardDeck); // block 2
 Finder get _modules => find.byType(WalletModulesRow); // block 3
 Finder get _doorway => find.byType(RecentActivityDoorway); // block 4
 
-List<Finder> get _anchors =>
-    [_headerGift, _heading, _deck, _modules, _doorway];
+List<Finder> get _anchors => [
+  _headerAnchor,
+  _heading,
+  _deck,
+  _modules,
+  _doorway,
+];
 
 void main() {
-  testWidgets(
-      'entrance completes: fully painted and at rest by 550ms',
-      (tester) async {
+  testWidgets('entrance completes: fully painted and at rest by 550ms', (
+    tester,
+  ) async {
     await _pumpHome(tester);
 
     // t=0: the choreography is real — the header block is still invisible.
-    final headerFades = _ancestorFades(tester, _headerGift);
-    expect(headerFades, isNotEmpty,
-        reason: 'header block has no entrance fade');
-    expect(headerFades.first.opacity.value, lessThan(0.99),
-        reason: 'home should still be entering at the first frame');
+    final headerFades = _ancestorFades(tester, _headerAnchor);
+    expect(
+      headerFades,
+      isNotEmpty,
+      reason: 'header block has no entrance fade',
+    );
+    expect(
+      headerFades.first.opacity.value,
+      lessThan(0.99),
+      reason: 'home should still be entering at the first frame',
+    );
 
     // t=550ms: the last block lands at 460ms. Every block must be fully
     // painted. flutter_animate starts each block from a delayed future and
@@ -187,19 +202,27 @@ void main() {
     }
     for (final anchor in _anchors) {
       final chain = _ancestorsWithinHome(tester, anchor)
-          .map((e) => e.widget is FadeTransition
-              ? 'Fade(${(e.widget as FadeTransition).opacity.value})'
-              : e.widget.runtimeType.toString())
+          .map(
+            (e) => e.widget is FadeTransition
+                ? 'Fade(${(e.widget as FadeTransition).opacity.value})'
+                : e.widget.runtimeType.toString(),
+          )
           .join(' > ');
       debugPrint('ANCHOR CHAIN: $chain');
       for (final fade in _ancestorFades(tester, anchor)) {
-        expect(fade.opacity.value, greaterThan(0.999),
-            reason: 'a fade is still running on $anchor at 550ms');
+        expect(
+          fade.opacity.value,
+          greaterThan(0.999),
+          reason: 'a fade is still running on $anchor at 550ms',
+        );
       }
       // …and sitting at rest: no slide offset left anywhere in its chain.
       for (final slide in _ancestorSlides(tester, anchor)) {
-        expect(slide.position.value, Offset.zero,
-            reason: 'a slide is still running on $anchor at 550ms');
+        expect(
+          slide.position.value,
+          Offset.zero,
+          reason: 'a slide is still running on $anchor at 550ms',
+        );
       }
     }
 
@@ -208,14 +231,13 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets(
-      'entrance direction: identity blocks from the left, wallet body '
+  testWidgets('entrance direction: identity blocks from the left, wallet body '
       'from below', (tester) async {
     await _pumpHome(tester);
 
     // First frame: every block sits exactly at its begin offset.
     // The header travels from the LEFT: negative x.
-    final header = _ancestorSlides(tester, _headerGift);
+    final header = _ancestorSlides(tester, _headerAnchor);
     expect(header, isNotEmpty, reason: 'header block has no entrance slide');
     expect(header.first.position.value.dx, lessThan(0));
 
@@ -233,12 +255,18 @@ void main() {
 
     // The modules and the doorway rise from BELOW as well.
     final modules = _ancestorSlides(tester, _modules);
-    expect(modules, isNotEmpty,
-        reason: 'wallet modules have no entrance slide');
+    expect(
+      modules,
+      isNotEmpty,
+      reason: 'wallet modules have no entrance slide',
+    );
     expect(modules.first.position.value.dy, greaterThan(0));
     final doorway = _ancestorSlides(tester, _doorway);
-    expect(doorway, isNotEmpty,
-        reason: 'activity doorway has no entrance slide');
+    expect(
+      doorway,
+      isNotEmpty,
+      reason: 'activity doorway has no entrance slide',
+    );
     expect(doorway.first.position.value.dy, greaterThan(0));
 
     // Let the entrance play out without waiting for the never-settling
@@ -246,27 +274,37 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets(
-      'reduced motion: Home is fully painted on the first frame',
-      (tester) async {
+  testWidgets('reduced motion: Home is fully painted on the first frame', (
+    tester,
+  ) async {
     await _pumpHome(tester, reduceMotion: true);
 
     // No fade in flight on any choreographed block…
     for (final anchor in _anchors) {
       for (final fade in _ancestorFades(tester, anchor)) {
-        expect(fade.opacity.value, greaterThan(0.999),
-            reason: 'a fade is still running on $anchor under reduced '
-                'motion');
+        expect(
+          fade.opacity.value,
+          greaterThan(0.999),
+          reason:
+              'a fade is still running on $anchor under reduced '
+              'motion',
+        );
       }
       // …and no entrance slide: the gate must remove them outright.
-      expect(_ancestorSlides(tester, anchor), isEmpty,
-          reason: '$anchor still carries a slide under reduced motion');
+      expect(
+        _ancestorSlides(tester, anchor),
+        isEmpty,
+        reason: '$anchor still carries a slide under reduced motion',
+      );
     }
 
     // The avatar pop-in is gone too — no non-identity scale anywhere in
     // its transform chain.
-    expect(_hasNonIdentityScale(tester, find.byType(Hero)), isFalse,
-        reason: 'avatar is scale-popping in under reduced motion');
+    expect(
+      _hasNonIdentityScale(tester, find.byType(Hero)),
+      isFalse,
+      reason: 'avatar is scale-popping in under reduced motion',
+    );
 
     await tester.pump(const Duration(seconds: 1));
   });

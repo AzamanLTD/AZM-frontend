@@ -96,7 +96,8 @@ class DemoCardProgramme implements AzmCardProgramme {
   }
 
   @override
-  String get maskedNumber => '4\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u202224';
+  String get maskedNumber =>
+      '4\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u202224';
 
   @override
   String get expiryLabel => 'MM/YY';
@@ -139,102 +140,106 @@ class AzmVisaCard extends ConsumerWidget {
       radius: 22,
       child: Stack(
         children: [
+          // 2026-10-12 footprint pass: 16 (was 18) — the deck's 165px card
+          // slot needs the interior to fit without overflow at all widths.
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
               children: [
-                Text(
-                  'AZM',
-                  style: AzText.titleL.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'AZM',
+                      style: AzText.titleL.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const Spacer(),
+                    // SAMPLE network mark — Visa-concept visual only. The
+                    // production network claim lives with the real card
+                    // programme, not this placeholder surface.
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'VISA',
+                        style: AzText.title.copyWith(
+                          color: const Color(0xFF1A1F71),
+                          fontWeight: FontWeight.w900,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const Spacer(),
-                // SAMPLE network mark — Visa-concept visual only. The
-                // production network claim lives with the real card
-                // programme, not this placeholder surface.
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
+                Text(
+                  ref.watch(azmCardProgrammeProvider).maskedNumber,
+                  style: AzText.titleXl.copyWith(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'VISA',
-                    style: AzText.title.copyWith(
-                      color: const Color(0xFF1A1F71),
-                      fontWeight: FontWeight.w900,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14,
-                      letterSpacing: 1,
-                    ),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.5,
                   ),
                 ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              ref.watch(azmCardProgrammeProvider).maskedNumber,
-              style: AzText.titleXl.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.5,
-              ),
-            ),
-            const SizedBox(height: AzSpace.md),
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: AzSpace.md),
+                Row(
                   children: [
-                    Text(
-                      'VALID THRU',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'VALID THRU',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          ref.watch(azmCardProgrammeProvider).expiryLabel,
+                          style: AzText.bodyL.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      ref.watch(azmCardProgrammeProvider).expiryLabel,
-                      style: AzText.bodyL.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: AzSpace.xl),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ref.watch(azmCardProgrammeProvider).cardholderLabel,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      name,
-                      style: AzText.bodyL.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    const SizedBox(width: AzSpace.xl),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ref.watch(azmCardProgrammeProvider).cardholderLabel,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          name,
+                          style: AzText.bodyL.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
-            ],
-          ),
           ),
           // Unmistakably-safe demo tag: this card has NOT been issued.
           // (Same datum as before the restyle, now stacked over the
@@ -441,8 +446,8 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
                   confirmingPin
                       ? 'Confirm your card PIN'
                       : isNewPin
-                          ? 'Set your card PIN'
-                          : 'Enter your card PIN',
+                      ? 'Set your card PIN'
+                      : 'Enter your card PIN',
                   style: AzText.titleXl.copyWith(color: colors.textPrimary),
                 ),
               ),
@@ -452,7 +457,7 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
           Text(
             confirmingPin
                 ? 'Re-enter the same PIN to confirm it. The card PIN is '
-                    'separate from your AZM account PIN.'
+                      'separate from your AZM account PIN.'
                 : 'The card PIN is separate from your AZM account PIN.',
             style: AzText.bodyS.copyWith(color: colors.textTertiary),
           ),
@@ -468,8 +473,8 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
               hintText: confirmingPin
                   ? 'Re-enter the same PIN'
                   : isNewPin
-                      ? 'Choose 4-6 digits'
-                      : 'Card PIN',
+                  ? 'Choose 4-6 digits'
+                  : 'Card PIN',
               counterText: '',
               errorText: _error,
             ),
@@ -486,11 +491,13 @@ class _CardPinGateSheetState extends ConsumerState<CardPinGateSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(confirmingPin
-                      ? 'Confirm PIN'
-                      : isNewPin
+                  : Text(
+                      confirmingPin
+                          ? 'Confirm PIN'
+                          : isNewPin
                           ? 'Set PIN'
-                          : 'Unlock card details'),
+                          : 'Unlock card details',
+                    ),
             ),
           ),
         ],

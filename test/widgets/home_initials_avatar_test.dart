@@ -1,11 +1,17 @@
 // =============================================================================
-// EXPERIENCE PASS §10 — Home avatar: initials only, for now.
+// EXPERIENCE PASS §10 + 2026-10-12 Home refresh — Home avatar: initials
+// only, on the far right of the header.
 //
 // The Home greeting header's avatar is a clean circular surface with the
 // user's INITIALS — no profile photo, no thick gradient ring, no
 // double-border. The photo stays supported elsewhere (profile, drawer,
-// P2P); this is a Home presentation decision. The tap must still open the
-// profile screen.
+// P2P); this is a Home presentation decision.
+//
+// 2026-10-12: the avatar now sits on the FAR RIGHT of the header (the
+// notification bell moved to the far left) and its tap opens the shell's
+// settings end drawer through the explicit AzamanHomePage.onOpenSettings
+// callback — it does NOT push the generic ProfileScreen anymore. The
+// profile surface is reached inside the drawer's own flows.
 // =============================================================================
 
 import 'dart:io';
@@ -32,8 +38,9 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -55,20 +62,22 @@ class _FixedAuth extends AuthProvider {
 }
 
 User _user({String? photo}) => User(
-      id: 'u1',
-      username: 'pyraxxz',
-      email: 'pyraxxz@azaman.test',
-      token: 'test-token',
-      role: 'USER',
-      profilePictureUrl: photo,
-    );
+  id: 'u1',
+  username: 'pyraxxz',
+  email: 'pyraxxz@azaman.test',
+  token: 'test-token',
+  role: 'USER',
+  profilePictureUrl: photo,
+);
 
 Future<ProviderContainer> _pumpHome(
   WidgetTester tester, {
   required User user,
+  VoidCallback? onOpenSettings,
 }) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
   final auth = _FixedAuth(user);
@@ -76,7 +85,8 @@ Future<ProviderContainer> _pumpHome(
     overrides: [
       authProvider.overrideWith((ref) => auth),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
     ],
   );
@@ -88,7 +98,7 @@ Future<ProviderContainer> _pumpHome(
         theme: ThemeProvider.getThemeData(AzamanTheme.light),
         home: MediaQuery(
           data: const MediaQueryData(size: _surfaceSize),
-          child: const Scaffold(body: AzamanHomePage()),
+          child: Scaffold(body: AzamanHomePage(onOpenSettings: onOpenSettings)),
         ),
       ),
     ),
@@ -100,23 +110,31 @@ Future<ProviderContainer> _pumpHome(
 }
 
 void main() {
-  testWidgets('the avatar renders the initials even when a photo exists',
-      (tester) async {
+  testWidgets('the avatar renders the initials even when a photo exists', (
+    tester,
+  ) async {
     await _pumpHome(tester, user: _user(photo: 'https://example.com/p.png'));
     // §10: initials-only on Home, for now — "Pyrax" => "P".
-    expect(find.descendant(
-        of: find.byWidgetPredicate((w) =>
-            w is Container &&
-            (w.decoration is BoxDecoration &&
-                (w.decoration as BoxDecoration).shape == BoxShape.circle &&
-                w.constraints?.maxWidth == 44)),
-        matching: find.text('P')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration is BoxDecoration &&
+                  (w.decoration as BoxDecoration).shape == BoxShape.circle &&
+                  w.constraints?.maxWidth == 44),
+        ),
+        matching: find.text('P'),
+      ),
+      findsOneWidget,
+    );
     // The avatar must NOT be a photo: no AzamanNetworkImage inside it.
     expect(find.byType(AzamanNetworkImage), findsNothing);
   });
 
-  testWidgets('the avatar keeps its subtle 1px rim and no gradient ring',
-      (tester) async {
+  testWidgets('the avatar keeps its subtle 1px rim and no gradient ring', (
+    tester,
+  ) async {
     await _pumpHome(tester, user: _user());
     // Exactly one border-decorated circular disc — no nested
     // double-container, no gradient ring (§10's premium-but-understated
@@ -138,20 +156,30 @@ void main() {
     expect(disc.constraints?.maxWidth, 44.0);
   });
 
-  testWidgets('tapping the avatar still opens the profile screen',
-      (tester) async {
-    await _pumpHome(tester, user: _user());
-    final avatarDisc = find.byWidgetPredicate((w) =>
-        w is Container &&
-        (w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).shape == BoxShape.circle &&
-            w.constraints?.maxWidth == 44));
-    expect(avatarDisc, findsOneWidget);
-    await tester.tap(avatarDisc);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    // Hero flight settles into the profile screen; its distinctive
-    // content must be present.
-    expect(find.byType(ProfileScreen), findsOneWidget);
-  });
+  testWidgets(
+    'tapping the avatar opens the settings drawer, not a route push',
+    (tester) async {
+      var drawerRequests = 0;
+      await _pumpHome(
+        tester,
+        user: _user(),
+        onOpenSettings: () => drawerRequests++,
+      );
+      final avatarDisc = find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            (w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).shape == BoxShape.circle &&
+                w.constraints?.maxWidth == 44),
+      );
+      expect(avatarDisc, findsOneWidget);
+      await tester.tap(avatarDisc);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      // 2026-10-12 contract: the tap routes through the shell's drawer
+      // callback — the profile ROUTE is never pushed from Home's header.
+      expect(drawerRequests, 1);
+      expect(find.byType(ProfileScreen), findsNothing);
+    },
+  );
 }

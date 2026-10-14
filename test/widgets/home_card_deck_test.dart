@@ -7,6 +7,7 @@
 // feel is pinned at the widget layer via the bottom card's laid-out
 // position.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
@@ -21,22 +22,29 @@ Future<void> _pumpDeck(
 }) async {
   await tester.pumpWidget(
     MediaQuery(
-      data: const MediaQueryData(size: _surface)
-          .copyWith(disableAnimations: reducedMotion),
-      child: MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: PullRevealCardDeck(
-              key: _deckKey,
-              cardHeight: 180,
-              onRevealChanged: onRevealChanged,
-              topCard: Container(
-                key: const Key('deck-top'),
-                color: const Color(0xFF111111),
-              ),
-              bottomCard: Container(
-                key: const Key('deck-bottom'),
-                color: const Color(0xFF444444),
+      data: const MediaQueryData(
+        size: _surface,
+      ).copyWith(disableAnimations: reducedMotion),
+      // 2026-10-12: the deck reads the balance-visibility provider (the
+      // relocated eye's flip guard — the deck must collapse before the
+      // face-down card's balance can flip), so the harness provides a
+      // ProviderScope with default state.
+      child: ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: PullRevealCardDeck(
+                key: _deckKey,
+                cardHeight: 180,
+                onRevealChanged: onRevealChanged,
+                topCard: Container(
+                  key: const Key('deck-top'),
+                  color: const Color(0xFF111111),
+                ),
+                bottomCard: Container(
+                  key: const Key('deck-bottom'),
+                  color: const Color(0xFF444444),
+                ),
               ),
             ),
           ),
@@ -58,16 +66,20 @@ void main() {
       // A quarter of the drag travel maps to a SIXTEENTH of the reveal —
       // the deck pushes back early.
       expect(PullRevealPhysics.revealFor(0.25), closeTo(0.0625, 1e-9));
-      expect(PullRevealPhysics.revealFor(0.25),
-          lessThan(0.25),
-          reason: 'reveal must lag the drag (resistance)');
+      expect(
+        PullRevealPhysics.revealFor(0.25),
+        lessThan(0.25),
+        reason: 'reveal must lag the drag (resistance)',
+      );
     });
 
     test('progress clamps to [0, 1]', () {
       expect(PullRevealPhysics.progressFor(-50), 0);
       expect(PullRevealPhysics.progressFor(0), 0);
       expect(
-          PullRevealPhysics.progressFor(PullRevealPhysics.travelPx * 3), 1.0);
+        PullRevealPhysics.progressFor(PullRevealPhysics.travelPx * 3),
+        1.0,
+      );
     });
 
     test('commit threshold is deliberate — accidental micro-drags never '
@@ -75,40 +87,93 @@ void main() {
       expect(PullRevealPhysics.commits(0.1), isFalse);
       expect(PullRevealPhysics.commits(0.3), isFalse);
       expect(PullRevealPhysics.commits(0.5), isFalse);
-      expect(PullRevealPhysics.commits(PullRevealPhysics.commitThreshold),
-          isTrue);
+      expect(
+        PullRevealPhysics.commits(PullRevealPhysics.commitThreshold),
+        isTrue,
+      );
       expect(PullRevealPhysics.commits(1.0), isTrue);
     });
   });
 
+  group('Home refresh §2C — default Visa-card silhouette', () {
+    testWidgets(
+      'the peek window rounds the visible Visa card bottom corners — '
+      'the resting sliver is never a straight cut',
+      (tester) async {
+        await _pumpDeck(tester);
+
+        // The window clip itself carries the rounded bottom corners.
+        final clip = tester.widget<ClipRRect>(
+          find.byType(ClipRRect).first,
+        );
+        expect(clip.borderRadius, isNotNull);
+        final radius = clip.borderRadius as BorderRadius;
+        expect(radius.bottomLeft, const Radius.circular(24),
+            reason: 'the visible Visa card must end in a rounded '
+                'bottom-left corner, matching the deck card-corner step');
+        expect(radius.bottomRight, const Radius.circular(24),
+            reason: 'the visible Visa card must end in a rounded '
+                'bottom-right corner');
+        // The top edge of the window stays straight — the pulled hero
+        // exits upward through it and the top-card reveal grammar is
+        // unchanged.
+        expect(radius.topLeft, Radius.zero);
+        expect(radius.topRight, Radius.zero);
+
+        // The resting geometry still holds: the bottom card peeks beneath
+        // the hero and sits fully inside the peek window (its bottom edge
+        // is the rounded clip, not a square cut from a bare ClipRect).
+        expect(find.byKey(const Key('deck-bottom')), findsOneWidget);
+        expect(find.byType(ClipRect), findsNothing,
+            reason: 'the deck must no longer clip the peek with a bare '
+                'ClipRect — that is the geometry defect §2C fixes');
+      },
+    );
+  });
+
   group('PullRevealCardDeck widget — the physical gesture feel', () {
-    testWidgets('resting state: the bottom card peeks beneath the hero',
-        (tester) async {
+    testWidgets('resting state: the bottom card peeks beneath the hero', (
+      tester,
+    ) async {
       await _pumpDeck(tester);
 
       final peek = PullRevealPhysics.restPeekPx;
       final heroTop = _topTop(tester);
       final bottomTop = _bottomTop(tester);
-      // The hero is fully visible; the Visa card sits directly under it
-      // with exactly the intended peek visible.
-      expect(bottomTop - heroTop, 180 - peek);
+      // 2026-10-12 depth treatment: at rest the under-card sits at 0.96
+      // scale (it recedes; the balance card is the foreground). The scale
+      // pivots at the card's centre, so the card's RENDERED top edge is
+      // pushed down by h*(1-0.96)/2 = 2% of the height.
+      const depthDrop = 180 * 0.02;
+      expect(bottomTop - heroTop, closeTo(180 - peek + depthDrop, 0.1));
+      // The visible sliver between the hero's bottom edge and the under
+      // card's rendered top stays inside the intended 16-20px band.
+      final visiblePeek = (heroTop + 180) - bottomTop;
+      expect(visiblePeek, greaterThanOrEqualTo(16));
+      expect(visiblePeek, lessThanOrEqualTo(20));
     });
 
-    testWidgets('a micro-drag reveals only slightly and returns to rest',
-        (tester) async {
+    testWidgets('a micro-drag reveals only slightly and returns to rest', (
+      tester,
+    ) async {
       var commits = 0;
-      await _pumpDeck(tester, onRevealChanged: (r) {
-        if (r) commits++;
-      });
+      await _pumpDeck(
+        tester,
+        onRevealChanged: (r) {
+          if (r) commits++;
+        },
+      );
       final restBottom = _bottomTop(tester);
 
       // 15px pull — an accidental micro-drag.
-      await tester.drag(
-          find.byKey(_deckKey), const Offset(0, -15));
+      await tester.drag(find.byKey(_deckKey), const Offset(0, -15));
       await tester.pump();
       final midPull = _bottomTop(tester);
-      expect(midPull, lessThan(restBottom),
-          reason: 'the pull must reveal the card slightly');
+      expect(
+        midPull,
+        lessThan(restBottom),
+        reason: 'the pull must reveal the card slightly',
+      );
 
       // Releasing below the threshold returns the deck to rest.
       await tester.pumpAndSettle();
@@ -124,8 +189,7 @@ void main() {
 
       // Pull past the threshold (travel 150 · threshold 0.55 → ~83px; 160px
       // is a deliberate full pull).
-      await tester.drag(
-          find.byKey(_deckKey), const Offset(0, -160));
+      await tester.drag(find.byKey(_deckKey), const Offset(0, -160));
       await tester.pumpAndSettle();
 
       expect(events, [true], reason: 'exactly one commit event');
@@ -133,42 +197,52 @@ void main() {
       expect(_bottomTop(tester), closeTo(heroTop, 0.5));
     });
 
-    testWidgets('pulled back: the same grammar in reverse returns safely',
-        (tester) async {
+    testWidgets('pulled back: the same grammar in reverse returns safely', (
+      tester,
+    ) async {
       final events = <bool>[];
       await _pumpDeck(tester, onRevealChanged: events.add);
 
       // Commit first.
-      await tester.drag(
-          find.byKey(_deckKey), const Offset(0, -160));
+      await tester.drag(find.byKey(_deckKey), const Offset(0, -160));
       await tester.pumpAndSettle();
       expect(events, [true]);
 
+      // Revealed: the under-card has advanced to full scale at the deck's
+      // top slot (rendered top 0). Its RESTING rendered top carries the
+      // depth drop from above (see the resting-state test).
+      const depthDrop = 180 * 0.02;
       final restBottom =
-          _bottomTop(tester) + 180 - PullRevealPhysics.restPeekPx;
+          _bottomTop(tester) + 180 - PullRevealPhysics.restPeekPx + depthDrop;
 
       // Pull back down past the threshold and release: collapse.
       await tester.drag(find.byKey(_deckKey), const Offset(0, 160));
       await tester.pumpAndSettle();
 
       expect(events, [true, false], reason: 'the collapse reports once');
-      expect(_bottomTop(tester), closeTo(restBottom, 0.5),
-          reason: 'the deck returns to its resting peek');
+      expect(
+        _bottomTop(tester),
+        closeTo(restBottom, 0.5),
+        reason: 'the deck returns to its resting peek',
+      );
     });
 
-    testWidgets('reduced motion: no spring traversal, direct transition',
-        (tester) async {
+    testWidgets('reduced motion: no spring traversal, direct transition', (
+      tester,
+    ) async {
       await _pumpDeck(tester, reducedMotion: true);
       final heroTop = _topTop(tester);
 
-      await tester.drag(
-          find.byKey(_deckKey), const Offset(0, -160));
+      await tester.drag(find.byKey(_deckKey), const Offset(0, -160));
       // ONE pump — under reduced motion the commit must land directly on
       // the final state; a spring would need many.
       await tester.pump();
 
-      expect(_bottomTop(tester), closeTo(heroTop, 0.5),
-          reason: 'reduced motion commits without spring traversal');
+      expect(
+        _bottomTop(tester),
+        closeTo(heroTop, 0.5),
+        reason: 'reduced motion commits without spring traversal',
+      );
       await tester.pump(const Duration(milliseconds: 50));
       expect(_bottomTop(tester), closeTo(heroTop, 0.5));
     });

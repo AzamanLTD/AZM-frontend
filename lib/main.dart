@@ -24,8 +24,7 @@ import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/widgets/nav_transitions.dart'
-    as nav_transitions_pkg;
+import 'package:azaman/widgets/nav_transitions.dart' as nav_transitions_pkg;
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
@@ -520,7 +519,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     super.initState();
     _shellSocketService = ref.read(socketServiceProvider);
 
-    _pages = [const AzamanHomePage(), null, null];
+    // 2026-10-12 Home refresh: Home's profile button opens the EXISTING
+    // settings end drawer through an explicit callback — the shell owns the
+    // Scaffold, so openEndDrawer is wired here at the widget boundary.
+    _pages = [AzamanHomePage(onOpenSettings: _openSettingsDrawer), null, null];
 
     _retap = NavRetapController(vsync: this);
     // NEW-C: publish the shell's presence + active tab to the contextual
@@ -548,7 +550,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _transitionCtrl.duration = AzMotion.of(context).travel
-        ? MotionTokens.emphasized : MotionTokens.control;
+        ? MotionTokens.emphasized
+        : MotionTokens.control;
+  }
+
+  void _openSettingsDrawer() {
+    _scaffoldKey.currentState?.openEndDrawer();
   }
 
   Widget _pageFor(int index) {
@@ -558,7 +565,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       case 2:
         return const MarketplaceHomeScreen();
       default:
-        return const AzamanHomePage();
+        return AzamanHomePage(onOpenSettings: _openSettingsDrawer);
     }
   }
 
@@ -633,10 +640,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// and no new navigation state is introduced.
   Widget _withPageTickerBudget(int index, Widget child) {
     final enabled = index == _selectedIndex || index == _displayedIndex;
-    return TickerMode(
-      enabled: enabled,
-      child: child,
-    );
+    return TickerMode(enabled: enabled, child: child);
   }
 
   /// Incoming page: 6% inset slide + fade in.
@@ -879,83 +883,88 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
           child: Stack(
             children: [
               AnimatedBuilder(
-              animation: _transitionCtrl,
-              builder: (context, child) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  for (var index = 0; index < _pages.length; index++)
-                    if (_pages[index] != null && index != _selectedIndex)
+                animation: _transitionCtrl,
+                builder: (context, child) => Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    for (var index = 0; index < _pages.length; index++)
+                      if (_pages[index] != null && index != _selectedIndex)
+                        _withPageTickerBudget(index, _buildOutgoing(index)),
+                    if (_pages[_selectedIndex] != null)
                       _withPageTickerBudget(
-                          index, _buildOutgoing(index)),
-                  if (_pages[_selectedIndex] != null)
-                    _withPageTickerBudget(
-                      _selectedIndex,
-                      _buildIncoming(_selectedIndex),
+                        _selectedIndex,
+                        _buildIncoming(_selectedIndex),
+                      ),
+                  ],
+                ),
+                child: const SizedBox.expand(),
+              ),
+              // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
+              // pull tag (vendor → dashboard, non-vendor → 3-pull apply
+              // flow) keeps its configured home on the HOME tab, the shell's
+              // primary surface in the 3-tab layout. The settings toggle
+              // (`vendorTagEnabled`) still decides whether it appears.
+              if (_displayedIndex == 0 &&
+                  ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
+                const VendorPullTab(),
+              DrawerPeekHint(
+                onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
+              ),
+              // NEW-HOME §8: the floating + action launcher, topmost in the
+              // shell stack. It means "things I can DO" (Recent Activity is
+              // "things that HAPPENED"). The + sits beside the bottom nav;
+              // opening de-emphasizes the content and the actions appear
+              // directly on screen — never inside a boxed modal.
+              Positioned.fill(
+                child: PlusActionLauncher(
+                  controller: _plus,
+                  actions: [
+                    PlusLauncherAction(
+                      // PASS F1 — the rounded arrow-head style from the
+                      // existing Hugeicons family: Send points outward
+                      // (up-right, away), Receive points inward (down-left,
+                      // toward you). Immediately understandable, no custom
+                      // SVG arrows. Primary actions (pass E): bright gold.
+                      icon: HugeIconsSolid.arrowUpRight01,
+                      prominent: true,
+                      label: 'Send',
+                      onTap: () =>
+                          nav_transitions_pkg.pushWithVerticalTransition(
+                            context,
+                            const SendMoneyScreen(),
+                          ),
                     ),
-                ],
+                    PlusLauncherAction(
+                      icon: HugeIconsSolid.arrowDownLeft01,
+                      prominent: true,
+                      label: 'Receive',
+                      onTap: () => showReceiveSheet(context),
+                    ),
+                    PlusLauncherAction(
+                      // PASS E — gold hierarchy: Add Cash and Withdraw are
+                      // secondary actions, so they carry the NEUTRAL chip;
+                      // bright gold stays reserved for Send/Receive.
+                      icon: HugeIconsSolid.wallet01,
+                      label: 'Add Cash',
+                      // CANONICAL ROUTE: /deposit owns the rise transition at
+                      // the route level (risePage) — the launcher pushes the
+                      // location, never a bare MaterialPageRoute-equivalent.
+                      // The route's builder defaults to the fiat tab, so the
+                      // Add Cash behavior is unchanged.
+                      onTap: () => context.push(AzRoutes.deposit()),
+                    ),
+                    PlusLauncherAction(
+                      icon: HugeIconsSolid.bank,
+                      label: 'Withdraw',
+                      onTap: () =>
+                          nav_transitions_pkg.pushWithVerticalTransition(
+                            context,
+                            const WithdrawalScreen(),
+                          ),
+                    ),
+                  ],
+                ),
               ),
-              child: const SizedBox.expand(),
-            ),
-            // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
-            // pull tag (vendor → dashboard, non-vendor → 3-pull apply
-            // flow) keeps its configured home on the HOME tab, the shell's
-            // primary surface in the 3-tab layout. The settings toggle
-            // (`vendorTagEnabled`) still decides whether it appears.
-            if (_displayedIndex == 0 &&
-                ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
-              const VendorPullTab(),
-            DrawerPeekHint(
-              onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
-            ),
-            // NEW-HOME §8: the floating + action launcher, topmost in the
-            // shell stack. It means "things I can DO" (Recent Activity is
-            // "things that HAPPENED"). The + sits beside the bottom nav;
-            // opening de-emphasizes the content and the actions appear
-            // directly on screen — never inside a boxed modal.
-            Positioned.fill(
-              child: PlusActionLauncher(
-                controller: _plus,
-                actions: [
-                  PlusLauncherAction(
-                    // PASS F1 — the rounded arrow-head style from the
-                    // existing Hugeicons family: Send points outward
-                    // (up-right, away), Receive points inward (down-left,
-                    // toward you). Immediately understandable, no custom
-                    // SVG arrows. Primary actions (pass E): bright gold.
-                    icon: HugeIconsSolid.arrowUpRight01,
-                    prominent: true,
-                    label: 'Send',
-                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
-                        context, const SendMoneyScreen()),
-                  ),
-                  PlusLauncherAction(
-                    icon: HugeIconsSolid.arrowDownLeft01,
-                    prominent: true,
-                    label: 'Receive',
-                    onTap: () => showReceiveSheet(context),
-                  ),
-                  PlusLauncherAction(
-                    // PASS E — gold hierarchy: Add Cash and Withdraw are
-                    // secondary actions, so they carry the NEUTRAL chip;
-                    // bright gold stays reserved for Send/Receive.
-                    icon: HugeIconsSolid.wallet01,
-                    label: 'Add Cash',
-                    // CANONICAL ROUTE: /deposit owns the rise transition at
-                    // the route level (risePage) — the launcher pushes the
-                    // location, never a bare MaterialPageRoute-equivalent.
-                    // The route's builder defaults to the fiat tab, so the
-                    // Add Cash behavior is unchanged.
-                    onTap: () => context.push(AzRoutes.deposit()),
-                  ),
-                  PlusLauncherAction(
-                    icon: HugeIconsSolid.bank,
-                    label: 'Withdraw',
-                    onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
-                        context, const WithdrawalScreen()),
-                  ),
-                ],
-              ),
-            ),
             ],
           ),
         ),

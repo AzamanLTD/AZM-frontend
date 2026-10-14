@@ -56,6 +56,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   late final Animation<double> _flip;
   bool _isBack = false;
 
+  /// NESTED-GESTURE CONTRACT (2026-10-12 refresh): the front face hosts the
+  /// relocated balance-visibility eye. The eye's own raw Listener marks this
+  /// guard on pointer-down; this card's flip Listener consumes the mark on
+  /// pointer-up and cedes the gesture, so tapping the eye NEVER also flips
+  /// the card while the card's established tap-to-flip keeps working.
+  final ValueNotifier<bool> _eyeClaimed = ValueNotifier<bool>(false);
+
   // Cached extras pulled lazily on first flip — re-fetched at most once per
   // [_extrasTtl] (the F-023 fix: this used to re-hit the network on every open).
   double _vaultLocked = 0;
@@ -68,15 +75,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
     // `spatial` (450ms) — a 3D flip is a large surface move, not a control
     // change, so it belongs on the spatial step. `symmetric` is the matching
     // curve: a flip has no "arriving" or "leaving" end, so it must ease both.
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: MotionTokens.spatial,
-    );
+    _ctrl = AnimationController(vsync: this, duration: MotionTokens.spatial);
     _flip = CurvedAnimation(parent: _ctrl, curve: MotionTokens.symmetric);
   }
 
   @override
   void dispose() {
+    _eyeClaimed.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -208,6 +213,12 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
         if (downAt == null) return;
         final dist = (e.position - downAt!).distance;
         downAt = null;
+        // The visibility eye owns this gesture (its own Listener marked the
+        // guard on pointer-down, before this up event). Cede it: toggling
+        // balance visibility must NEVER also flip the card.
+        final eyeClaimed = _eyeClaimed.value;
+        _eyeClaimed.value = false;
+        if (eyeClaimed) return;
         // Treat anything under 8px movement as a tap (lets the user
         // scroll the page without false-flipping the card).
         if (dist < 8) _toggle();
@@ -235,7 +246,7 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                       susuKnown: susuKnown,
                     ),
                   )
-                : const HologramBalanceCard(),
+                : HologramBalanceCard(flipGuard: _eyeClaimed),
           );
         },
       ),
@@ -403,9 +414,10 @@ class _BackFace extends ConsumerWidget {
                           // decimal places of proportion, which is ample: a
                           // bucket holding 0.1% of the total still receives a
                           // visible segment.
-                          flex: (row.value / railTotal * 1000)
-                              .round()
-                              .clamp(1, 1000),
+                          flex: (row.value / railTotal * 1000).round().clamp(
+                            1,
+                            1000,
+                          ),
                           child: ColoredBox(color: row.color),
                         ),
                   ],

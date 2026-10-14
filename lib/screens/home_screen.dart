@@ -27,14 +27,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/azm_rewards_screen.dart';
-import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -51,11 +48,19 @@ import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
+/// [onOpenSettings] — 2026-10-12 Home refresh: the profile button in the
+/// header opens the shell's EXISTING settings end drawer. The shell owns the
+/// Scaffold (lib/main.dart), so it injects the explicit openEndDrawer
+/// callback here instead of Home reaching for a global context shortcut or
+/// pushing a separate settings route. Test hosts without a drawer pass a
+/// recording callback (or none — a null callback renders the button inert,
+/// never throws).
 class AzamanHomePage extends ConsumerStatefulWidget {
-  const AzamanHomePage({super.key});
+  const AzamanHomePage({super.key, this.onOpenSettings});
+
+  final VoidCallback? onOpenSettings;
 
   @override
   ConsumerState<AzamanHomePage> createState() => _AzamanHomePageState();
@@ -270,9 +275,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // part of the scroll content and counts towards the fold.
     final foldHeight = _visibleBandHeight ?? scrollBox.size.height;
     final trueExtent =
-        doorwayBottomUnscrolled +
-        AzSpace.navClearance.bottom -
-        foldHeight;
+        doorwayBottomUnscrolled + AzSpace.navClearance.bottom - foldHeight;
 
     // PASS B5 — the deck is a FIXED compact strip; the measured spacer is
     // the deck→doorway gap. The content must end a deliberate few pixels
@@ -672,7 +675,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                 // Block 0 — header, arrives from the left.
                                 _stage(
                                   0,
-                                  const _GreetingHeader(),
+                                  _GreetingHeader(
+                                    onOpenSettings: widget.onOpenSettings,
+                                  ),
                                   reduceMotion,
                                 ),
 
@@ -857,7 +862,13 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
   final GlobalKey<PullRevealCardDeckState> _deckKey =
       GlobalKey<PullRevealCardDeckState>();
 
-  static const double _cardHeight = 180;
+  // 2026-10-12 refresh: the physical cards' footprint is reduced ~8% (180 →
+  // 165) so the stack reads tighter and the depth/cradle treatment gets room
+  // to breathe. Both cards' contents were audited at this height (no text
+  // clipping at 320dp width or with enlarged text — covered by the card
+  // widget tests); if a future change needs more height, revisit BOTH cards,
+  // not just this constant.
+  static const double _cardHeight = 165;
 
   @override
   Widget build(BuildContext context) {
@@ -936,28 +947,36 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
   }
 }
 
-/// The header: avatar (profile), rewards, notification bell, balance-visibility
-/// toggle. Kept from NEW-D — Home's identity row is not part of this task's
-/// information-hierarchy change.
+/// The header (2026-10-12 refresh): a simpler, more deliberate hierarchy.
+///
+///   [ Notifications ]                                    [ Profile ]
+///
+/// The EXISTING notification control moves to the former profile position on
+/// the far left; the profile button sits on the far right and opens the
+/// shell's existing settings end drawer via the explicit [onOpenSettings]
+/// callback — it does NOT push the generic ProfileScreen. The AZM Rewards
+/// pill and its Home entry point are removed (the rewards programme keeps its
+/// canonical route; the gamified pill is not relocated elsewhere). The
+/// balance-visibility eye has MOVED ONTO the physical balance card itself
+/// (BalanceVisibilityEye, relocated — not re-approximated).
 class _GreetingHeader extends ConsumerWidget {
-  const _GreetingHeader();
+  const _GreetingHeader({this.onOpenSettings});
+
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(authProvider).user;
-    final isVisible = ref.watch(balanceVisibleProvider);
     final reduceMotion = !AzMotion.of(context).travel;
     final username = user?.username ?? '';
     final initials = _initials(username);
 
     final avatarCore = ScaleTap(
+      // Opens the SHELL'S settings drawer — see the AzamanHomePage docs.
       onTap: () {
         AzamanHaptics.nav();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
+        onOpenSettings?.call();
       },
       child: Hero(
         tag: 'profile-avatar',
@@ -999,89 +1018,17 @@ class _GreetingHeader extends ConsumerWidget {
             curve: Curves.easeOutBack,
           );
 
+    // One row, two anchors: the notification control pinned left, the
+    // profile button pinned right. With only two controls the spacer can
+    // never collide on narrow screens, and each touch target keeps its full
+    // size regardless of available width.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          avatar,
-          const Spacer(),
-          ScaleTap(
-            onTap: () {
-              AzamanHaptics.nav();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AzmRewardsScreen()),
-              );
-            },
-            child: PremiumGlassContainer(
-              blur: 8,
-              opacity: 0.06,
-              borderRadius: 22,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              enableShadow: false,
-              border: Border.all(
-                color: colors.success.withValues(alpha: 0.2),
-                width: 0.5,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(HugeIconsSolid.gift, size: 15, color: colors.success),
-                  const SizedBox(width: 5),
-                  Text(
-                    (user?.azmBalance ?? 0) > 0
-                        ? "${user!.azmBalance.toStringAsFixed(0)} AZM"
-                        : 'Earn AZM',
-                    style: TextStyle(
-                      color: colors.success,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
           const NotificationBell(),
-          const SizedBox(width: 8),
-          ScaleTap(
-            onTap: () {
-              AzamanHaptics.toggle();
-              ref.read(balanceVisibleProvider.notifier).state = !isVisible;
-            },
-            child: PremiumGlassContainer(
-              blur: 8,
-              opacity: 0.06,
-              borderRadius: 20,
-              padding: EdgeInsets.zero,
-              enableShadow: false,
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: reduceMotion ? Duration.zero : 250.ms,
-                    transitionBuilder: (child, anim) => RotationTransition(
-                      turns: child.key == const ValueKey(true)
-                          ? Tween(begin: 0.5, end: 1.0).animate(anim)
-                          : Tween(begin: 1.0, end: 0.5).animate(anim),
-                      child: ScaleTransition(scale: anim, child: child),
-                    ),
-                    child: Icon(
-                      isVisible
-                          ? HugeIconsStroke.viewOff
-                          : HugeIconsStroke.view,
-                      key: ValueKey(isVisible),
-                      size: 18,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          const Spacer(),
+          Semantics(button: true, label: 'Profile and settings', child: avatar),
         ],
       ),
     );
