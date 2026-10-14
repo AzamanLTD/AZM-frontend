@@ -246,7 +246,21 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
     String? nextCursor;
     if (next == null) {
       nextCursor = null; // the valid, server-declared end of feed
-    } else if (next is String && next.isNotEmpty) {
+    } else if (next is String) {
+      // The cursor is an OPAQUE token: it must reach the server unmodified.
+      // A whitespace-only value is malformed, and leading/trailing padding
+      // would be stripped by query construction (mutating the token), so
+      // both fail the page as retryable rather than corrupting pagination.
+      final trimmed = next.trim();
+      if (trimmed.isEmpty) {
+        throw const MixRetryableException(
+            'discovery envelope carried a whitespace-only nextCursor');
+      }
+      if (trimmed != next) {
+        throw const MixRetryableException(
+            'discovery envelope nextCursor carried padding that would '
+            'mutate the opaque cursor');
+      }
       nextCursor = next;
     } else {
       throw const MixRetryableException(

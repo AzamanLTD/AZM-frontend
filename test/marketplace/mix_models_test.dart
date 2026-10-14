@@ -269,6 +269,20 @@ void main() {
       }
     });
 
+    test('a ZERO listing price is unknown — no free-item model is approved',
+        () {
+      // The approved contract requires a positive base GHS price. "0.00" is
+      // a well-shaped exact string that must STILL fail closed, and every
+      // zero representation ("00.00", "000.00") does too. Exact-string
+      // checks only — no double parsing.
+      for (final zero in ['0.00', '00.00', '000.00', '0.0']) {
+        final offer = MixOffer.fromDiscoveryDto(_dto(amount: zero));
+        expect(offer.price.status, MixPriceStatus.unknown,
+            reason: '"$zero" is zero money, never a fixed listing price');
+        expect(offer.price.amountExact, isNull);
+      }
+    });
+
     test('the string is preserved verbatim (25.00 ≠ 25.0 ≠ 25)', () {
       final fixed = MixOffer.fromDiscoveryDto(_dto(amount: '25.00')).price;
       expect(fixed.amountExact, '25.00');

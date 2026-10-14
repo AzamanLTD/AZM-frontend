@@ -174,6 +174,13 @@ class MixOfferPrice {
     if (!RegExp(r'^\d+\.\d{2}$').hasMatch(v)) {
       return const MixOfferPrice.unknown();
     }
+    // The approved contract requires a POSITIVE base GHS price — no
+    // free-item model exists. Exact-string check (no double parsing): a
+    // value whose every digit is zero ("0.00", "00.00", ...) is zero money
+    // and fails closed to unknown.
+    if (!v.replaceAll('.', '').contains(RegExp(r'[1-9]'))) {
+      return const MixOfferPrice.unknown();
+    }
     return MixOfferPrice.fixedGhs(v);
   }
 }

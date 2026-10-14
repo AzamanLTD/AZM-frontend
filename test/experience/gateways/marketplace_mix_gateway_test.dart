@@ -230,6 +230,34 @@ void main() {
       );
     });
 
+    test('a WHITESPACE-ONLY nextCursor is malformed → retryable', () async {
+      final wire = _Wire()
+        ..reply = http.Response(
+            jsonEncode({'success': true, 'items': [], 'nextCursor': '   '}),
+            200);
+      await expectLater(
+        HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+        throwsA(isA<MixRetryableException>()),
+      );
+    });
+
+    test('a PADDED nextCursor (leading/trailing whitespace) is rejected — the opaque token must not be mutated',
+        () async {
+      // Query construction trims values, which would MODIFY the opaque
+      // token; a padded cursor fails the page instead of corrupting it.
+      for (final padded in [' abc123', 'abc123 ', ' abc123 ']) {
+        final wire = _Wire()
+          ..reply = http.Response(
+              jsonEncode({'success': true, 'items': [], 'nextCursor': padded}),
+              200);
+        await expectLater(
+          HttpMarketplaceMixGateway(apiClient: _api(wire)).fetchItems(),
+          throwsA(isA<MixRetryableException>()),
+          reason: '"$padded" would be trimmed into a different token',
+        );
+      }
+    });
+
     test('a NON-MAP item row fails the whole page as retryable — never a silent truncation',
         () async {
       final wire = _Wire()
