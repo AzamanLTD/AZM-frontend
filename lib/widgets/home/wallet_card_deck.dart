@@ -170,8 +170,7 @@ class WalletCardDeckState extends State<WalletCardDeck>
   // Derived slots.
   double get _visaSlot => _topPad;
   double get _balanceSlot => _topPad + visaPeek;
-  double get _windowHeight =>
-      _balanceSlot + widget.cardHeight + _baseLip;
+  double get _windowHeight => _balanceSlot + widget.cardHeight + _baseLip;
 
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
@@ -286,14 +285,29 @@ class WalletCardDeckState extends State<WalletCardDeck>
   WalletDeckPose get currentPose =>
       WalletDeckPose.lerp(_fromPose, _targetPose, _eased(_ctrl.value));
 
-  static double _eased(double t) => Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
+  static double _eased(double t) =>
+      Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
 
   // ── State changes ──────────────────────────────────────────────────────
 
   /// Select a new state (tap on a selector or the selector row). A
   /// continuous handoff: one pose tween from wherever the deck is.
+  ///
+  /// TOGGLE-TO-TUCK (PR #154 review): tapping the selector of the card
+  /// that is ALREADY out re-tucks the deck — the same deliberate
+  /// selection gesture as the swipe-up return, for users who never
+  /// discover the swipe. Selecting the OTHER card still switches
+  /// directly. The re-tuck travels the same [_transitionTo] →
+  /// [Widget.onStateChanged] path as every return, so the Home host
+  /// clears the PIN gate and sensitive details exactly as it does for
+  /// the swipe.
   void select(WalletDeckState target) {
-    if (target == _state) return;
+    if (target == _state) {
+      if (target == WalletDeckState.tucked) return; // already home
+      AzamanHaptics.selection();
+      _transitionTo(WalletDeckState.tucked);
+      return;
+    }
     AzamanHaptics.selection();
     _transitionTo(target);
   }
@@ -364,7 +378,8 @@ class WalletCardDeckState extends State<WalletCardDeck>
   }
 
   void _onDragUpdate(DragUpdateDetails d) {
-    if (_state == WalletDeckState.tucked) return; // unreachable: tucked has null callbacks
+    if (_state == WalletDeckState.tucked)
+      return; // unreachable: tucked has null callbacks
     final dy = -d.delta.dy; // up (negative dy) returns the card
     if (dy <= 0) return; // a downward drag while out: ignore (no flip risk)
     _dragProgress = WalletDeckPhysics.progressFor(
@@ -578,10 +593,7 @@ class WalletCardDeckState extends State<WalletCardDeck>
                     // A physical surface: taps on the pocket do nothing —
                     // concealed card content can never be pressed through.
                     onTap: () {},
-                    child: WalletPocketSurface(
-                      mouthY: 8,
-                      dark: dark,
-                    ),
+                    child: WalletPocketSurface(mouthY: 8, dark: dark),
                   ),
                 ),
               ],
@@ -705,6 +717,9 @@ class _CardSelectorRow extends StatelessWidget {
         _SelectorChip(
           key: const ValueKey('wallet-select-balance'),
           label: 'Balance',
+          // Screen-reader labels stay the deck's full-sentence controls;
+          // only the VISIBLE chip text shortens (PR #154 review).
+          semanticsLabel: 'Reveal balance card',
           active: state == WalletDeckState.balanceOut,
           activeColor: scheme.primary,
           onTap: onSelectBalance,
@@ -712,7 +727,8 @@ class _CardSelectorRow extends StatelessWidget {
         const SizedBox(width: AzSpace.sm),
         _SelectorChip(
           key: const ValueKey('wallet-select-visa'),
-          label: 'AZM Visa',
+          label: 'Visa',
+          semanticsLabel: 'Open AZM Visa card',
           active: state == WalletDeckState.visaOut,
           activeColor: scheme.primary,
           onTap: onSelectVisa,
@@ -726,12 +742,17 @@ class _SelectorChip extends StatelessWidget {
   const _SelectorChip({
     super.key,
     required this.label,
+    required this.semanticsLabel,
     required this.active,
     required this.activeColor,
     required this.onTap,
   });
 
   final String label;
+
+  /// The full, meaningful a11y sentence — the visible label may be a
+  /// shortened word, but screen readers announce the whole control.
+  final String semanticsLabel;
   final bool active;
   final Color activeColor;
   final VoidCallback onTap;
@@ -741,7 +762,7 @@ class _SelectorChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
-      label: label == 'Balance' ? 'Reveal balance card' : 'Open AZM Visa card',
+      label: semanticsLabel,
       excludeSemantics: true,
       child: Material(
         color: active
@@ -760,9 +781,9 @@ class _SelectorChip extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: active ? activeColor : scheme.onSurfaceVariant,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                  ),
+                color: active ? activeColor : scheme.onSurfaceVariant,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+              ),
             ),
           ),
         ),
