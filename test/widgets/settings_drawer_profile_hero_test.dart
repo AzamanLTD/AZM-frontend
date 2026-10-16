@@ -239,9 +239,9 @@ void main() {
       expect(find.text('Verification'), findsOneWidget);
       expect(find.text('Verified'), findsOneWidget);
 
-      // Money group: merged saved-accounts card + currency + store.
-      expect(find.text('MoMo deposits'), findsOneWidget);
-      expect(find.text('Payout destinations'), findsOneWidget);
+      // Money group: the ONE Accounts row (deposits + payouts are a
+      // single concept — the mockup contract), currency, store.
+      expect(find.text('Accounts'), findsOneWidget);
       expect(find.text('Currency'), findsOneWidget);
       expect(find.text('Azaman Store'), findsOneWidget);
 
@@ -287,7 +287,10 @@ void main() {
       await _pumpDrawer(
         tester,
         user: _verifiedUser(),
-        surface: const Size(420, 800),
+        // The drawer content now fits a tall phone without scrolling, so the
+        // collapse contract is exercised on a shorter viewport where the
+        // scroll actually happens.
+        surface: const Size(420, 650),
       );
 
       // Expanded: hero content visible.

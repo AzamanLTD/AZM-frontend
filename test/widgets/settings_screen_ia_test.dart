@@ -14,6 +14,8 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,10 +92,16 @@ void main() {
     final state = tester.state<ScrollableState>(find.byType(Scrollable).first);
     var target = 0.0;
     while (f.evaluate().isEmpty &&
-        target <= state.position.maxScrollExtent + 200) {
-      state.position.jumpTo(target);
+        target < state.position.maxScrollExtent) {
+      // Clamp each step to the extent — short pages (fewer rows) must
+      // still reach their bottom instead of skipping past the cap.
+      state.position.jumpTo(math.min(target, state.position.maxScrollExtent));
       await tester.pump(const Duration(milliseconds: 50));
       target += 400;
+    }
+    if (f.evaluate().isEmpty && state.position.maxScrollExtent > 0) {
+      state.position.jumpTo(state.position.maxScrollExtent);
+      await tester.pump(const Duration(milliseconds: 50));
     }
     if (f.evaluate().isEmpty) {
       fail('never found $f after scrolling');
@@ -160,9 +168,8 @@ void main() {
       'Identity Verification',
       'Verified',
       'Refer & Earn',
-      // Money group — the merged saved-accounts card.
-      'MoMo deposits',
-      'Payout destinations',
+      // Money group — the ONE Accounts entry (mockup contract).
+      'Accounts',
       // Notifications group.
       'Push Notifications',
       'Trade Alerts',

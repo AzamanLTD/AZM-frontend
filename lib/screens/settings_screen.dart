@@ -43,6 +43,7 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
+import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/change_password_screen.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
@@ -51,8 +52,6 @@ import 'package:azaman/screens/support_screen.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/screens/referral_screen.dart';
-import 'package:azaman/screens/saved_wallets_screen.dart';
-import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -155,23 +154,12 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _NavRow(
                 colors: colors,
-                icon: Icons.arrow_downward,
-                title: 'MoMo deposits',
-                subtitle: 'STK-push accounts',
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Accounts',
+                subtitle: 'Deposits and payout destinations',
                 onTap: () => pushWithVerticalTransition(
                   context,
-                  const SavedMomoAccountsScreen(),
-                ),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.arrow_upward,
-                title: 'Payout destinations',
-                subtitle: 'Where withdrawals land',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const SavedWalletsScreen(),
+                  const AccountsScreen(),
                 ),
               ),
             ],
@@ -659,7 +647,7 @@ class _Divider extends StatelessWidget {
     // Indented past the icon chip; hairline only, 45% strength so
     // grouped rows stay quiet (mockup: no hard rules).
     return Padding(
-      padding: const EdgeInsets.only(left: 64, right: 16),
+      padding: const EdgeInsets.only(left: 52, right: 16),
       child: Divider(
         height: 1,
         thickness: 0.5,
@@ -698,19 +686,12 @@ class _NavRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
         child: Row(
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: tint.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: tint, size: 19),
-            ),
-            const SizedBox(width: 12),
+            // Mockup contract: clean bare icons — never boxed in chips.
+            Icon(icon, color: tint, size: 22),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,19 +767,11 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: colors.accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: colors.accent, size: 19),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: colors.accent, size: 22),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

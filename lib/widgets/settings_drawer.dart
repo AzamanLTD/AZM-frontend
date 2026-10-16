@@ -69,8 +69,7 @@ import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/saved_momo_accounts_screen.dart';
-import 'package:azaman/screens/saved_wallets_screen.dart';
+import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
@@ -345,18 +344,8 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
           },
           child: Column(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: colors.isDark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : colors.softSurface,
-                  borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: colors.divider),
-                ),
-                child: Icon(icon, color: colors.accent, size: 21),
-              ),
+              // Mockup contract: clean bare icons — no boxes.
+              Icon(icon, color: colors.accent, size: 24),
               const SizedBox(height: 7),
               Text(
                 label,
@@ -386,8 +375,7 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
           Icons.arrow_downward,
           'Deposit',
           () => Navigator.of(context).push(
-            MaterialPageRoute(
-                builder: (_) => const SavedMomoAccountsScreen()),
+            MaterialPageRoute(builder: (_) => const AccountsScreen()),
           ),
         ),
         action(
@@ -426,45 +414,18 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
     );
   }
 
-  /// The merged saved-accounts card: deposit (MoMo) and payout
-  /// destinations sit side by side as ONE physical concept.
+  /// The ONE accounts affordance (mockup contract): deposits and
+  /// withdrawals are a single 'Accounts' concept — it opens the hub
+  /// screen that holds both, so the drawer IA never splits them.
   Widget _savedAccountsCard(BuildContext context, AzamanColors colors) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.isDark
-            ? Colors.white.withValues(alpha: 0.025)
-            : colors.softSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.divider),
-      ),
-      child: Column(
-        children: [
-          _buildSlenderTile(
-            context,
-            colors,
-            title: 'MoMo deposits',
-            subtitle: 'Saved accounts for STK-push',
-            icon: Icons.arrow_downward,
-            iconColor: colors.success,
-            destination: const SavedMomoAccountsScreen(),
-          ),
-          Divider(
-            height: 1,
-            thickness: 0.5,
-            color: colors.divider,
-            indent: 56,
-          ),
-          _buildSlenderTile(
-            context,
-            colors,
-            title: 'Payout destinations',
-            subtitle: 'Where withdrawals land',
-            icon: Icons.arrow_upward,
-            iconColor: colors.warning,
-            destination: const SavedWalletsScreen(),
-          ),
-        ],
-      ),
+    return _buildSlenderTile(
+      context,
+      colors,
+      title: 'Accounts',
+      subtitle: 'Deposits and payout destinations',
+      icon: Icons.account_balance_wallet_outlined,
+      iconColor: colors.accent,
+      destination: const AccountsScreen(),
     );
   }
 
@@ -607,15 +568,8 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 16),
-            ),
+            // Mockup contract: clean bare icons — no plates.
+            Icon(icon, color: iconColor, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

@@ -215,7 +215,7 @@ void main() {
       expect(find.text('AZM-8273941'), findsOneWidget);
       expect(find.text('Account'), findsOneWidget);
       expect(find.text('Verified'), findsOneWidget);
-      expect(find.text('MoMo deposits'), findsOneWidget);
+      expect(find.text('Accounts'), findsOneWidget);
 
       await _capture(tester, '${mode}_settings');
     });
