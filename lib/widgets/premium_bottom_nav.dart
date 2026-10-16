@@ -290,7 +290,10 @@ const _kNavItems = [
   _NavItem(
     icon: HugeIconsStroke.store01,
     activeIcon: HugeIconsSolid.store01,
-    label: 'Marketplace',
+    // COMPACT-NAV — the visible selected-tab label is the short word
+    // 'Market' (the tab pill wraps to content now, so the label is part
+    // of the pill's identity, not a full-width row).
+    label: 'Market',
   ),
 ];
 
@@ -398,7 +401,12 @@ class PremiumBottomNav extends ConsumerWidget {
             child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
+              // COMPACT-NAV — the pill WRAPS TO ITS CONTENT instead of
+              // stretching across the band: Flexible(loose) lets the pill
+              // take its natural content width while staying bounded by
+              // the available band width (responsive, no fixed phone
+              // width assumption).
+              Flexible(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: inset),
                   child: Opacity(
@@ -447,9 +455,40 @@ class PremiumBottomNav extends ConsumerWidget {
                     : null,
                 boxShadow: AzElevation.level3(colors.isDark),
               ),
+              // COMPACT-NAV — the pill hugs its segments: interior padding
+              // around a content-sized row, never a stretched band.
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  // COMPACT-NAV — responsive label decision, not a fixed
+                  // phone width: the selected segment shows its label
+                  // only when the pill's content fits the available band
+                  // width WITH the label. On narrow surfaces the pill
+                  // falls back to the compact icon identity rather than
+                  // clipping or overflowing. Measured with the live text
+                  // scale, so large text scales hide before they clip.
+                  final selected = _kNavItems[selectedIndex.clamp(0, 2)];
+                  final labelWidth = _measureLabel(context, selected.label);
+                  // Labeled content width: 2×44 (inactive segments) +
+                  // 44 (the selected icon anchor) + 5+12 (label box
+                  // paddings) + labelWidth, + 2px slack = 151+labelWidth.
+                  // The constraints here are the pill's INTERIOR (its
+                  // own padding is already removed), so this is exact.
+                  final needed = 151 + labelWidth;
+                  final showLabel = constraints.maxWidth >= needed;
+                  // The label box's HARD CAP: even mid-animation (label
+                  // collapsing after a selection change or a surface
+                  // resize), the box can never exceed the pill's
+                  // remaining interior width, so the row can never
+                  // transiently overflow.
+                  final labelBudget =
+                      (constraints.maxWidth - 132).clamp(0.0, double.infinity);
                   Widget normalRow() => Row(
+                        mainAxisSize: MainAxisSize.min,
+                        // Stretch: every segment owns the FULL pill
+                        // height (>= 44dp), so each tab's touch target
+                        // is honest even as the pill compresses.
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: List.generate(
                           _kNavItems.length,
                           (i) => _NavButton(
@@ -458,6 +497,9 @@ class PremiumBottomNav extends ConsumerWidget {
                             index: i,
                             colors: colors,
                             reduceMotion: reduceMotion,
+                            showLabel:
+                                selectedIndex == i && showLabel,
+                            labelBudget: labelBudget,
                             onTap: () => _handleTap(i),
                             onLongPress: onTabLongPress == null
                                 ? null
@@ -542,6 +584,24 @@ class PremiumBottomNav extends ConsumerWidget {
   }
 }
 
+/// Measures a nav label's width at the CURRENT text scale — the input to
+/// the responsive showLabel decision. Cheap (one TextPainter per nav
+/// rebuild) and exact, so large text scales hide the label before it can
+/// clip instead of after.
+double _measureLabel(BuildContext context, String label) {
+  final tp = TextPainter(
+    text: TextSpan(
+      text: label,
+      style: AzText.caption.copyWith(fontWeight: FontWeight.w700),
+    ),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )
+    ..textDirection = TextDirection.ltr
+    ..layout();
+  return tp.width;
+}
+
 class _NavButton extends StatelessWidget {
   final _NavItem item;
   final bool isSelected;
@@ -551,6 +611,15 @@ class _NavButton extends StatelessWidget {
   /// Passed down so the nav does not re-read MediaQuery in four places.
   final bool reduceMotion;
 
+  /// COMPACT-NAV — whether the SELECTED segment may show its label here.
+  /// Always false for inactive segments: they stay compact icon controls.
+  final bool showLabel;
+
+  /// COMPACT-NAV: the responsive cap on the label box's width (the pill's
+  /// interior minus the three icon anchors), so the collapsing label can
+  /// never overflow the pill mid-animation.
+  final double labelBudget;
+
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   const _NavButton({
@@ -559,6 +628,8 @@ class _NavButton extends StatelessWidget {
     required this.index,
     required this.colors,
     required this.reduceMotion,
+    required this.showLabel,
+    required this.labelBudget,
     required this.onTap,
     this.onLongPress,
   });
@@ -567,45 +638,96 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isSelected ? colors.accent : colors.textTertiary;
 
-    // UX-CORRECTION §4 — resting nav is ICON-ONLY. The visible label is
-    // gone; the tab's identity lives on in Semantics so screen readers,
-    // selected-state announcements and the active-tab contract are
-    // unchanged.
-    return Expanded(
-      child: Semantics(
-        button: true,
-        selected: isSelected,
-        label: item.label,
-        child: GestureDetector(
+    // COMPACT-NAV — segments are content-sized inside a min-width pill
+    // row (never Expanded). The SELECTED segment shows its label when
+    // [showLabel] allows; inactive segments are compact icon controls.
+    // Touch targets stay honest: the pill's content row stretches every
+    // segment to the full pill height (48 at rest, 44 fully compressed —
+    // the floor), and every segment is at least 44 wide.
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: item.label,
+      child: GestureDetector(
         key: ValueKey('nav-item-$index'),
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon with scale bounce + cross-fade between outline/solid.
-            //
-            // NOTE (pre-existing, kept deliberately — F-026): `end` is
-            // `isSelected ? 1.0 : 0.92`, so the SELECTED icon is the full-size
-            // one and unselected icons are scaled down. That is the opposite
-            // of the usual convention, but it is the shipped behaviour and
-            // changing it belongs to a task about the nav's identity, not to
-            // scroll reactivity. `MotionTokens.spring` IS `Curves.easeOutBack`
-            // — the curve this icon always used, now via the token.
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 0.92),
-              duration: reduceMotion ? Duration.zero : MotionTokens.fast,
-              curve: MotionTokens.spring,
-              builder: (context, scale, child) =>
-                  Transform.scale(scale: scale, child: child),
-              child: _badge(context, color),
-            ),
+        child: _segment(context, color),
+      ),
+    );
+  }
 
-          ],
+  Widget _segment(BuildContext context, Color color) {
+    // Icon with scale bounce + cross-fade between outline/solid.
+    //
+    // NOTE (pre-existing, kept deliberately — F-026): `end` is
+    // `isSelected ? 1.0 : 0.92`, so the SELECTED icon is the full-size
+    // one and unselected icons are scaled down. That is the opposite
+    // of the usual convention, but it is the shipped behaviour and
+    // changing it belongs to a task about the nav's identity, not to
+    // scroll reactivity. `MotionTokens.spring` IS `Curves.easeOutBack`
+    // — the curve this icon always used, now via the token.
+    final icon = TweenAnimationBuilder<double>(
+      tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 0.92),
+      duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+      curve: MotionTokens.spring,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: _badge(context, color),
+    );
+
+    // The icon anchor NEVER moves: a stable 44-wide, full-height control
+    // in every state, so the expanding label never shifts the icon (no
+    // layout jump). The label expands to the icon's RIGHT.
+    final labeled = isSelected && showLabel;
+
+    // The expanding label: the canonical widthFactor tween. t goes
+    // 0 → 1 (label appears) or 1 → 0 (selection moved away) on the FAST
+    // motion token — restrained, continuous width, no jump. widthFactor
+    // 0 collapses the label's box to zero width, so the segment is
+    // exactly the icon anchor when no label shows. Reduced motion
+    // snaps t (Duration.zero): the label state is instant, nothing
+    // moves. The FINAL state is never clipped — ClipRect guards only
+    // the transient expansion.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(width: 44, child: Center(child: icon)),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: labeled ? 1.0 : 0.0),
+          duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+          curve: MotionTokens.enter,
+          builder: (context, t, child) => ClipRect(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              widthFactor: t,
+              child: Opacity(opacity: t, child: child),
+            ),
+          ),
+          // ExcludeSemantics: the button's Semantics node already
+          // announces the tab (label + selected state); a second visible
+          // text would MERGE with it and corrupt the announced label.
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: labelBudget),
+            child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 5, right: 12),
+              child: Text(
+                item.label,
+                maxLines: 1,
+                softWrap: false,
+                style: AzText.caption.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          ),
         ),
-      ),
-      ),
+      ],
     );
   }
 
