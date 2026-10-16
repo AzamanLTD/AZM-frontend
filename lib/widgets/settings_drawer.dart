@@ -30,15 +30,21 @@
 //     routes there; ProfileDetailsScreen remains one tap away in the
 //     PROFILE & IDENTITY group.
 //
-//   • DECLUTTERED + REGROUPED — HQ SHORTCUTS grid, the Vaults tile and the
-//     Rewards expansion (Auction/AzM/Referral) are removed from the drawer.
-//     Every underlying feature stays reachable at its canonical route or
-//     canonical screen: Vaults via the Savings tab, AzM Rewards via the
-//     P2P marketplace surface, account activity via Home/Recent Activity,
-//     Deposit/Withdraw via the money surfaces, KYC/Referral/Auction via
-//     their registered routes. Remaining destinations are regrouped:
-//     PROFILE & IDENTITY / MONEY & PAYMENT METHODS / SECURITY & PRIVACY /
-//     APPEARANCE & PREFERENCES / BUSINESS TOOLS (role-valid only).
+//   • REDESIGNED (Phantom-inspired, 2026-10-16) — the drawer is now
+//     identity + destinations, not a second settings hub:
+//     • QUICK ACTIONS — Withdraw / Deposit / QR / Refer as icon-first
+//       glass pills; management rows live below.
+//     • Sentence-case groups: Account (Profile, Verification with the
+//       REAL KYC chip), Money (merged saved-accounts card, Currency with
+//       the live value, Azaman Store), Security (Security & PIN with the
+//       REAL biometric chip from BiometricService).
+//     • Decorative one-word badges, the gear shortcut and the ALL-CAPS
+//       enterprise labels are GONE; state chips show real values only
+//       (empty state renders no chip at all).
+//     • One 'All settings' row routes to the canonical /settings page
+//       (AzRoutes.settings); the footer reads 'Azaman 3.1'.
+//     • _WorkerCard (role-valid only) and the pinned scroll-driven
+//       hero survive untouched.
 //
 // The "Eclipse Glow" backdrop (single static RadialGradient halo, no
 // painters/scan-lines) and the frosted-glass shell are preserved.
@@ -56,14 +62,17 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
+import 'package:azaman/models/currency_model.dart';
+import 'package:azaman/screens/kyc_verification_screen.dart';
+import 'package:azaman/screens/referral_screen.dart';
+import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/saved_momo_accounts_screen.dart';
-import 'package:azaman/screens/saved_wallets_screen.dart';
+import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
-import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -71,11 +80,33 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/qr_profile_popup.dart';
 
-class SettingsDrawer extends ConsumerWidget {
+class SettingsDrawer extends ConsumerStatefulWidget {
   const SettingsDrawer({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsDrawer> createState() => _SettingsDrawerState();
+}
+
+class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
+  // Real state for the Security chip — loaded from the same store the
+  // Security Center screen reads (BiometricService.isEnabled). No fake
+  // badges: if biometrics are off the chip simply doesn't render.
+  bool _biometricsOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final enabled = await BiometricService().isEnabled;
+    if (mounted) setState(() => _biometricsOn = enabled);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(currentUserProvider).value;
     // Business profile state is prefetched below and consumed by the
@@ -122,7 +153,6 @@ class SettingsDrawer extends ConsumerWidget {
               SafeArea(
                 child: Column(
                   children: [
-                    _buildTopActionBar(context, colors),
                     Expanded(
                       child: CustomScrollView(
                         physics: const BouncingScrollPhysics(),
@@ -136,184 +166,108 @@ class SettingsDrawer extends ConsumerWidget {
                             ),
                           ),
 
-                          // ── REGROUPED DESTINATIONS ─────────────────────
+                          // ── QUICK ACTIONS ──────────────────────────────
+                          // Actions live here; management lives in the
+                          // groups below and everything else in Settings.
                           SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                             sliver: SliverList(
                               delegate: SliverChildListDelegate([
                                 _animatedWrapper(
                                   context,
                                   delay: 3,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionHeader(
-                                        'PROFILE & IDENTITY',
-                                        colors: colors,
-                                      ),
-                                      const SizedBox(height: 8),
+                                  child: _buildQuickActions(context, colors),
+                                ),
+                              ]),
+                            ),
+                          ),
+
+                          // ── GROUPS ─────────────────────────────────────
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                            sliver: SliverList(
+                              delegate: SliverChildListDelegate([
+                                _animatedWrapper(
+                                  context,
+                                  delay: 4,
+                                  child: _buildGroup(
+                                    context,
+                                    colors,
+                                    label: 'Account',
+                                    rows: [
                                       _buildMenuItem(
                                         context,
                                         Icons.person_outline,
-                                        'Profile Details',
-                                        'View',
+                                        'Profile',
                                         colors,
                                         destination:
                                             const ProfileDetailsScreen(),
                                       ),
                                       _buildMenuItem(
                                         context,
-                                        Icons.share_outlined,
-                                        'Share Profile',
-                                        'QR',
+                                        Icons.verified_user_outlined,
+                                        'Verification',
                                         colors,
-                                        destination: const ShareProfileScreen(),
+                                        chip: _kycChip(ref),
+                                        destination:
+                                            const KycVerificationScreen(),
                                       ),
                                     ],
                                   ),
                                 ),
-
-                                const SizedBox(height: 24),
-
-                                // MONEY & PAYMENT METHODS
-                                //
-                                // Both deposit destinations (where users
-                                // send funds INTO Azaman) and withdrawal
-                                // destinations (where Azaman sends funds
-                                // OUT) live side-by-side under one Money
-                                // group. The Withdraw entry is the quick
-                                // action; the addresses manage the saved
-                                // external accounts used by those flows.
+                                const SizedBox(height: 18),
                                 _animatedWrapper(
                                   context,
-                                  delay: 4,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionHeader(
-                                        'MONEY & PAYMENT METHODS',
-                                        colors: colors,
-                                      ),
-                                      const SizedBox(height: 8),
+                                  delay: 5,
+                                  child: _buildGroup(
+                                    context,
+                                    colors,
+                                    label: 'Money',
+                                    rows: [
+                                      _savedAccountsCard(context, colors),
+                                      const SizedBox(height: 4),
                                       _buildMenuItem(
                                         context,
-                                        Icons.send_outlined,
-                                        'Withdraw',
-                                        'Funds',
+                                        Icons.attach_money,
+                                        'Currency',
                                         colors,
-                                        destination: const WithdrawalScreen(),
+                                        chip: ref
+                                            .watch(currencyProvider)
+                                            .name
+                                            .toUpperCase(),
+                                        onTapOverride: () =>
+                                            _pickCurrency(context, colors),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: colors.isDark
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.025,
-                                                )
-                                              : colors.softSurface,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: colors.divider,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            _buildSlenderTile(
-                                              context,
-                                              colors,
-                                              title: 'Deposit Addresses',
-                                              subtitle:
-                                                  'Saved MoMo accounts for STK-push deposits',
-                                              icon: Icons.arrow_downward,
-                                              iconColor: colors.success,
-                                              destination:
-                                                  const SavedMomoAccountsScreen(),
-                                            ),
-                                            Divider(
-                                              height: 1,
-                                              thickness: 0.5,
-                                              color: colors.divider,
-                                              indent: 56,
-                                            ),
-                                            _buildSlenderTile(
-                                              context,
-                                              colors,
-                                              title: 'Withdrawal Addresses',
-                                              subtitle:
-                                                  'MoMo & crypto payout destinations',
-                                              icon: Icons.arrow_upward,
-                                              iconColor: colors.warning,
-                                              destination:
-                                                  const SavedWalletsScreen(),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
                                       _buildMenuItem(
                                         context,
                                         Icons.storefront_outlined,
                                         'Azaman Store',
-                                        'Skins',
-                                        colors,
-                                        destination: const AzamanStoreScreen(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(height: 24),
-
-                                _animatedWrapper(
-                                  context,
-                                  delay: 5,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionHeader(
-                                        'SECURITY & PRIVACY',
-                                        colors: colors,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.security,
-                                        'Security Center',
-                                        'High',
                                         colors,
                                         destination:
-                                            const SecuritySettingsScreen(),
+                                            const AzamanStoreScreen(),
                                       ),
                                     ],
                                   ),
                                 ),
-
-                                const SizedBox(height: 24),
-
+                                const SizedBox(height: 18),
                                 _animatedWrapper(
                                   context,
                                   delay: 6,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionHeader(
-                                        'APPEARANCE & PREFERENCES',
-                                        colors: colors,
-                                      ),
-                                      const SizedBox(height: 8),
+                                  child: _buildGroup(
+                                    context,
+                                    colors,
+                                    label: 'Security',
+                                    rows: [
                                       _buildMenuItem(
                                         context,
-                                        Icons.palette_outlined,
-                                        'Theme',
-                                        'Style',
+                                        Icons.lock_outline,
+                                        'Security & PIN',
                                         colors,
-                                        destination: const ThemePickerScreen(),
+                                        chip: _biometricsOn
+                                            ? 'Biometrics on'
+                                            : null,
+                                        destination:
+                                            const SecuritySettingsScreen(),
                                       ),
                                     ],
                                   ),
@@ -322,21 +276,40 @@ class SettingsDrawer extends ConsumerWidget {
                                 // ── BUSINESS TOOLS (role-valid only) ────
                                 // _WorkerCard renders nothing unless the
                                 // signed-in user is an active employee.
-                                _WorkerCard(colors: colors),
+                                _animatedWrapper(
+                                  context,
+                                  delay: 7,
+                                  child: _WorkerCard(colors: colors),
+                                ),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 14),
+
+                                // ── CANONICAL SETTINGS ──────────────────
+                                // The drawer is identity + destinations;
+                                // every preference control lives once, in
+                                // the Settings page.
+                                _animatedWrapper(
+                                  context,
+                                  delay: 8,
+                                  child: _buildAllSettingsRow(
+                                    context,
+                                    colors,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 24),
                                 Center(
                                   child: Text(
-                                    'AZAMAN PROTOCOL V3.0 — THEMED',
+                                    'Azaman 3.1',
                                     style: TextStyle(
                                       color: colors.textTertiary,
-                                      fontSize: 8,
-                                      letterSpacing: 2,
+                                      fontSize: 9,
+                                      letterSpacing: 1.2,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 24),
-                              ]),
+                                const SizedBox(height: 20),
+]),
                             ),
                           ),
                         ],
@@ -353,35 +326,209 @@ class SettingsDrawer extends ConsumerWidget {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // TOP ACTION BAR — gear opens the canonical /settings route.
-  // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildTopActionBar(BuildContext context, AzamanColors colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          IconButton(
-            icon: Icon(Icons.settings_outlined, color: colors.accent),
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              // NEW-A: canonical /settings route.
-              context.push(AzRoutes.settings);
-            },
+  // QUICK ACTIONS — the four things people actually open the drawer for.
+  // Circular glass buttons, icon-first, labels underneath. These are
+  // ACTIONS; management rows live in the groups below.
+  Widget _buildQuickActions(BuildContext context, AzamanColors colors) {
+    Widget action(
+      IconData icon,
+      String label,
+      VoidCallback onTap,
+    ) {
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).pop();
+            onTap();
+          },
+          child: Column(
+            children: [
+              // Mockup contract: clean bare icons — no boxes.
+              Icon(icon, color: colors.accent, size: 24),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        action(
+          Icons.arrow_outward,
+          'Withdraw',
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const WithdrawalScreen()),
+          ),
+        ),
+        action(
+          Icons.arrow_downward,
+          'Deposit',
+          // The canonical deposit experience (STK-push MoMo deposits,
+          // the same screen /deposit routes to). AccountsScreen is the
+          // saved-accounts surface — not what "Deposit" promises.
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const DepositScreen()),
+          ),
+        ),
+        action(
+          Icons.qr_code_2,
+          'QR',
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ShareProfileScreen()),
+          ),
+        ),
+        action(
+          Icons.card_giftcard_outlined,
+          'Refer',
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ReferralScreen()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Sentence-case group: a small muted label above the rows. No caps, no
+  /// enterprise shouting — the rows are the hierarchy.
+  Widget _buildGroup(
+    BuildContext context,
+    AzamanColors colors, {
+    required String label,
+    required List<Widget> rows,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(label, colors: colors),
+        const SizedBox(height: 6),
+        ...rows,
+      ],
+    );
+  }
+
+  /// The ONE accounts affordance (mockup contract): deposits and
+  /// withdrawals are a single 'Accounts' concept — it opens the hub
+  /// screen that holds both, so the drawer IA never splits them.
+  Widget _savedAccountsCard(BuildContext context, AzamanColors colors) {
+    return _buildSlenderTile(
+      context,
+      colors,
+      title: 'Accounts',
+      subtitle: 'Deposits and payout destinations',
+      icon: Icons.account_balance_wallet_outlined,
+      iconColor: colors.accent,
+      destination: const AccountsScreen(),
+    );
+  }
+
+  /// The single drawer affordance for the canonical Settings page.
+  Widget _buildAllSettingsRow(BuildContext context, AzamanColors colors) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).pop();
+        context.push(AzRoutes.settings);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.accent.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colors.accent.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.tune, color: colors.accent, size: 17),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'All settings',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward, color: colors.accent, size: 16),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Real KYC state chip — the same KycStatus the backend returns. No
+  /// decoration: unverified renders no chip at all.
+  String? _kycChip(WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).value;
+    switch (user?.kycStatus) {
+      case KycStatus.verified:
+        return 'Verified';
+      case KycStatus.pending:
+        return 'Pending';
+      case KycStatus.rejected:
+        return 'Action needed';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _pickCurrency(BuildContext context, AzamanColors colors) async {
+    HapticFeedback.lightImpact();
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            for (final option in const ['USDC', 'GHS'])
+              ListTile(
+                title: Text(
+                  option,
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+                onTap: () => Navigator.pop(sheet, option),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      await ref
+          .read(currencyProvider.notifier)
+          .set(picked == 'GHS' ? DisplayCurrency.ghs : DisplayCurrency.usdc);
+    }
   }
 
   Widget _buildSectionHeader(String title, {required AzamanColors colors}) {
     return Text(
       title,
       style: TextStyle(
-        color: colors.textSecondary,
-        fontSize: 10,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 1.5,
+        color: colors.textTertiary,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
       ),
     );
   }
@@ -425,15 +572,8 @@ class SettingsDrawer extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 16),
-            ),
+            // Mockup contract: clean bare icons — no plates.
+            Icon(icon, color: iconColor, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -471,32 +611,34 @@ class SettingsDrawer extends ConsumerWidget {
     BuildContext context,
     IconData icon,
     String title,
-    String tag,
     AzamanColors colors, {
+    String? chip,
     Widget? destination,
     String? route,
+    VoidCallback? onTapOverride,
   }) {
     return _SlenderMenuTile(
       colors: colors,
       icon: icon,
       title: title,
-      tag: tag,
+      chip: chip,
       // NEW-A: when the destination has a canonical route, the route is
       // authoritative; the widget push remains only for screens without a
       // GoRoute yet.
-      onTap: destination == null && route == null
-          ? null
-          : () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-              if (route != null) {
-                context.push(route);
-              } else {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => destination!));
-              }
-            },
+      onTap: onTapOverride ??
+          ((destination == null && route == null)
+              ? null
+              : () {
+                  HapticFeedback.lightImpact();
+                  Navigator.of(context).pop();
+                  if (route != null) {
+                    context.push(route);
+                  } else {
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => destination!));
+                  }
+                }),
     );
   }
 
@@ -581,14 +723,14 @@ class _SlenderMenuTile extends StatefulWidget {
   final AzamanColors colors;
   final IconData icon;
   final String title;
-  final String tag;
+  final String? chip;
   final VoidCallback? onTap;
 
   const _SlenderMenuTile({
     required this.colors,
     required this.icon,
     required this.title,
-    required this.tag,
+    required this.chip,
     required this.onTap,
   });
 
@@ -661,15 +803,29 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
                           ),
                         ),
                       ),
-                      Text(
-                        widget.tag,
-                        style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                      if (widget.chip != null &&
+                          widget.chip!.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.chip!,
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
+                        const SizedBox(width: 6),
+                      ],
                       Icon(
                         Icons.arrow_forward,
                         color: colors.divider,
