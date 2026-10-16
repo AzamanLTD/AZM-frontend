@@ -425,6 +425,52 @@ class WalletCardDeckState extends State<WalletCardDeck>
     }
   }
 
+  /// The Visa card slot. Paint order (front/back) is decided by the
+  /// caller — see the card Stack's z-order note in [build].
+  Widget _visaCardSlot(WalletDeckPose pose, double h) {
+    return Positioned(
+      key: const ValueKey('wallet-deck-visa-slot'),
+      top: pose.visaTop,
+      left: 0,
+      right: 0,
+      height: h,
+      child: ExcludeSemantics(
+        excluding: _state != WalletDeckState.visaOut,
+        child: Transform.scale(
+          scale: pose.visaScale,
+          child: _CardShell(
+            shadow: pose.visaShadow,
+            radius: 22,
+            child: widget.visaCard,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The balance card slot. Paint order (front/back) is decided by the
+  /// caller — see the card Stack's z-order note in [build].
+  Widget _balanceCardSlot(WalletDeckPose pose, double h) {
+    return Positioned(
+      key: const ValueKey('wallet-deck-balance-slot'),
+      top: pose.balanceTop,
+      left: 0,
+      right: 0,
+      height: h,
+      child: ExcludeSemantics(
+        excluding: _state != WalletDeckState.balanceOut,
+        child: Transform.scale(
+          scale: pose.balanceScale,
+          child: _CardShell(
+            shadow: pose.balanceShadow,
+            radius: 24,
+            child: widget.balanceCard,
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── BUILD ───────────────────────────────────────────────────────────────
 
   @override
@@ -465,47 +511,23 @@ class WalletCardDeckState extends State<WalletCardDeck>
                 //    card publishes its content, so an obscured amount or
                 //    card face can never leak to a screen reader.
                 Stack(
+                  key: const ValueKey('wallet-deck-card-stack'),
                   clipBehavior: Clip.none,
-                  children: [
-                    // Visa card (behind the balance card).
-                    Positioned(
-                      key: const ValueKey('wallet-deck-visa-slot'),
-                      top: pose.visaTop,
-                      left: 0,
-                      right: 0,
-                      height: h,
-                      child: ExcludeSemantics(
-                        excluding: _state != WalletDeckState.visaOut,
-                        child: Transform.scale(
-                          scale: pose.visaScale,
-                          child: _CardShell(
-                            shadow: pose.visaShadow,
-                            radius: 22,
-                            child: widget.visaCard,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Balance card (the primary front card).
-                    Positioned(
-                      key: const ValueKey('wallet-deck-balance-slot'),
-                      top: pose.balanceTop,
-                      left: 0,
-                      right: 0,
-                      height: h,
-                      child: ExcludeSemantics(
-                        excluding: _state != WalletDeckState.balanceOut,
-                        child: Transform.scale(
-                          scale: pose.balanceScale,
-                          child: _CardShell(
-                            shadow: pose.balanceShadow,
-                            radius: 24,
-                            child: widget.balanceCard,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  // Z-ORDER: state-aware paint order. A Stack paints its
+                  // children in list order, so the SELECTED card is always
+                  // last in the list and therefore always paints over the
+                  // other. In visaOut the Visa card must render above the
+                  // concealed balance card — otherwise the balance card
+                  // (sliding down to its concealed pose) overlaps and
+                  // paints across the lower portion of the selected Visa
+                  // card before the pouch covers it, and the selection
+                  // reads as two broken half-cards instead of one complete
+                  // selected card. In tucked and balanceOut the physical
+                  // hierarchy is unchanged: balance is the foreground
+                  // card, with the Visa header exposed behind it.
+                  children: _state == WalletDeckState.visaOut
+                      ? [_balanceCardSlot(pose, h), _visaCardSlot(pose, h)]
+                      : [_visaCardSlot(pose, h), _balanceCardSlot(pose, h)],
                 ),
                 // ── Tucked balance hit-target: a TRANSPARENT tap +
                 //    semantics layer over the real card's exposed header
