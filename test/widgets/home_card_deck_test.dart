@@ -542,6 +542,75 @@ void main() {
           reason: 'the concealed card must not peek above the header');
     });
 
+    testWidgets('z-order is state-aware: in visaOut the selected Visa '
+        'card paints ABOVE the concealed balance card, and the pouch above '
+        'both', (tester) async {
+      await _pumpDeck(tester, reducedMotion: true);
+      final window =
+          tester.state<WalletCardDeckState>(find.byKey(_deckKey));
+      window.select(WalletDeckState.visaOut);
+      await tester.pumpAndSettle();
+
+      // (1) The card Stack paints its children in list order — the last
+      // child paints over every earlier one in the overlap region. In
+      // visaOut the Visa slot must therefore be AFTER the balance slot,
+      // otherwise the sliding-down balance card paints across the lower
+      // half of the selected Visa card and the selection reads as two
+      // broken half-cards.
+      List<String> cardOrder() {
+        final stack = tester.widget<Stack>(
+            find.byKey(const ValueKey('wallet-deck-card-stack')));
+        return stack.children
+            .map((w) => (w.key as ValueKey<String>).value)
+            .toList();
+      }
+
+      expect(cardOrder(),
+          ['wallet-deck-balance-slot', 'wallet-deck-visa-slot'],
+          reason: 'in visaOut the Visa card must paint on top of the '
+              'concealed balance card');
+
+      // (2) The ordering is not vacuous: in the settled visaOut pose the
+      // two cards genuinely overlap inside the window, so the wrong
+      // order WOULD paint the balance card over the selected Visa card.
+      final visaRect = tester.getRect(find.byKey(_visaKey));
+      final balanceRect = tester.getRect(find.byKey(_balanceKey));
+      expect(
+          visaRect.overlaps(balanceRect),
+          isTrue,
+          reason: 'the settled visaOut pose must overlap the concealed '
+              'balance card — this is the region the z-order guards');
+
+      // (3) The pouch stays the topmost physical layer over BOTH cards.
+      final windowStack = tester
+          .widget<Stack>(find
+              .ancestor(
+                of: find.byKey(const ValueKey('wallet-pouch-surface')),
+                matching: find.byWidgetPredicate(
+                    (w) => w is Stack && w.key != const ValueKey('wallet-deck-card-stack')),
+              )
+              .first);
+      final names = windowStack.children
+          .map((w) => w.key != null ? (w.key as ValueKey<String>).value : 'cards')
+          .toList();
+      expect(names.indexOf('cards'), lessThan(names.indexOf('wallet-pouch-surface')),
+          reason: 'the pouch must always paint above the card stack');
+
+      // (4) The other states keep the physical hierarchy: balance is the
+      // foreground card, Visa's header exposed behind it.
+      window.select(WalletDeckState.balanceOut);
+      await tester.pumpAndSettle();
+      expect(cardOrder(),
+          ['wallet-deck-visa-slot', 'wallet-deck-balance-slot'],
+          reason: 'balanceOut: the balance card must stay topmost');
+
+      window.select(WalletDeckState.tucked);
+      await tester.pumpAndSettle();
+      expect(cardOrder(),
+          ['wallet-deck-visa-slot', 'wallet-deck-balance-slot'],
+          reason: 'tucked: balance stays the foreground card');
+    });
+
     testWidgets('non-committing gestures preserve the live pose: a '
         'downward grab-and-release never snaps the card to a stale pose',
         (tester) async {
