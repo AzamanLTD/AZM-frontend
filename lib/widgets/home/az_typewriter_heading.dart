@@ -379,15 +379,16 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
     final contextual = _currentContextual();
     if (contextual != null) return contextual.text; // holds until it changes
     if (_scheduled == null) return _greetingMessage().text;
-    final next = kHeadingFeatureMessages[
-        _featureIndex % kHeadingFeatureMessages.length];
+    final next =
+        kHeadingFeatureMessages[_featureIndex % kHeadingFeatureMessages.length];
     _featureIndex++;
     return next.text;
   }
 
   late final TypewriterMachine _machine = TypewriterMachine(
-      holdDuration: _featureRotationInterval,
-      nextMessage: _nextRotationMessage);
+    holdDuration: _featureRotationInterval,
+    nextMessage: _nextRotationMessage,
+  );
   int _featureIndex = 0;
   HomeHeadingMessage? _scheduled;
 
@@ -460,14 +461,16 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
   /// Baseline greeting via the NEW-D brain (part of day + name).
   HomeHeadingMessage _greetingMessage() {
     final username = ref.read(authProvider).user?.username ?? '';
-    final line = AzGreetingBrain.resolve(AzGreetingInputs(
-      now: DateTime.now(),
-      username: username,
-      moneyArrivedToday: null,
-      escrowReleasingInHours: null,
-      susuDueTomorrow: false,
-      depositAwaitingApproval: false,
-    ));
+    final line = AzGreetingBrain.resolve(
+      AzGreetingInputs(
+        now: DateTime.now(),
+        username: username,
+        moneyArrivedToday: null,
+        escrowReleasingInHours: null,
+        susuDueTomorrow: false,
+        depositAwaitingApproval: false,
+      ),
+    );
     return HomeHeadingMessage(
       text: line.text,
       priority: HomeHeadingPriority.greeting,
@@ -533,9 +536,10 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
     // message arrives through ref.listen on the real inputs, not through a
     // polling timer. (The machine still asks its rotation source at every
     // hold end, so nothing is lost while the inputs are quiet.)
-    ref.listen(
-        homeSummaryProvider
-            .select((s) => s.recentTransactions.length), (_, __) {
+    ref.listen(homeSummaryProvider.select((s) => s.recentTransactions.length), (
+      _,
+      __,
+    ) {
       _maybeSupersedeContextual(shellActive);
     });
     ref.listen(susuListProvider, (_, __) {
@@ -543,31 +547,49 @@ class _AzTypewriterHeadingState extends ConsumerState<AzTypewriterHeading> {
     });
 
     final glyph = _scheduled?.glyph;
+    // PR #154 STABLE-FOOTPRINT CONTRACT: the heading's box must not move
+    // when the string is empty, typing, erasing, or swapping glyphs.
+    //   * minHeight — a floor (NOT a hard height, so enlarged text still
+    //     grows) that covers the titleXl line even when the text is ''.
+    //   * RESERVED ICON SLOT — the 20px glyph + 8px gap box is always
+    //     present (empty SizedBox when there is no glyph), so the text's
+    //     start edge NEVER shifts when a message with a different glyph
+    //     arrives mid-rotation.
+    // Both were the sources of the deck's Y-jitter reported on Home.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-      child: AnimatedBuilder(
-        animation: _machine,
-        builder: (context, _) => Row(
-          children: [
-            if (glyph != null) ...[
-              Icon(glyph, size: 20, color: azColors.accent),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                _machine.shownText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                // Correction C: the Home heading sits at the existing
-                // titleXl tier (24px) — not a new arbitrary size — so the
-                // line is calmer and never ellipsizes.
-                style: AzText.titleXl.copyWith(
-                  color: azColors.textPrimary,
-                  fontWeight: FontWeight.w800,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 32),
+        child: AnimatedBuilder(
+          animation: _machine,
+          builder: (context, _) => Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // The reserved slot: fixed 28x20 whether or not a glyph is
+              // showing. An empty shrink keeps it hit-test-transparent.
+              SizedBox(
+                width: 28,
+                height: 20,
+                child: glyph == null
+                    ? const SizedBox.shrink()
+                    : Icon(glyph, size: 20, color: azColors.accent),
+              ),
+              Expanded(
+                child: Text(
+                  _machine.shownText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  // Correction C: the Home heading sits at the existing
+                  // titleXl tier (24px) — not a new arbitrary size — so
+                  // the line is calmer and never ellipsizes.
+                  style: AzText.titleXl.copyWith(
+                    color: azColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
