@@ -31,16 +31,15 @@ import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
-import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
+import 'package:azaman/widgets/home/wallet_card_deck.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _surfaceSize = Size(400, 900);
@@ -161,7 +160,7 @@ bool _hasNonIdentityScale(WidgetTester tester, Finder anchor) {
 // leftmost header control and still part of the same entrance block.
 Finder get _headerAnchor => find.byType(NotificationBell); // block 0
 Finder get _heading => find.byType(AzTypewriterHeading); // block 1
-Finder get _deck => find.byType(PullRevealCardDeck); // block 2
+Finder get _deck => find.byType(WalletCardDeck); // block 2
 Finder get _modules => find.byType(WalletModulesRow); // block 3
 Finder get _doorway => find.byType(RecentActivityDoorway); // block 4
 
