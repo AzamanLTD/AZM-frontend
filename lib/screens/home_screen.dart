@@ -37,7 +37,6 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
-import 'package:azaman/widgets/tap_hint_hand.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
@@ -858,6 +857,15 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     with WidgetsBindingObserver {
   bool _detailsUnlocked = false;
 
+  /// STALE-RESULT GUARD (2026-10-16 follow-up): monotonic attempt counter
+  /// for the Visa PIN gate. A gate that is pending when the app is
+  /// backgrounded, the deck is tucked/switched or the Home tab loses
+  /// focus is invalidated by bumping this counter; when the awaited gate
+  /// later resolves, only the CURRENT attempt may unlock the details
+  /// panel — a delayed successful PIN can never unlock details for a
+  /// deck that has already been re-locked.
+  int _pinGeneration = 0;
+
   /// The inner deck handle: the PIN-gate flow, the tab-change re-lock and
   /// the app-lifecycle re-lock all tuck the deck PROGRAMMATICALLY
   /// (audit §6/§7 + the 2026-10-16 pouch-deck lifecycle audit: MainWrapper
@@ -923,10 +931,11 @@ class _DeckHostState extends ConsumerState<_DeckHost>
         WalletCardDeck(
           key: _deckKey,
           cardHeight: _cardHeight,
-          balanceCard: const TapHintOverlay(
-            hintKey: 'has_seen_flippable_card_hint',
-            child: FlippableBalanceCard(),
-          ),
+          // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
+          // its hand animation played invisibly behind the opaque pouch
+          // (the deck's exposed headers already teach tap-to-select).
+          // No perpetual ambient animation replaces it.
+          balanceCard: const FlippableBalanceCard(),
           visaCard: const AzmVisaCard(),
           onStateChanged: _onDeckStateChanged,
         ),
@@ -953,6 +962,8 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   /// the tucked pouch state.
   void _relockNow() {
     if (!mounted) return;
+    // Any in-flight PIN attempt is superseded the moment a re-lock happens.
+    _pinGeneration++;
     if (_detailsUnlocked) {
       setState(() => _detailsUnlocked = false);
     }
@@ -965,13 +976,17 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     switch (next) {
       case WalletDeckState.tucked:
         // Returned to the pouch (swipe, tap elsewhere, programmatic):
-        // a fresh reveal must pass the gate again.
+        // a fresh reveal must pass the gate again. Any pending gate is
+        // for a deck state that no longer exists — invalidate it.
+        _pinGeneration++;
         if (_detailsUnlocked) {
           setState(() => _detailsUnlocked = false);
         }
       case WalletDeckState.balanceOut:
         // The user's own balance card: no gate, but the Visa details
         // panel (if it was ever unlocked) is no longer the active card.
+        // A still-pending Visa gate is likewise superseded.
+        _pinGeneration++;
         if (_detailsUnlocked) {
           setState(() => _detailsUnlocked = false);
         }
@@ -981,14 +996,22 @@ class _DeckHostState extends ConsumerState<_DeckHost>
         // (masked number + SAMPLE disclosure) and carries nothing
         // sensitive.
         if (_detailsUnlocked) return;
+        final attempt = _pinGeneration;
         final verified = await showCardPinGate(context);
         if (!mounted) return;
+        // The result is only honoured if the attempt is still current AND
+        // the deck is still showing the Visa card: a gate that resolves
+        // after a re-lock (backgrounding, tab change, tuck, card switch)
+        // must never unlock anything.
+        if (attempt != _pinGeneration) return;
+        if (_deckKey.currentState?.state != WalletDeckState.visaOut) return;
         if (verified) {
           setState(() => _detailsUnlocked = true);
         } else {
           // Gate cancelled/failed: the deck MUST return to the tucked
           // pouch state, not merely clear a flag while the Visa card
           // lingers out.
+          _pinGeneration++;
           setState(() => _detailsUnlocked = false);
           _deckKey.currentState?.tuck();
         }

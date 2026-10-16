@@ -257,6 +257,56 @@ void main() {
   );
 
   testWidgets(
+    'a PIN result arriving AFTER a re-lock never unlocks: backgrounding '
+    'while the gate is pending invalidates the attempt',
+    (tester) async {
+      await _pumpHome(tester);
+
+      // Open the Visa card — the gate sheet is up, the result pending.
+      await tester.tap(find.bySemanticsLabel('Open AZM Visa card').first);
+      await _settle(tester);
+      expect(find.text('Unlock card details'), findsOneWidget);
+      expect(_deckState(tester), WalletDeckState.visaOut);
+
+      // The app loses focus while the gate is STILL pending: the deck
+      // re-tucks and the in-flight attempt is invalidated.
+      tester
+          .binding
+          .handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await _settle(tester);
+      expect(_deckState(tester), WalletDeckState.tucked);
+
+      // Canonical resume sequence (paused→hidden→inactive→resumed — the
+      // framework's lifecycle state machine rejects a direct jump).
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      await tester.pump();
+      tester
+          .binding
+          .handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      tester
+          .binding
+          .handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await _settle(tester);
+
+      // The sheet is still up; the user now completes the STALE gate
+      // with the correct PIN — the attempt itself verifies fine...
+      await tester.enterText(find.byType(TextField), '1234');
+      await tester.tap(find.text('Unlock card details'));
+      await _settle(tester);
+
+      // ...but the deck must stay tucked and the details panel must
+      // never mount: a successful PIN can only unlock the deck state
+      // it was entered for.
+      expect(_deckState(tester), WalletDeckState.tucked,
+          reason: 'the stale gate cannot re-open the deck');
+      expect(find.byType(AzmCardDetailsPanel), findsNothing,
+          reason: 'a PIN resolved after a re-lock must not unlock '
+              'details');
+    },
+  );
+
+  testWidgets(
     'app backgrounding re-locks: an out card with unlocked details drops '
     'back to the tucked pouch',
     (tester) async {
