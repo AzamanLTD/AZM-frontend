@@ -43,7 +43,7 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
 import 'package:azaman/providers/home_shell_active_provider.dart';
-import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
+import 'package:azaman/widgets/home/wallet_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
@@ -854,13 +854,48 @@ class _DeckHost extends ConsumerStatefulWidget {
   ConsumerState<_DeckHost> createState() => _DeckHostState();
 }
 
-class _DeckHostState extends ConsumerState<_DeckHost> {
+class _DeckHostState extends ConsumerState<_DeckHost>
+    with WidgetsBindingObserver {
   bool _detailsUnlocked = false;
 
-  /// The inner deck handle: the PIN-gate flow and the visibility re-lock
-  /// both collapse the deck PROGRAMMATICALLY (audit §6/§7).
-  final GlobalKey<PullRevealCardDeckState> _deckKey =
-      GlobalKey<PullRevealCardDeckState>();
+  /// The inner deck handle: the PIN-gate flow, the tab-change re-lock and
+  /// the app-lifecycle re-lock all tuck the deck PROGRAMMATICALLY
+  /// (audit §6/§7 + the 2026-10-16 pouch-deck lifecycle audit: MainWrapper
+  /// keeps Home mounted, so a tab change alone does NOT cover the app being
+  /// backgrounded — this host also observes the app lifecycle and returns
+  /// the deck to `tucked` on every inactive/paused/hidden transition).
+  final GlobalKey<WalletCardDeckState> _deckKey =
+      GlobalKey<WalletCardDeckState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // SECURITY (pouch deck): the tucked pouch is the deck's default privacy
+    // state. The moment the app loses focus — notification shade, app
+    // switcher, background — the deck goes back in the pocket and any
+    // unlocked card details are dropped.
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        _relockNow();
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.resumed:
+        break;
+    }
+  }
 
   // 2026-10-12 refresh: the physical cards' footprint is reduced ~8% (180 →
   // 165) so the stack reads tighter and the depth/cradle treatment gets room
@@ -885,15 +920,15 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PullRevealCardDeck(
+        WalletCardDeck(
           key: _deckKey,
           cardHeight: _cardHeight,
-          topCard: const TapHintOverlay(
+          balanceCard: const TapHintOverlay(
             hintKey: 'has_seen_flippable_card_hint',
             child: FlippableBalanceCard(),
           ),
-          bottomCard: const AzmVisaCard(),
-          onRevealChanged: _onRevealChanged,
+          visaCard: const AzmVisaCard(),
+          onStateChanged: _onDeckStateChanged,
         ),
         // §6: sensitive card content appears ONLY after the gate passes.
         if (_detailsUnlocked)
@@ -914,35 +949,49 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
     );
   }
 
-  /// The single re-lock path: clears the unlock AND collapses the deck
-  /// back to the balance-card resting state.
+  /// The single re-lock path: clears the unlock AND returns the deck to
+  /// the tucked pouch state.
   void _relockNow() {
     if (!mounted) return;
     if (_detailsUnlocked) {
       setState(() => _detailsUnlocked = false);
     }
-    _deckKey.currentState?.collapse();
+    _deckKey.currentState?.tuck();
   }
 
-  Future<void> _onRevealChanged(bool revealed) async {
-    if (!revealed) {
-      // Pulled back / programmatic collapse: lock again next time.
-      if (_detailsUnlocked) {
-        setState(() => _detailsUnlocked = false);
-      }
-      return;
-    }
-    // §6: the pull committed — gate BEFORE exposing anything sensitive.
-    final verified = await showCardPinGate(context);
-    if (!mounted) return;
-    if (verified) {
-      setState(() => _detailsUnlocked = true);
-    } else {
-      // AUDIT §6 — gate cancelled/failed: the deck MUST collapse back to
-      // the balance-card resting state, not merely clear a flag while the
-      // revealed card lingers.
-      setState(() => _detailsUnlocked = false);
-      _deckKey.currentState?.collapse();
+  /// The deck reports every state change; the host owns what each state
+  /// means downstream (audit §6).
+  Future<void> _onDeckStateChanged(WalletDeckState next) async {
+    switch (next) {
+      case WalletDeckState.tucked:
+        // Returned to the pouch (swipe, tap elsewhere, programmatic):
+        // a fresh reveal must pass the gate again.
+        if (_detailsUnlocked) {
+          setState(() => _detailsUnlocked = false);
+        }
+      case WalletDeckState.balanceOut:
+        // The user's own balance card: no gate, but the Visa details
+        // panel (if it was ever unlocked) is no longer the active card.
+        if (_detailsUnlocked) {
+          setState(() => _detailsUnlocked = false);
+        }
+      case WalletDeckState.visaOut:
+        // §6: the card programme's sensitive details mount ONLY after the
+        // PIN gate passes. The Visa card FACE itself is the demo surface
+        // (masked number + SAMPLE disclosure) and carries nothing
+        // sensitive.
+        if (_detailsUnlocked) return;
+        final verified = await showCardPinGate(context);
+        if (!mounted) return;
+        if (verified) {
+          setState(() => _detailsUnlocked = true);
+        } else {
+          // Gate cancelled/failed: the deck MUST return to the tucked
+          // pouch state, not merely clear a flag while the Visa card
+          // lingers out.
+          setState(() => _detailsUnlocked = false);
+          _deckKey.currentState?.tuck();
+        }
     }
   }
 }
@@ -957,8 +1006,8 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
 /// callback — it does NOT push the generic ProfileScreen. The AZM Rewards
 /// pill and its Home entry point are removed (the rewards programme keeps its
 /// canonical route; the gamified pill is not relocated elsewhere). The
-/// balance-visibility eye has MOVED ONTO the physical balance card itself
-/// (BalanceVisibilityEye, relocated — not re-approximated).
+/// balance-visibility eye is RETIRED (2026-10-16): the wallet pouch's
+/// tucked deck is the privacy state; there is no eye control anywhere.
 class _GreetingHeader extends ConsumerWidget {
   const _GreetingHeader({this.onOpenSettings});
 
